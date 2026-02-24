@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Preview panel markdown styling (manual prose classes - no @tailwindcss/typography needed) */
+.preview-content {
+  @apply text-gray-900 dark:text-gray-100 leading-relaxed;
+}
+
+.preview-content h1 {
+  @apply text-2xl font-bold mb-4 mt-6 pb-2 border-b border-gray-200 dark:border-gray-700;
+}
+
+.preview-content h2 {
+  @apply text-xl font-bold mb-3 mt-5 pb-1 border-b border-gray-200 dark:border-gray-700;
+}
+
+.preview-content h3 {
+  @apply text-lg font-semibold mb-2 mt-4;
+}
+
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+  @apply font-semibold mb-2 mt-3;
+}
+
+.preview-content p {
+  @apply mb-4;
+}
+
+.preview-content ul {
+  @apply list-disc list-inside mb-4 space-y-1;
+}
+
+.preview-content ol {
+  @apply list-decimal list-inside mb-4 space-y-1;
+}
+
+.preview-content li {
+  @apply ml-2;
+}
+
+.preview-content blockquote {
+  @apply border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 mb-4;
+}
+
+.preview-content code {
+  @apply bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-sm font-mono text-pink-600 dark:text-pink-400;
+}
+
+.preview-content pre {
+  @apply bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-4 overflow-x-auto;
+}
+
+.preview-content pre code {
+  @apply bg-transparent p-0 text-inherit;
+}
+
+.preview-content table {
+  @apply w-full border-collapse mb-4;
+}
+
+.preview-content th {
+  @apply bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 px-4 py-2 text-left font-semibold;
+}
+
+.preview-content td {
+  @apply border border-gray-300 dark:border-gray-600 px-4 py-2;
+}
+
+.preview-content a {
+  @apply text-blue-600 dark:text-blue-400 underline hover:no-underline;
+}
+
+.preview-content img {
+  @apply max-w-full h-auto rounded;
+}
+
+.preview-content hr {
+  @apply border-gray-200 dark:border-gray-700 my-6;
+}
+
+.preview-content s {
+  @apply text-gray-500;
+}
+
+/* Shiki code block overrides */
+.preview-content .shiki {
+  @apply rounded-lg mb-4 overflow-x-auto;
+}
+
+/* Mermaid container */
+.preview-content .mermaid-container {
+  @apply flex justify-center mb-4;
+}

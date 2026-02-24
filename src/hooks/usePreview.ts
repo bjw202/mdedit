@@ -1,0 +1,62 @@
+import { useState, useEffect } from 'react';
+import { useEditorStore } from '@/store/editorStore';
+import { renderMarkdown } from '@/lib/markdown/renderer';
+import { getHighlighter } from '@/lib/markdown/codeHighlight';
+import type { ShikiHighlighter } from '@/lib/markdown/codeHighlight';
+
+// @MX:ANCHOR: [AUTO] Preview rendering hook - consumed by MarkdownPreview component
+// @MX:REASON: [AUTO] Public API boundary for debounced markdown rendering (fan_in >= 3)
+// @MX:SPEC: SPEC-PREVIEW-001
+
+/** Debounce delay in milliseconds before triggering markdown re-render */
+const DEBOUNCE_MS = 300;
+
+/** Return type for the usePreview hook */
+interface PreviewState {
+  html: string;
+  isLoading: boolean;
+}
+
+/**
+ * Custom hook that subscribes to editor content and returns debounced HTML.
+ *
+ * - Waits 300ms after the last content change before rendering
+ * - Keeps the previous HTML while re-rendering (smooth update)
+ * - Handles rendering errors gracefully (keeps previous HTML on failure)
+ */
+export function usePreview(): PreviewState {
+  const [html, setHtml] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [highlighter, setHighlighter] = useState<ShikiHighlighter | null>(null);
+
+  const content = useEditorStore((s) => s.content);
+
+  // Initialize Shiki highlighter once on mount
+  useEffect(() => {
+    getHighlighter()
+      .then((h) => setHighlighter(h))
+      .catch(() => {
+        // Continue without syntax highlighting on initialization failure
+      });
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(true);
+      renderMarkdown(content, highlighter)
+        .then((rendered) => {
+          setHtml(rendered);
+        })
+        .catch(() => {
+          // Keep previous HTML on rendering error - do not update html state
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }, DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [content, highlighter]);
+
+  return { html, isLoading };
+}
