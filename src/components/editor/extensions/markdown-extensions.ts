@@ -18,6 +18,7 @@ export const editorBaseTheme: Extension = EditorView.theme({
   '&': {
     height: '100%',
     fontSize: '14px',
+    color: 'var(--cm-base-text)',  // Base text color: black in light mode, light gray in dark mode
   },
   '.cm-scroller': {
     overflow: 'auto',
@@ -31,10 +32,10 @@ export const editorBaseTheme: Extension = EditorView.theme({
     padding: '0 8px',
   },
   '.cm-activeLine': {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'var(--cm-active-line)',  // Subtle tint: works in both light and dark mode
   },
   '.cm-activeLineGutter': {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'var(--cm-active-line)',  // Matches active line
   },
   '.cm-gutters': {
     backgroundColor: 'transparent',

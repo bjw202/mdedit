@@ -49,4 +49,34 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(undef
 
 ### useFileSystem.ts mock pattern
 ipc.ts mock in useFileSystem.test.ts must include ALL exported functions:
-startWatch, stopWatch must be included or tests will fail when useFileSystem imports them.
+startWatch, stopWatch, saveFileAs must be included or tests will fail when useFileSystem imports them.
+
+### SPEC-EDITOR-002 + SPEC-PREVIEW-002 Status
+- Completed: Editor UX & Scroll Sync (2026-02-24)
+- uiStore: added saveStatus (SaveStatus type), scrollSyncEnabled, setSaveStatus, setScrollSyncEnabled, toggleScrollSync
+- keyboard-shortcuts.ts: exported wrapSelection, added prefixLine function
+- Rust: save_file_as command in file_ops.rs (uses tauri_plugin_dialog DialogExt), registered in lib.rs
+- ipc.ts: saveFileAs wrapper
+- MarkdownEditor.tsx: onViewReady prop, Ctrl+Shift+S (save-as), Ctrl+N (new), saveStatus feedback
+- Footer.tsx: saveStatus display, wordCount, charCount, scrollSync toggle button with aria-pressed
+- useFileSystem.ts: unsaved warning via window.confirm, saveFileAs function
+- AppLayout.tsx: viewRef + currentView state + handleViewReady, handleFormat (wrapSelection/prefixLine), all Footer props
+- renderer.ts: dataLinePlugin (data-line attributes on block tokens for scroll sync)
+- MarkdownPreview.tsx: previewRef prop
+- useScrollSync.ts: NEW - useScrollSync(editorView, previewRef, enabled) hook with RAF throttling
+
+### Renderer test pattern after data-line plugin
+After adding dataLinePlugin to renderer.ts, tests checking exact HTML like '<p>text</p>'
+must be updated to check tag prefix + content separately:
+  expect(result).toContain('<p');
+  expect(result).toContain('text</p>');
+OR use data-line attribute checks for block elements.
+
+### jsdom scrollIntoView mock pattern
+jsdom does not implement scrollIntoView. When testing scroll behavior, mock directly on element:
+  lineEl.scrollIntoView = vi.fn();
+Do NOT use vi.spyOn(lineEl, 'scrollIntoView') - it will fail with "does not exist".
+
+### window.confirm mock for unsaved warning
+When testing openFile with dirty=true, mock window.confirm via vi.stubGlobal:
+  vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));

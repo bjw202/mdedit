@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Editor color variables - light mode defaults */
+:root {
+  --cm-base-text: #111827;       /* gray-900: base text for light mode */
+  --cm-content: #111827;         /* gray-900: body content for light mode */
+  --cm-strong: #111827;          /* gray-900: bold text for light mode */
+  --cm-list: #374151;            /* gray-700: list items for light mode */
+  --cm-punctuation: #6b7280;     /* gray-500: punctuation for light mode */
+  --cm-active-line: rgba(0, 0, 0, 0.04);  /* subtle dark tint for light mode */
+}
+
+/* Editor color variables - dark mode overrides */
+.dark {
+  --cm-base-text: #e5e7eb;       /* gray-200: base text for dark mode */
+  --cm-content: #d4d4d4;         /* light gray: body content for dark mode */
+  --cm-strong: #ffffff;          /* white: bold text for dark mode */
+  --cm-list: #cccccc;            /* light gray: list items for dark mode */
+  --cm-punctuation: #808080;     /* medium gray: punctuation for dark mode */
+  --cm-active-line: rgba(255, 255, 255, 0.05); /* subtle light tint for dark mode */
+}
+
 /* Preview panel markdown styling (manual prose classes - no @tailwindcss/typography needed) */
 .preview-content {
   @apply text-gray-900 dark:text-gray-100 leading-relaxed;
