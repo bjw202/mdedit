@@ -82,8 +82,14 @@ export function useScrollSync(
         }
 
         if (targetEl !== null) {
+          // Use direct scrollTo instead of scrollIntoView to prevent ancestor
+          // overflow-hidden containers from being scrolled, which would shift
+          // the flex layout and cause the sidebar to visually disappear.
           isProgrammaticScrollRef.current = true;
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const containerTop = previewRef.current.getBoundingClientRect().top;
+          const targetTop = targetEl.getBoundingClientRect().top;
+          const scrollTarget = targetTop - containerTop + previewRef.current.scrollTop;
+          previewRef.current.scrollTo({ top: scrollTarget, behavior: 'smooth' });
         }
       });
     };

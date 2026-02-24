@@ -126,10 +126,21 @@ describe('useScrollSync', () => {
     // Create a preview element with data-line="0"
     const lineEl = document.createElement('p');
     lineEl.setAttribute('data-line', '0');
-    // jsdom does not implement scrollIntoView - mock it
-    lineEl.scrollIntoView = vi.fn();
 
     const previewRef = createPreviewRef([lineEl]);
+
+    // Mock getBoundingClientRect for container and target element
+    previewRef.current!.getBoundingClientRect = vi.fn().mockReturnValue({
+      top: 100, left: 0, bottom: 600, right: 300, width: 300, height: 500,
+    } as DOMRect);
+    lineEl.getBoundingClientRect = vi.fn().mockReturnValue({
+      top: 150, left: 0, bottom: 200, right: 300, width: 300, height: 50,
+    } as DOMRect);
+    Object.defineProperty(previewRef.current, 'scrollTop', { value: 0, configurable: true });
+
+    // Mock scrollTo on the preview container (jsdom does not implement it)
+    const scrollToMock = vi.fn();
+    previewRef.current!.scrollTo = scrollToMock;
 
     renderHook(() =>
       useScrollSync(mockView as unknown as import('@codemirror/view').EditorView, previewRef, true)
@@ -139,9 +150,9 @@ describe('useScrollSync', () => {
     mockView.scrollDOM.dispatchEvent(new Event('scroll'));
     flushRaf();
 
-    expect(lineEl.scrollIntoView).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: 'smooth', block: 'start' })
-    );
+    // scrollTarget = targetRect.top - containerRect.top + previewRef.current.scrollTop
+    //              = 150 - 100 + 0 = 50
+    expect(scrollToMock).toHaveBeenCalledWith({ top: 50, behavior: 'smooth' });
   });
 
   it('cancels pending RAF on rapid scroll events', async () => {

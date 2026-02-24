@@ -33,18 +33,20 @@ function filterTree(nodes: FileNode[], query: string): FileNode[] {
 
 /**
  * Derives the last segment of a path (folder name) for display.
+ * Handles both Unix ('/') and Windows ('\') path separators.
  */
 function getBaseName(path: string): string {
-  return path.split('/').filter(Boolean).pop() ?? path;
+  return path.split(/[/\\]/).filter(Boolean).pop() ?? path;
 }
 
 /**
  * Returns the parent directory path, or null if already at root.
+ * Handles both Unix ('/') and Windows ('\') path separators.
  */
 function parentOf(path: string): string | null {
-  const trimmed = path.replace(/\/+$/, '');
+  const trimmed = path.replace(/[/\\]+$/, '');
   if (!trimmed) return null;
-  const lastSlash = trimmed.lastIndexOf('/');
+  const lastSlash = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
   if (lastSlash < 0) return null;
   if (lastSlash === 0) return '/';
   return trimmed.slice(0, lastSlash);
