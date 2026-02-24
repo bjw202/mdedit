@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it';
+import type Token from 'markdown-it/lib/token.mjs';
 import { mermaidPlugin } from './mermaidPlugin';
 import type { ShikiHighlighter } from './codeHighlight';
 
@@ -8,6 +9,41 @@ import type { ShikiHighlighter } from './codeHighlight';
 
 // @MX:WARN: [AUTO] html: false is MANDATORY for XSS prevention - do NOT set to true
 // @MX:REASON: [AUTO] User-supplied markdown must never render raw HTML to prevent XSS attacks
+
+/**
+ * Block-level token types that receive data-line attributes for scroll sync.
+ * These correspond to the opening tokens of block elements in markdown-it.
+ */
+const DATA_LINE_TOKEN_TYPES = new Set([
+  'paragraph_open',
+  'heading_open',
+  'fence',
+  'blockquote_open',
+  'bullet_list_open',
+  'ordered_list_open',
+  'table_open',
+  'hr',
+  'code_block',
+]);
+
+/**
+ * markdown-it plugin that injects data-line attributes on block-level tokens.
+ * This enables line-number-based scroll synchronization between editor and preview.
+ *
+ * Each block element in the rendered HTML will have a data-line attribute
+ * containing the 0-based source line number from the markdown source.
+ */
+function dataLinePlugin(md: MarkdownIt): void {
+  md.core.ruler.push('data_line', (state) => {
+    const tokens: Token[] = state.tokens;
+    for (const token of tokens) {
+      if (DATA_LINE_TOKEN_TYPES.has(token.type) && token.map !== null && token.map.length > 0) {
+        token.attrSet('data-line', String(token.map[0]));
+      }
+    }
+    return false;
+  });
+}
 
 /**
  * Renders a markdown string to an HTML string.
@@ -52,6 +88,9 @@ export async function renderMarkdown(
 
   // Register mermaid plugin
   md.use(mermaidPlugin);
+
+  // Register data-line plugin for scroll sync
+  md.use(dataLinePlugin);
 
   return md.render(content);
 }

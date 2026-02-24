@@ -4,10 +4,13 @@ import type { Theme } from '@/store/uiStore';
 interface HeaderProps {
   filename?: string;
   isDirty?: boolean;
+  onNew?: () => void;
+  onSave?: () => void;
+  onSaveAs?: () => void;
 }
 
 // @MX:NOTE: Application header - displays filename, save status, font size controls, theme toggle
-export function Header({ filename = 'Untitled', isDirty = false }: HeaderProps): JSX.Element {
+export function Header({ filename = 'Untitled', isDirty = false, onNew, onSave, onSaveAs }: HeaderProps): JSX.Element {
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
   const fontSize = useUIStore((s) => s.fontSize);
@@ -24,7 +27,32 @@ export function Header({ filename = 'Untitled', isDirty = false }: HeaderProps):
         <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">
           MdEdit
         </span>
-        <span className="text-gray-400 dark:text-gray-500">|</span>
+        <span className="text-gray-300 dark:text-gray-600">|</span>
+        <button
+          onClick={onNew}
+          title="New File (Ctrl+N)"
+          aria-label="New file"
+          className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          New
+        </button>
+        <button
+          onClick={onSave}
+          title="Save (Ctrl+S)"
+          aria-label="Save"
+          className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          Save
+        </button>
+        <button
+          onClick={onSaveAs}
+          title="Save As (Ctrl+Shift+S)"
+          aria-label="Save as"
+          className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          Save As
+        </button>
+        <span className="text-gray-300 dark:text-gray-600">|</span>
         <span className="text-sm text-gray-600 dark:text-gray-400">
           {filename}
           {isDirty && <span className="ml-1 text-orange-500">●</span>}

@@ -9,8 +9,14 @@ import { EditorView, keymap } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { openSearchPanel } from '@codemirror/search';
 import { useEditorStore } from '@/store/editorStore';
-import { writeFile } from '@/lib/tauri/ipc';
+import { useUIStore } from '@/store/uiStore';
+import { writeFile, saveFileAs } from '@/lib/tauri/ipc';
 import { createMarkdownExtensions } from './extensions/markdown-extensions';
+
+interface MarkdownEditorProps {
+  /** Callback invoked with the EditorView instance after initialization */
+  onViewReady?: (view: EditorView) => void;
+}
 
 /**
  * MarkdownEditor - CodeMirror 6 based Markdown editor component.
@@ -19,10 +25,13 @@ import { createMarkdownExtensions } from './extensions/markdown-extensions';
  * - Initialize CodeMirror 6 EditorView with Markdown extension bundle
  * - Sync content changes and cursor position to editorStore
  * - Handle Ctrl+S / Cmd+S to save file via Tauri writeFile IPC
+ * - Handle Ctrl+Shift+S / Cmd+Shift+S to save as via Tauri save dialog
+ * - Handle Ctrl+N / Cmd+N to create new file (reset editor)
  * - Ctrl+F / Cmd+F: open CodeMirror search panel
  * - Cleanup EditorView on unmount (prevent memory leak)
+ * - Notify parent via onViewReady when EditorView is created
  */
-export function MarkdownEditor(): JSX.Element {
+export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
@@ -31,12 +40,17 @@ export function MarkdownEditor(): JSX.Element {
   const setContent = useEditorStore((s) => s.setContent);
   const setCursor = useEditorStore((s) => s.setCursor);
   const setDirty = useEditorStore((s) => s.setDirty);
+  const setCurrentFilePath = useEditorStore((s) => s.setCurrentFilePath);
+  const resetEditor = useEditorStore((s) => s.resetEditor);
 
   // Use refs for values used inside the one-time useEffect to avoid stale closures
   const currentFilePathRef = useRef(currentFilePath);
   const setContentRef = useRef(setContent);
   const setCursorRef = useRef(setCursor);
   const setDirtyRef = useRef(setDirty);
+  const setCurrentFilePathRef = useRef(setCurrentFilePath);
+  const resetEditorRef = useRef(resetEditor);
+  const onViewReadyRef = useRef(onViewReady);
   // Flag to skip dirty-marking when content is set externally (e.g., file open)
   const isExternalUpdateRef = useRef(false);
 
@@ -45,6 +59,9 @@ export function MarkdownEditor(): JSX.Element {
   useEffect(() => { setContentRef.current = setContent; }, [setContent]);
   useEffect(() => { setCursorRef.current = setCursor; }, [setCursor]);
   useEffect(() => { setDirtyRef.current = setDirty; }, [setDirty]);
+  useEffect(() => { setCurrentFilePathRef.current = setCurrentFilePath; }, [setCurrentFilePath]);
+  useEffect(() => { resetEditorRef.current = resetEditor; }, [resetEditor]);
+  useEffect(() => { onViewReadyRef.current = onViewReady; }, [onViewReady]);
 
   // Sync external content changes (file open) into the CodeMirror editor
   useEffect(() => {
@@ -62,6 +79,8 @@ export function MarkdownEditor(): JSX.Element {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const setSaveStatus = useUIStore.getState().setSaveStatus;
+
     // @MX:NOTE: [AUTO] EditorView initialization - createMarkdownExtensions provides the full extension bundle
     const editorSaveKeymap = keymap.of([
       {
@@ -70,14 +89,50 @@ export function MarkdownEditor(): JSX.Element {
           const filePath = currentFilePathRef.current;
           if (filePath) {
             const docContent = view.state.doc.toString();
+            setSaveStatus('saving');
             writeFile(filePath, docContent)
               .then(() => {
                 setDirtyRef.current(false);
+                useUIStore.getState().setSaveStatus('saved');
               })
               .catch(() => {
-                // Save failed silently - dirty flag remains true
+                // Save failed - revert to unsaved
+                useUIStore.getState().setSaveStatus('unsaved');
               });
           }
+          return true;
+        },
+        preventDefault: true,
+      },
+      {
+        key: 'Mod-Shift-s',
+        run: (view) => {
+          const docContent = view.state.doc.toString();
+          useUIStore.getState().setSaveStatus('saving');
+          saveFileAs(docContent)
+            .then((savedPath) => {
+              if (savedPath !== null) {
+                setCurrentFilePathRef.current(savedPath);
+                setDirtyRef.current(false);
+                useUIStore.getState().setSaveStatus('saved');
+              } else {
+                // User cancelled - restore previous status
+                const isDirty = useEditorStore.getState().dirty;
+                useUIStore.getState().setSaveStatus(isDirty ? 'unsaved' : 'saved');
+              }
+            })
+            .catch(() => {
+              useUIStore.getState().setSaveStatus('unsaved');
+            });
+          return true;
+        },
+        preventDefault: true,
+      },
+      {
+        key: 'Mod-n',
+        run: () => {
+          resetEditorRef.current();
+          useUIStore.getState().setSaveStatus('new');
           return true;
         },
         preventDefault: true,
@@ -103,6 +158,7 @@ export function MarkdownEditor(): JSX.Element {
         const newContent = update.state.doc.toString();
         setContentRef.current(newContent);
         setDirtyRef.current(true);
+        useUIStore.getState().setSaveStatus('unsaved');
       }
 
       if (update.selectionSet || update.docChanged) {
@@ -127,6 +183,9 @@ export function MarkdownEditor(): JSX.Element {
     });
 
     viewRef.current = view;
+
+    // Notify parent that the EditorView is ready
+    onViewReadyRef.current?.(view);
 
     // Cleanup: destroy EditorView on unmount to prevent memory leak
     return () => {

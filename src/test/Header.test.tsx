@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Header } from '@/components/layout/Header';
 import { useUIStore } from '@/store/uiStore';
@@ -43,5 +43,33 @@ describe('Header', () => {
   it('shows theme toggle button', () => {
     render(<Header />);
     expect(screen.getByLabelText('Toggle theme')).toBeInTheDocument();
+  });
+
+  it('renders New, Save, Save As buttons', () => {
+    render(<Header />);
+    expect(screen.getByLabelText('New file')).toBeInTheDocument();
+    expect(screen.getByLabelText('Save')).toBeInTheDocument();
+    expect(screen.getByLabelText('Save as')).toBeInTheDocument();
+  });
+
+  it('calls onNew when New button clicked', () => {
+    const onNew = vi.fn();
+    render(<Header onNew={onNew} />);
+    fireEvent.click(screen.getByLabelText('New file'));
+    expect(onNew).toHaveBeenCalledOnce();
+  });
+
+  it('calls onSave when Save button clicked', () => {
+    const onSave = vi.fn();
+    render(<Header onSave={onSave} />);
+    fireEvent.click(screen.getByLabelText('Save'));
+    expect(onSave).toHaveBeenCalledOnce();
+  });
+
+  it('calls onSaveAs when Save As button clicked', () => {
+    const onSaveAs = vi.fn();
+    render(<Header onSaveAs={onSaveAs} />);
+    fireEvent.click(screen.getByLabelText('Save as'));
+    expect(onSaveAs).toHaveBeenCalledOnce();
   });
 });

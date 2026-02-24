@@ -1,5 +1,6 @@
 // @MX:NOTE: Custom keyboard shortcuts for Markdown editing operations
 // Wraps selection with Markdown syntax tokens (bold, italic, comment toggle)
+// Prefixes lines with Markdown block tokens (heading, list, quote)
 
 import { keymap } from '@codemirror/view';
 import type { KeyBinding } from '@codemirror/view';
@@ -12,7 +13,7 @@ import type { Extension } from '@codemirror/state';
  * If there is no selection, inserts the tokens with the cursor placed between them.
  * If the selection is already wrapped, unwraps it.
  */
-function wrapSelection(view: EditorView, before: string, after: string): boolean {
+export function wrapSelection(view: EditorView, before: string, after: string): boolean {
   const { state } = view;
   const changes = state.changeByRange((range) => {
     const selectedText = state.sliceDoc(range.from, range.to);
@@ -26,6 +27,15 @@ function wrapSelection(view: EditorView, before: string, after: string): boolean
       };
     }
 
+    // No selection: insert tokens with cursor between them
+    if (range.from === range.to) {
+      const inserted = before + after;
+      return {
+        changes: { from: range.from, to: range.to, insert: inserted },
+        range: EditorSelection.cursor(range.from + before.length),
+      };
+    }
+
     // Wrap the selection
     const wrapped = before + selectedText + after;
     return {
@@ -33,6 +43,44 @@ function wrapSelection(view: EditorView, before: string, after: string): boolean
       range: EditorSelection.range(
         range.from + before.length,
         range.from + before.length + selectedText.length,
+      ),
+    };
+  });
+
+  view.dispatch(changes);
+  return true;
+}
+
+/**
+ * Prefixes the current line(s) with the given prefix string.
+ * If the line already starts with the prefix, removes it (toggle behavior).
+ * Handles multiple selections by operating on each selected line independently.
+ */
+export function prefixLine(view: EditorView, prefix: string): boolean {
+  const { state } = view;
+  const changes = state.changeByRange((range) => {
+    const line = state.doc.lineAt(range.from);
+    const lineText = line.text;
+
+    if (lineText.startsWith(prefix)) {
+      // Remove the prefix
+      const newText = lineText.slice(prefix.length);
+      const newLength = newText.length;
+      return {
+        changes: { from: line.from, to: line.to, insert: newText },
+        range: EditorSelection.range(
+          Math.max(line.from, range.from - prefix.length),
+          Math.min(line.from + newLength, range.to - prefix.length),
+        ),
+      };
+    }
+
+    // Add the prefix
+    return {
+      changes: { from: line.from, to: line.from, insert: prefix },
+      range: EditorSelection.range(
+        range.from + prefix.length,
+        range.to + prefix.length,
       ),
     };
   });

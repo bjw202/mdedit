@@ -9,15 +9,18 @@ import {
   createFile as ipcCreateFile,
   deleteFile as ipcDeleteFile,
   renameFile as ipcRenameFile,
+  saveFileAs as ipcSaveFileAs,
   startWatch,
 } from '@/lib/tauri/ipc';
 import { useFileStore } from '@/store/fileStore';
 import { useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 
 interface FileSystemHook {
   openFolder: () => Promise<void>;
   openFolderPath: (path: string) => Promise<void>;
   openFile: (path: string) => Promise<void>;
+  saveFileAs: () => Promise<string | null>;
   createFile: (dirPath: string, name: string) => Promise<void>;
   deleteNode: (path: string) => Promise<void>;
   renameNode: (path: string, newName: string) => Promise<void>;
@@ -41,10 +44,10 @@ async function refreshTree(): Promise<void> {
 
 /**
  * Derives the parent directory path from a full file path.
- * Splits on '/' and joins all parts except the last.
+ * Handles both Unix ('/') and Windows ('\') path separators.
  */
 function getParentPath(filePath: string): string {
-  const parts = filePath.split('/');
+  const parts = filePath.split(/[/\\]/);
   parts.pop();
   return parts.join('/') || '/';
 }
@@ -93,10 +96,43 @@ export function useFileSystem(): FileSystemHook {
   };
 
   const openFile = async (path: string): Promise<void> => {
+    // Check for unsaved changes and warn the user
+    const { dirty } = useEditorStore.getState();
+    if (dirty) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Do you want to discard them and open the new file?'
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     const content = await readFile(path);
     setCurrentFile(path);
     setContent(content);
     setCurrentFilePath(path);
+    useUIStore.getState().setSaveStatus('saved');
+  };
+
+  const saveFileAs = async (): Promise<string | null> => {
+    const { content } = useEditorStore.getState();
+    useUIStore.getState().setSaveStatus('saving');
+    try {
+      const savedPath = await ipcSaveFileAs(content);
+      if (savedPath !== null) {
+        setCurrentFilePath(savedPath);
+        useEditorStore.getState().setDirty(false);
+        useUIStore.getState().setSaveStatus('saved');
+      } else {
+        const isDirty = useEditorStore.getState().dirty;
+        useUIStore.getState().setSaveStatus(isDirty ? 'unsaved' : 'saved');
+      }
+      return savedPath;
+    } catch (err: unknown) {
+      console.error('[useFileSystem] saveFileAs failed:', err);
+      useUIStore.getState().setSaveStatus('unsaved');
+      return null;
+    }
   };
 
   const createFile = async (dirPath: string, name: string): Promise<void> => {
@@ -117,5 +153,5 @@ export function useFileSystem(): FileSystemHook {
     await refreshTree();
   };
 
-  return { openFolder, openFolderPath, openFile, createFile, deleteNode, renameNode };
+  return { openFolder, openFolderPath, openFile, saveFileAs, createFile, deleteNode, renameNode };
 }

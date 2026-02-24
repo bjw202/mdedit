@@ -12,6 +12,7 @@ vi.mock('@/lib/tauri/ipc', () => ({
   createFile: vi.fn(),
   deleteFile: vi.fn(),
   renameFile: vi.fn(),
+  saveFileAs: vi.fn().mockResolvedValue(null),
   startWatch: vi.fn().mockResolvedValue(undefined),
   stopWatch: vi.fn().mockResolvedValue(undefined),
 }));
@@ -27,6 +28,8 @@ const mockTree = [
 describe('useFileSystem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock window.confirm for unsaved changes warning
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
     useFileStore.setState({
       fileTree: [],
       currentFile: null,
@@ -43,11 +46,12 @@ describe('useFileSystem', () => {
     });
   });
 
-  it('should expose openFolder, openFolderPath, openFile, createFile, deleteNode, renameNode', () => {
+  it('should expose openFolder, openFolderPath, openFile, saveFileAs, createFile, deleteNode, renameNode', () => {
     const { result } = renderHook(() => useFileSystem());
     expect(typeof result.current.openFolder).toBe('function');
     expect(typeof result.current.openFolderPath).toBe('function');
     expect(typeof result.current.openFile).toBe('function');
+    expect(typeof result.current.saveFileAs).toBe('function');
     expect(typeof result.current.createFile).toBe('function');
     expect(typeof result.current.deleteNode).toBe('function');
     expect(typeof result.current.renameNode).toBe('function');

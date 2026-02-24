@@ -35,5 +35,10 @@ export default defineConfig(async () => ({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    poolOptions: {
+      forks: {
+        execArgv: ["--max-old-space-size=4096"],
+      },
+    },
   },
 }));

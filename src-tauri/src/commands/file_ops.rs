@@ -80,6 +80,36 @@ pub async fn delete_file(path: String) -> Result<(), String> {
         .map_err(|e| format!("Failed to delete file: {}", e))
 }
 
+/// Opens a native Save As dialog and writes content to the selected file.
+/// Returns the path where the file was saved, or None if the user cancelled.
+#[tauri::command]
+pub async fn save_file_as(app: tauri::AppHandle, content: String) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let path = app
+        .dialog()
+        .file()
+        .add_filter("Markdown", &["md", "markdown", "txt"])
+        .blocking_save_file();
+
+    match path {
+        Some(file_path) => {
+            let path_str = file_path.to_string();
+            let path_buf = std::path::Path::new(&path_str).to_path_buf();
+            if let Some(parent) = path_buf.parent() {
+                if !parent.as_os_str().is_empty() {
+                    std::fs::create_dir_all(parent)
+                        .map_err(|e| format!("Failed to create parent directories: {}", e))?;
+                }
+            }
+            std::fs::write(&path_buf, content.as_bytes())
+                .map_err(|e| format!("Failed to write file: {}", e))?;
+            Ok(Some(path_str))
+        }
+        None => Ok(None),
+    }
+}
+
 /// Renames or moves a file. Returns error if new_path already exists.
 #[tauri::command]
 pub async fn rename_file(old_path: String, new_path: String) -> Result<(), String> {

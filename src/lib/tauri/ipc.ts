@@ -77,3 +77,11 @@ export async function startWatch(path: string): Promise<void> {
 export async function stopWatch(): Promise<void> {
   return invoke<void>('stop_watch');
 }
+
+/**
+ * Opens a native Save As dialog, writes the content to the selected file,
+ * and returns the saved file path. Returns null if the user cancels.
+ */
+export async function saveFileAs(content: string): Promise<string | null> {
+  return invoke<string | null>('save_file_as', { content });
+}

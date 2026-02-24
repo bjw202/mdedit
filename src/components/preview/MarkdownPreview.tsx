@@ -1,21 +1,28 @@
+import type { RefObject } from 'react';
 import { usePreview } from '@/hooks/usePreview';
 import { PreviewRenderer } from './PreviewRenderer';
 
 // @MX:NOTE: [AUTO] Main preview panel container - replaces PlaceholderPreview in AppLayout
 // Wraps usePreview hook and PreviewRenderer for the 3-pane layout
-// @MX:SPEC: SPEC-PREVIEW-001
+// @MX:SPEC: SPEC-PREVIEW-001, SPEC-PREVIEW-002
+
+interface MarkdownPreviewProps {
+  /** Ref to the scrollable preview container for scroll sync */
+  previewRef?: RefObject<HTMLDivElement>;
+}
 
 /**
  * Markdown preview panel component.
  *
  * Displays a rendered HTML preview of the current editor content.
  * Shows a placeholder when there is no content to render.
+ * Accepts a previewRef for scroll synchronization.
  */
-export function MarkdownPreview(): JSX.Element {
+export function MarkdownPreview({ previewRef }: MarkdownPreviewProps): JSX.Element {
   const { html } = usePreview();
 
   return (
-    <div className="h-full overflow-y-auto p-4">
+    <div ref={previewRef} className="h-full overflow-y-auto p-4">
       {html ? (
         <PreviewRenderer html={html} />
       ) : (

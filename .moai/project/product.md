@@ -10,7 +10,7 @@
 
 **Target Platform**: macOS, Windows, Linux
 
-**Development Status**: Pre-MVP (Architecture and Design Phase)
+**Development Status**: MVP (Core features implemented and functional)
 
 ---
 

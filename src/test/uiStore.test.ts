@@ -11,6 +11,8 @@ describe('uiStore', () => {
       theme: 'system',
       fontSize: 14,
       sidebarCollapsed: false,
+      saveStatus: 'new',
+      scrollSyncEnabled: true,
     });
   });
 
@@ -71,5 +73,64 @@ describe('uiStore', () => {
     const { setPreviewWidth } = useUIStore.getState();
     act(() => setPreviewWidth(90));
     expect(useUIStore.getState().previewWidth).toBe(80);
+  });
+});
+
+describe('uiStore: saveStatus', () => {
+  beforeEach(() => {
+    useUIStore.setState({ saveStatus: 'new' });
+  });
+
+  it('should have default saveStatus of "new"', () => {
+    const state = useUIStore.getState();
+    expect(state.saveStatus).toBe('new');
+  });
+
+  it('should set saveStatus to "saving"', () => {
+    const { setSaveStatus } = useUIStore.getState();
+    act(() => setSaveStatus('saving'));
+    expect(useUIStore.getState().saveStatus).toBe('saving');
+  });
+
+  it('should set saveStatus to "saved"', () => {
+    const { setSaveStatus } = useUIStore.getState();
+    act(() => setSaveStatus('saved'));
+    expect(useUIStore.getState().saveStatus).toBe('saved');
+  });
+
+  it('should set saveStatus to "unsaved"', () => {
+    const { setSaveStatus } = useUIStore.getState();
+    act(() => setSaveStatus('unsaved'));
+    expect(useUIStore.getState().saveStatus).toBe('unsaved');
+  });
+});
+
+describe('uiStore: scrollSyncEnabled', () => {
+  beforeEach(() => {
+    useUIStore.setState({ scrollSyncEnabled: true });
+  });
+
+  it('should have default scrollSyncEnabled as true', () => {
+    const state = useUIStore.getState();
+    expect(state.scrollSyncEnabled).toBe(true);
+  });
+
+  it('should toggle scrollSyncEnabled from true to false', () => {
+    const { toggleScrollSync } = useUIStore.getState();
+    act(() => toggleScrollSync());
+    expect(useUIStore.getState().scrollSyncEnabled).toBe(false);
+  });
+
+  it('should toggle scrollSyncEnabled from false to true', () => {
+    useUIStore.setState({ scrollSyncEnabled: false });
+    const { toggleScrollSync } = useUIStore.getState();
+    act(() => toggleScrollSync());
+    expect(useUIStore.getState().scrollSyncEnabled).toBe(true);
+  });
+
+  it('should set scrollSyncEnabled directly', () => {
+    const { setScrollSyncEnabled } = useUIStore.getState();
+    act(() => setScrollSyncEnabled(false));
+    expect(useUIStore.getState().scrollSyncEnabled).toBe(false);
   });
 });
