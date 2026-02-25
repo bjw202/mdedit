@@ -257,6 +257,183 @@ console.log('grandparent.scrollWidth > grandparent.offsetWidth:', grandparent.sc
 
 ---
 
-버전: 1.1.0
-작성일: 2026-02-25 (초판) / 2026-02-25 (7절 추가)
+## 8. 향후 크로스플랫폼 시각적 버그 대응 워크플로우
+
+Tauri 앱(macOS WKWebView, Windows WebView2)에서 시각적 버그를 만났을 때 따를 **표준 워크플로우**.
+
+---
+
+### 단계 0: 버그 분류 (1분)
+
+보고된 증상으로 버그 유형을 먼저 확인한다.
+
+| 증상 | 유형 | 시작 단계 |
+|------|------|----------|
+| 패널이 예상보다 좁음, 요소 잘림 | 레이아웃 오버플로우 | → 단계 2A |
+| 스크롤바 안 보임 (요소 크기는 맞음) | CSS/렌더링 | → 단계 2B |
+| macOS는 되고 Windows만 안 됨 | 플랫폼별 차이 | → 단계 1 진단 |
+| 양 플랫폼 모두 안 됨 | 공통 레이아웃/CSS | → 단계 1 진단 |
+
+---
+
+### 단계 1: 진단 스크립트 실행 (버그 상태에서)
+
+Tauri DevTools(우클릭 → 요소 검사 → Console) 또는 개발 중인 경우 브라우저 콘솔에서 실행:
+
+```javascript
+// === Tauri 크로스플랫폼 시각적 버그 진단 스크립트 ===
+const s = document.querySelector('.preview-scroll');
+const p = s?.parentElement;
+const g = p?.parentElement;
+
+console.log('[플랫폼]', document.documentElement.getAttribute('data-platform'));
+console.log('[창 크기]', window.innerWidth, 'x', window.innerHeight);
+
+if (s) console.log('[preview-scroll]', {
+  offsetWidth: s.offsetWidth,
+  scrollWidth: s.scrollWidth,
+  overflow: getComputedStyle(s).overflow,
+  overflowX: getComputedStyle(s).overflowX,
+});
+if (p) console.log('[parent wrapper]', {
+  offsetWidth: p.offsetWidth,
+  overflow: getComputedStyle(p).overflow,
+});
+if (g) console.log('[grandparent flex]', {
+  offsetWidth: g.offsetWidth,
+  scrollWidth: g.scrollWidth,
+  isOverflowing: g.scrollWidth > g.offsetWidth,
+});
+```
+
+---
+
+### 단계 2A: 레이아웃 오버플로우 수정
+
+진단에서 `grandparent.scrollWidth > grandparent.offsetWidth === true` 이면 **레이아웃 버그**다.
+
+**원인 패턴:** flex 컨테이너 안에 고정 px 요소 + % 기반 요소가 섞여 있어 합계가 컨테이너를 초과한다.
+
+**수동 계산으로 확인:**
+```
+예상 합계 = 고정요소(px) + 요소1(% of 컨테이너) + 요소2(% of 컨테이너)
+예상 합계 > 컨테이너 너비 → 오버플로우 확정
+```
+
+**수정 패턴 (필수):**
+```js
+// Before: 고정 px 미포함 → 항상 overflow
+const width = `${fraction}%`;
+
+// After: 고정 px 뺀 나머지의 비율 → overflow 없음
+const fixedPx = sidebarPx + dividerPx + /* 기타 고정 요소 */;
+const width = `calc((100% - ${fixedPx}px) * ${fraction})`;
+```
+
+---
+
+### 단계 2B: CSS/렌더링 버그 수정
+
+진단에서 레이아웃은 정상인데 스크롤바가 안 보이면 **CSS 렌더링 버그**다.
+
+**Tauri 플랫폼별 CSS 분기 (표준 패턴):**
+
+```typescript
+// App.tsx: 앱 시작 시 플랫폼 속성 설정 (1회)
+useEffect(() => {
+  const isWindows = navigator.userAgent.includes('Windows');
+  document.documentElement.setAttribute('data-platform', isWindows ? 'windows' : 'other');
+}, []);
+```
+
+```css
+/* index.css: 플랫폼별 CSS 분기 */
+
+/* macOS WKWebView: overlay 스크롤바 숨김 → 커스텀 스크롤바로 강제 표시 */
+.preview-scroll {
+  overflow: scroll !important;
+}
+.preview-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.preview-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+/* Windows WebView2: 네이티브 스크롤바는 항상 보임 → overflow 필요할 때만 */
+[data-platform="windows"] .preview-scroll {
+  overflow: auto !important;
+}
+```
+
+**CSS 스크롤 관련 체크리스트:**
+- `overflow: scroll` vs `overflow: auto` — macOS는 scroll, Windows는 auto
+- `::-webkit-scrollbar` — Chromium(Windows)도 지원하므로 커스텀 스타일 통일 가능
+- `border-collapse: separate` — WebKit 테두리 클리핑 버그 방지
+- `padding-right: 1px` — Chromium에서 테이블 오른쪽 테두리 클리핑 방지
+
+---
+
+### 단계 3: 수정 후 검증 체크리스트
+
+수정 후 **반드시** 실제 Tauri 앱에서 확인 (Playwright/브라우저가 아닌):
+
+- [ ] macOS: 기본 창 크기에서 정상 동작
+- [ ] macOS: 좁은 창(800px 이하)에서 스크롤 동작
+- [ ] Windows: 기본 창 크기에서 정상 동작
+- [ ] Windows: 좁은 창(800px 이하)에서 스크롤 동작
+- [ ] 사이드바 열림 / 닫힘 상태 모두
+- [ ] 다양한 테이블 너비 (좁은 / 넓은 / 딱 맞는)
+- [ ] 수정 전 macOS에서 정상이었던 기능이 깨지지 않음
+
+---
+
+### 단계 4: 진단 판단 트리
+
+```
+버그 보고 접수
+    │
+    ▼
+진단 스크립트 실행 (단계 1)
+    │
+    ├─ grandparent.scrollWidth > offsetWidth?
+    │       YES → 단계 2A (레이아웃 오버플로우)
+    │       NO  ↓
+    │
+    ├─ s.scrollWidth > s.offsetWidth + 스크롤바 안 보임?
+    │       YES → 단계 2B (CSS 렌더링)
+    │       NO  ↓
+    │
+    ├─ s.scrollWidth == s.offsetWidth?
+    │       YES → 콘텐츠가 오버플로우하지 않음
+    │             (창 크기 더 좁혀서 재시도)
+    │
+    └─ 여전히 불명확?
+            → 진단 오버레이 추가 (규칙 1 참조)
+```
+
+---
+
+### 단계 5: 학습 문서화
+
+버그를 해결한 뒤 이 파일에 기록:
+
+1. **근본 원인**: 레이아웃 오버플로우 / CSS 렌더링 / 플랫폼별 / 기타
+2. **진단에서 결정적이었던 값**: 어떤 수치가 버그를 확정했는가
+3. **수정 코드 스니펫**: 핵심 변경만 간결하게
+4. **예방 체크리스트**: 재발 방지를 위한 항목
+
+---
+
+### 플랫폼별 알려진 동작 차이 참조표
+
+| 항목 | macOS WKWebView | Windows WebView2 |
+|------|----------------|-----------------|
+| 스크롤바 기본 표시 | overlay (숨겨짐) | 항상 표시 |
+| `overflow: auto` | 콘텐츠 없으면 스크롤바 숨김 | 콘텐츠 없으면 스크롤바 숨김 |
+| `overflow: scroll` | 스크롤바 항상 표시 (overlay이면 보이지 않을 수 있음) | 스크롤바 항상 표시 (공간 차지) |
+| `::-webkit-scrollbar` | 지원 ✓ | 지원 ✓ (Chromium) |
+| `border-collapse: collapse` | 테두리 클리핑 버그 발생 가능 | 정상 |
+| Playwright WebKit | WKWebView와 다름 (뷰포트, 스크롤바 동작) | 해당 없음 |
+
+---
+
+버전: 1.2.0
+작성일: 2026-02-25 (초판) / 2026-02-25 (7절 추가) / 2026-02-25 (8절 워크플로우 가이드 추가)
 작성자: MoAI + jw (공동 디버깅 세션)
