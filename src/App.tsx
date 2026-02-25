@@ -1,14 +1,29 @@
 // @MX:NOTE: [AUTO] App root - integrates useFileWatcher for external file change detection
 // @MX:SPEC: SPEC-FS-002
 
+import { useEffect } from 'react';
 import { AppLayout } from './components/layout/AppLayout';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
+import { useFileSystem } from '@/hooks/useFileSystem';
 import { useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 import { readFile } from '@/lib/tauri/ipc';
 
 function App(): JSX.Element {
   const currentFilePath = useEditorStore((s) => s.currentFilePath);
   const setContent = useEditorStore((s) => s.setContent);
+  const { openFolderPath } = useFileSystem();
+
+  // Restore last watched folder on app start (REQ-UI-003-06, REQ-UI-003-07)
+  useEffect(() => {
+    const { lastWatchedPath, setLastWatchedPath } = useUIStore.getState();
+    if (!lastWatchedPath) return;
+    openFolderPath(lastWatchedPath).catch(() => {
+      // Path no longer valid (deleted/moved) — clear persisted path
+      setLastWatchedPath(null);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useFileWatcher({
     onFileChanged: (event) => {

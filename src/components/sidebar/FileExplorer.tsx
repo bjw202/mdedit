@@ -54,12 +54,16 @@ function parentOf(path: string): string | null {
 
 export function FileExplorer(): JSX.Element {
   const { fileTree, watchedPath, isLoading, setFileTree } = useFileStore();
-  const { openFolder, openFolderPath } = useFileSystem();
+  const { openFolder, openFolderPath, changeFolder } = useFileSystem();
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleOpenFolder = useCallback((): void => {
     void openFolder();
   }, [openFolder]);
+
+  const handleChangeFolder = useCallback((): void => {
+    void changeFolder().then(() => setSearchQuery(''));
+  }, [changeFolder]);
 
   const parentPath = watchedPath !== null ? parentOf(watchedPath) : null;
   const canGoUp = parentPath !== null;
@@ -149,6 +153,19 @@ export function FileExplorer(): JSX.Element {
         >
           {getBaseName(watchedPath)}
         </span>
+        {/* Change Folder button */}
+        <button
+          type="button"
+          aria-label="Change Folder"
+          onClick={handleChangeFolder}
+          title="Change Folder"
+          className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v4m0 0l-2-2m2 2l2-2" />
+          </svg>
+        </button>
         {/* Refresh button */}
         <button
           type="button"

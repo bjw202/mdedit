@@ -17,6 +17,8 @@ interface UIState {
   saveStatus: SaveStatus;
   /** Whether scroll sync between editor and preview is enabled */
   scrollSyncEnabled: boolean;
+  /** Last opened folder path, persisted for auto-restore on app start */
+  lastWatchedPath: string | null;
   // Actions
   setSidebarWidth: (width: number) => void;
   setPreviewWidth: (width: number) => void;
@@ -26,6 +28,7 @@ interface UIState {
   setSaveStatus: (status: SaveStatus) => void;
   setScrollSyncEnabled: (enabled: boolean) => void;
   toggleScrollSync: () => void;
+  setLastWatchedPath: (path: string | null) => void;
 }
 
 // @MX:ANCHOR: Central UI state store - persisted to localStorage via zustand persist middleware
@@ -40,6 +43,7 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed: false,
       saveStatus: 'new',
       scrollSyncEnabled: true,
+      lastWatchedPath: null,
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
       setPreviewWidth: (width: number) =>
@@ -53,6 +57,7 @@ export const useUIStore = create<UIState>()(
       setScrollSyncEnabled: (enabled: boolean) => set({ scrollSyncEnabled: enabled }),
       toggleScrollSync: () =>
         set((state) => ({ scrollSyncEnabled: !state.scrollSyncEnabled })),
+      setLastWatchedPath: (path: string | null) => set({ lastWatchedPath: path }),
     }),
     {
       name: 'mdedit-ui-store',

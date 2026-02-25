@@ -19,6 +19,7 @@ import { useUIStore } from '@/store/uiStore';
 interface FileSystemHook {
   openFolder: () => Promise<void>;
   openFolderPath: (path: string) => Promise<void>;
+  changeFolder: () => Promise<void>;
   openFile: (path: string) => Promise<void>;
   saveFileAs: () => Promise<string | null>;
   createFile: (dirPath: string, name: string) => Promise<void>;
@@ -68,6 +69,7 @@ export function useFileSystem(): FileSystemHook {
       const tree = await readDirectory(selectedPath);
       setWatchedPath(selectedPath);
       setFileTree(tree);
+      useUIStore.getState().setLastWatchedPath(selectedPath);
       // startWatch is non-blocking: watcher failure must not prevent navigation
       startWatch(selectedPath).catch((err: unknown) => {
         console.warn('[useFileSystem] startWatch failed (non-fatal):', err);
@@ -83,6 +85,7 @@ export function useFileSystem(): FileSystemHook {
       const tree = await readDirectory(path);
       setWatchedPath(path);
       setFileTree(tree);
+      useUIStore.getState().setLastWatchedPath(path);
       // startWatch is non-blocking: watcher failure must not prevent navigation
       startWatch(path).catch((err: unknown) => {
         console.warn('[useFileSystem] startWatch failed (non-fatal):', err);
@@ -93,6 +96,22 @@ export function useFileSystem(): FileSystemHook {
     } finally {
       setLoading(false);
     }
+  };
+
+  // @MX:NOTE: Opens a folder-change dialog with unsaved-changes guard (REQ-UI-003-01, REQ-UI-003-09)
+  const changeFolder = async (): Promise<void> => {
+    const { dirty } = useEditorStore.getState();
+    if (dirty) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Do you want to discard them and change folder?'
+      );
+      if (!confirmed) return;
+    }
+
+    const selectedPath = await openDirectoryDialog();
+    if (selectedPath === null) return;
+
+    await openFolderPath(selectedPath);
   };
 
   const openFile = async (path: string): Promise<void> => {
@@ -153,5 +172,5 @@ export function useFileSystem(): FileSystemHook {
     await refreshTree();
   };
 
-  return { openFolder, openFolderPath, openFile, saveFileAs, createFile, deleteNode, renameNode };
+  return { openFolder, openFolderPath, changeFolder, openFile, saveFileAs, createFile, deleteNode, renameNode };
 }
