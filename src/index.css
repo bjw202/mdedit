@@ -114,3 +114,48 @@
 .preview-content .mermaid-container {
   @apply flex justify-center mb-4;
 }
+
+/* Print styles for PDF export (SPEC-EXPORT-001) */
+@media print {
+  /* Hide all application UI except preview content */
+  header,
+  footer,
+  .sidebar,
+  .editor-panel,
+  .resize-handle,
+  button:not(.preview-content button) {
+    display: none !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: black;
+  }
+
+  /* Ensure background colors print correctly */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Prevent page breaks inside code blocks, diagrams, and tables */
+  .preview-content pre,
+  .preview-content .shiki,
+  .preview-content .mermaid-container,
+  .preview-content table,
+  .preview-content blockquote {
+    page-break-inside: avoid;
+  }
+
+  /* Keep headings with their following content */
+  .preview-content h1,
+  .preview-content h2,
+  .preview-content h3,
+  .preview-content h4,
+  .preview-content h5,
+  .preview-content h6 {
+    page-break-after: avoid;
+  }
+}

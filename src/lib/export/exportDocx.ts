@@ -1,0 +1,447 @@
+// @MX:NOTE: [AUTO] DOCX export using docx npm package for SPEC-EXPORT-001
+// @MX:SPEC: SPEC-EXPORT-001
+
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+  Table,
+  TableRow,
+  TableCell,
+  ExternalHyperlink,
+  ImageRun,
+  AlignmentType,
+  BorderStyle,
+  WidthType,
+} from 'docx';
+import MarkdownIt from 'markdown-it';
+import type Token from 'markdown-it/lib/token.mjs';
+import { exportSaveDialog, writeBinaryFile } from '@/lib/tauri/ipc';
+import { generateExportFilename } from './exportUtils';
+import type { ExportOptions } from './types';
+
+// @MX:WARN: [AUTO] DOCX export uses complex markdown token traversal - handle edge cases carefully
+// @MX:REASON: [AUTO] markdown-it tokens have nested structure that requires careful state tracking
+
+type DocxChild = Paragraph | Table;
+
+/**
+ * Exports the markdown content as a DOCX file.
+ *
+ * Strategy:
+ * 1. Parse markdown with markdown-it to get tokens
+ * 2. Convert tokens to docx elements
+ * 3. Pack to binary using Packer.toBlob()
+ * 4. Save via Tauri IPC
+ *
+ * @param options - Export options
+ */
+export async function exportToDocx(options: ExportOptions): Promise<void> {
+  const { content, filename } = options;
+
+  const defaultName = generateExportFilename(filename, 'docx');
+  const savePath = await exportSaveDialog('docx', defaultName);
+  if (savePath === null) {
+    return;
+  }
+
+  // Parse markdown to tokens
+  const md = new MarkdownIt({
+    html: false,
+    linkify: true,
+    typographer: true,
+  });
+  md.enable('table');
+  md.enable('strikethrough');
+
+  const tokens = md.parse(content, {});
+  const docxChildren = convertTokensToDocx(tokens);
+
+  const doc = new Document({
+    sections: [
+      {
+        children: docxChildren,
+      },
+    ],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  const buffer = await blob.arrayBuffer();
+  const uint8Array = new Uint8Array(buffer);
+  const byteArray = Array.from(uint8Array);
+
+  await writeBinaryFile(savePath, byteArray);
+}
+
+/**
+ * Converts markdown-it tokens to docx document elements.
+ */
+function convertTokensToDocx(tokens: Token[]): DocxChild[] {
+  const result: DocxChild[] = [];
+  let i = 0;
+
+  while (i < tokens.length) {
+    const token = tokens[i];
+
+    switch (token.type) {
+      case 'heading_open': {
+        const level = parseInt(token.tag.replace('h', ''), 10);
+        const inlineToken = tokens[i + 1];
+        const text = extractInlineText(inlineToken?.children ?? []);
+        const headingLevel = getHeadingLevel(level);
+        result.push(
+          new Paragraph({
+            text,
+            heading: headingLevel,
+          }),
+        );
+        i += 3; // heading_open, inline, heading_close
+        break;
+      }
+
+      case 'paragraph_open': {
+        const inlineToken = tokens[i + 1];
+        if (inlineToken?.type === 'inline' && inlineToken.children) {
+          const runs = convertInlineTokensToRuns(inlineToken.children);
+          result.push(new Paragraph({ children: runs }));
+        }
+        i += 3; // paragraph_open, inline, paragraph_close
+        break;
+      }
+
+      case 'fence': {
+        const codeLines = (token.content ?? '').split('\n');
+        for (const line of codeLines) {
+          result.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: line || ' ',
+                  font: 'Courier New',
+                  size: 20, // 10pt
+                }),
+              ],
+            }),
+          );
+        }
+        i++;
+        break;
+      }
+
+      case 'code_block': {
+        const codeLines = (token.content ?? '').split('\n');
+        for (const line of codeLines) {
+          result.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: line || ' ',
+                  font: 'Courier New',
+                  size: 20,
+                }),
+              ],
+            }),
+          );
+        }
+        i++;
+        break;
+      }
+
+      case 'blockquote_open': {
+        // Find the content until blockquote_close
+        let j = i + 1;
+        const quoteParagraphs: DocxChild[] = [];
+        let depth = 1;
+        while (j < tokens.length && depth > 0) {
+          if (tokens[j].type === 'blockquote_open') depth++;
+          if (tokens[j].type === 'blockquote_close') depth--;
+          if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
+            const runs = convertInlineTokensToRuns(tokens[j].children ?? []);
+            quoteParagraphs.push(
+              new Paragraph({
+                children: runs,
+                indent: { left: 720 }, // 0.5 inch indent
+                border: {
+                  left: {
+                    color: '999999',
+                    space: 1,
+                    style: BorderStyle.SINGLE,
+                    size: 6,
+                  },
+                },
+              }),
+            );
+          }
+          j++;
+        }
+        result.push(...quoteParagraphs);
+        i = j;
+        break;
+      }
+
+      case 'bullet_list_open': {
+        // Find all list items
+        let j = i + 1;
+        let depth = 1;
+        while (j < tokens.length && depth > 0) {
+          if (tokens[j].type === 'bullet_list_open') depth++;
+          if (tokens[j].type === 'bullet_list_close') depth--;
+          if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
+            const runs = convertInlineTokensToRuns(tokens[j].children ?? []);
+            result.push(
+              new Paragraph({
+                children: [new TextRun({ text: '• ' }), ...runs],
+                indent: { left: 360 },
+              }),
+            );
+          }
+          j++;
+        }
+        i = j;
+        break;
+      }
+
+      case 'ordered_list_open': {
+        let j = i + 1;
+        let depth = 1;
+        let itemNum = 1;
+        while (j < tokens.length && depth > 0) {
+          if (tokens[j].type === 'ordered_list_open') depth++;
+          if (tokens[j].type === 'ordered_list_close') depth--;
+          if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
+            const runs = convertInlineTokensToRuns(tokens[j].children ?? []);
+            result.push(
+              new Paragraph({
+                children: [new TextRun({ text: `${itemNum}. ` }), ...runs],
+                indent: { left: 360 },
+              }),
+            );
+            itemNum++;
+          }
+          j++;
+        }
+        i = j;
+        break;
+      }
+
+      case 'table_open': {
+        const tableResult = parseTable(tokens, i);
+        if (tableResult.table) {
+          result.push(tableResult.table);
+        }
+        i = tableResult.nextIndex;
+        break;
+      }
+
+      case 'hr': {
+        result.push(
+          new Paragraph({
+            children: [new TextRun({ text: '' })],
+            border: {
+              bottom: {
+                color: 'auto',
+                space: 1,
+                style: BorderStyle.SINGLE,
+                size: 6,
+              },
+            },
+          }),
+        );
+        i++;
+        break;
+      }
+
+      default:
+        i++;
+        break;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Parses a table from tokens starting at the given index.
+ * Returns the Table element and the next token index after the table.
+ */
+function parseTable(tokens: Token[], startIndex: number): { table: Table | null; nextIndex: number } {
+  let i = startIndex + 1;
+  const tableRows: TableRow[] = [];
+  let isHeader = false;
+
+  while (i < tokens.length && tokens[i].type !== 'table_close') {
+    const token = tokens[i];
+
+    if (token.type === 'thead_open') {
+      isHeader = true;
+    } else if (token.type === 'thead_close') {
+      isHeader = false;
+    } else if (token.type === 'tr_open') {
+      const cells: TableCell[] = [];
+      i++;
+      while (i < tokens.length && tokens[i].type !== 'tr_close') {
+        if (tokens[i].type === 'th_open' || tokens[i].type === 'td_open') {
+          const inlineToken = tokens[i + 1];
+          const runs =
+            inlineToken?.type === 'inline' && inlineToken.children
+              ? convertInlineTokensToRuns(inlineToken.children)
+              : [new TextRun({ text: '' })];
+
+          cells.push(
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: runs,
+                  alignment: AlignmentType.LEFT,
+                }),
+              ],
+              shading: isHeader ? { fill: 'F3F4F6' } : undefined,
+            }),
+          );
+          i += 3; // th/td_open, inline, th/td_close
+        } else {
+          i++;
+        }
+      }
+      tableRows.push(new TableRow({ children: cells }));
+    }
+    i++;
+  }
+
+  if (tableRows.length === 0) {
+    return { table: null, nextIndex: i + 1 };
+  }
+
+  const table = new Table({
+    rows: tableRows,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+  });
+
+  return { table, nextIndex: i + 1 };
+}
+
+/**
+ * Extracts plain text from inline tokens (ignoring formatting).
+ */
+function extractInlineText(inlineChildren: Token[]): string {
+  return inlineChildren
+    .filter((t) => t.type === 'text' || t.type === 'softbreak' || t.type === 'code_inline')
+    .map((t) => (t.type === 'softbreak' ? ' ' : t.content ?? ''))
+    .join('');
+}
+
+/**
+ * Converts inline tokens to docx TextRun/ExternalHyperlink elements.
+ */
+function convertInlineTokensToRuns(inlineChildren: Token[]): Array<TextRun | ExternalHyperlink> {
+  const runs: Array<TextRun | ExternalHyperlink> = [];
+  let bold = false;
+  let italic = false;
+  let strikethrough = false;
+  let currentLink: string | null = null;
+  let linkRuns: TextRun[] = [];
+
+  for (const token of inlineChildren) {
+    switch (token.type) {
+      case 'strong_open':
+        bold = true;
+        break;
+      case 'strong_close':
+        bold = false;
+        break;
+      case 'em_open':
+        italic = true;
+        break;
+      case 'em_close':
+        italic = false;
+        break;
+      case 's_open':
+        strikethrough = true;
+        break;
+      case 's_close':
+        strikethrough = false;
+        break;
+      case 'link_open': {
+        currentLink = token.attrGet('href') ?? null;
+        linkRuns = [];
+        break;
+      }
+      case 'link_close': {
+        if (currentLink && linkRuns.length > 0) {
+          runs.push(
+            new ExternalHyperlink({
+              link: currentLink,
+              children: linkRuns,
+            }),
+          );
+        }
+        currentLink = null;
+        linkRuns = [];
+        break;
+      }
+      case 'code_inline': {
+        const codeRun = new TextRun({
+          text: token.content ?? '',
+          font: 'Courier New',
+          size: 20,
+          bold,
+          italics: italic,
+        });
+        if (currentLink !== null) {
+          linkRuns.push(codeRun);
+        } else {
+          runs.push(codeRun);
+        }
+        break;
+      }
+      case 'text':
+      case 'softbreak': {
+        const text = token.type === 'softbreak' ? ' ' : (token.content ?? '');
+        if (!text) break;
+        const textRun = new TextRun({
+          text,
+          bold,
+          italics: italic,
+          strike: strikethrough,
+          style: currentLink ? 'Hyperlink' : undefined,
+        });
+        if (currentLink !== null) {
+          linkRuns.push(textRun);
+        } else {
+          runs.push(textRun);
+        }
+        break;
+      }
+      case 'image': {
+        // Images in inline context - output alt text as fallback
+        const altText = token.attrGet('alt') ?? '[image]';
+        runs.push(new TextRun({ text: `[${altText}]`, italics: true }));
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  return runs;
+}
+
+/**
+ * Maps a heading level number (1-6) to a HeadingLevel enum value.
+ */
+function getHeadingLevel(level: number): typeof HeadingLevel[keyof typeof HeadingLevel] {
+  switch (level) {
+    case 1: return HeadingLevel.HEADING_1;
+    case 2: return HeadingLevel.HEADING_2;
+    case 3: return HeadingLevel.HEADING_3;
+    case 4: return HeadingLevel.HEADING_4;
+    case 5: return HeadingLevel.HEADING_5;
+    case 6: return HeadingLevel.HEADING_6;
+    default: return HeadingLevel.HEADING_1;
+  }
+}
+
+// Re-export ImageRun for Mermaid SVG to PNG conversion (used in exportUtils)
+export { ImageRun };

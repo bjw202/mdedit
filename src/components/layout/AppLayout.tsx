@@ -1,10 +1,15 @@
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useCallback } from 'react';
 import type { EditorView } from '@codemirror/view';
 import { useTheme } from '@/hooks/useTheme';
 import { useUIStore } from '@/store/uiStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useFileStore } from '@/store/fileStore';
 import { writeFile, saveFileAs as saveFileAsIpc } from '@/lib/tauri/ipc';
+import { exportToHtml } from '@/lib/export/exportHtml';
+import { exportToPdf } from '@/lib/export/exportPdf';
+import { exportToDocx } from '@/lib/export/exportDocx';
+import { generateExportFilename } from '@/lib/export/exportUtils';
+import { getHighlighter } from '@/lib/markdown/codeHighlight';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { ResizablePanels } from './ResizablePanels';
@@ -74,6 +79,73 @@ export function AppLayout(): JSX.Element {
   const content = useEditorStore((s) => s.content);
   const cursorLine = useEditorStore((s) => s.cursorLine);
   const cursorCol = useEditorStore((s) => s.cursorCol);
+
+  const [exportLoading, setExportLoading] = useState(false);
+  const themeRaw = useUIStore((s) => s.theme);
+  // Resolve 'system' theme to actual light/dark for export CSS
+  const exportTheme: 'light' | 'dark' =
+    themeRaw === 'dark' ? 'dark' : 'light';
+
+  // @MX:NOTE: [AUTO] Export handlers for SPEC-EXPORT-001 - HTML/PDF/DOCX export
+  const handleExportHtml = useCallback(async (): Promise<void> => {
+    setExportLoading(true);
+    try {
+      const { content: c } = useEditorStore.getState();
+      const currentFile = useFileStore.getState().currentFile;
+      const exportFilename = generateExportFilename(currentFile ?? 'document.md', 'html');
+      const highlighter = await getHighlighter();
+      await exportToHtml({
+        content: c,
+        filename: exportFilename,
+        theme: exportTheme,
+        highlighter,
+      });
+    } catch (err) {
+      console.error('HTML export failed:', err);
+    } finally {
+      setExportLoading(false);
+    }
+  }, [exportTheme]);
+
+  const handleExportPdf = useCallback(async (): Promise<void> => {
+    setExportLoading(true);
+    try {
+      const { content: c } = useEditorStore.getState();
+      const currentFile = useFileStore.getState().currentFile;
+      const exportFilename = generateExportFilename(currentFile ?? 'document.md', 'pdf');
+      const highlighter = await getHighlighter();
+      await exportToPdf({
+        content: c,
+        filename: exportFilename,
+        theme: exportTheme,
+        highlighter,
+      });
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    } finally {
+      setExportLoading(false);
+    }
+  }, [exportTheme]);
+
+  const handleExportDocx = useCallback(async (): Promise<void> => {
+    setExportLoading(true);
+    try {
+      const { content: c } = useEditorStore.getState();
+      const currentFile = useFileStore.getState().currentFile;
+      const exportFilename = generateExportFilename(currentFile ?? 'document.md', 'docx');
+      const highlighter = await getHighlighter();
+      await exportToDocx({
+        content: c,
+        filename: exportFilename,
+        theme: exportTheme,
+        highlighter,
+      });
+    } catch (err) {
+      console.error('DOCX export failed:', err);
+    } finally {
+      setExportLoading(false);
+    }
+  }, [exportTheme]);
 
   // EditorView ref - NOT stored in Zustand (REQ-EDITOR002-N04 / REQ-PREVIEW002-N02)
   const viewRef = useRef<EditorView | null>(null);
@@ -160,9 +232,14 @@ export function AppLayout(): JSX.Element {
       <Header
         filename={filename}
         isDirty={saveStatus === 'unsaved'}
+        content={content}
         onNew={handleNew}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
+        onExportHtml={handleExportHtml}
+        onExportPdf={handleExportPdf}
+        onExportDocx={handleExportDocx}
+        exportLoading={exportLoading}
       />
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar toggle button */}

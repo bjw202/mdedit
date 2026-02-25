@@ -85,3 +85,28 @@ export async function stopWatch(): Promise<void> {
 export async function saveFileAs(content: string): Promise<string | null> {
   return invoke<string | null>('save_file_as', { content });
 }
+
+// @MX:NOTE: [AUTO] Export IPC wrappers for SPEC-EXPORT-001 - format-specific save dialogs
+// @MX:SPEC: SPEC-EXPORT-001
+
+/**
+ * Opens a native Save As dialog with a format-specific file filter.
+ * Returns the selected file path, or null if the user cancels.
+ *
+ * @param format - Export format: 'html', 'pdf', or 'docx'
+ * @param defaultName - Default filename to suggest in the dialog
+ */
+export async function exportSaveDialog(format: string, defaultName: string): Promise<string | null> {
+  return invoke<string | null>('export_save_dialog', { format, defaultName });
+}
+
+/**
+ * Writes binary data to a file at the given path.
+ * Used for DOCX export where the content is a binary blob.
+ *
+ * @param path - Absolute path where the file should be saved
+ * @param data - Binary data as an array of bytes
+ */
+export async function writeBinaryFile(path: string, data: number[]): Promise<void> {
+  return invoke<void>('write_binary_file', { path, data });
+}

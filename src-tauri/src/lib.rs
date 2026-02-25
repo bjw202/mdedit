@@ -22,6 +22,8 @@ pub fn run() {
             file_ops::delete_file,
             file_ops::rename_file,
             file_ops::save_file_as,
+            file_ops::export_save_dialog,
+            file_ops::write_binary_file,
             directory_ops::read_directory,
             directory_ops::open_directory_dialog,
             watcher::start_watch,
