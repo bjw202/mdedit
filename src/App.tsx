@@ -14,6 +14,12 @@ function App(): JSX.Element {
   const setContent = useEditorStore((s) => s.setContent);
   const { openFolderPath } = useFileSystem();
 
+  // Set platform attribute for platform-specific CSS targeting (Windows WebView2 vs macOS WKWebView)
+  useEffect(() => {
+    const isWindows = navigator.userAgent.includes('Windows');
+    document.documentElement.setAttribute('data-platform', isWindows ? 'windows' : 'other');
+  }, []);
+
   // Restore last watched folder on app start (REQ-UI-003-06, REQ-UI-003-07)
   useEffect(() => {
     const { lastWatchedPath, setLastWatchedPath } = useUIStore.getState();

@@ -107,6 +107,14 @@
   @apply mb-4;
 }
 
+/* Windows WebView2 (Chromium): requires explicit overflow-x on wrapper because Chromium does not
+   cascade overflow context from parent the same way WKWebView does.
+   macOS WKWebView: inherits horizontal scroll from parent .preview-scroll — no wrapper overflow needed.
+   Platform is set via data-platform attribute in App.tsx based on navigator.userAgent. */
+[data-platform="windows"] .preview-content .table-scroll-wrapper {
+  overflow-x: auto;
+}
+
 .preview-content table {
   border-collapse: separate;
   border-spacing: 0;
