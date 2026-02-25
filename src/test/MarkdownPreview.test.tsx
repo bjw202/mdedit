@@ -85,7 +85,7 @@ describe('MarkdownPreview', () => {
     const { container } = render(<MarkdownPreview />);
     const outerDiv = container.firstChild as HTMLElement;
 
-    expect(outerDiv.className).toContain('overflow-y-auto');
+    expect(outerDiv.className).toContain('overflow-auto');
   });
 
   it('passes html to PreviewRenderer', async () => {

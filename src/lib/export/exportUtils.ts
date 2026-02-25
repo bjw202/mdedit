@@ -174,10 +174,15 @@ body {
   color: inherit;
 }
 
-.preview-content table {
-  width: 100%;
-  border-collapse: collapse;
+.preview-content .table-scroll-wrapper {
+  overflow-x: auto;
   margin-bottom: 1rem;
+}
+
+.preview-content table {
+  min-width: 100%;
+  border-collapse: collapse;
+  border: 1px solid ${tableBorder};
 }
 
 .preview-content th {

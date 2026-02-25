@@ -2,7 +2,7 @@
 // @MX:SPEC: SPEC-EXPORT-001
 
 import { renderMarkdown } from '@/lib/markdown/renderer';
-import { exportSaveDialog } from '@/lib/tauri/ipc';
+import { exportSaveDialog, writeFile } from '@/lib/tauri/ipc';
 import { buildHtmlDocument, generateExportFilename, getPreviewCss } from './exportUtils';
 import type { ExportOptions } from './types';
 
@@ -27,7 +27,6 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
   // Show the save dialog first
   const savePath = await exportSaveDialog('html', defaultName);
   if (savePath === null) {
-    // User cancelled
     return null;
   }
 
@@ -51,11 +50,30 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
     theme,
   });
 
-  // Write the HTML file via Tauri
-  const { invoke } = await import('@tauri-apps/api/core');
-  await invoke('write_file', { path: savePath, content: htmlDocument });
+  // Write the HTML file via Tauri IPC
+  await writeFile(savePath, htmlDocument);
 
   return htmlDocument;
+}
+
+/**
+ * Generates a self-contained HTML string from markdown content without
+ * showing any save dialog or writing to disk.
+ * Used internally by PDF export to get printable HTML.
+ *
+ * @param options - Export options including content, filename, theme, and highlighter
+ * @returns The complete HTML document string
+ */
+export async function generateHtmlContent(options: ExportOptions): Promise<string> {
+  const { content, filename, theme, highlighter } = options;
+
+  const defaultName = generateExportFilename(filename, 'html');
+  const renderedHtml = await renderMarkdown(content, highlighter);
+  const htmlWithMermaid = await replaceMermaidPlaceholders(renderedHtml);
+  const title = defaultName.replace(/\.[^.]+$/, '');
+  const css = getPreviewCss(theme);
+
+  return buildHtmlDocument({ title, content: htmlWithMermaid, css, theme });
 }
 
 /**

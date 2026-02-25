@@ -70,13 +70,20 @@ describe('renderMarkdown', () => {
     expect(result).toContain('<li>first</li>');
   });
 
-  it('renders table correctly', async () => {
+  it('renders table correctly with inline border styles', async () => {
     const { renderMarkdown } = await import('@/lib/markdown/renderer');
     const table = '| Col1 | Col2 |\n|------|------|\n| A | B |';
     const result = await renderMarkdown(table, null);
-    // data-line attribute is now injected for scroll sync
+    // data-line attribute and border styles are injected
     expect(result).toContain('<table');
-    expect(result).toContain('<th>Col1</th>');
+    expect(result).toContain('border-collapse: separate');
+    expect(result).toContain('border-spacing: 0');
+    // th and td have right+bottom border (not border: 1px solid) to avoid WebKit clipping
+    expect(result).toContain('border-right: 1px solid var(--table-border, #d1d5db)');
+    expect(result).toContain('border-bottom: 1px solid var(--table-border, #d1d5db)');
+    // cell content is present
+    expect(result).toContain('>Col1</th>');
+    expect(result).toContain('>A</td>');
   });
 
   it('renders strikethrough text correctly', async () => {

@@ -22,7 +22,7 @@ export function MarkdownPreview({ previewRef }: MarkdownPreviewProps): JSX.Eleme
   const { html } = usePreview();
 
   return (
-    <div ref={previewRef} className="h-full overflow-y-auto p-4">
+    <div ref={previewRef} className="h-full overflow-auto p-4 preview-scroll">
       {html ? (
         <PreviewRenderer html={html} />
       ) : (

@@ -162,6 +162,13 @@ pub async fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String
         .map_err(|e| format!("Failed to write binary file: {}", e))
 }
 
+/// Triggers the native print dialog on the current webview window.
+/// Used by PDF export since JavaScript window.print() does not work in Tauri's WKWebView.
+#[tauri::command]
+pub async fn print_current_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.print().map_err(|e| e.to_string())
+}
+
 /// Renames or moves a file. Returns error if new_path already exists.
 #[tauri::command]
 pub async fn rename_file(old_path: String, new_path: String) -> Result<(), String> {

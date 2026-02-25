@@ -185,6 +185,12 @@ secret-*.*
 !.claude/skills/*/modules/*token*.md
 
 # ===========================================
+# Playwright E2E Test Artifacts
+# ===========================================
+playwright-report/
+test-results/
+
+# ===========================================
 # Node.js (for docs/Nextra)
 # ===========================================
 node_modules/

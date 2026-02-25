@@ -1,81 +1,107 @@
-// @MX:NOTE: [AUTO] PDF export via Webview Print API for SPEC-EXPORT-001
+// @MX:NOTE: [AUTO] PDF export via Tauri native print API for SPEC-EXPORT-001
 // @MX:SPEC: SPEC-EXPORT-001
 
-import { exportToHtml } from './exportHtml';
+import { generateHtmlContent } from './exportHtml';
+import { printCurrentWindow } from '@/lib/tauri/ipc';
 import type { ExportOptions } from './types';
 
+// @MX:WARN: [AUTO] Tauri WebviewWindow::print() returns before the native dialog closes
+// @MX:REASON: Cleanup must be deferred via afterprint event to keep @media print CSS active during print
+
 /**
- * Exports the markdown content as a PDF using the Webview Print API.
+ * Exports the markdown content as a PDF using Tauri's native print dialog.
  *
  * Strategy:
- * 1. Generates self-contained HTML using exportToHtml
- * 2. Creates a hidden iframe and loads the HTML into it
- * 3. Triggers window.print() on the iframe's content window
- * 4. The user's OS print dialog handles PDF saving
+ * 1. Generates self-contained HTML using generateHtmlContent
+ * 2. Injects the content into a hidden div on the main page
+ * 3. Uses @media print CSS to hide app UI and show only export content
+ * 4. Calls Tauri's WebviewWindow::print() via IPC (native print path)
+ * 5. Cleans up after print completes via afterprint event
  *
- * Note: This opens the OS print dialog, which allows the user to save as PDF.
- * For fully programmatic PDF generation, a future enhancement could use headless-chrome.
+ * Note: JavaScript window.print() does NOT work in Tauri's WKWebView.
+ * Tauri's Rust-side WebviewWindow::print() uses the native print API directly.
+ * The print() IPC returns before the native dialog closes, so cleanup is deferred.
  *
  * @param options - Export options including content, filename, theme, and highlighter
  */
 export async function exportToPdf(options: ExportOptions): Promise<void> {
-  const { content, filename, theme, highlighter } = options;
+  const htmlContent = await generateHtmlContent(options);
 
-  // Generate the HTML content (reuse HTML export logic)
-  // We pass a modified filename to get PDF extension for the save dialog
-  const htmlOptions: ExportOptions = {
-    content,
-    filename: filename.replace(/\.(html|pdf|docx)$/i, '.md'),
-    theme,
-    highlighter,
-  };
+  // Clean up any leftover print elements from a previous export
+  cleanupPrintElements();
 
-  const htmlContent = await exportToHtml(htmlOptions);
-  if (htmlContent === null) {
-    // User cancelled the dialog
-    return;
+  // Parse the full HTML document to extract body content and styles
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(htmlContent, 'text/html');
+  const bodyHTML = parsed.body.innerHTML;
+  const docStyles = Array.from(parsed.querySelectorAll('style'))
+    .map((s) => s.textContent ?? '')
+    .join('\n');
+
+  // Set document title to filename so macOS print dialog uses it as default PDF name
+  const docTitle = parsed.querySelector('title')?.textContent ?? '';
+  const previousTitle = document.title;
+  if (docTitle) {
+    document.title = docTitle;
   }
 
-  // Create a hidden iframe to load the HTML into
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.top = '-9999px';
-  iframe.style.left = '-9999px';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = 'none';
-  iframe.setAttribute('aria-hidden', 'true');
+  // Create print-only container (hidden on screen, visible when printing)
+  const container = document.createElement('div');
+  container.id = 'pdf-export-print';
+  container.innerHTML = bodyHTML;
 
-  document.body.appendChild(iframe);
-
-  await new Promise<void>((resolve) => {
-    iframe.onload = () => {
-      try {
-        const win = iframe.contentWindow;
-        if (win) {
-          win.focus();
-          win.print();
-        }
-      } finally {
-        // Remove the iframe after a short delay to allow print dialog to initialize
-        setTimeout(() => {
-          if (iframe.parentNode) {
-            iframe.parentNode.removeChild(iframe);
-          }
-          resolve();
-        }, 1000);
+  // Add print-only CSS: hide app UI, show only export content
+  const style = document.createElement('style');
+  style.id = 'pdf-export-print-style';
+  style.textContent = `
+    #pdf-export-print { display: none; }
+    @media print {
+      @page { margin: 20mm; }
+      body > *:not(#pdf-export-print) { display: none !important; }
+      #pdf-export-print {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        overflow-wrap: break-word !important;
+        word-break: break-word !important;
       }
-    };
-
-    // Write the HTML content to the iframe's document
-    const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(htmlContent);
-      doc.close();
-    } else {
-      // Fallback: use srcdoc attribute
-      iframe.srcdoc = htmlContent;
+      ${docStyles}
     }
-  });
+  `;
+
+  document.head.appendChild(style);
+  document.body.appendChild(container);
+
+  // Wait for DOM to render (double rAF ensures layout is computed)
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+  const cleanup = () => {
+    cleanupPrintElements();
+    document.title = previousTitle;
+  };
+
+  // Defer cleanup to afterprint event since print() IPC returns before dialog closes
+  window.addEventListener('afterprint', cleanup, { once: true });
+
+  // Fallback cleanup after 5 minutes in case afterprint doesn't fire
+  setTimeout(cleanup, 300000);
+
+  try {
+    // Tauri's WebviewWindow::print() triggers native print dialog and returns immediately.
+    // The @media print CSS remains in the DOM until afterprint fires.
+    await printCurrentWindow();
+  } catch (error) {
+    // If the IPC call itself fails, clean up immediately
+    cleanup();
+    throw error;
+  }
+}
+
+/**
+ * Removes injected print elements from the DOM.
+ * Safe to call multiple times (idempotent).
+ */
+function cleanupPrintElements(): void {
+  document.getElementById('pdf-export-print')?.remove();
+  document.getElementById('pdf-export-print-style')?.remove();
 }

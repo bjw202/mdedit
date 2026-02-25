@@ -10,6 +10,8 @@
   --cm-list: #374151;            /* gray-700: list items for light mode */
   --cm-punctuation: #6b7280;     /* gray-500: punctuation for light mode */
   --cm-active-line: rgba(0, 0, 0, 0.04);  /* subtle dark tint for light mode */
+  --table-border: #d1d5db;       /* gray-300: table border for light mode */
+  --table-th-bg: #f3f4f6;        /* gray-100: table header bg for light mode */
 }
 
 /* Editor color variables - dark mode overrides */
@@ -20,6 +22,30 @@
   --cm-list: #cccccc;            /* light gray: list items for dark mode */
   --cm-punctuation: #808080;     /* medium gray: punctuation for dark mode */
   --cm-active-line: rgba(255, 255, 255, 0.05); /* subtle light tint for dark mode */
+  --table-border: #4b5563;       /* gray-600: table border for dark mode */
+  --table-th-bg: #1f2937;        /* gray-800: table header bg for dark mode */
+}
+
+/* Preview scroll panel - force visible scrollbars on macOS/WKWebView */
+.preview-scroll {
+  overflow: scroll !important;
+}
+.preview-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.preview-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.preview-scroll::-webkit-scrollbar-thumb {
+  background: var(--table-border, #d1d5db);
+  border-radius: 4px;
+}
+.preview-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+.preview-scroll::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Preview panel markdown styling (manual prose classes - no @tailwindcss/typography needed) */
@@ -77,16 +103,31 @@
   @apply bg-transparent p-0 text-inherit;
 }
 
+.preview-content .table-scroll-wrapper {
+  @apply mb-4;
+}
+
 .preview-content table {
-  @apply w-full border-collapse mb-4;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  border-top: 1px solid var(--table-border, #d1d5db);
+  border-left: 1px solid var(--table-border, #d1d5db);
 }
 
 .preview-content th {
-  @apply bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 px-4 py-2 text-left font-semibold;
+  border-right: 1px solid var(--table-border, #d1d5db);
+  border-bottom: 1px solid var(--table-border, #d1d5db);
+  background-color: var(--table-th-bg, #f3f4f6);
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-weight: 600;
 }
 
 .preview-content td {
-  @apply border border-gray-300 dark:border-gray-600 px-4 py-2;
+  border-right: 1px solid var(--table-border, #d1d5db);
+  border-bottom: 1px solid var(--table-border, #d1d5db);
+  padding: 0.5rem 1rem;
 }
 
 .preview-content a {
@@ -147,6 +188,20 @@
   .preview-content table,
   .preview-content blockquote {
     page-break-inside: avoid;
+  }
+
+  /* Wrap long text and code blocks to prevent clipping at page edge */
+  .preview-content {
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+  }
+
+  .preview-content pre,
+  .preview-content .shiki,
+  .preview-content code {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-x: visible !important;
   }
 
   /* Keep headings with their following content */

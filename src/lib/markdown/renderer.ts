@@ -46,6 +46,47 @@ function dataLinePlugin(md: MarkdownIt): void {
 }
 
 /**
+ * markdown-it plugin that wraps <table> elements in a scrollable container div
+ * and injects inline styles for guaranteed border rendering.
+ *
+ * Inline styles ensure borders are visible regardless of CSS loading order or
+ * WKWebView caching. CSS variables (--table-border, --table-th-bg) defined in
+ * index.css provide dark-mode-aware colors with hardcoded fallbacks.
+ */
+function tableScrollPlugin(md: MarkdownIt): void {
+  md.renderer.rules.table_open = (tokens, idx, options, _env, self) => {
+    // Use border-collapse: separate to avoid WebKit clipping bug where
+    // collapsed borders are invisible at overflow-x: auto container edges.
+    // Table draws top + left edges; each cell draws right + bottom edges.
+    tokens[idx].attrSet(
+      'style',
+      'border-collapse: separate; border-spacing: 0; border-top: 1px solid var(--table-border, #d1d5db); border-left: 1px solid var(--table-border, #d1d5db);',
+    );
+    return '<div class="table-scroll-wrapper">' + self.renderToken(tokens, idx, options);
+  };
+
+  md.renderer.rules.table_close = (tokens, idx, options, _env, self) =>
+    self.renderToken(tokens, idx, options) + '</div>';
+
+  md.renderer.rules.th_open = (tokens, idx, options, _env, self) => {
+    // Preserve existing style (e.g., text-align set by column alignment syntax)
+    const existing = tokens[idx].attrGet('style');
+    const border =
+      'border-right: 1px solid var(--table-border, #d1d5db); border-bottom: 1px solid var(--table-border, #d1d5db); padding: 0.5rem 1rem; font-weight: 600; background-color: var(--table-th-bg, #f3f4f6);';
+    tokens[idx].attrSet('style', existing ? `${existing} ${border}` : border);
+    return self.renderToken(tokens, idx, options);
+  };
+
+  md.renderer.rules.td_open = (tokens, idx, options, _env, self) => {
+    // Preserve existing style (e.g., text-align set by column alignment syntax)
+    const existing = tokens[idx].attrGet('style');
+    const border = 'border-right: 1px solid var(--table-border, #d1d5db); border-bottom: 1px solid var(--table-border, #d1d5db); padding: 0.5rem 1rem;';
+    tokens[idx].attrSet('style', existing ? `${existing} ${border}` : border);
+    return self.renderToken(tokens, idx, options);
+  };
+}
+
+/**
  * Renders a markdown string to an HTML string.
  *
  * @param content - Raw markdown source string
@@ -88,6 +129,9 @@ export async function renderMarkdown(
 
   // Register mermaid plugin
   md.use(mermaidPlugin);
+
+  // Register table scroll wrapper plugin
+  md.use(tableScrollPlugin);
 
   // Register data-line plugin for scroll sync
   md.use(dataLinePlugin);

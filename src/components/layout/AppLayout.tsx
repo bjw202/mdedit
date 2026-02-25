@@ -8,7 +8,6 @@ import { writeFile, saveFileAs as saveFileAsIpc } from '@/lib/tauri/ipc';
 import { exportToHtml } from '@/lib/export/exportHtml';
 import { exportToPdf } from '@/lib/export/exportPdf';
 import { exportToDocx } from '@/lib/export/exportDocx';
-import { generateExportFilename } from '@/lib/export/exportUtils';
 import { getHighlighter } from '@/lib/markdown/codeHighlight';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -92,16 +91,16 @@ export function AppLayout(): JSX.Element {
     try {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
-      const exportFilename = generateExportFilename(currentFile ?? 'document.md', 'html');
       const highlighter = await getHighlighter();
       await exportToHtml({
         content: c,
-        filename: exportFilename,
+        filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
       });
     } catch (err) {
       console.error('HTML export failed:', err);
+      window.alert(`HTML export failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setExportLoading(false);
     }
@@ -112,16 +111,16 @@ export function AppLayout(): JSX.Element {
     try {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
-      const exportFilename = generateExportFilename(currentFile ?? 'document.md', 'pdf');
       const highlighter = await getHighlighter();
       await exportToPdf({
         content: c,
-        filename: exportFilename,
+        filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
       });
     } catch (err) {
       console.error('PDF export failed:', err);
+      window.alert(`PDF export failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setExportLoading(false);
     }
@@ -132,16 +131,16 @@ export function AppLayout(): JSX.Element {
     try {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
-      const exportFilename = generateExportFilename(currentFile ?? 'document.md', 'docx');
       const highlighter = await getHighlighter();
       await exportToDocx({
         content: c,
-        filename: exportFilename,
+        filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
       });
     } catch (err) {
       console.error('DOCX export failed:', err);
+      window.alert(`DOCX export failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setExportLoading(false);
     }

@@ -110,3 +110,11 @@ export async function exportSaveDialog(format: string, defaultName: string): Pro
 export async function writeBinaryFile(path: string, data: number[]): Promise<void> {
   return invoke<void>('write_binary_file', { path, data });
 }
+
+/**
+ * Triggers the native print dialog on the current webview window.
+ * Used by PDF export since JavaScript window.print() does not work in Tauri's WKWebView.
+ */
+export async function printCurrentWindow(): Promise<void> {
+  return invoke<void>('print_current_window');
+}

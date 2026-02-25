@@ -25,6 +25,10 @@ export default defineConfig(async () => ({
     watch: {
       ignored: ["**/src-tauri/**"],
     },
+    // Prevent WKWebView from caching JS/CSS in dev mode
+    headers: {
+      'Cache-Control': 'no-store',
+    },
   },
   resolve: {
     alias: {
@@ -35,6 +39,7 @@ export default defineConfig(async () => ({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    exclude: ["**/e2e/**", "**/node_modules/**"],
     poolOptions: {
       forks: {
         execArgv: ["--max-old-space-size=4096"],

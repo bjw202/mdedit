@@ -47,6 +47,9 @@ export async function exportToDocx(options: ExportOptions): Promise<void> {
     return;
   }
 
+  // Capture mermaid SVGs from DOM before conversion
+  const mermaidImages = await captureMermaidImages();
+
   // Parse markdown to tokens
   const md = new MarkdownIt({
     html: false,
@@ -57,7 +60,7 @@ export async function exportToDocx(options: ExportOptions): Promise<void> {
   md.enable('strikethrough');
 
   const tokens = md.parse(content, {});
-  const docxChildren = convertTokensToDocx(tokens);
+  const docxChildren = convertTokensToDocx(tokens, mermaidImages);
 
   const doc = new Document({
     sections: [
@@ -75,10 +78,98 @@ export async function exportToDocx(options: ExportOptions): Promise<void> {
   await writeBinaryFile(savePath, byteArray);
 }
 
+interface MermaidImageData {
+  data: Uint8Array;
+  width: number;
+  height: number;
+}
+
+/**
+ * Captures rendered mermaid SVGs from the DOM and converts them to PNG images.
+ * Returns an array of image data in the order they appear in the DOM.
+ */
+async function captureMermaidImages(): Promise<MermaidImageData[]> {
+  if (typeof document === 'undefined') return [];
+
+  const containers = document.querySelectorAll('.mermaid-container');
+  if (containers.length === 0) return [];
+
+  const results: MermaidImageData[] = [];
+
+  for (const container of containers) {
+    const svg = container.querySelector('svg');
+    if (!svg) continue;
+
+    try {
+      const pngData = await svgToPng(svg);
+      if (pngData) {
+        results.push(pngData);
+      }
+    } catch {
+      // Skip failed SVG conversions
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Converts an SVG element to a PNG image using canvas.
+ * Uses data URI instead of blob URL to comply with CSP img-src restrictions.
+ */
+async function svgToPng(svg: SVGElement): Promise<MermaidImageData | null> {
+  const svgData = new XMLSerializer().serializeToString(svg);
+  // Use data URI (allowed by CSP img-src 'data:') instead of blob URL (blocked by CSP)
+  const utf8Bytes = new TextEncoder().encode(svgData);
+  let binaryStr = '';
+  for (let i = 0; i < utf8Bytes.length; i++) {
+    binaryStr += String.fromCharCode(utf8Bytes[i]);
+  }
+  const dataUri = `data:image/svg+xml;base64,${btoa(binaryStr)}`;
+
+  const svgRect = svg.getBoundingClientRect();
+  const width = Math.max(svgRect.width, 400);
+  const height = Math.max(svgRect.height, 200);
+
+  return new Promise<MermaidImageData | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width * 2; // 2x for retina quality
+      canvas.height = height * 2;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      ctx.scale(2, 2);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob((pngBlob) => {
+        if (!pngBlob) {
+          resolve(null);
+          return;
+        }
+        pngBlob.arrayBuffer().then((buf) => {
+          resolve({
+            data: new Uint8Array(buf),
+            width: Math.round(width * 0.75), // Scale down for DOCX (points)
+            height: Math.round(height * 0.75),
+          });
+        });
+      }, 'image/png');
+    };
+    img.onerror = () => {
+      resolve(null);
+    };
+    img.src = dataUri;
+  });
+}
+
 /**
  * Converts markdown-it tokens to docx document elements.
  */
-function convertTokensToDocx(tokens: Token[]): DocxChild[] {
+function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[]): DocxChild[] {
   const result: DocxChild[] = [];
   let i = 0;
 
@@ -112,6 +203,25 @@ function convertTokensToDocx(tokens: Token[]): DocxChild[] {
       }
 
       case 'fence': {
+        // Check if this is a mermaid diagram
+        if (token.info?.trim() === 'mermaid' && mermaidImages.length > 0) {
+          const imageData = mermaidImages.shift();
+          if (imageData) {
+            result.push(
+              new Paragraph({
+                children: [
+                  new ImageRun({
+                    data: imageData.data,
+                    transformation: { width: imageData.width, height: imageData.height },
+                    type: 'png',
+                  }),
+                ],
+              }),
+            );
+            i++;
+            break;
+          }
+        }
         const codeLines = (token.content ?? '').split('\n');
         for (const line of codeLines) {
           result.push(
