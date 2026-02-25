@@ -80,3 +80,32 @@ Do NOT use vi.spyOn(lineEl, 'scrollIntoView') - it will fail with "does not exis
 ### window.confirm mock for unsaved warning
 When testing openFile with dirty=true, mock window.confirm via vi.stubGlobal:
   vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+
+### SPEC-EXPORT-001 Status
+- Completed: Markdown Document Export PDF/HTML/DOCX (2026-02-25)
+- docx npm package added (DOCX generation)
+- New export files: src/lib/export/{types,exportUtils,exportHtml,exportPdf,exportDocx}.ts
+- Modified: ipc.ts (exportSaveDialog, writeBinaryFile), file_ops.rs (export_save_dialog, write_binary_file), lib.rs (registered), Header.tsx (export dropdown), AppLayout.tsx (export handlers), index.css (@media print)
+- Test files: src/test/{export,exportHtml,exportPdf,ExportHeader}.test.{ts,tsx}
+- Total: 263 frontend tests + 83 Rust tests
+
+### Export test isolation pattern
+When testing modules that import ipc.ts, mock ipc.ts at module level:
+```typescript
+vi.mock('@/lib/tauri/ipc', () => ({
+  exportSaveDialog: vi.fn(),
+  writeBinaryFile: vi.fn(),
+  // include ALL other exports to avoid import failures
+}));
+```
+Do NOT mix ipc.ts module-level mock with @tauri-apps/api/core mock in the same file.
+Separate test files for IPC unit tests vs. module integration tests.
+
+### Theme type in export
+uiStore Theme = 'light' | 'dark' | 'system'. Export functions need 'light' | 'dark'.
+Always resolve theme: const exportTheme: 'light' | 'dark' = themeRaw === 'dark' ? 'dark' : 'light';
+
+### Rust export_save_dialog requires AppHandle
+Cannot unit test export_save_dialog directly (needs Tauri AppHandle).
+Test write_binary_file and format validation logic instead.
+Integration testing of dialog is manual or via Tauri testing framework.

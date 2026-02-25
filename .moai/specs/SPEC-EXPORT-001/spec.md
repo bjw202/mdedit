@@ -1,7 +1,7 @@
 ---
 id: SPEC-EXPORT-001
 version: 1.0.0
-status: planned
+status: implemented
 created: 2026-02-25
 updated: 2026-02-25
 author: jw
