@@ -176,6 +176,87 @@ Playwright의 WebKit은 macOS WKWebView와 동일하지 않다. 오버레이 스
 
 ---
 
-버전: 1.0.0
-작성일: 2026-02-25
+## 7. 후속 발견 (2026-02-25): Windows WebView2 플랫폼별 스크롤 불가 버그
+
+**문제:** macOS 스크롤 수정 완료 후, Windows Tauri(WebView2)에서 동일 증상 재발
+- 좁은 창에서 텍스트·표 모두 잘려서 표시
+- 수평 스크롤 없음 (스크롤바 아예 안 보임)
+
+### 근본 원인: ResizablePanels Flex 레이아웃 오버플로우 버그
+
+**코드 위치:** `src/components/layout/ResizablePanels.tsx`
+
+**버그:** 에디터/프리뷰 너비가 컨테이너 전체(100%)의 퍼센트로 계산됐지만, 동일한 flex 컨테이너 안에 고정 픽셀 너비 사이드바(250px)와 디바이더(8px)가 이미 공간을 차지하고 있었다.
+
+```
+창 1440px, 사이드바 250px, previewWidth=50% 기준
+사이드바: 250px + 디바이더: 8px
+에디터:   50% of 1440px = 720px   ← 사이드바 몫 미포함
+프리뷰:   50% of 1440px = 720px   ← 사이드바 몫 미포함
+합계:     1698px > 1440px → 258px 오버플로우 → 프리뷰 258px 잘림
+```
+
+**왜 macOS는 동작하고 Windows는 안 됐는가?**
+
+프리뷰 패널이 258px 잘린 상태에서 (720px 레이아웃, 462px만 보임):
+- **macOS** (`overflow: scroll`): 강제 스크롤바가 패널 왼쪽(x=0)부터 시작 → 462px 가시 영역 안에 스크롤 트랙 포함 → 부분적으로라도 클릭·드래그 가능
+- **Windows** (`overflow: auto`): 스크롤바가 패널 우측 끝(x=712~720)에만 렌더 → 258px 클리핑으로 완전히 숨겨진 영역 → 스크롤 완전 불가
+
+**수정 (`ResizablePanels.tsx` 2줄 변경):**
+
+```js
+// Before: 사이드바 미포함 → 항상 258px 오버플로우
+const editorWidth = `calc(${100 - previewWidth}%)`;
+const previewWidthStyle = `${previewWidth}%`;
+
+// After: 사이드바 + 디바이더 포함 → 오버플로우 없음
+const fixedWidthPx = effectiveSidebarWidth + (sidebarCollapsed ? 4 : 8);
+const editorWidth = `calc((100% - ${fixedWidthPx}px) * ${(100 - previewWidth) / 100})`;
+const previewWidthStyle = `calc((100% - ${fixedWidthPx}px) * ${previewWidth / 100})`;
+```
+
+### 디버깅 과정 교훈
+
+| 반복 | 접근법 | 결과 | 낭비된 시간 |
+|------|-------|------|------------|
+| 1 | CSS `overflow: auto` 적용 (CSS 문제 가정) | 진단값 정상인데 스크롤 없음 | 높음 |
+| 2 | `@supports (scrollbar-gutter)` CSS 분기 | macOS Safari 17+도 지원 → macOS 깨짐 | 보통 |
+| 3 | `navigator.userAgent` JS 플랫폼 감지 | macOS OK, Windows 여전히 안 됨 | 낮음 |
+| 4 | `padding-right: 1px` + `overflow: auto` | 진단값 맞지만 스크롤 안 보임 | 보통 |
+| 5 | **ResizablePanels 레이아웃 계산 수정** | **해결** | 낮음 |
+
+**총 5회 반복. CSS가 아닌 레이아웃 수준의 버그였음.**
+
+### 새로운 디버깅 규칙
+
+#### 규칙 6: 플랫폼별 동작 차이가 있으면 레이아웃 오버플로우를 먼저 확인
+macOS는 동작하지만 Windows에서 스크롤이 없을 때:
+1. flex 컨테이너에서 고정 px 요소와 % 요소가 혼용되는지 확인
+2. 총 계산 너비 = 컨테이너 너비인지 수동 계산
+3. `overflow-hidden` 부모가 오른쪽 자식을 잘라내는지 확인
+
+#### 규칙 7: Flex 컨테이너에서 고정 px + % 혼용 시 calc() 보정 필수
+```js
+// 안전한 패턴
+const fixedWidthPx = sidebarWidth + dividerWidths;
+const contentWidth = `calc((100% - ${fixedWidthPx}px) * ${fraction})`;
+```
+
+#### 규칙 8: CSS overflow 디버깅 전 레이아웃 시각적 검증 먼저
+`overflow: auto`가 스크롤을 안 만들 때 CSS를 수정하기 전에:
+```javascript
+// 콘솔에서 스크롤 컨테이너의 실제 레이아웃 너비 vs 시각 너비 확인
+const el = document.querySelector('.preview-scroll');
+const parent = el.parentElement;
+const grandparent = parent.parentElement;
+console.log('el.offsetWidth:', el.offsetWidth);          // 레이아웃 너비
+console.log('parent.offsetWidth:', parent.offsetWidth);   // 부모 너비
+console.log('grandparent.scrollWidth > grandparent.offsetWidth:', grandparent.scrollWidth > grandparent.offsetWidth);
+// true면 조상 수준에서 오버플로우가 발생하고 있다는 증거
+```
+
+---
+
+버전: 1.1.0
+작성일: 2026-02-25 (초판) / 2026-02-25 (7절 추가)
 작성자: MoAI + jw (공동 디버깅 세션)
