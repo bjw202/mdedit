@@ -26,9 +26,16 @@
   --table-th-bg: #1f2937;        /* gray-800: table header bg for dark mode */
 }
 
-/* Preview scroll panel - force visible scrollbars on macOS/WKWebView */
+/* Preview scroll panel - force visible scrollbars on macOS/WKWebView (overlay scrollbars hidden by default) */
 .preview-scroll {
   overflow: scroll !important;
+}
+
+/* Windows WebView2: override to auto — native scrollbars are always visible when content overflows.
+   overflow: scroll forces an empty horizontal scrollbar on Windows even when content fits,
+   wasting vertical space and causing border clipping at the forced scroll container boundary. */
+[data-platform="windows"] .preview-scroll {
+  overflow: auto !important;
 }
 .preview-scroll::-webkit-scrollbar {
   width: 8px;
@@ -107,12 +114,14 @@
   @apply mb-4;
 }
 
-/* Windows WebView2 (Chromium): requires explicit overflow-x on wrapper because Chromium does not
-   cascade overflow context from parent the same way WKWebView does.
-   macOS WKWebView: inherits horizontal scroll from parent .preview-scroll — no wrapper overflow needed.
+/* Windows WebView2 (Chromium): table wrapper needs explicit scroll context.
+   padding-right: 1px prevents right border from being clipped at the scroll container boundary
+   (Chromium clips content at exactly the container edge; 1px padding moves the border 1px inside).
+   macOS WKWebView: parent .preview-scroll handles horizontal scroll — no wrapper overflow needed.
    Platform is set via data-platform attribute in App.tsx based on navigator.userAgent. */
 [data-platform="windows"] .preview-content .table-scroll-wrapper {
   overflow-x: auto;
+  padding-right: 1px;
 }
 
 .preview-content table {
