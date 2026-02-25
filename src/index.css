@@ -168,6 +168,16 @@
   @apply rounded-lg mb-4 overflow-x-auto;
 }
 
+/* In dark mode, .dark .preview-content code (specificity 0,2,1) beats
+   .preview-content pre code (0,1,2), causing bg-gray-800 to appear inside
+   Shiki blocks over the theme's own background. Reset it here with higher
+   specificity so Shiki's inline background and token colors render correctly. */
+.dark .preview-content .shiki code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+
 /* Mermaid container */
 .preview-content .mermaid-container {
   @apply flex justify-center mb-4;

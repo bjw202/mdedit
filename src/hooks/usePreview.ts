@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 import { renderMarkdown } from '@/lib/markdown/renderer';
 import { getHighlighter } from '@/lib/markdown/codeHighlight';
 import type { ShikiHighlighter } from '@/lib/markdown/codeHighlight';
@@ -30,6 +31,8 @@ export function usePreview(): PreviewState {
   const [highlighter, setHighlighter] = useState<ShikiHighlighter | null>(null);
 
   const content = useEditorStore((s) => s.content);
+  // Subscribe to theme so re-render triggers when user switches dark/light mode
+  const theme = useUIStore((s) => s.theme);
 
   // Initialize Shiki highlighter once on mount
   useEffect(() => {
@@ -43,7 +46,9 @@ export function usePreview(): PreviewState {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(true);
-      renderMarkdown(content, highlighter)
+      // Read current dark state from the DOM class applied by useTheme()
+      const isDark = document.documentElement.classList.contains('dark');
+      renderMarkdown(content, highlighter, isDark)
         .then((rendered) => {
           setHtml(rendered);
         })
@@ -56,7 +61,7 @@ export function usePreview(): PreviewState {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [content, highlighter]);
+  }, [content, highlighter, theme]);
 
   return { html, isLoading };
 }

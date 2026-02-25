@@ -97,10 +97,13 @@ function tableScrollPlugin(md: MarkdownIt): void {
 export async function renderMarkdown(
   content: string,
   highlighter: ShikiHighlighter | null,
+  isDark = false,
 ): Promise<string> {
   if (!content) {
     return '';
   }
+
+  const shikiTheme = isDark ? 'github-dark' : 'github-light';
 
   // Build markdown-it with optional shiki highlight callback
   const md = new MarkdownIt({
@@ -113,7 +116,7 @@ export async function renderMarkdown(
           try {
             return highlighter.codeToHtml(code, {
               lang: lang || 'text',
-              theme: 'github-light',
+              theme: shikiTheme,
             });
           } catch {
             // Fall back to escaped plain text if language is unsupported
