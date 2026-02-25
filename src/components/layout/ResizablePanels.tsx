@@ -74,8 +74,12 @@ export function ResizablePanels({ sidebar, editor, preview }: ResizablePanelsPro
   }, []);
 
   const effectiveSidebarWidth = sidebarCollapsed ? 0 : sidebarWidth;
-  const editorWidth = `calc(${100 - previewWidth}%)`;
-  const previewWidthStyle = `${previewWidth}%`;
+  // Account for sidebar + divider widths so editor+preview together fill exactly the remaining space.
+  // Without this, the percentage widths overshoot (sidebar is fixed px inside the same flex container),
+  // causing the preview panel to be clipped by the parent overflow-hidden on narrow windows.
+  const fixedWidthPx = effectiveSidebarWidth + (sidebarCollapsed ? 4 : 8);
+  const editorWidth = `calc((100% - ${fixedWidthPx}px) * ${(100 - previewWidth) / 100})`;
+  const previewWidthStyle = `calc((100% - ${fixedWidthPx}px) * ${previewWidth / 100})`;
 
   return (
     <div
