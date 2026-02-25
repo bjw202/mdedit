@@ -42,6 +42,10 @@ function getBaseName(path: string): string {
 /**
  * Returns the parent directory path, or null if already at root.
  * Handles both Unix ('/') and Windows ('\') path separators.
+ *
+ * Windows drive root edge case: slicing "C:\Users" at lastSlash=2 yields "C:",
+ * which on Windows resolves to the process CWD on drive C (not the drive root).
+ * We must return "C:\" to navigate to the actual drive root.
  */
 function parentOf(path: string): string | null {
   const trimmed = path.replace(/[/\\]+$/, '');
@@ -49,7 +53,12 @@ function parentOf(path: string): string | null {
   const lastSlash = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
   if (lastSlash < 0) return null;
   if (lastSlash === 0) return '/';
-  return trimmed.slice(0, lastSlash);
+  const parent = trimmed.slice(0, lastSlash);
+  // Windows drive root: "C:" must become "C:\" to avoid resolving to process CWD
+  if (/^[A-Za-z]:$/.test(parent)) {
+    return parent + '\\';
+  }
+  return parent;
 }
 
 export function FileExplorer(): JSX.Element {

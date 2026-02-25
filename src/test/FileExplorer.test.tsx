@@ -152,4 +152,35 @@ describe('FileExplorer', () => {
     render(<FileExplorer />);
     expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
   });
+
+  // Windows drive root navigation tests
+  it('should navigate to Windows drive root "C:\\" when inside "C:\\Users"', () => {
+    useFileStore.setState({ watchedPath: 'C:\\Users', fileTree: [] });
+    render(<FileExplorer />);
+    const goUpBtn = screen.getByRole('button', { name: /go to parent folder/i });
+    fireEvent.click(goUpBtn);
+    expect(mockOpenFolderPath).toHaveBeenCalledWith('C:\\');
+  });
+
+  it('should not show Go Up button when watchedPath is Windows drive root "C:\\"', () => {
+    useFileStore.setState({ watchedPath: 'C:\\', fileTree: [] });
+    render(<FileExplorer />);
+    expect(screen.queryByRole('button', { name: /go to parent folder/i })).not.toBeInTheDocument();
+  });
+
+  it('should navigate to correct parent for deep Windows path', () => {
+    useFileStore.setState({ watchedPath: 'D:\\Projects\\MyProject', fileTree: [] });
+    render(<FileExplorer />);
+    const goUpBtn = screen.getByRole('button', { name: /go to parent folder/i });
+    fireEvent.click(goUpBtn);
+    expect(mockOpenFolderPath).toHaveBeenCalledWith('D:\\Projects');
+  });
+
+  it('should navigate to Windows drive root "D:\\" when inside "D:\\Projects"', () => {
+    useFileStore.setState({ watchedPath: 'D:\\Projects', fileTree: [] });
+    render(<FileExplorer />);
+    const goUpBtn = screen.getByRole('button', { name: /go to parent folder/i });
+    fireEvent.click(goUpBtn);
+    expect(mockOpenFolderPath).toHaveBeenCalledWith('D:\\');
+  });
 });
