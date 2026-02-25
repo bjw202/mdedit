@@ -238,11 +238,19 @@ Utility libraries and helpers.
 - codeHighlight.ts: Shiki integration for syntax highlighting
 - markdownExt.ts: Custom Markdown extensions and rules
 
+**export/**
+- exportHtml.ts: HTML export with self-contained CSS and SVG diagrams
+- exportPdf.ts: PDF export using Webview print-to-PDF
+- exportDocx.ts: DOCX export with markdown-it token conversion
+- exportUtils.ts: Common utilities for all export formats
+- types.ts: TypeScript types for export functionality
+
 **tauri/**
 - ipc.ts: Type-safe wrappers for Tauri commands
   - invoke wrapper with proper typing
   - Event listener setup
   - Error handling utilities
+  - Export save dialog wrappers
 
 #### src/types/
 

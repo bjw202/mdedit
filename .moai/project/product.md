@@ -191,7 +191,36 @@ Professional code editor functionality adapted for Markdown.
 
 ---
 
-### 5. File Operations
+### 5. Document Export
+
+Export rendered Markdown documents to multiple formats.
+
+**Included**:
+- Export to HTML with self-contained styling (all CSS inlined)
+- Export to PDF with Webview print-to-PDF engine
+- Export to DOCX (Word format) with Markdown-to-docx conversion
+- Preservation of Markdown formatting (headings, lists, tables, code blocks)
+- Syntax-highlighted code blocks in all export formats
+- Mermaid diagram embedding (SVG in HTML/PDF, PNG in DOCX)
+- Theme-aware styling (dark/light mode applied to exports)
+- File save dialog with format-specific filters
+- Auto-suggested filenames based on current document
+
+**Formats Supported**:
+- **HTML**: Self-contained single file, no external CSS dependencies
+- **PDF**: High-quality visual output matching on-screen preview
+- **DOCX**: Compatible with Microsoft Word, Google Docs, LibreOffice
+
+**Performance**:
+- HTML export: <2 seconds for typical documents
+- PDF export: <3 seconds (system print dialog integration)
+- DOCX export: <5 seconds (includes diagram PNG conversion)
+
+**Non-Goal**: Does not support batch export of multiple files or custom export templates.
+
+---
+
+### 6. File Operations
 
 Fast, reliable file I/O with filesystem synchronization.
 
@@ -231,7 +260,6 @@ The following features are explicitly not included to maintain focus and lightwe
 - **Language Support**: No programming language features (linting, formatting, type checking)
 - **Collaboration Features**: No real-time collaboration or sharing
 - **Cloud Storage**: No Dropbox, OneDrive, or Google Drive integration
-- **HTML/Rich Text Export**: No PDF, Word, or HTML export (Markdown only)
 - **Spell Check**: No grammar or spell checking (may add in V2)
 - **Custom Themes**: Limited theme support (system dark mode only, V1)
 - **Package Management**: No npm/pip integration or package browsing
@@ -306,6 +334,7 @@ Core features required for daily Markdown editing:
 - Standard editor features (undo, find/replace, word wrap)
 - Cross-platform support (macOS, Windows, Linux)
 - Mermaid diagram rendering
+- Document export to HTML, PDF, and DOCX formats
 
 ### V2.0 (Enhancement)
 
@@ -322,7 +351,7 @@ Feature expansion based on user feedback:
 Potential long-term features requiring community input:
 - Collaborative editing
 - Plugin system for safe extensions
-- Export to HTML/PDF with themes
+- Custom export templates and themes
 - Integrated bibliography management
 - Publishing workflow integration
 

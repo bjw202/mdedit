@@ -222,6 +222,9 @@ codegen-units = 1         # Single codegen unit for better optimization
 - shiki@1.x (code highlighting)
 - mermaid@11.x (diagram rendering)
 
+**Export Formats**:
+- docx@9.x (DOCX file generation)
+
 **State and Storage**:
 - zustand@5.x (state management)
 
