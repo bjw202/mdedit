@@ -4,11 +4,6 @@
 import type { ShikiHighlighter } from '@/lib/markdown/codeHighlight';
 
 /**
- * Supported export format types.
- */
-export type ExportFormat = 'html' | 'pdf' | 'docx';
-
-/**
  * Options passed to all export functions.
  */
 export interface ExportOptions {

@@ -21,12 +21,3 @@ export interface FileNode {
   modifiedTime?: number;
 }
 
-/**
- * Structured error returned from file operation IPC calls.
- */
-export interface FileError {
-  /** Error category code */
-  code: string;
-  /** Human-readable error message */
-  message: string;
-}

@@ -553,5 +553,4 @@ function getHeadingLevel(level: number): typeof HeadingLevel[keyof typeof Headin
   }
 }
 
-// Re-export ImageRun for Mermaid SVG to PNG conversion (used in exportUtils)
-export { ImageRun };
+
