@@ -233,6 +233,7 @@ codegen-units = 1         # Single codegen unit for better optimization
 - @tauri-apps/cli@2.x (Tauri integration)
 - vitest (testing framework)
 - @testing-library/react (component testing)
+- @playwright/test@1.58.2 (E2E testing framework with WebKit browser support for Tauri macOS validation)
 
 **Total Production Bundle**: ~800KB gzipped (React, CodeMirror, markdown-it, Zustand combined)
 

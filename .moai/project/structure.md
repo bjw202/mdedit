@@ -10,11 +10,13 @@ markdown-editor-rust/
 ├── src/                          # React frontend (TypeScript)
 ├── .moai/                        # MoAI-ADK configuration (project metadata)
 ├── .claude/                      # Claude Code configuration
+├── e2e/                          # Playwright E2E tests with Tauri IPC mock fixtures
 ├── public/                       # Static assets (favicon, manifest)
 ├── index.html                    # HTML entry point
 ├── package.json                  # Node dependencies and scripts
 ├── tsconfig.json                 # TypeScript configuration
 ├── vite.config.ts                # Vite bundler configuration
+├── playwright.config.ts          # Playwright configuration
 ├── .env.example                  # Environment variable template
 ├── README.md                     # Project overview and quick start
 ├── CHANGELOG.md                  # Release notes
@@ -123,6 +125,56 @@ Security and permission configuration.
 - Dialog permissions (open, save, directory)
 - Event emission permissions
 - Command allowlist
+
+---
+
+## E2E Testing: e2e/
+
+Playwright E2E test suite for validating visual rendering, browser compatibility, and critical user workflows.
+
+### Subdirectories
+
+#### e2e/fixtures/
+
+Test fixtures and mocking utilities.
+
+**tauri-mock.ts**
+- Custom Playwright fixture for injecting Tauri IPC mock
+- Provides tauriPage extending standard Playwright Page
+- Injects window.__TAURI__ global object before page load
+- Mocks core.invoke, event.listen, event.emit methods
+- Applied automatically to all E2E tests
+
+**test-content.md**
+- Markdown fixture file containing diverse content for testing
+- Includes wide table for horizontal scroll validation
+- Includes Mermaid diagram, code block, and text content
+- Used by table-border and markdown-render tests
+
+#### Test Files
+
+**table-border.spec.ts**
+- Tests CSS rendering of table borders in preview panel
+- Validates border visibility on td and th elements
+- Confirms no WebKit clipping issues with scroll containers
+- Tests getComputedStyle for pixel accuracy
+
+**app-render.spec.ts**
+- Smoke test for basic app rendering
+- Verifies core UI elements exist (editor, preview, header)
+- Confirms no console errors on page load
+- Tests page accessibility
+
+**markdown-render.spec.ts**
+- Tests markdown-to-HTML rendering pipeline
+- Validates h1, strong, and other HTML elements render correctly
+- Tests preview update timing (within 2 seconds of input)
+- Verifies markdown content is properly displayed
+
+**diagnostic.spec.ts** (temporary)
+- Temporary diagnostic test file created during debugging
+- Contains debugging logic for Playwright WebKit validation
+- Marked for cleanup after validation completes
 
 ---
 
