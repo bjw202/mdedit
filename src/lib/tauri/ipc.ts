@@ -81,9 +81,10 @@ export async function stopWatch(): Promise<void> {
 /**
  * Opens a native Save As dialog, writes the content to the selected file,
  * and returns the saved file path. Returns null if the user cancels.
+ * `defaultPath` sets the initial directory shown in the dialog.
  */
-export async function saveFileAs(content: string): Promise<string | null> {
-  return invoke<string | null>('save_file_as', { content });
+export async function saveFileAs(content: string, defaultPath?: string): Promise<string | null> {
+  return invoke<string | null>('save_file_as', { content, defaultPath: defaultPath ?? null });
 }
 
 // @MX:NOTE: [AUTO] Export IPC wrappers for SPEC-EXPORT-001 - format-specific save dialogs

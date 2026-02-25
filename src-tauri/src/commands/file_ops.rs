@@ -82,15 +82,22 @@ pub async fn delete_file(path: String) -> Result<(), String> {
 
 /// Opens a native Save As dialog and writes content to the selected file.
 /// Returns the path where the file was saved, or None if the user cancelled.
+/// `default_path` sets the initial directory shown in the dialog (e.g. the currently open explorer folder).
 #[tauri::command]
-pub async fn save_file_as(app: tauri::AppHandle, content: String) -> Result<Option<String>, String> {
+pub async fn save_file_as(app: tauri::AppHandle, content: String, default_path: Option<String>) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
 
-    let path = app
+    let mut dialog = app
         .dialog()
         .file()
-        .add_filter("Markdown", &["md", "markdown", "txt"])
-        .blocking_save_file();
+        .add_filter("Markdown", &["md", "markdown", "txt"]);
+
+    if let Some(dir) = default_path {
+        let dir_path = std::path::Path::new(&dir);
+        dialog = dialog.set_directory(dir_path);
+    }
+
+    let path = dialog.blocking_save_file();
 
     match path {
         Some(file_path) => {

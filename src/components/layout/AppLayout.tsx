@@ -31,14 +31,17 @@ export function AppLayout(): JSX.Element {
   const toggleScrollSync = useUIStore((s) => s.toggleScrollSync);
 
   const currentFile = useFileStore((s) => s.currentFile);
+  const watchedPath = useFileStore((s) => s.watchedPath);
   // Handle both Unix ('/') and Windows ('\') path separators
   const filename = currentFile ? (currentFile.split(/[/\\]/).pop() ?? 'Untitled') : 'Untitled';
 
   const handleSaveAs = async (): Promise<void> => {
     const { content } = useEditorStore.getState();
     useUIStore.getState().setSaveStatus('saving');
+    // Default save dialog to the currently open explorer folder, if any
+    const defaultDir = watchedPath ?? undefined;
     try {
-      const savedPath = await saveFileAsIpc(content);
+      const savedPath = await saveFileAsIpc(content, defaultDir);
       if (savedPath !== null) {
         useEditorStore.getState().setCurrentFilePath(savedPath);
         useFileStore.getState().setCurrentFile(savedPath);
