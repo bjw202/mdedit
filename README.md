@@ -2,7 +2,28 @@
 
 타우리(Tauri) v2 + React 18 기반 크로스 플랫폼 마크다운 에디터 데스크톱 앱
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-v2-blue)](https://tauri.app)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](https://github.com/bjw202/mdedit/releases)
+
 **상태**: MVP — 핵심 기능 구현 완료, 사용자 테스트 준비됨
+
+---
+
+## 목차
+
+- [주요 기능](#주요-기능)
+- [다운로드](#다운로드)
+- [빠른 시작 (개발 환경)](#빠른-시작)
+- [배포 파일 빌드](#배포-파일-빌드)
+  - [macOS](#macos에서-배포-파일-빌드하기)
+  - [Windows](#windows에서-배포-파일-빌드하기)
+  - [Linux](#linux에서-배포-파일-빌드하기)
+- [GitHub Releases로 배포하기](#github-releases로-배포하기)
+- [프로젝트 구조](#프로젝트-구조)
+- [아키텍처](#아키텍처)
+- [성능 목표](#성능-목표)
+- [라이선스](#라이선스)
 
 ---
 
@@ -38,33 +59,71 @@
 
 ---
 
-## 기술 스택
+## 다운로드
 
-| 레이어 | 기술 |
-|--------|------|
-| 프론트엔드 | React 18, TypeScript 5, Vite |
-| 에디터 | CodeMirror 6 |
-| 미리보기 | markdown-it 14, Shiki 3, Mermaid 11 |
-| 상태 관리 | Zustand 5 |
-| 백엔드 | Rust (Tauri v2) |
-| 테스트 | Vitest + Testing Library |
+사용자는 GitHub Releases에서 미리 빌드된 패키지를 직접 다운로드할 수 있습니다. 개발 환경을 설정할 필요가 없습니다.
+
+### 다운로드 링크
+
+[GitHub Releases](https://github.com/bjw202/mdedit/releases)에서 최신 버전의 MdEdit를 다운로드하세요.
+
+| 플랫폼 | 파일 | 설명 |
+|--------|------|------|
+| macOS | `mdedit_x.x.x_x64.dmg` | 인텔 맥용 디스크 이미지 |
+| macOS | `mdedit_x.x.x_aarch64.dmg` | Apple Silicon (M1/M2/M3) 맥용 디스크 이미지 |
+| Windows | `mdedit_x.x.x_x64-setup.exe` | Windows 10/11 64비트용 설치 프로그램 (권장) |
+| Windows | `mdedit_x.x.x_x64.msi` | Windows 10/11 64비트용 MSI 설치 파일 |
+| Linux | `mdedit_x.x.x_amd64.deb` | Ubuntu/Debian용 |
+| Linux | `mdedit_x.x.x_x86_64.rpm` | Fedora/RHEL용 |
+| Linux | `mdedit_x.x.x_x86_64.AppImage` | 다른 배포판용 |
+
+### macOS 설치 (Gatekeeper 보안)
+
+코드 서명이 없는 배포의 경우, macOS의 Gatekeeper가 앱 실행을 차단할 수 있습니다. 다음 방법 중 하나를 사용하세요.
+
+**방법 1: Finder에서 앱 열기 (권장)**
+
+1. Finder에서 다운로드한 `mdedit.app` 찾기
+2. 우클릭하여 **열기** 선택
+3. 보안 경고 대화상자에서 **열기** 버튼 클릭
+4. 이후 일반적으로 앱이 실행됨
+
+**방법 2: 터미널에서 격리 속성 제거**
+
+```bash
+xattr -d com.apple.quarantine /Applications/mdedit.app
+```
+
+### Windows 설치
+
+1. `mdedit_x.x.x_x64-setup.exe`를 다운로드
+2. 파일을 두 번 클릭하여 설치 프로그램 실행
+3. "Windows가 보호하는 PC" 경고가 나타나면 **자세한 정보** 클릭 후 **실행** 선택
+4. 설치 마법사 완료
 
 ---
 
 ## 빠른 시작
 
-### 개발 환경 설정
+개발 환경을 구성하고 로컬에서 MdEdit를 실행하려면 이 섹션을 따르세요.
+
+### 1단계: 저장소 클론
 
 ```bash
 git clone https://github.com/bjw202/mdedit.git
-cd mdedit
+cd markdown-editor-rust
+```
+
+### 2단계: 의존성 설치
+
+```bash
 npm install
 ```
 
-### 개발 서버 실행
+### 3단계: 개발 서버 실행
 
 ```bash
-npm run tauri dev
+npm run dev
 ```
 
 최초 실행 시 Rust 의존성 컴파일에 5~10분이 소요됩니다.
@@ -79,11 +138,22 @@ npm run test
 cd src-tauri && cargo test
 ```
 
-### 배포 파일 빌드
+### 기술 스택
 
-```bash
-npm run tauri build
-```
+| 레이어 | 기술 |
+|--------|------|
+| 프론트엔드 | React 18, TypeScript 5, Vite |
+| 에디터 | CodeMirror 6 |
+| 미리보기 | markdown-it 14, Shiki 3, Mermaid 11 |
+| 상태 관리 | Zustand 5 |
+| 백엔드 | Rust (Tauri v2) |
+| 테스트 | Vitest + Testing Library |
+
+---
+
+## 배포 파일 빌드
+
+각 플랫폼에서 MdEdit의 배포 가능한 패키지를 빌드하려면 아래 섹션을 따르세요.
 
 ---
 
@@ -153,7 +223,7 @@ Node.js를 Homebrew로 설치하려면 먼저 Homebrew를 설치합니다:
 
 ```bash
 git clone https://github.com/bjw202/mdedit.git
-cd mdedit
+cd markdown-editor-rust
 ```
 
 2. 의존성 설치:
@@ -165,7 +235,7 @@ npm install
 ### 개발 서버 실행
 
 ```bash
-npm run tauri dev
+npm run dev
 ```
 
 최초 실행 시 Rust 의존성을 컴파일하므로 5~10분이 소요됩니다.
@@ -173,7 +243,7 @@ npm run tauri dev
 ### 배포 파일 빌드
 
 ```bash
-npm run tauri build
+npm run build
 ```
 
 빌드 완료 후:
@@ -182,6 +252,18 @@ npm run tauri build
 - **.app 번들**: `src-tauri/target/release/bundle/macos/`
 
 생성된 `.dmg` 파일을 열어 애플리케이션을 설치합니다.
+
+### Universal Binary (Apple Silicon + Intel) 빌드
+
+Apple Silicon (M1/M2/M3)과 Intel 맥에서 모두 실행되는 Universal Binary를 만들려면:
+
+```bash
+# 두 가지 아키텍처 타겟 설치
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+# Universal binary 빌드
+npm run build -- --target universal-apple-darwin
+```
 
 ### 자주 발생하는 문제
 
@@ -215,12 +297,6 @@ rustup update stable
 rm -rf node_modules package-lock.json
 npm install
 ```
-
----
-
-**문제**: Apple Silicon (M1/M2)에서의 호환성
-
-기본 설정으로 네이티브 ARM64 바이너리가 빌드됩니다. 추가 설정이 필요하지 않습니다.
 
 ---
 
@@ -283,7 +359,7 @@ Windows 10/11에는 기본으로 포함되어 있습니다. 미설치 시:
 
 ```bash
 git clone https://github.com/bjw202/mdedit.git
-cd mdedit
+cd markdown-editor-rust
 ```
 
 2. 의존성 설치:
@@ -297,7 +373,7 @@ npm install
 PowerShell 또는 CMD를 열고:
 
 ```powershell
-npm run tauri dev
+npm run dev
 ```
 
 최초 실행 시 Rust 의존성을 컴파일하므로 5~10분이 소요됩니다.
@@ -305,15 +381,15 @@ npm run tauri dev
 ### 배포 파일 빌드
 
 ```powershell
-npm run tauri build
+npm run build
 ```
 
-빌드 완료 후:
+빌드 완료 후 Tauri v2는 두 가지 설치 형식을 생성합니다:
 
-- **설치 파일 (.msi)**: `src-tauri\target\release\bundle\msi\`
-- **독립 실행 파일 (.exe)**: `src-tauri\target\release\MdEdit.exe`
+- **NSIS Installer (.exe)**: `src-tauri\target\release\bundle\nsis\` (권장 - 더 간단한 설치 경험)
+- **MSI Installer (.msi)**: `src-tauri\target\release\bundle\msi\` (엔터프라이즈 배포용)
 
-생성된 `.msi` 파일을 실행하여 애플리케이션을 설치합니다.
+일반 사용자는 NSIS `.exe` 설치 파일을 사용하세요. MSI는 엔터프라이즈 환경이나 정책 배포가 필요할 때 사용합니다.
 
 ### 자주 발생하는 문제
 
@@ -368,6 +444,147 @@ Windows 경로에 공백이 있으면 문제가 발생할 수 있습니다.
 **문제**: 첫 빌드가 매우 느림
 
 이는 정상입니다. Rust는 최초 빌드 시 약 200개의 의존성을 컴파일합니다. 이후 빌드는 훨씬 빠릅니다.
+
+---
+
+## Linux에서 배포 파일 빌드하기
+
+### 사전 요구사항
+
+#### 1. Node.js 20 이상
+
+**Ubuntu/Debian**:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+**Fedora/RHEL**:
+
+```bash
+sudo dnf install -y nodejs
+```
+
+버전 확인:
+
+```bash
+node --version
+```
+
+#### 2. Rust (rustup)
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+```
+
+버전 확인:
+
+```bash
+rustc --version
+```
+
+#### 3. 시스템 의존성
+
+**Ubuntu/Debian**:
+
+```bash
+sudo apt update && sudo apt install -y \
+  libwebkit2gtk-4.1-dev \
+  libappindicator3-dev \
+  librsvg2-dev \
+  patchelf \
+  build-essential \
+  curl \
+  wget \
+  file \
+  libssl-dev \
+  libayatana-appindicator3-dev
+```
+
+**Fedora/RHEL**:
+
+```bash
+sudo dnf install -y \
+  webkit2gtk4.1-devel \
+  openssl-devel \
+  curl \
+  wget \
+  file \
+  libappindicator-gtk3-devel \
+  librsvg2-devel
+```
+
+### 프로젝트 설정
+
+```bash
+git clone https://github.com/bjw202/mdedit.git
+cd markdown-editor-rust
+npm install
+```
+
+### 개발 서버 실행
+
+```bash
+npm run dev
+```
+
+### 배포 파일 빌드
+
+```bash
+npm run build
+```
+
+빌드 완료 후:
+
+- **Debian/Ubuntu**: `src-tauri/target/release/bundle/deb/*.deb`
+- **Fedora/RHEL**: `src-tauri/target/release/bundle/rpm/*.rpm`
+- **범용 AppImage**: `src-tauri/target/release/bundle/appimage/*.AppImage`
+
+---
+
+## GitHub Releases로 배포하기
+
+빌드한 패키지를 GitHub Releases를 통해 배포하면 사용자가 GitHub에서 직접 다운로드할 수 있습니다.
+
+### 1단계: 릴리즈 파일 준비
+
+각 플랫폼에서 빌드 후 생성된 파일:
+
+| 플랫폼 | 파일 위치 | 설명 |
+|--------|----------|------|
+| macOS | `src-tauri/target/release/bundle/dmg/*.dmg` | 디스크 이미지 (권장) |
+| Windows | `src-tauri\target\release\bundle\nsis\*.exe` | NSIS 설치 파일 (권장) |
+| Windows | `src-tauri\target\release\bundle\msi\*.msi` | MSI 설치 파일 |
+| Linux | `src-tauri/target/release/bundle/deb/*.deb` | Debian/Ubuntu |
+| Linux | `src-tauri/target/release/bundle/rpm/*.rpm` | Fedora/RHEL |
+
+### 2단계: GitHub Release 생성 (gh CLI 사용)
+
+gh CLI가 설치되어 있다면:
+
+```bash
+# 버전 태그 생성
+git tag v0.1.0
+git push origin v0.1.0
+
+# GitHub Release 생성 및 파일 업로드
+gh release create v0.1.0 \
+  "src-tauri/target/release/bundle/dmg/mdedit_0.1.0_x64.dmg" \
+  "src-tauri/target/release/bundle/nsis/mdedit_0.1.0_x64-setup.exe" \
+  --title "MdEdit v0.1.0" \
+  --notes "첫 번째 릴리즈"
+```
+
+### 3단계: GitHub Release 수동 생성
+
+1. GitHub 저장소 페이지에서 **Releases** 클릭
+2. **Create a new release** 클릭
+3. Tag: `v0.1.0` 입력 및 생성
+4. Title: `MdEdit v0.1.0` 입력
+5. 빌드된 파일을 드래그 앤 드롭으로 첨부
+6. **Publish release** 클릭
 
 ---
 
