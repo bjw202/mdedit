@@ -12,10 +12,11 @@
 
 ## 목차
 
+- [AI 에이전트 자동 빌드 가이드](#ai-에이전트-자동-빌드-가이드) ← Claude Code로 자동화 시 시작점
 - [주요 기능](#주요-기능)
 - [다운로드](#다운로드)
 - [빠른 시작 (개발 환경)](#빠른-시작)
-- [배포 파일 빌드](#배포-파일-빌드)
+- [배포 파일 빌드 (플랫폼별 상세)](#배포-파일-빌드)
   - [macOS](#macos에서-배포-파일-빌드하기)
   - [Windows](#windows에서-배포-파일-빌드하기)
   - [Linux](#linux에서-배포-파일-빌드하기)
@@ -24,6 +25,176 @@
 - [아키텍처](#아키텍처)
 - [성능 목표](#성능-목표)
 - [라이선스](#라이선스)
+
+---
+
+## AI 에이전트 자동 빌드 가이드
+
+> **AI 에이전트(Claude Code 등)를 위한 섹션**입니다. 이 섹션의 명령어를 순서대로 실행하면 현재 시스템을 자동으로 감지하여 의존성을 설치하고 배포 파일을 빌드할 수 있습니다. 사람도 이 섹션만 따라도 빌드할 수 있습니다.
+
+### 프로젝트 메타데이터
+
+```yaml
+name: MdEdit
+version: 0.1.0
+type: desktop-app (Tauri v2 cross-platform)
+languages:
+  backend: Rust (>= 1.77.2)
+  frontend: TypeScript + React 18
+package_manager: npm
+commands:
+  install: npm install
+  dev: npm run dev
+  build: npm run build        # 배포 패키지 생성
+  test: npm run test          # 프론트엔드 테스트 (Vitest)
+  test_rust: cd src-tauri && cargo test
+build_output:
+  macOS: src-tauri/target/release/bundle/dmg/*.dmg
+  windows_nsis: src-tauri/target/release/bundle/nsis/*-setup.exe
+  windows_msi: src-tauri/target/release/bundle/msi/*.msi
+  linux_deb: src-tauri/target/release/bundle/deb/*.deb
+  linux_rpm: src-tauri/target/release/bundle/rpm/*.rpm
+  linux_appimage: src-tauri/target/release/bundle/appimage/*.AppImage
+first_build_time: 5-10 minutes (Rust dependency compilation)
+```
+
+### 단계 1: OS 감지
+
+```bash
+uname -s 2>/dev/null || echo "Windows"
+```
+
+| 출력값 | OS |
+|--------|----|
+| `Darwin` | macOS |
+| `Linux` | Linux |
+| `Windows` 또는 명령 없음 | Windows |
+
+### 단계 2: 필수 도구 확인 및 설치
+
+각 도구를 확인하고 없으면 설치합니다.
+
+#### Node.js (버전 20 이상 필요)
+
+```bash
+# 버전 확인
+node --version
+# 기대 출력: v20.x.x 이상
+```
+
+버전이 낮거나 설치되지 않은 경우:
+
+```bash
+# macOS (Homebrew)
+brew install node
+
+# Linux (Ubuntu/Debian)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs
+
+# Linux (Fedora/RHEL)
+sudo dnf install -y nodejs
+
+# Windows: https://nodejs.org 에서 LTS 다운로드 ("Add to PATH" 옵션 체크 필수)
+```
+
+#### Rust (버전 1.77.2 이상 필요)
+
+```bash
+# 버전 확인
+rustc --version
+# 기대 출력: rustc 1.77.2 이상
+```
+
+설치되지 않은 경우:
+
+```bash
+# macOS / Linux
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source ~/.cargo/env   # 또는 새 터미널 열기
+
+# Windows: https://rustup.rs 에서 rustup-init.exe 다운로드 후 실행
+```
+
+#### macOS 전용: Xcode Command Line Tools
+
+```bash
+# 설치 여부 확인
+xcode-select --print-path
+# 기대 출력: /Library/Developer/CommandLineTools (경로가 없으면 미설치)
+
+# 미설치 시
+xcode-select --install
+```
+
+#### Windows 전용: Visual Studio Build Tools
+
+```powershell
+# link.exe 존재 여부 확인 (설치되어 있으면 경로 출력)
+where.exe link.exe
+```
+
+없으면: Visual Studio 2022용 빌드 도구 설치 → "C++를 사용한 데스크톱 개발" 워크로드 선택 → 설치 후 재시작
+
+#### Linux 전용: 시스템 의존성
+
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt install -y \
+  libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+  patchelf build-essential libssl-dev libayatana-appindicator3-dev
+
+# Fedora/RHEL
+sudo dnf install -y \
+  webkit2gtk4.1-devel openssl-devel curl wget file \
+  libappindicator-gtk3-devel librsvg2-devel
+```
+
+### 단계 3: 의존성 설치
+
+```bash
+npm install
+# 완료 확인: node_modules/ 디렉토리 생성됨
+```
+
+### 단계 4: 배포 파일 빌드
+
+```bash
+npm run build
+# 최초 빌드: 5~10분 소요 (Rust 의존성 200여 개 컴파일)
+# 이후 빌드: 1~2분
+```
+
+### 단계 5: 빌드 결과물 확인
+
+```bash
+# macOS
+ls src-tauri/target/release/bundle/dmg/ 2>/dev/null || echo "빌드 결과물 없음"
+
+# Linux
+ls src-tauri/target/release/bundle/deb/ 2>/dev/null || echo "빌드 결과물 없음"
+ls src-tauri/target/release/bundle/appimage/ 2>/dev/null || echo "빌드 결과물 없음"
+```
+
+```powershell
+# Windows PowerShell
+Get-ChildItem src-tauri\target\release\bundle\nsis\
+Get-ChildItem src-tauri\target\release\bundle\msi\
+```
+
+### 오류 패턴 및 해결 방법
+
+AI 에이전트가 빌드 오류를 만났을 때 참조하는 테이블입니다.
+
+| 오류 메시지 (포함 여부로 판단) | 원인 | 해결 명령어 |
+|-------------------------------|------|------------|
+| `linker 'cc' not found` | macOS: Xcode CLT 미설치 | `xcode-select --install` |
+| `linker 'link.exe' not found` | Windows: VS Build Tools 미설치 | VS Build Tools 2022 + C++ 워크로드 설치 |
+| `cannot find -lwebkit2gtk` | Linux: 시스템 의존성 누락 | 위 apt/dnf 명령 실행 |
+| `rustc: command not found` | Rust 미설치 | `curl ... rustup.rs \| sh` |
+| `node: command not found` | Node.js 미설치 | Node.js 20+ 설치 |
+| `ERR! code EACCES` | npm 권한 오류 | `rm -rf node_modules && npm install` |
+| `error[E0...]: use of undeclared` | Rust 버전 낮음 | `rustup update stable` |
+| `Cannot find module` | node_modules 손상 | `rm -rf node_modules && npm install` |
 
 ---
 
