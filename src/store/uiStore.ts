@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// @MX:ANCHOR: [AUTO] useUIStore - persisted UI state store consumed by AppLayout, Header, ResizablePanels, Footer, useTheme
+// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status); fan_in >= 5
 // @MX:NOTE: Theme type union for type-safe theme selection
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -31,8 +33,9 @@ interface UIState {
   setLastWatchedPath: (path: string | null) => void;
 }
 
-// @MX:ANCHOR: Central UI state store - persisted to localStorage via zustand persist middleware
-// @MX:REASON: [AUTO] Public API boundary - used by AppLayout, Header, ResizablePanels, useTheme, Footer
+// @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth clamped to [20, 80]% to prevent layout breakage
+// @MX:ANCHOR: [AUTO] Central UI state store - persisted to localStorage via zustand persist middleware
+// @MX:REASON: [AUTO] Public API boundary - used by AppLayout, Header, ResizablePanels, useTheme, Footer (fan_in >= 5)
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({

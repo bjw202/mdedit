@@ -17,7 +17,7 @@ function setNodeChildren(nodes: FileNode[], targetPath: string, children: FileNo
   });
 }
 
-// @MX:ANCHOR: Central file system state store for the sidebar file explorer
+// @MX:ANCHOR: [AUTO] Central file system state store for the sidebar file explorer
 // @MX:REASON: [AUTO] Public API boundary - used by FileExplorer, FileTree, FileTreeNode, useFileSystem (fan_in >= 3)
 // @MX:SPEC: SPEC-UI-002
 
@@ -42,7 +42,7 @@ interface FileState {
   updateNodeChildren: (path: string, children: FileNode[]) => void;
 }
 
-// @MX:NOTE: fileStore is NOT persisted - file tree is session-scoped and re-loaded on app start.
+// @MX:NOTE: [AUTO] fileStore is NOT persisted - file tree is session-scoped and re-loaded on app start.
 // Zustand v5 has issues with Set serialization in persist middleware, so we skip persistence.
 export const useFileStore = create<FileState>()((set, get) => ({
   fileTree: [],

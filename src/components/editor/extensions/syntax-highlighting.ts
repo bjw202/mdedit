@@ -1,6 +1,9 @@
+// @MX:ANCHOR: [AUTO] markdownSyntaxHighlighting - VS Code-style highlighting extension used by createMarkdownExtensions
+// @MX:REASON: [AUTO] Called by createMarkdownExtensions, which is called on every editor mount (fan_in >= 3)
 // @MX:NOTE: VS Code-style syntax highlighting theme for CodeMirror 6 Markdown editor
 // Provides color tokens for major Markdown elements following VSCode dark+ style.
 // Uses CSS class-based highlighting via HighlightStyle.define (tag + class format).
+// @MX:NOTE: [AUTO] Color constants use CSS variables (--cm-base-text, --cm-content) for theme-awareness in both light/dark modes
 
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';

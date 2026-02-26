@@ -9,6 +9,7 @@ import type { FileNode } from '@/types/file';
 // @MX:ANCHOR: [AUTO] Top-level sidebar container - orchestrates file tree, search, open-folder actions
 // @MX:REASON: [AUTO] Public API boundary - used by AppLayout as the sidebar component (fan_in >= 3)
 // @MX:SPEC: SPEC-UI-002
+// @MX:NOTE: [AUTO] parentOf handles Windows drive root edge case - "C:" must become "C:\" to avoid resolving to process CWD
 
 /**
  * Recursively filters a FileNode tree to include only nodes whose name matches the query,

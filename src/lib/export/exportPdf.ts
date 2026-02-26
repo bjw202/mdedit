@@ -6,7 +6,8 @@ import { printCurrentWindow } from '@/lib/tauri/ipc';
 import type { ExportOptions } from './types';
 
 // @MX:WARN: [AUTO] Tauri WebviewWindow::print() returns before the native dialog closes
-// @MX:REASON: Cleanup must be deferred via afterprint event to keep @media print CSS active during print
+// @MX:REASON: [AUTO] Cleanup must be deferred via afterprint event to keep @media print CSS active during print
+// @MX:NOTE: [AUTO] 300000ms (5 minute) fallback timeout for afterprint cleanup in case event never fires
 
 /**
  * Exports the markdown content as a PDF using Tauri's native print dialog.

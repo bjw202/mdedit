@@ -19,8 +19,9 @@ function ResizeDivider({ onMouseDown }: ResizeDividerProps): JSX.Element {
   return <div className={DIVIDER_CLASS} onMouseDown={onMouseDown} />;
 }
 
-// @MX:ANCHOR: 3-pane layout container with drag-to-resize dividers
-// @MX:REASON: [AUTO] Core layout component - used by AppLayout, drives entire panel sizing system
+// @MX:ANCHOR: [AUTO] 3-pane layout container with drag-to-resize dividers
+// @MX:REASON: [AUTO] Core layout component - used by AppLayout, drives entire panel sizing system (fan_in >= 3)
+// @MX:NOTE: [AUTO] previewWidth is stored as percentage (20-80); editorWidth calculated as calc((100% - fixedPx) * ratio) to prevent sidebar overflow clipping
 export function ResizablePanels({ sidebar, editor, preview }: ResizablePanelsProps): JSX.Element {
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const previewWidth = useUIStore((s) => s.previewWidth);

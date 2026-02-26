@@ -3,7 +3,7 @@ import type Token from 'markdown-it/lib/token.mjs';
 import { mermaidPlugin } from './mermaidPlugin';
 import type { ShikiHighlighter } from './codeHighlight';
 
-// @MX:ANCHOR: [AUTO] Core markdown rendering function - used by usePreview hook
+// @MX:ANCHOR: [AUTO] Core markdown rendering function - used by usePreview, exportHtml, exportDocx
 // @MX:REASON: [AUTO] Public API boundary for all markdown-to-HTML conversion (fan_in >= 3)
 // @MX:SPEC: SPEC-PREVIEW-001
 

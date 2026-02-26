@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
 
+// @MX:ANCHOR: [AUTO] PreviewRenderer - renders sanitized HTML and triggers mermaid diagram rendering
+// @MX:REASON: [AUTO] Central render target used by MarkdownPreview and exported HTML functions (fan_in >= 3)
+// @MX:SPEC: SPEC-PREVIEW-001
 // @MX:NOTE: [AUTO] dangerouslySetInnerHTML is intentionally used here
 // This is safe because markdown-it renders with html:false which blocks raw HTML injection
-// @MX:SPEC: SPEC-PREVIEW-001
+// @MX:WARN: [AUTO] mermaid.render() is async inside forEach - errors per-diagram are caught individually
+// @MX:REASON: [AUTO] One broken diagram must not prevent other diagrams or the preview from rendering
 
 // Initialize mermaid once at module load time
 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });

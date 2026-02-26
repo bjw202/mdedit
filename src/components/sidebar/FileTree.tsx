@@ -1,6 +1,8 @@
 import type { FileNode } from '@/types/file';
 import { FileTreeNode } from './FileTreeNode';
 
+// @MX:ANCHOR: [AUTO] FileTree - renders sorted file tree from FileExplorer and handles lazy node expansion
+// @MX:REASON: [AUTO] Used by FileExplorer and receives refresh callback passed down to all FileTreeNode children (fan_in >= 3)
 // @MX:NOTE: Recursive file tree renderer. Sorts directories before files, both alphabetically.
 // @MX:SPEC: SPEC-UI-002
 

@@ -24,6 +24,7 @@ import type { ExportOptions } from './types';
 
 // @MX:WARN: [AUTO] DOCX export uses complex markdown token traversal - handle edge cases carefully
 // @MX:REASON: [AUTO] markdown-it tokens have nested structure that requires careful state tracking
+// @MX:NOTE: [AUTO] mermaidImages array is consumed via shift() - order must match DOM order of .mermaid-container elements
 
 type DocxChild = Paragraph | Table;
 

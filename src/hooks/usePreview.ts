@@ -9,6 +9,7 @@ import type { ShikiHighlighter } from '@/lib/markdown/codeHighlight';
 // @MX:REASON: [AUTO] Public API boundary for debounced markdown rendering (fan_in >= 3)
 // @MX:SPEC: SPEC-PREVIEW-001
 
+// @MX:NOTE: [AUTO] DEBOUNCE_MS = 300ms - debounce delay before triggering markdown re-render; balances responsiveness and CPU usage
 /** Debounce delay in milliseconds before triggering markdown re-render */
 const DEBOUNCE_MS = 300;
 

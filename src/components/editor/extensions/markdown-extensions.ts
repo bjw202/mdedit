@@ -1,3 +1,5 @@
+// @MX:ANCHOR: [AUTO] createMarkdownExtensions - CodeMirror 6 extension bundle for Markdown editor
+// @MX:REASON: [AUTO] Called by MarkdownEditor on initialization; provides the complete extension set (fan_in >= 3)
 // @MX:NOTE: Markdown-specific CodeMirror 6 extension bundle
 // Aggregates all Markdown-related extensions into a single composable array
 

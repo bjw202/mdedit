@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useUIStore } from '@/store/uiStore';
 
+// @MX:ANCHOR: [AUTO] useTheme - global theme management hook, called by AppLayout on startup
+// @MX:REASON: [AUTO] Public API boundary - applies dark/light class to document.documentElement (fan_in >= 3)
 // @MX:NOTE: System dark mode detection hook - applies dark class to document root
 // Handles three modes: system (follows OS), dark (always dark), light (always light)
 export function useTheme(): void {

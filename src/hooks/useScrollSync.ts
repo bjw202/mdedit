@@ -1,6 +1,8 @@
+// @MX:ANCHOR: [AUTO] useScrollSync - scroll synchronization hook between editor and preview
+// @MX:REASON: [AUTO] Called by AppLayout; coordinates editor and preview panels (fan_in >= 3)
 // @MX:NOTE: Scroll synchronization hook between CodeMirror editor and markdown preview.
 // Uses line-number-based mapping via data-line attributes injected by the markdown renderer.
-// @MX:WARN: Feedback loop prevention is critical - use isProgrammaticScrollRef flag
+// @MX:WARN: [AUTO] Feedback loop prevention is critical - use isProgrammaticScrollRef flag
 // @MX:REASON: [AUTO] Without prevention, editor scroll triggers preview scroll which triggers editor scroll (infinite loop)
 
 import { useEffect, useRef } from 'react';

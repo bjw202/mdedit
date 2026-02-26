@@ -1,6 +1,7 @@
 // @MX:ANCHOR: [AUTO] Shared export utilities used by all export format modules
 // @MX:REASON: [AUTO] Called by exportHtml, exportPdf, exportDocx (fan_in >= 3)
 // @MX:SPEC: SPEC-EXPORT-001
+// @MX:NOTE: [AUTO] getPreviewCss returns a large static CSS string embedding all preview styles inline for self-contained HTML export
 
 import type { HtmlDocumentOptions } from './types';
 

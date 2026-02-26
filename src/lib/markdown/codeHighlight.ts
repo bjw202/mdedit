@@ -1,5 +1,7 @@
 import { createHighlighter } from 'shiki';
 
+// @MX:ANCHOR: [AUTO] getHighlighter - shared Shiki singleton used by renderer, usePreview, exportHtml
+// @MX:REASON: [AUTO] Called by multiple modules; singleton prevents redundant initialization (fan_in >= 3)
 // @MX:NOTE: [AUTO] Shiki singleton - lazy-initialized to avoid blocking startup
 // Uses Shiki v1 API (createHighlighter, not deprecated getHighlighter)
 // @MX:SPEC: SPEC-PREVIEW-001
