@@ -9,7 +9,7 @@ workflow:
         markers:
             complete: <moai>COMPLETE</moai>
             done: <moai>DONE</moai>
-    execution_mode: team
+    execution_mode: auto
     loop_prevention:
         failure_pattern_detection: true
         max_iterations: 100
