@@ -4,7 +4,7 @@
 // Aggregates all Markdown-related extensions into a single composable array
 
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { lineNumbers, highlightActiveLine, EditorView, keymap } from '@codemirror/view';
+import { lineNumbers, highlightActiveLine, drawSelection, EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { searchKeymap } from '@codemirror/search';
 import { indentWithTab } from '@codemirror/commands';
@@ -48,6 +48,7 @@ export const editorBaseTheme: Extension = EditorView.theme({
   '.cm-content': {
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
+    caretColor: 'var(--cm-cursor-color)',  // Controls native browser caret color in WKWebView
   },
   '.cm-line': {
     padding: '0 8px',
@@ -81,6 +82,7 @@ export function createMarkdownExtensions(): Extension[] {
     // Editor chrome
     lineNumbers(),
     highlightActiveLine(),
+    drawSelection(),  // Required: draws custom .cm-cursor divs and hides native caret
 
     // Word wrap via EditorView.lineWrapping
     EditorView.lineWrapping,
