@@ -67,11 +67,16 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   useEffect(() => { resetEditorRef.current = resetEditor; }, [resetEditor]);
   useEffect(() => { onViewReadyRef.current = onViewReady; }, [onViewReady]);
 
-  // Reconfigure cursor color when theme changes (dark ↔ light)
+  // Reconfigure cursor color when theme changes (dark ↔ light).
+  // Derives isDark from the store value to avoid React effect ordering issues:
+  // MarkdownEditor (child) effects run before AppLayout (parent) useTheme() effect,
+  // so document.documentElement.classList.contains('dark') is unreliable at this point.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
-    const isDark = document.documentElement.classList.contains('dark');
+    const isDark =
+      theme === 'dark' ||
+      (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     view.dispatch({ effects: cursorCompartment.reconfigure(createCursorTheme(isDark)) });
   }, [theme]);
 
@@ -273,6 +278,14 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
     });
 
     viewRef.current = view;
+
+    // Apply correct initial cursor color using store state (not DOM class) because
+    // useTheme() runs in the parent component after this child's effects complete.
+    const initTheme = useUIStore.getState().theme;
+    const initIsDark =
+      initTheme === 'dark' ||
+      (initTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    view.dispatch({ effects: cursorCompartment.reconfigure(createCursorTheme(initIsDark)) });
 
     // Notify parent that the EditorView is ready
     onViewReadyRef.current?.(view);

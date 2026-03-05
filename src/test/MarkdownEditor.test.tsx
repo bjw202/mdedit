@@ -85,6 +85,8 @@ vi.mock('@codemirror/view', async () => {
 
 vi.mock('@/components/editor/extensions/markdown-extensions', () => ({
   createMarkdownExtensions: vi.fn().mockReturnValue([]),
+  cursorCompartment: { reconfigure: vi.fn().mockReturnValue({ type: 'effect' }) },
+  createCursorTheme: vi.fn().mockReturnValue({ extension: 'cursor-theme' }),
 }));
 
 describe('MarkdownEditor: Rendering', () => {
