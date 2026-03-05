@@ -44,6 +44,9 @@ export const editorBaseTheme: Extension = EditorView.theme({
     border: 'none',
     color: '#858585',
   },
+  '.cm-cursor, .cm-dropCursor': {
+    borderLeftColor: 'var(--cm-cursor-color)',
+  },
 });
 
 /**

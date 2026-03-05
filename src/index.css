@@ -4,6 +4,7 @@
 
 /* Editor color variables - light mode defaults */
 :root {
+  --cm-cursor-color: #111827;    /* black cursor in light mode */
   --cm-base-text: #111827;       /* gray-900: base text for light mode */
   --cm-content: #111827;         /* gray-900: body content for light mode */
   --cm-strong: #111827;          /* gray-900: bold text for light mode */
@@ -16,6 +17,7 @@
 
 /* Editor color variables - dark mode overrides */
 .dark {
+  --cm-cursor-color: #ffffff;    /* white cursor in dark mode */
   --cm-base-text: #e5e7eb;       /* gray-200: base text for dark mode */
   --cm-content: #d4d4d4;         /* light gray: body content for dark mode */
   --cm-strong: #ffffff;          /* white: bold text for dark mode */
