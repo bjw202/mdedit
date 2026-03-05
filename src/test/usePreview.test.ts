@@ -25,6 +25,11 @@ vi.mock('@/lib/markdown/renderer', () => ({
   renderMarkdown: vi.fn().mockResolvedValue('<p>rendered</p>'),
 }));
 
+// Mock imageResolver
+vi.mock('@/lib/image/imageResolver', () => ({
+  embedPreviewImages: vi.fn().mockImplementation((html: string) => Promise.resolve(html)),
+}));
+
 // Mock codeHighlight
 vi.mock('@/lib/markdown/codeHighlight', () => ({
   getHighlighter: vi.fn().mockResolvedValue(null),
@@ -91,7 +96,7 @@ describe('usePreview', () => {
       vi.advanceTimersByTime(1);
       await vi.runAllTimersAsync();
     });
-    expect(mockRenderMarkdown).toHaveBeenCalledWith('Hello', null, false, null);
+    expect(mockRenderMarkdown).toHaveBeenCalledWith('Hello', null, false);
   });
 
   it('sets html after debounce completes', async () => {
@@ -220,6 +225,6 @@ describe('usePreview', () => {
 
     // renderMarkdown should be called once (for 'updated'), not twice
     expect(mockRenderMarkdown).toHaveBeenCalledTimes(1);
-    expect(mockRenderMarkdown).toHaveBeenCalledWith('updated', null, false, null);
+    expect(mockRenderMarkdown).toHaveBeenCalledWith('updated', null, false);
   });
 });

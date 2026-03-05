@@ -4,6 +4,7 @@ import { useUIStore } from '@/store/uiStore';
 import { renderMarkdown } from '@/lib/markdown/renderer';
 import { getHighlighter } from '@/lib/markdown/codeHighlight';
 import type { ShikiHighlighter } from '@/lib/markdown/codeHighlight';
+import { embedPreviewImages } from '@/lib/image/imageResolver';
 
 // @MX:ANCHOR: [AUTO] Preview rendering hook - consumed by MarkdownPreview component
 // @MX:REASON: [AUTO] Public API boundary for debounced markdown rendering (fan_in >= 3)
@@ -50,9 +51,10 @@ export function usePreview(): PreviewState {
       setIsLoading(true);
       // Read current dark state from the DOM class applied by useTheme()
       const isDark = document.documentElement.classList.contains('dark');
-      renderMarkdown(content, highlighter, isDark, currentFilePath)
-        .then((rendered) => {
-          setHtml(rendered);
+      renderMarkdown(content, highlighter, isDark)
+        .then((rendered) => embedPreviewImages(rendered, currentFilePath))
+        .then((resolved) => {
+          setHtml(resolved);
         })
         .catch(() => {
           // Keep previous HTML on rendering error - do not update html state

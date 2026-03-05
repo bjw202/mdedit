@@ -19,11 +19,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' tauri: asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data: asset: https://asset.localhost blob:; connect-src 'self' tauri: asset: https://asset.localhost ws://localhost:* http://localhost:*",
-      "assetScope": {
-        "allow": ["**"],
-        "deny": []
-      }
+      "csp": "default-src 'self' tauri: asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data: asset: https://asset.localhost blob:; connect-src 'self' tauri: asset: https://asset.localhost ws://localhost:* http://localhost:*"
     }
   },
   "bundle": {
