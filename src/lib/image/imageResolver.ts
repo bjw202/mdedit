@@ -47,7 +47,11 @@ export function resolveImageSrc(src: string, mdFilePath: string | null): string 
 
   // Normalize the relative path: strip leading ./
   const normalizedSrc = src.startsWith('./') ? src.substring(2) : src;
-  const absolutePath = `${mdDir}/${normalizedSrc}`;
+
+  // Use the same path separator as the mdFilePath to avoid mixing on Windows
+  const sep = mdFilePath.includes('\\') ? '\\' : '/';
+  const normalizedSrcForOS = normalizedSrc.replace(/\//g, sep);
+  const absolutePath = `${mdDir}${sep}${normalizedSrcForOS}`;
 
   return convertFileSrc(absolutePath);
 }
