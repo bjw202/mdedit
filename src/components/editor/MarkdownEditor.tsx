@@ -12,6 +12,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
 import { writeFile, saveFileAs } from '@/lib/tauri/ipc';
 import { createMarkdownExtensions } from './extensions/markdown-extensions';
+import { handleImagePaste, handleImageDrop, insertImageFromDialog } from '@/lib/image/imageHandler';
 
 interface MarkdownEditorProps {
   /** Callback invoked with the EditorView instance after initialization */
@@ -145,6 +146,28 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
         },
         preventDefault: true,
       },
+      {
+        key: 'Mod-Shift-i',
+        run: (view) => {
+          const filePath = currentFilePathRef.current;
+          if (!filePath) {
+            // Unsaved file - trigger Save As first
+            const docContent = view.state.doc.toString();
+            saveFileAs(docContent).then((savedPath) => {
+              if (savedPath) {
+                setCurrentFilePathRef.current(savedPath);
+                setDirtyRef.current(false);
+                useUIStore.getState().setSaveStatus('saved');
+                insertImageFromDialog(view, savedPath);
+              }
+            });
+          } else {
+            insertImageFromDialog(view, filePath);
+          }
+          return true;
+        },
+        preventDefault: true,
+      },
     ]);
 
     // Update listener syncs content changes and cursor position to editorStore
@@ -168,12 +191,68 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
       }
     });
 
+    // Image paste/drop event handlers
+    const imageEventHandlers = EditorView.domEventHandlers({
+      paste(event: ClipboardEvent, view: EditorView) {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        const hasImage = Array.from(items).some((item) => item.type.startsWith('image/'));
+        if (!hasImage) return false;
+
+        const filePath = currentFilePathRef.current;
+        if (!filePath) {
+          // Unsaved file - prompt Save As first
+          event.preventDefault();
+          const docContent = view.state.doc.toString();
+          saveFileAs(docContent).then((savedPath) => {
+            if (savedPath) {
+              setCurrentFilePathRef.current(savedPath);
+              setDirtyRef.current(false);
+              useUIStore.getState().setSaveStatus('saved');
+              handleImagePaste(view, event, savedPath);
+            }
+          });
+          return true;
+        }
+
+        event.preventDefault();
+        handleImagePaste(view, event, filePath);
+        return true;
+      },
+      drop(event: DragEvent, view: EditorView) {
+        const files = event.dataTransfer?.files;
+        if (!files || files.length === 0) return false;
+        const hasImage = Array.from(files).some((f) => f.type.startsWith('image/'));
+        if (!hasImage) return false;
+
+        const filePath = currentFilePathRef.current;
+        if (!filePath) {
+          event.preventDefault();
+          const docContent = view.state.doc.toString();
+          saveFileAs(docContent).then((savedPath) => {
+            if (savedPath) {
+              setCurrentFilePathRef.current(savedPath);
+              setDirtyRef.current(false);
+              useUIStore.getState().setSaveStatus('saved');
+              handleImageDrop(view, event, savedPath);
+            }
+          });
+          return true;
+        }
+
+        event.preventDefault();
+        handleImageDrop(view, event, filePath);
+        return true;
+      },
+    });
+
     const startState = EditorState.create({
       doc: content,
       extensions: [
         ...createMarkdownExtensions(),
         editorSaveKeymap,
         updateListener,
+        imageEventHandlers,
       ],
     });
 

@@ -32,6 +32,7 @@ export function usePreview(): PreviewState {
   const [highlighter, setHighlighter] = useState<ShikiHighlighter | null>(null);
 
   const content = useEditorStore((s) => s.content);
+  const currentFilePath = useEditorStore((s) => s.currentFilePath);
   // Subscribe to theme so re-render triggers when user switches dark/light mode
   const theme = useUIStore((s) => s.theme);
 
@@ -49,7 +50,7 @@ export function usePreview(): PreviewState {
       setIsLoading(true);
       // Read current dark state from the DOM class applied by useTheme()
       const isDark = document.documentElement.classList.contains('dark');
-      renderMarkdown(content, highlighter, isDark)
+      renderMarkdown(content, highlighter, isDark, currentFilePath)
         .then((rendered) => {
           setHtml(rendered);
         })
@@ -62,7 +63,7 @@ export function usePreview(): PreviewState {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [content, highlighter, theme]);
+  }, [content, highlighter, theme, currentFilePath]);
 
   return { html, isLoading };
 }

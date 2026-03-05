@@ -119,3 +119,38 @@ export async function writeBinaryFile(path: string, data: number[]): Promise<voi
 export async function printCurrentWindow(): Promise<void> {
   return invoke<void>('print_current_window');
 }
+
+// @MX:NOTE: [AUTO] Image IPC wrappers for SPEC-IMG-001 - clipboard save, file copy, base64 read, dialog
+// @MX:SPEC: SPEC-IMG-001
+
+/**
+ * Saves base64-encoded image data to the images/ subdirectory next to the markdown file.
+ * Returns the relative path for use in markdown links (e.g., `./images/1234567890.png`).
+ */
+export async function saveImageFromClipboard(mdFilePath: string, imageDataBase64: string): Promise<string> {
+  return invoke<string>('save_image_from_clipboard', { mdFilePath, imageDataBase64 });
+}
+
+/**
+ * Copies an image file to the images/ subdirectory next to the markdown file.
+ * Returns the relative path. Adds numeric suffix if filename already exists.
+ */
+export async function copyImageToFolder(sourcePath: string, mdFilePath: string): Promise<string> {
+  return invoke<string>('copy_image_to_folder', { sourcePath, mdFilePath });
+}
+
+/**
+ * Reads an image file and returns its content as a base64 data URI string.
+ * Format: `data:{mime};base64,{data}`
+ */
+export async function readImageAsBase64(imagePath: string): Promise<string> {
+  return invoke<string>('read_image_as_base64', { imagePath });
+}
+
+/**
+ * Opens a native file dialog filtered for image files.
+ * Returns the selected file path, or null if the user cancels.
+ */
+export async function openImageDialog(): Promise<string | null> {
+  return invoke<string | null>('open_image_dialog');
+}

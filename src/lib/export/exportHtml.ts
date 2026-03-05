@@ -2,7 +2,7 @@
 // @MX:SPEC: SPEC-EXPORT-001
 
 import { renderMarkdown } from '@/lib/markdown/renderer';
-import { exportSaveDialog, writeFile } from '@/lib/tauri/ipc';
+import { exportSaveDialog, writeFile, readImageAsBase64 } from '@/lib/tauri/ipc';
 import { buildHtmlDocument, generateExportFilename, getPreviewCss } from './exportUtils';
 import type { ExportOptions } from './types';
 
@@ -19,7 +19,7 @@ import type { ExportOptions } from './types';
  * @returns The HTML string if saved successfully, or null if user cancelled the dialog
  */
 export async function exportToHtml(options: ExportOptions): Promise<string | null> {
-  const { content, filename, theme, highlighter } = options;
+  const { content, filename, theme, highlighter, mdFilePath } = options;
 
   // Generate the default save filename
   const defaultName = generateExportFilename(filename, 'html');
@@ -30,11 +30,14 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
     return null;
   }
 
-  // Render markdown to HTML
+  // Render markdown to HTML (without image resolver for export - we embed separately)
   const renderedHtml = await renderMarkdown(content, highlighter);
 
   // Replace mermaid placeholder divs with rendered SVG from DOM (if available)
   const htmlWithMermaid = await replaceMermaidPlaceholders(renderedHtml);
+
+  // Embed local images as base64 data URIs for self-contained HTML
+  const htmlWithEmbeddedImages = await embedLocalImages(htmlWithMermaid, mdFilePath ?? null);
 
   // Build the title from the filename (strip extension)
   const title = defaultName.replace(/\.[^.]+$/, '');
@@ -45,7 +48,7 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
   // Build the complete HTML document
   const htmlDocument = buildHtmlDocument({
     title,
-    content: htmlWithMermaid,
+    content: htmlWithEmbeddedImages,
     css,
     theme,
   });
@@ -65,15 +68,16 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
  * @returns The complete HTML document string
  */
 export async function generateHtmlContent(options: ExportOptions): Promise<string> {
-  const { content, filename, theme, highlighter } = options;
+  const { content, filename, theme, highlighter, mdFilePath } = options;
 
   const defaultName = generateExportFilename(filename, 'html');
   const renderedHtml = await renderMarkdown(content, highlighter);
   const htmlWithMermaid = await replaceMermaidPlaceholders(renderedHtml);
+  const htmlWithImages = await embedLocalImages(htmlWithMermaid, mdFilePath ?? null);
   const title = defaultName.replace(/\.[^.]+$/, '');
   const css = getPreviewCss(theme);
 
-  return buildHtmlDocument({ title, content: htmlWithMermaid, css, theme });
+  return buildHtmlDocument({ title, content: htmlWithImages, css, theme });
 }
 
 /**
@@ -114,4 +118,51 @@ async function replaceMermaidPlaceholders(html: string): Promise<string> {
   });
 
   return tempDiv.innerHTML;
+}
+
+/**
+ * Embeds local images as base64 data URIs in the HTML for self-contained export.
+ * HTTP/HTTPS URLs are kept as-is. Only relative paths are resolved and embedded.
+ */
+async function embedLocalImages(html: string, mdFilePath: string | null): Promise<string> {
+  if (!mdFilePath) return html;
+
+  // Match all img tags with src attributes
+  const imgRegex = /<img\s+[^>]*src="([^"]*)"[^>]*>/g;
+  const matches: Array<{ full: string; src: string }> = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = imgRegex.exec(html)) !== null) {
+    matches.push({ full: match[0], src: match[1] });
+  }
+
+  if (matches.length === 0) return html;
+
+  let result = html;
+  const mdDir = mdFilePath.substring(0, Math.max(mdFilePath.lastIndexOf('/'), mdFilePath.lastIndexOf('\\')));
+
+  for (const { full, src } of matches) {
+    // Skip HTTP/HTTPS URLs and data URIs
+    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
+      continue;
+    }
+
+    // Resolve relative path to absolute
+    let absolutePath: string;
+    if (src.startsWith('/')) {
+      absolutePath = src;
+    } else {
+      const normalizedSrc = src.startsWith('./') ? src.substring(2) : src;
+      absolutePath = `${mdDir}/${normalizedSrc}`;
+    }
+
+    try {
+      const dataUri = await readImageAsBase64(absolutePath);
+      result = result.replace(full, full.replace(src, dataUri));
+    } catch {
+      // Keep original src if reading fails
+    }
+  }
+
+  return result;
 }

@@ -55,6 +55,7 @@ vi.mock('@codemirror/view', async () => {
     static lineWrapping = { extension: 'line-wrapping' };
     static updateListener = { of: updateListenerOf };
     static theme = vi.fn().mockReturnValue({ extension: 'theme' });
+    static domEventHandlers = vi.fn().mockReturnValue({ extension: 'dom-event-handlers' });
 
     constructor(config: { parent?: HTMLElement; state?: unknown }) {
       this.dom = document.createElement('div');

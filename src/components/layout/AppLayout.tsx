@@ -19,6 +19,7 @@ import { FileExplorer } from '@/components/sidebar/FileExplorer';
 import { MarkdownPreview } from '@/components/preview/MarkdownPreview';
 import { wrapSelection, prefixLine } from '@/components/editor/extensions/keyboard-shortcuts';
 import { useScrollSync } from '@/hooks/useScrollSync';
+import { insertImageFromDialog } from '@/lib/image/imageHandler';
 
 // @MX:NOTE: Root layout component - composes Header, 3-pane panels, Footer
 // Entry point for the entire application UI shell
@@ -100,6 +101,7 @@ export function AppLayout(): JSX.Element {
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
+        mdFilePath: currentFile,
       });
     } catch (err) {
       console.error('HTML export failed:', err);
@@ -120,6 +122,7 @@ export function AppLayout(): JSX.Element {
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
+        mdFilePath: currentFile,
       });
     } catch (err) {
       console.error('PDF export failed:', err);
@@ -140,6 +143,7 @@ export function AppLayout(): JSX.Element {
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
+        mdFilePath: currentFile,
       });
     } catch (err) {
       console.error('DOCX export failed:', err);
@@ -216,6 +220,25 @@ export function AppLayout(): JSX.Element {
       case 'quote':
         prefixLine(view, '> ');
         break;
+      case 'image': {
+        const filePath = useEditorStore.getState().currentFilePath;
+        if (!filePath) {
+          // Unsaved file - Save As first, then insert image
+          const docContent = view.state.doc.toString();
+          saveFileAsIpc(docContent).then((savedPath) => {
+            if (savedPath) {
+              useEditorStore.getState().setCurrentFilePath(savedPath);
+              useFileStore.getState().setCurrentFile(savedPath);
+              useEditorStore.getState().setDirty(false);
+              useUIStore.getState().setSaveStatus('saved');
+              insertImageFromDialog(view, savedPath);
+            }
+          });
+        } else {
+          insertImageFromDialog(view, filePath);
+        }
+        break;
+      }
     }
   };
 

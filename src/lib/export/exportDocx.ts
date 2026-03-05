@@ -18,9 +18,12 @@ import {
 } from 'docx';
 import MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
-import { exportSaveDialog, writeBinaryFile } from '@/lib/tauri/ipc';
+import { exportSaveDialog, writeBinaryFile, readImageAsBase64 } from '@/lib/tauri/ipc';
 import { generateExportFilename } from './exportUtils';
 import type { ExportOptions } from './types';
+
+// @MX:NOTE: [AUTO] DOCX page width in points (~595pt A4) minus margins (~1.25in each side = 180pt)
+const DOCX_MAX_IMAGE_WIDTH = 415;
 
 // @MX:WARN: [AUTO] DOCX export uses complex markdown token traversal - handle edge cases carefully
 // @MX:REASON: [AUTO] markdown-it tokens have nested structure that requires careful state tracking
@@ -40,7 +43,7 @@ type DocxChild = Paragraph | Table;
  * @param options - Export options
  */
 export async function exportToDocx(options: ExportOptions): Promise<void> {
-  const { content, filename } = options;
+  const { content, filename, mdFilePath } = options;
 
   const defaultName = generateExportFilename(filename, 'docx');
   const savePath = await exportSaveDialog('docx', defaultName);
@@ -61,7 +64,7 @@ export async function exportToDocx(options: ExportOptions): Promise<void> {
   md.enable('strikethrough');
 
   const tokens = md.parse(content, {});
-  const docxChildren = convertTokensToDocx(tokens, mermaidImages);
+  const docxChildren = await convertTokensToDocx(tokens, mermaidImages, mdFilePath ?? null);
 
   const doc = new Document({
     sections: [
@@ -170,7 +173,7 @@ async function svgToPng(svg: SVGElement): Promise<MermaidImageData | null> {
 /**
  * Converts markdown-it tokens to docx document elements.
  */
-function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[]): DocxChild[] {
+async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[], mdFilePath: string | null): Promise<DocxChild[]> {
   const result: DocxChild[] = [];
   let i = 0;
 
@@ -196,7 +199,7 @@ function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[])
       case 'paragraph_open': {
         const inlineToken = tokens[i + 1];
         if (inlineToken?.type === 'inline' && inlineToken.children) {
-          const runs = convertInlineTokensToRuns(inlineToken.children);
+          const runs = await convertInlineTokensToRuns(inlineToken.children, mdFilePath);
           result.push(new Paragraph({ children: runs }));
         }
         i += 3; // paragraph_open, inline, paragraph_close
@@ -269,7 +272,7 @@ function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[])
           if (tokens[j].type === 'blockquote_open') depth++;
           if (tokens[j].type === 'blockquote_close') depth--;
           if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
-            const runs = convertInlineTokensToRuns(tokens[j].children ?? []);
+            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], mdFilePath);
             quoteParagraphs.push(
               new Paragraph({
                 children: runs,
@@ -300,7 +303,7 @@ function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[])
           if (tokens[j].type === 'bullet_list_open') depth++;
           if (tokens[j].type === 'bullet_list_close') depth--;
           if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
-            const runs = convertInlineTokensToRuns(tokens[j].children ?? []);
+            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], mdFilePath);
             result.push(
               new Paragraph({
                 children: [new TextRun({ text: '• ' }), ...runs],
@@ -322,7 +325,7 @@ function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[])
           if (tokens[j].type === 'ordered_list_open') depth++;
           if (tokens[j].type === 'ordered_list_close') depth--;
           if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
-            const runs = convertInlineTokensToRuns(tokens[j].children ?? []);
+            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], mdFilePath);
             result.push(
               new Paragraph({
                 children: [new TextRun({ text: `${itemNum}. ` }), ...runs],
@@ -338,7 +341,7 @@ function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[])
       }
 
       case 'table_open': {
-        const tableResult = parseTable(tokens, i);
+        const tableResult = await parseTable(tokens, i, mdFilePath);
         if (tableResult.table) {
           result.push(tableResult.table);
         }
@@ -377,7 +380,7 @@ function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[])
  * Parses a table from tokens starting at the given index.
  * Returns the Table element and the next token index after the table.
  */
-function parseTable(tokens: Token[], startIndex: number): { table: Table | null; nextIndex: number } {
+async function parseTable(tokens: Token[], startIndex: number, mdFilePath: string | null): Promise<{ table: Table | null; nextIndex: number }> {
   let i = startIndex + 1;
   const tableRows: TableRow[] = [];
   let isHeader = false;
@@ -397,7 +400,7 @@ function parseTable(tokens: Token[], startIndex: number): { table: Table | null;
           const inlineToken = tokens[i + 1];
           const runs =
             inlineToken?.type === 'inline' && inlineToken.children
-              ? convertInlineTokensToRuns(inlineToken.children)
+              ? await convertInlineTokensToRuns(inlineToken.children, mdFilePath)
               : [new TextRun({ text: '' })];
 
           cells.push(
@@ -444,10 +447,10 @@ function extractInlineText(inlineChildren: Token[]): string {
 }
 
 /**
- * Converts inline tokens to docx TextRun/ExternalHyperlink elements.
+ * Converts inline tokens to docx TextRun/ExternalHyperlink/ImageRun elements.
  */
-function convertInlineTokensToRuns(inlineChildren: Token[]): Array<TextRun | ExternalHyperlink> {
-  const runs: Array<TextRun | ExternalHyperlink> = [];
+async function convertInlineTokensToRuns(inlineChildren: Token[], mdFilePath: string | null): Promise<Array<TextRun | ExternalHyperlink | ImageRun>> {
+  const runs: Array<TextRun | ExternalHyperlink | ImageRun> = [];
   let bold = false;
   let italic = false;
   let strikethrough = false;
@@ -526,8 +529,59 @@ function convertInlineTokensToRuns(inlineChildren: Token[]): Array<TextRun | Ext
         break;
       }
       case 'image': {
-        // Images in inline context - output alt text as fallback
-        const altText = token.attrGet('alt') ?? '[image]';
+        const imgSrc = token.attrGet('src') ?? '';
+        const altText = token.attrGet('alt') ?? token.content ?? 'image';
+
+        // Try to embed the image if we have a markdown file path
+        if (mdFilePath && imgSrc && !imgSrc.startsWith('http://') && !imgSrc.startsWith('https://')) {
+          try {
+            // Resolve relative path to absolute
+            const mdDir = mdFilePath.substring(0, Math.max(mdFilePath.lastIndexOf('/'), mdFilePath.lastIndexOf('\\')));
+            let absolutePath: string;
+            if (imgSrc.startsWith('/')) {
+              absolutePath = imgSrc;
+            } else {
+              const normalizedSrc = imgSrc.startsWith('./') ? imgSrc.substring(2) : imgSrc;
+              absolutePath = `${mdDir}/${normalizedSrc}`;
+            }
+
+            const dataUri = await readImageAsBase64(absolutePath);
+            // Extract raw base64 data (remove data:mime;base64, prefix)
+            const base64Data = dataUri.split(',')[1] ?? '';
+            const binaryStr = atob(base64Data);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let j = 0; j < binaryStr.length; j++) {
+              bytes[j] = binaryStr.charCodeAt(j);
+            }
+
+            // Determine image dimensions (scale to fit DOCX page width)
+            const dimensions = await getImageDimensions(dataUri);
+            let width = dimensions.width;
+            let height = dimensions.height;
+            if (width > DOCX_MAX_IMAGE_WIDTH) {
+              const scale = DOCX_MAX_IMAGE_WIDTH / width;
+              width = DOCX_MAX_IMAGE_WIDTH;
+              height = Math.round(height * scale);
+            }
+
+            // Determine image type from data URI
+            const mimeMatch = dataUri.match(/^data:image\/(\w+)/);
+            const imgType = mimeMatch?.[1] === 'jpeg' || mimeMatch?.[1] === 'jpg' ? 'jpg' : 'png';
+
+            runs.push(
+              new ImageRun({
+                data: bytes,
+                transformation: { width, height },
+                type: imgType as 'jpg' | 'png' | 'gif' | 'bmp',
+              }),
+            );
+            break;
+          } catch {
+            // Fall through to alt text fallback
+          }
+        }
+
+        // Fallback: output alt text
         runs.push(new TextRun({ text: `[${altText}]`, italics: true }));
         break;
       }
@@ -554,4 +608,23 @@ function getHeadingLevel(level: number): typeof HeadingLevel[keyof typeof Headin
   }
 }
 
+/**
+ * Gets the natural dimensions of an image from its data URI.
+ * Falls back to a default size if dimensions cannot be determined.
+ */
+function getImageDimensions(dataUri: string): Promise<{ width: number; height: number }> {
+  if (typeof document === 'undefined') {
+    return Promise.resolve({ width: DOCX_MAX_IMAGE_WIDTH, height: 300 });
+  }
 
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      resolve({ width: DOCX_MAX_IMAGE_WIDTH, height: 300 });
+    };
+    img.src = dataUri;
+  });
+}

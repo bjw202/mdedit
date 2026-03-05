@@ -91,7 +91,7 @@ describe('usePreview', () => {
       vi.advanceTimersByTime(1);
       await vi.runAllTimersAsync();
     });
-    expect(mockRenderMarkdown).toHaveBeenCalledWith('Hello', null, false);
+    expect(mockRenderMarkdown).toHaveBeenCalledWith('Hello', null, false, null);
   });
 
   it('sets html after debounce completes', async () => {
@@ -220,6 +220,6 @@ describe('usePreview', () => {
 
     // renderMarkdown should be called once (for 'updated'), not twice
     expect(mockRenderMarkdown).toHaveBeenCalledTimes(1);
-    expect(mockRenderMarkdown).toHaveBeenCalledWith('updated', null, false);
+    expect(mockRenderMarkdown).toHaveBeenCalledWith('updated', null, false, null);
   });
 });

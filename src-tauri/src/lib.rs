@@ -6,7 +6,7 @@ pub mod commands;
 pub mod models;
 pub mod state;
 
-use commands::{directory_ops, file_ops, watcher};
+use commands::{directory_ops, file_ops, image_ops, watcher};
 use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -29,6 +29,10 @@ pub fn run() {
             directory_ops::open_directory_dialog,
             watcher::start_watch,
             watcher::stop_watch,
+            image_ops::save_image_from_clipboard,
+            image_ops::copy_image_to_folder,
+            image_ops::read_image_as_base64,
+            image_ops::open_image_dialog,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

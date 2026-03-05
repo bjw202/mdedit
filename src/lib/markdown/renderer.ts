@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
 import { mermaidPlugin } from './mermaidPlugin';
 import type { ShikiHighlighter } from './codeHighlight';
+import { resolveImageSrc } from '@/lib/image/imageResolver';
 
 // @MX:ANCHOR: [AUTO] Core markdown rendering function - used by usePreview, exportHtml, exportDocx
 // @MX:REASON: [AUTO] Public API boundary for all markdown-to-HTML conversion (fan_in >= 3)
@@ -87,17 +88,46 @@ function tableScrollPlugin(md: MarkdownIt): void {
 }
 
 /**
+ * markdown-it plugin that resolves relative image paths to Tauri asset: URLs
+ * and applies responsive styling for preview rendering.
+ */
+function imageResolverPlugin(md: MarkdownIt, mdFilePath?: string | null): void {
+  const defaultImageRenderer = md.renderer.rules.image;
+
+  md.renderer.rules.image = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    const srcIndex = token.attrIndex('src');
+
+    if (srcIndex >= 0 && mdFilePath) {
+      const originalSrc = token.attrs![srcIndex][1];
+      token.attrs![srcIndex][1] = resolveImageSrc(originalSrc, mdFilePath);
+    }
+
+    // Add responsive styling
+    token.attrSet('style', 'max-width: 100%; height: auto;');
+
+    if (defaultImageRenderer) {
+      return defaultImageRenderer(tokens, idx, options, env, self);
+    }
+    return self.renderToken(tokens, idx, options);
+  };
+}
+
+/**
  * Renders a markdown string to an HTML string.
  *
  * @param content - Raw markdown source string
  * @param highlighter - A Shiki highlighter instance for syntax highlighting,
  *                      or null to fall back to plain <code> blocks
+ * @param isDark - Whether dark theme is active
+ * @param mdFilePath - Absolute path to the current markdown file for resolving relative image paths
  * @returns Promise resolving to an HTML string
  */
 export async function renderMarkdown(
   content: string,
   highlighter: ShikiHighlighter | null,
   isDark = false,
+  mdFilePath?: string | null,
 ): Promise<string> {
   if (!content) {
     return '';
@@ -135,6 +165,9 @@ export async function renderMarkdown(
 
   // Register table scroll wrapper plugin
   md.use(tableScrollPlugin);
+
+  // Register image resolver plugin for relative path resolution
+  md.use(imageResolverPlugin, mdFilePath);
 
   // Register data-line plugin for scroll sync
   md.use(dataLinePlugin);

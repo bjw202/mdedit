@@ -15,6 +15,8 @@ export interface ExportOptions {
   theme: 'light' | 'dark';
   /** Shiki highlighter instance, or null if not available */
   highlighter: ShikiHighlighter | null;
+  /** Absolute path to the current markdown file, for resolving relative image paths */
+  mdFilePath?: string | null;
 }
 
 /**

@@ -66,6 +66,11 @@ export async function exportToPdf(options: ExportOptions): Promise<void> {
         overflow-wrap: break-word !important;
         word-break: break-word !important;
       }
+      img {
+        max-width: 100% !important;
+        height: auto !important;
+        page-break-inside: avoid !important;
+      }
       ${docStyles}
     }
   `;

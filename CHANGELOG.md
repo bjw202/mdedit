@@ -5,6 +5,16 @@ All notable changes to MdEdit are documented here.
 ## [Unreleased]
 
 ### Added
+- **이미지 지원 (SPEC-IMG-001)**:
+  - 클립보드 붙여넣기(Cmd+V)로 이미지 삽입 → `images/` 폴더에 자동 저장
+  - 툴바 이미지 버튼 또는 Cmd+Shift+I로 파일 다이얼로그 이미지 삽입
+  - 이미지 파일 드래그앤드롭 지원 (복수 파일 처리)
+  - 미저장 파일에서 이미지 삽입 시 Save As 자동 안내
+  - 미리보기 패널에서 상대경로 이미지를 Tauri `asset:` 프로토콜로 렌더링
+  - HTML 익스포트 시 로컬 이미지 base64 임베드 (self-contained HTML)
+  - PDF 익스포트 시 `page-break-inside: avoid` CSS 적용
+  - DOCX 익스포트 시 `ImageRun`으로 실제 이미지 바이너리 임베드
+  - 경로 탐색 공격 방지 (`validate_path()` 검증), 이미지 크기 10MB 제한
 - File explorer with standard navigation UI
   - `..` parent directory entry at top of file list for quick parent navigation
   - Go Up (↑) button in sidebar header with parent path tooltip

@@ -15,7 +15,8 @@ export type FormatAction =
   | 'ol'
   | 'code'
   | 'link'
-  | 'quote';
+  | 'quote'
+  | 'image';
 
 interface EditorToolbarProps {
   /** Called when a format button is clicked, with the format action type */
@@ -60,6 +61,7 @@ const TOOLBAR_BUTTONS: Array<{ label: string; action: FormatAction; title: strin
   { label: '</>',  action: 'code',   title: 'Code' },
   { label: '🔗',  action: 'link',   title: 'Link' },
   { label: '"',   action: 'quote',  title: 'Blockquote (Quote)' },
+  { label: '🖼',  action: 'image',  title: 'Insert Image (Cmd+Shift+I)' },
 ];
 
 /**
