@@ -8,9 +8,28 @@ import { lineNumbers, highlightActiveLine, EditorView, keymap } from '@codemirro
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { searchKeymap } from '@codemirror/search';
 import { indentWithTab } from '@codemirror/commands';
+import { Compartment } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 import { markdownSyntaxHighlighting } from './syntax-highlighting';
 import { markdownKeyboardShortcuts } from './keyboard-shortcuts';
+
+// @MX:ANCHOR: [AUTO] cursorCompartment - dynamic cursor theme swapped on dark/light mode change
+// @MX:REASON: [AUTO] CSS variable cascade is unreliable with CodeMirror scoped themes; Compartment is the canonical CM6 approach (fan_in >= 2)
+/** Compartment for dynamic cursor color — reconfigured by MarkdownEditor when theme changes */
+export const cursorCompartment = new Compartment();
+
+/**
+ * Returns a CodeMirror theme extension with the correct cursor color for the given mode.
+ * Using direct color values (not CSS variables) avoids scoped-theme cascade ambiguity.
+ */
+export function createCursorTheme(isDark: boolean): Extension {
+  const color = isDark ? '#ffffff' : '#111827';
+  return EditorView.theme({
+    '.cm-cursor, .cm-dropCursor': {
+      borderLeftColor: color,
+    },
+  });
+}
 
 /**
  * Base editor theme providing word wrap and minimal styling.
@@ -43,9 +62,6 @@ export const editorBaseTheme: Extension = EditorView.theme({
     backgroundColor: 'transparent',
     border: 'none',
     color: '#858585',
-  },
-  '.cm-cursor, .cm-dropCursor': {
-    borderLeftColor: 'var(--cm-cursor-color)',
   },
 });
 
@@ -83,5 +99,8 @@ export function createMarkdownExtensions(): Extension[] {
 
     // Base theme
     editorBaseTheme,
+
+    // Cursor color (managed via Compartment; reconfigured on theme change by MarkdownEditor)
+    cursorCompartment.of(createCursorTheme(document.documentElement.classList.contains('dark'))),
   ];
 }

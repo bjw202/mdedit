@@ -11,7 +11,7 @@ import { openSearchPanel } from '@codemirror/search';
 import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
 import { writeFile, saveFileAs } from '@/lib/tauri/ipc';
-import { createMarkdownExtensions } from './extensions/markdown-extensions';
+import { createMarkdownExtensions, cursorCompartment, createCursorTheme } from './extensions/markdown-extensions';
 import { handleImagePaste, handleImageDrop, insertImageFromDialog } from '@/lib/image/imageHandler';
 
 interface MarkdownEditorProps {
@@ -44,6 +44,9 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   const setCurrentFilePath = useEditorStore((s) => s.setCurrentFilePath);
   const resetEditor = useEditorStore((s) => s.resetEditor);
 
+  // Subscribe to theme so cursor color updates when user switches dark/light mode
+  const theme = useUIStore((s) => s.theme);
+
   // Use refs for values used inside the one-time useEffect to avoid stale closures
   const currentFilePathRef = useRef(currentFilePath);
   const setContentRef = useRef(setContent);
@@ -63,6 +66,14 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   useEffect(() => { setCurrentFilePathRef.current = setCurrentFilePath; }, [setCurrentFilePath]);
   useEffect(() => { resetEditorRef.current = resetEditor; }, [resetEditor]);
   useEffect(() => { onViewReadyRef.current = onViewReady; }, [onViewReady]);
+
+  // Reconfigure cursor color when theme changes (dark ↔ light)
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const isDark = document.documentElement.classList.contains('dark');
+    view.dispatch({ effects: cursorCompartment.reconfigure(createCursorTheme(isDark)) });
+  }, [theme]);
 
   // Sync external content changes (file open) into the CodeMirror editor
   useEffect(() => {
