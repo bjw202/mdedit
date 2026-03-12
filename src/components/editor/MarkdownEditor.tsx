@@ -11,7 +11,7 @@ import { openSearchPanel } from '@codemirror/search';
 import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
 import { writeFile, saveFileAs } from '@/lib/tauri/ipc';
-import { createMarkdownExtensions, cursorCompartment, createCursorTheme } from './extensions/markdown-extensions';
+import { createMarkdownExtensions, cursorCompartment, createCursorTheme, fontSizeCompartment, createFontSizeTheme } from './extensions/markdown-extensions';
 import { handleImagePaste, handleImageDrop, insertImageFromDialog } from '@/lib/image/imageHandler';
 
 interface MarkdownEditorProps {
@@ -47,6 +47,9 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   // Subscribe to theme so cursor color updates when user switches dark/light mode
   const theme = useUIStore((s) => s.theme);
 
+  // Subscribe to fontSize so editor font size updates when user changes it
+  const fontSize = useUIStore((s) => s.fontSize);
+
   // Use refs for values used inside the one-time useEffect to avoid stale closures
   const currentFilePathRef = useRef(currentFilePath);
   const setContentRef = useRef(setContent);
@@ -66,6 +69,13 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   useEffect(() => { setCurrentFilePathRef.current = setCurrentFilePath; }, [setCurrentFilePath]);
   useEffect(() => { resetEditorRef.current = resetEditor; }, [resetEditor]);
   useEffect(() => { onViewReadyRef.current = onViewReady; }, [onViewReady]);
+
+  // Reconfigure font size when user changes it via A+/A- buttons
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: fontSizeCompartment.reconfigure(createFontSizeTheme(fontSize)) });
+  }, [fontSize]);
 
   // Reconfigure cursor color when theme changes (dark ↔ light).
   // Derives isDark from the store value to avoid React effect ordering issues:

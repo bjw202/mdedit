@@ -15,6 +15,8 @@ mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'defaul
 /** Props for the PreviewRenderer component */
 interface PreviewRendererProps {
   html: string;
+  /** Font size in px applied to preview content */
+  fontSize?: number;
 }
 
 /**
@@ -23,7 +25,7 @@ interface PreviewRendererProps {
  * 1. Mermaid diagram rendering (finds .mermaid-container divs)
  * 2. (Extension point) Copy buttons for code blocks
  */
-export function PreviewRenderer({ html }: PreviewRendererProps): JSX.Element {
+export function PreviewRenderer({ html, fontSize }: PreviewRendererProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export function PreviewRenderer({ html }: PreviewRendererProps): JSX.Element {
     <div
       ref={containerRef}
       className="preview-content"
+      style={fontSize !== undefined ? { fontSize: `${fontSize}px` } : undefined}
       // Safe: markdown-it html:false prevents raw HTML injection
       dangerouslySetInnerHTML={{ __html: html }}
     />

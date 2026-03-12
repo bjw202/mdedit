@@ -3,7 +3,6 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { act } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import { ImageModeToggle } from '@/components/settings/ImageModeToggle';
 

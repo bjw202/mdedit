@@ -19,6 +19,16 @@ import { imageWidgetExtension } from './image-widget';
 /** Compartment for dynamic cursor color — reconfigured by MarkdownEditor when theme changes */
 export const cursorCompartment = new Compartment();
 
+/** Compartment for dynamic font size — reconfigured by MarkdownEditor when user changes font size */
+export const fontSizeCompartment = new Compartment();
+
+/** Returns a CodeMirror theme extension with the given font size. */
+export function createFontSizeTheme(fontSize: number): Extension {
+  return EditorView.theme({
+    '&': { fontSize: `${fontSize}px` },
+  });
+}
+
 /**
  * Returns a CodeMirror theme extension with the correct cursor color for the given mode.
  * Using direct color values (not CSS variables) avoids scoped-theme cascade ambiguity.
@@ -39,7 +49,6 @@ export function createCursorTheme(isDark: boolean): Extension {
 export const editorBaseTheme: Extension = EditorView.theme({
   '&': {
     height: '100%',
-    fontSize: '14px',
     color: 'var(--cm-base-text)',  // Base text color: black in light mode, light gray in dark mode
   },
   '.cm-scroller': {
@@ -108,5 +117,8 @@ export function createMarkdownExtensions(): Extension[] {
 
     // Cursor color (managed via Compartment; reconfigured on theme change by MarkdownEditor)
     cursorCompartment.of(createCursorTheme(document.documentElement.classList.contains('dark'))),
+
+    // Font size (managed via Compartment; reconfigured on fontSize change by MarkdownEditor)
+    fontSizeCompartment.of(createFontSizeTheme(14)),
   ];
 }
