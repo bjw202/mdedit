@@ -1,6 +1,6 @@
 // @MX:ANCHOR: [AUTO] Image insertion handlers for clipboard paste, drag-and-drop, and file dialog
 // @MX:REASON: Public API boundary for all image insertion operations from editor (fan_in >= 3)
-// @MX:SPEC: SPEC-IMG-001
+// @MX:SPEC: SPEC-IMG-001, SPEC-IMG-MODE-001
 
 import type { EditorView } from '@codemirror/view';
 import {
@@ -8,6 +8,7 @@ import {
   copyImageToFolder,
   openImageDialog,
 } from '@/lib/tauri/ipc';
+import { useUIStore } from '@/store/uiStore';
 
 /**
  * Inserts a markdown image link at the given position (or cursor position).
@@ -47,9 +48,19 @@ export async function handleImagePaste(
       const file = item.getAsFile();
       if (!file) continue;
 
+      const { imageInsertMode } = useUIStore.getState();
       const base64 = await fileToBase64(file);
-      const relativePath = await saveImageFromClipboard(mdFilePath, base64);
-      insertImageMarkdown(view, relativePath);
+
+      if (imageInsertMode === 'inline-blob') {
+        // REQ-2: Embed image as data URI directly in markdown, no Tauri IPC call
+        const dataUri = `data:${file.type};base64,${base64}`;
+        insertImageMarkdown(view, dataUri);
+      } else {
+        // REQ-3: Save to ./images/ folder via Tauri IPC (existing behavior)
+        const relativePath = await saveImageFromClipboard(mdFilePath, base64);
+        insertImageMarkdown(view, relativePath);
+      }
+
       return true;
     }
   }

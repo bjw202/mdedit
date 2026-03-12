@@ -9,6 +9,10 @@ export type Theme = 'light' | 'dark' | 'system';
 // @MX:NOTE: SaveStatus type representing file save state
 export type SaveStatus = 'new' | 'saved' | 'unsaved' | 'saving';
 
+// @MX:NOTE: ImageInsertMode controls how clipboard-pasted images are inserted into the document
+// @MX:SPEC: SPEC-IMG-MODE-001
+export type ImageInsertMode = 'inline-blob' | 'file-save';
+
 interface UIState {
   sidebarWidth: number;
   previewWidth: number;
@@ -21,6 +25,8 @@ interface UIState {
   scrollSyncEnabled: boolean;
   /** Last opened folder path, persisted for auto-restore on app start */
   lastWatchedPath: string | null;
+  /** Image insert mode for clipboard paste: inline-blob (default) or file-save */
+  imageInsertMode: ImageInsertMode;
   // Actions
   setSidebarWidth: (width: number) => void;
   setPreviewWidth: (width: number) => void;
@@ -31,6 +37,7 @@ interface UIState {
   setScrollSyncEnabled: (enabled: boolean) => void;
   toggleScrollSync: () => void;
   setLastWatchedPath: (path: string | null) => void;
+  setImageInsertMode: (mode: ImageInsertMode) => void;
 }
 
 // @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth clamped to [20, 80]% to prevent layout breakage
@@ -47,6 +54,7 @@ export const useUIStore = create<UIState>()(
       saveStatus: 'new',
       scrollSyncEnabled: true,
       lastWatchedPath: null,
+      imageInsertMode: 'inline-blob',
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
       setPreviewWidth: (width: number) =>
@@ -61,6 +69,7 @@ export const useUIStore = create<UIState>()(
       toggleScrollSync: () =>
         set((state) => ({ scrollSyncEnabled: !state.scrollSyncEnabled })),
       setLastWatchedPath: (path: string | null) => set({ lastWatchedPath: path }),
+      setImageInsertMode: (mode: ImageInsertMode) => set({ imageInsertMode: mode }),
     }),
     {
       name: 'mdedit-ui-store',

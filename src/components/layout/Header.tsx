@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import type { Theme } from '@/store/uiStore';
+import { ImageModeToggle } from '@/components/settings/ImageModeToggle';
 
 interface HeaderProps {
   filename?: string;
@@ -169,6 +170,8 @@ export function Header({
         </span>
       </div>
       <div className="flex items-center gap-2">
+        <ImageModeToggle />
+        <span className="text-gray-300 dark:text-gray-600">|</span>
         <button
           onClick={() => setFontSize(fontSize - 1)}
           className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"

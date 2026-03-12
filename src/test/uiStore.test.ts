@@ -105,6 +105,30 @@ describe('uiStore: saveStatus', () => {
   });
 });
 
+describe('uiStore: imageInsertMode (SPEC-IMG-MODE-001)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ imageInsertMode: 'inline-blob' });
+  });
+
+  it('should have default imageInsertMode of "inline-blob"', () => {
+    const state = useUIStore.getState();
+    expect(state.imageInsertMode).toBe('inline-blob');
+  });
+
+  it('should set imageInsertMode to "file-save"', () => {
+    const { setImageInsertMode } = useUIStore.getState();
+    act(() => setImageInsertMode('file-save'));
+    expect(useUIStore.getState().imageInsertMode).toBe('file-save');
+  });
+
+  it('should set imageInsertMode back to "inline-blob"', () => {
+    useUIStore.setState({ imageInsertMode: 'file-save' });
+    const { setImageInsertMode } = useUIStore.getState();
+    act(() => setImageInsertMode('inline-blob'));
+    expect(useUIStore.getState().imageInsertMode).toBe('inline-blob');
+  });
+});
+
 describe('uiStore: scrollSyncEnabled', () => {
   beforeEach(() => {
     useUIStore.setState({ scrollSyncEnabled: true });
