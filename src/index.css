@@ -2,6 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Image Widget Decoration styles (SPEC-IMG-WIDGET-001)
+   Used by CodeMirror 6 image-widget.ts extension
+   ============================================================ */
+.cm-image-widget {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--cm-widget-bg, #f9fafb);
+  border: 1px solid var(--cm-widget-border, #e5e7eb);
+  vertical-align: middle;
+  cursor: default;
+  max-width: 400px;
+}
+
+.cm-image-widget-thumb {
+  max-height: 80px;
+  width: auto;
+  display: block;
+  border-radius: 2px;
+  object-fit: contain;
+}
+
+.cm-image-widget-info {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.cm-image-widget-alt {
+  font-size: 12px;
+  color: var(--cm-widget-text, #374151);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.cm-image-widget-meta {
+  font-size: 11px;
+  color: var(--cm-widget-meta, #6b7280);
+  white-space: nowrap;
+}
+
 /* Editor color variables - light mode defaults */
 :root {
   --cm-cursor-color: #111827;    /* black cursor in light mode */
@@ -13,6 +60,11 @@
   --cm-active-line: rgba(0, 0, 0, 0.04);  /* subtle dark tint for light mode */
   --table-border: #d1d5db;       /* gray-300: table border for light mode */
   --table-th-bg: #f3f4f6;        /* gray-100: table header bg for light mode */
+  /* Image widget CSS variables - light mode */
+  --cm-widget-bg: #f9fafb;       /* gray-50: widget background for light mode */
+  --cm-widget-border: #e5e7eb;   /* gray-200: widget border for light mode */
+  --cm-widget-text: #374151;     /* gray-700: widget text for light mode */
+  --cm-widget-meta: #6b7280;     /* gray-500: meta text for light mode */
 }
 
 /* Editor color variables - dark mode overrides */
@@ -26,6 +78,11 @@
   --cm-active-line: rgba(255, 255, 255, 0.05); /* subtle light tint for dark mode */
   --table-border: #4b5563;       /* gray-600: table border for dark mode */
   --table-th-bg: #1f2937;        /* gray-800: table header bg for dark mode */
+  /* Image widget CSS variables - dark mode */
+  --cm-widget-bg: #1f2937;       /* gray-800: widget background for dark mode */
+  --cm-widget-border: #374151;   /* gray-700: widget border for dark mode */
+  --cm-widget-text: #e5e7eb;     /* gray-200: widget text for dark mode */
+  --cm-widget-meta: #9ca3af;     /* gray-400: meta text for dark mode */
 }
 
 /* Preview scroll panel - force visible scrollbars on macOS/WKWebView (overlay scrollbars hidden by default) */

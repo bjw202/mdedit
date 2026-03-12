@@ -12,6 +12,7 @@ import { Compartment } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 import { markdownSyntaxHighlighting } from './syntax-highlighting';
 import { markdownKeyboardShortcuts } from './keyboard-shortcuts';
+import { imageWidgetExtension } from './image-widget';
 
 // @MX:ANCHOR: [AUTO] cursorCompartment - dynamic cursor theme swapped on dark/light mode change
 // @MX:REASON: [AUTO] CSS variable cascade is unreliable with CodeMirror scoped themes; Compartment is the canonical CM6 approach (fan_in >= 2)
@@ -98,6 +99,9 @@ export function createMarkdownExtensions(): Extension[] {
 
     // Default keymap (includes standard editing keys)
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+
+    // Image widget decoration (data URI images → thumbnail widgets)
+    imageWidgetExtension(),
 
     // Base theme
     editorBaseTheme,
