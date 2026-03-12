@@ -7,7 +7,7 @@
 | SPEC ID | SPEC-IMG-MODE-001 |
 | Title | Image Insert Mode Setting |
 | Created | 2026-03-12 |
-| Status | Implemented |
+| Status | Completed |
 | Priority | Medium |
 | Lifecycle | spec-first |
 

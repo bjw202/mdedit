@@ -108,6 +108,7 @@ Professional VS Code-style syntax highlighting for all Markdown elements.
 - Blockquotes with nesting support
 - Horizontal rules and separators
 - Front matter (YAML metadata)
+- **Image widget decoration**: Compact inline-blob image thumbnails showing alt text, MIME type, and file size (SPEC-IMG-WIDGET-001)
 
 **Visual Indicators**:
 - Language-aware code block headers
@@ -220,7 +221,20 @@ Export rendered Markdown documents to multiple formats.
 
 ---
 
-### 6. File Operations
+### 6. Image Management
+
+Configurable image insert modes for clipboard paste operations.
+
+**Included**:
+- **Inline-Blob Mode (Default)**: Paste images directly as base64 data URIs, embedding images in markdown (SPEC-IMG-MODE-001)
+- **File-Save Mode**: Paste images to filesystem and insert file path references
+- **Image Widget Decoration**: Inline-blob images shown as compact thumbnails in editor instead of raw base64 text (SPEC-IMG-WIDGET-001)
+- Drag-and-drop always uses file-save mode
+- Configurable via settings panel
+
+---
+
+### 7. File Operations
 
 Fast, reliable file I/O with filesystem synchronization.
 
@@ -245,6 +259,26 @@ Fast, reliable file I/O with filesystem synchronization.
 - Version backups (future feature, V2+)
 
 **Non-Goal**: Does not provide Git history, remote file access, or cloud synchronization.
+
+---
+
+## Feature Status by SPEC
+
+### Completed Features
+
+- **SPEC-IMG-WIDGET-001**: CodeMirror 6 image widget decoration for inline-blob images
+  - Status: Completed (2026-03-12)
+  - Provides compact thumbnail visualization of base64 images in editor
+
+- **SPEC-IMG-MODE-001**: Configurable image insert mode setting
+  - Status: Completed (2026-03-12)
+  - Allows users to choose between inline-blob (base64) and file-save image insertion modes
+
+### Font Size Control Enhancement
+
+- Font size buttons (A-/A+) now apply to both editor panel and preview panel
+- Previously only affected editor panel; preview panel had hardcoded size
+- User-facing change committed at 2026-03-12
 
 ---
 
