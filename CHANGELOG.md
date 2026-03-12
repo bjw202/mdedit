@@ -5,6 +5,19 @@ All notable changes to MdEdit are documented here.
 ## [Unreleased]
 
 ### Added
+- **이미지 위젯 장식 (SPEC-IMG-WIDGET-001)**:
+  - CodeMirror 6 ViewPlugin + WidgetType으로 inline-blob 이미지를 컴팩트 위젯으로 시각화
+  - Data URI 이미지(`data:image/...;base64,...`) 자동 감지 및 위젯 렌더링
+  - 위젯은 썸네일(최대 80px 높이), alt 텍스트, MIME 타입, 파일 크기 KB 단위 표시
+  - 파일 경로(`./images/...`)나 HTTP URL(`https://...`)은 위젯 미적용 (Data URI만 처리)
+  - 문서 변경 시 동적 업데이트 (이미지 붙여넣기, 삭제 등)
+  - 위젯 클릭으로 원본 마크다운 텍스트 접근 가능
+  - 다크/라이트 모드 테마 자동 적응 (CSS 변수 사용)
+  - 32개 TDD 테스트 추가 (모두 통과)
+- **이미지 삽입 모드 설정 (SPEC-IMG-MODE-001)**:
+  - 기본값: 이미지 inline-blob 모드 (base64로 마크다운에 직접 임베드)
+  - `Image` 드롭다운 메뉴로 Inline/File 모드 전환 가능
+  - 선택한 모드는 localStorage에 자동 저장
 - **이미지 지원 (SPEC-IMG-001)**:
   - 클립보드 붙여넣기(Cmd+V)로 이미지 삽입 → `images/` 폴더에 자동 저장
   - 툴바 이미지 버튼 또는 Cmd+Shift+I로 파일 다이얼로그 이미지 삽입
