@@ -532,8 +532,46 @@ async function convertInlineTokensToRuns(inlineChildren: Token[], mdFilePath: st
         const imgSrc = token.attrGet('src') ?? '';
         const altText = token.attrGet('alt') ?? token.content ?? 'image';
 
-        // Try to embed the image if we have a markdown file path
-        if (mdFilePath && imgSrc && !imgSrc.startsWith('http://') && !imgSrc.startsWith('https://')) {
+        let embedded = false;
+
+        // Handle data URI images (inline-blob captures, e.g. screenshots)
+        if (imgSrc.startsWith('data:')) {
+          try {
+            // Decode base64 payload to raw bytes
+            const base64Data = imgSrc.split(',')[1] ?? '';
+            const binaryStr = atob(base64Data);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let j = 0; j < binaryStr.length; j++) {
+              bytes[j] = binaryStr.charCodeAt(j);
+            }
+
+            // Determine image dimensions (scale to fit DOCX page width)
+            const dimensions = await getImageDimensions(imgSrc);
+            let width = dimensions.width;
+            let height = dimensions.height;
+            if (width > DOCX_MAX_IMAGE_WIDTH) {
+              const scale = DOCX_MAX_IMAGE_WIDTH / width;
+              width = DOCX_MAX_IMAGE_WIDTH;
+              height = Math.round(height * scale);
+            }
+
+            // Determine image type from data URI mime
+            const mimeMatch = imgSrc.match(/^data:image\/(\w+)/);
+            const imgType = mimeMatch?.[1] === 'jpeg' || mimeMatch?.[1] === 'jpg' ? 'jpg' : 'png';
+
+            runs.push(
+              new ImageRun({
+                data: bytes,
+                transformation: { width, height },
+                type: imgType as 'jpg' | 'png' | 'gif' | 'bmp',
+              }),
+            );
+            embedded = true;
+          } catch {
+            // Fall through to alt text fallback
+          }
+        } else if (mdFilePath && imgSrc && !imgSrc.startsWith('http://') && !imgSrc.startsWith('https://')) {
+          // Try to embed the image if we have a markdown file path
           try {
             // Resolve relative path to absolute
             const mdDir = mdFilePath.substring(0, Math.max(mdFilePath.lastIndexOf('/'), mdFilePath.lastIndexOf('\\')));
@@ -575,14 +613,16 @@ async function convertInlineTokensToRuns(inlineChildren: Token[], mdFilePath: st
                 type: imgType as 'jpg' | 'png' | 'gif' | 'bmp',
               }),
             );
-            break;
+            embedded = true;
           } catch {
             // Fall through to alt text fallback
           }
         }
 
-        // Fallback: output alt text
-        runs.push(new TextRun({ text: `[${altText}]`, italics: true }));
+        if (!embedded) {
+          // Fallback: output alt text
+          runs.push(new TextRun({ text: `[${altText}]`, italics: true }));
+        }
         break;
       }
       default:
