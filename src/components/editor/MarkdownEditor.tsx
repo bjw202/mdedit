@@ -9,6 +9,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { openSearchPanel } from '@codemirror/search';
 import { useEditorStore } from '@/store/editorStore';
+import { useFileStore } from '@/store/fileStore';
 import { useUIStore } from '@/store/uiStore';
 import { writeFile, saveFileAs } from '@/lib/tauri/ipc';
 import { createMarkdownExtensions, cursorCompartment, createCursorTheme, fontSizeCompartment, createFontSizeTheme } from './extensions/markdown-extensions';
@@ -114,8 +115,8 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
         key: 'Mod-s',
         run: (view) => {
           const filePath = currentFilePathRef.current;
+          const docContent = view.state.doc.toString();
           if (filePath) {
-            const docContent = view.state.doc.toString();
             setSaveStatus('saving');
             writeFile(filePath, docContent)
               .then(() => {
@@ -124,6 +125,24 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
               })
               .catch(() => {
                 // Save failed - revert to unsaved
+                useUIStore.getState().setSaveStatus('unsaved');
+              });
+          } else {
+            // No file path yet - trigger Save As (consistent with header Save button)
+            useUIStore.getState().setSaveStatus('saving');
+            saveFileAs(docContent)
+              .then((savedPath) => {
+                if (savedPath !== null) {
+                  setCurrentFilePathRef.current(savedPath);
+                  useFileStore.getState().setCurrentFile(savedPath);
+                  setDirtyRef.current(false);
+                  useUIStore.getState().setSaveStatus('saved');
+                } else {
+                  const isDirty = useEditorStore.getState().dirty;
+                  useUIStore.getState().setSaveStatus(isDirty ? 'unsaved' : 'saved');
+                }
+              })
+              .catch(() => {
                 useUIStore.getState().setSaveStatus('unsaved');
               });
           }
@@ -140,6 +159,7 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
             .then((savedPath) => {
               if (savedPath !== null) {
                 setCurrentFilePathRef.current(savedPath);
+                useFileStore.getState().setCurrentFile(savedPath);
                 setDirtyRef.current(false);
                 useUIStore.getState().setSaveStatus('saved');
               } else {
@@ -159,6 +179,7 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
         key: 'Mod-n',
         run: () => {
           resetEditorRef.current();
+          useFileStore.getState().setCurrentFile(null);
           useUIStore.getState().setSaveStatus('new');
           return true;
         },
@@ -182,6 +203,7 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
             saveFileAs(docContent).then((savedPath) => {
               if (savedPath) {
                 setCurrentFilePathRef.current(savedPath);
+                useFileStore.getState().setCurrentFile(savedPath);
                 setDirtyRef.current(false);
                 useUIStore.getState().setSaveStatus('saved');
                 insertImageFromDialog(view, savedPath);
@@ -233,6 +255,7 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
           saveFileAs(docContent).then((savedPath) => {
             if (savedPath) {
               setCurrentFilePathRef.current(savedPath);
+              useFileStore.getState().setCurrentFile(savedPath);
               setDirtyRef.current(false);
               useUIStore.getState().setSaveStatus('saved');
               handleImagePaste(view, event, savedPath);
@@ -258,6 +281,7 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
           saveFileAs(docContent).then((savedPath) => {
             if (savedPath) {
               setCurrentFilePathRef.current(savedPath);
+              useFileStore.getState().setCurrentFile(savedPath);
               setDirtyRef.current(false);
               useUIStore.getState().setSaveStatus('saved');
               handleImageDrop(view, event, savedPath);

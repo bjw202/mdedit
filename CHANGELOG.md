@@ -4,6 +4,12 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **system 테마 export 정합성**: `system` 테마일 때 HTML/PDF/DOCX export가 항상 라이트 테마로 출력되던 버그 수정 — `window.matchMedia('prefers-color-scheme: dark')`로 실제 OS 다크 모드를 반영 (`AppLayout.tsx`)
+- **파일 경로 이중 상태 불일치**: `Mod-Shift-s`, `Mod-Shift-i` 단축키 및 이미지 붙여넣기/드래그 핸들러에서 `fileStore.currentFile`이 갱신되지 않아 헤더 파일명이 구버전을 표시하던 버그 수정 (`MarkdownEditor.tsx`)
+- **단축키 일관성**: `Mod-s`를 미저장 파일에서 실행 시 아무 동작도 하지 않던 문제를 수정 — 헤더 Save 버튼과 동일하게 Save As 다이얼로그로 연결 (`MarkdownEditor.tsx`)
+- **`Mod-n` 단축키**: 새 문서 생성 시 `fileStore.currentFile`을 초기화하지 않아 헤더에 이전 파일명이 남던 버그 수정 (`MarkdownEditor.tsx`)
+
 ### Added
 - **이미지 위젯 장식 (SPEC-IMG-WIDGET-001)**:
   - CodeMirror 6 ViewPlugin + WidgetType으로 inline-blob 이미지를 컴팩트 위젯으로 시각화

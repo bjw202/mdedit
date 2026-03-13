@@ -86,8 +86,12 @@ export function AppLayout(): JSX.Element {
   const [exportLoading, setExportLoading] = useState(false);
   const themeRaw = useUIStore((s) => s.theme);
   // Resolve 'system' theme to actual light/dark for export CSS
+  // 'system' must check OS preference; themeRaw !== 'dark' alone would always export as light
   const exportTheme: 'light' | 'dark' =
-    themeRaw === 'dark' ? 'dark' : 'light';
+    themeRaw === 'dark' ||
+    (themeRaw === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      ? 'dark'
+      : 'light';
 
   // @MX:NOTE: [AUTO] Export handlers for SPEC-EXPORT-001 - HTML/PDF/DOCX export
   const handleExportHtml = useCallback(async (): Promise<void> => {
