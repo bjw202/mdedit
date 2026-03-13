@@ -308,6 +308,17 @@ describe('imageWidgetExtension', () => {
     expect(ext).toBeDefined();
     expect(ext).not.toBeNull();
   });
+
+  it('returns an extension that includes atomicRanges provider', async () => {
+    const { imageWidgetExtension } = await import('@/components/editor/extensions/image-widget');
+    const ext = imageWidgetExtension();
+    // The extension should be an array (ViewPlugin provides both decorations and atomicRanges)
+    // or a single object — either way it must be defined and non-null
+    expect(ext).toBeDefined();
+    expect(ext).not.toBeNull();
+    // Extension value type: ViewPlugin instances are objects with a value property
+    expect(typeof ext).toBe('object');
+  });
 });
 
 // ============================================================

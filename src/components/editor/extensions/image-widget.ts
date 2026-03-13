@@ -172,6 +172,7 @@ export function buildDecorations(view: DocView): DecorationSet {
 /**
  * ViewPlugin that maintains image widget decorations.
  * Updates decorations whenever the document changes.
+ * Provides atomicRanges so Delete/Backspace removes the entire image markdown at once.
  */
 const imageWidgetPlugin = ViewPlugin.fromClass(
   class {
@@ -189,6 +190,10 @@ const imageWidgetPlugin = ViewPlugin.fromClass(
   },
   {
     decorations: (v) => v.decorations,
+    provide: (plugin) =>
+      EditorView.atomicRanges.of((view) => {
+        return view.plugin(plugin)?.decorations ?? Decoration.none;
+      }),
   },
 );
 
