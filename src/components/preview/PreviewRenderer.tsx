@@ -8,6 +8,8 @@ import mermaid from 'mermaid';
 // This is safe because markdown-it renders with html:false which blocks raw HTML injection
 // @MX:WARN: [AUTO] mermaid.render() is async inside forEach - errors per-diagram are caught individually
 // @MX:REASON: [AUTO] One broken diagram must not prevent other diagrams or the preview from rendering
+// @MX:NOTE: [AUTO] mermaid.parse() is called before render() to pre-validate syntax
+// This prevents mermaid's native bomb-icon error SVG from being rendered into the DOM
 
 // Initialize mermaid once at module load time
 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
@@ -37,11 +39,12 @@ export function PreviewRenderer({ html, fontSize }: PreviewRendererProps): JSX.E
     containers.forEach(async (el) => {
       const diagram = el.getAttribute('data-diagram') ?? '';
       try {
+        await mermaid.parse(diagram);
         const id = `mermaid-${Math.random().toString(36).slice(2)}`;
         const { svg } = await mermaid.render(id, diagram);
         el.innerHTML = svg;
       } catch {
-        el.innerHTML = '<p class="text-red-500">Diagram error</p>';
+        el.innerHTML = '<p class="text-sm text-amber-500 italic py-2">⚠ Diagram syntax error</p>';
       }
     });
   }, [html]);

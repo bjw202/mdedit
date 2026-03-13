@@ -5,6 +5,7 @@ import { render } from '@testing-library/react';
 vi.mock('mermaid', () => ({
   default: {
     initialize: vi.fn(),
+    parse: vi.fn().mockResolvedValue(true),
     render: vi.fn().mockResolvedValue({ svg: '<svg>mermaid-diagram</svg>' }),
   },
 }));
@@ -41,7 +42,7 @@ describe('PreviewRenderer', () => {
     expect(code?.textContent).toBe('const x = 1;');
   });
 
-  it('calls mermaid.render for mermaid-container elements', async () => {
+  it('calls mermaid.parse then mermaid.render for mermaid-container elements', async () => {
     const mermaidModule = await import('mermaid');
     const mockMermaid = mermaidModule.default;
 
@@ -53,21 +54,39 @@ describe('PreviewRenderer', () => {
 
     // Wait for useEffect to run
     await vi.waitFor(() => {
+      expect(mockMermaid.parse).toHaveBeenCalledWith(diagram);
       expect(mockMermaid.render).toHaveBeenCalled();
     });
   });
 
-  it('handles mermaid render error gracefully', async () => {
+  it('shows friendly error when mermaid.parse fails (invalid syntax)', async () => {
     const mermaidModule = await import('mermaid');
     const mockMermaid = mermaidModule.default;
-    (mockMermaid.render as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error('Diagram error'),
+    (mockMermaid.parse as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Syntax error in text'),
     );
 
     const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
     const html = `<div class="mermaid-container" data-diagram="invalid diagram"></div>`;
 
-    // Should not throw
+    expect(() => render(<PreviewRenderer html={html} />)).not.toThrow();
+
+    await vi.waitFor(() => {
+      const errorEl = document.querySelector('.mermaid-container p');
+      expect(errorEl?.textContent).toContain('Diagram syntax error');
+    });
+  });
+
+  it('handles mermaid render error gracefully when parse succeeds but render fails', async () => {
+    const mermaidModule = await import('mermaid');
+    const mockMermaid = mermaidModule.default;
+    (mockMermaid.render as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Render error'),
+    );
+
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const html = `<div class="mermaid-container" data-diagram="graph TD\n  A --> B"></div>`;
+
     expect(() => render(<PreviewRenderer html={html} />)).not.toThrow();
 
     await vi.waitFor(() => {
