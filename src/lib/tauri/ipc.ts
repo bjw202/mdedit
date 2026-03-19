@@ -154,3 +154,16 @@ export async function readImageAsBase64(imagePath: string): Promise<string> {
 export async function openImageDialog(): Promise<string | null> {
   return invoke<string | null>('open_image_dialog');
 }
+
+// @MX:NOTE: [AUTO] Browser IPC wrappers for system browser operations
+// @MX:SPEC: SPEC-PREVIEW-001
+
+/**
+ * Opens a URL in the system's default browser using shell commands.
+ * Uses platform-specific commands: open (macOS), start (Windows), xdg-open (Linux).
+ *
+ * @param url - The URL to open
+ */
+export async function openUrlInBrowser(url: string): Promise<void> {
+  return invoke<void>('open_url_in_browser', { url });
+}

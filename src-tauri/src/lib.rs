@@ -6,13 +6,14 @@ pub mod commands;
 pub mod models;
 pub mod state;
 
-use commands::{directory_ops, file_ops, image_ops, watcher};
+use commands::{browser_ops, directory_ops, file_ops, image_ops, watcher};
 use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
@@ -33,6 +34,7 @@ pub fn run() {
             image_ops::copy_image_to_folder,
             image_ops::read_image_as_base64,
             image_ops::open_image_dialog,
+            browser_ops::open_url_in_browser,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

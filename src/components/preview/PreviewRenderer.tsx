@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { openUrlInBrowser } from '@/lib/tauri/ipc';
 
 // @MX:ANCHOR: [AUTO] PreviewRenderer - renders sanitized HTML and triggers mermaid diagram rendering
 // @MX:REASON: [AUTO] Central render target used by MarkdownPreview and exported HTML functions (fan_in >= 3)
@@ -53,15 +53,37 @@ export function PreviewRenderer({ html, fontSize }: PreviewRendererProps): JSX.E
     });
 
     // 링크 클릭 핸들러 - 시스템 기본 브라우저로 열기
-    const handleLinkClick = (event: MouseEvent) => {
+    const handleLinkClick = async (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       const anchor = target.closest('a');
-      if (anchor && anchor.href) {
-        event.preventDefault();
-        event.stopPropagation();
-        openUrl(anchor.href).catch((err) => {
-          console.error('Failed to open URL:', err);
-        });
+
+      if (anchor) {
+        const href = anchor.getAttribute('href');
+
+        // 유효한 HTTP/HTTPS 링크만 처리
+        if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+          event.preventDefault();
+          event.stopPropagation();
+
+          console.log('[PreviewRenderer] Opening URL:', href);
+
+          try {
+            // Tauri shell 플러그인을 사용하여 시스템 브라우저로 열기
+            await openUrlInBrowser(href);
+            console.log('[PreviewRenderer] URL opened successfully via shell command');
+          } catch (err) {
+            console.error('[PreviewRenderer] Failed to open URL:', err);
+
+            // fallback: window.open 시도
+            const opened = window.open(href, '_blank', 'noopener,noreferrer');
+            if (!opened) {
+              console.error('[PreviewRenderer] Failed to open URL via window.open as fallback');
+            }
+          }
+        } else if (href) {
+          // 상대 경로나 다른 프로토콜은 기본 동작 허용
+          console.log('[PreviewRenderer] Skipping non-HTTP link:', href);
+        }
       }
     };
 
