@@ -31,7 +31,7 @@ triggers:
 
 Implement SPEC requirements using the configured development methodology.
 
-For methodology details (DDD ANALYZE-PRESERVE-IMPROVE and TDD RED-GREEN-REFACTOR cycles, success criteria, brownfield enhancement), see: @.claude/rules/moai/workflow/workflow-modes.md
+For methodology details (DDD ANALYZE-PRESERVE-IMPROVE and TDD RED-GREEN-REFACTOR cycles, success criteria, brownfield enhancement), see: .claude/rules/moai/workflow/workflow-modes.md
 
 ## Scope
 
@@ -43,7 +43,7 @@ For methodology details (DDD ANALYZE-PRESERVE-IMPROVE and TDD RED-GREEN-REFACTOR
 
 - $ARGUMENTS: SPEC-ID to implement (e.g., SPEC-AUTH-001)
 - Resume: Re-running /moai run SPEC-XXX resumes from last successful phase checkpoint
-- --team: Enable team-based implementation (see team/run.md for parallel implementation team)
+- --team: Enable team-based implementation (see ${CLAUDE_SKILL_DIR}/team/run.md for parallel implementation team)
 
 ## Context Loading
 
@@ -54,11 +54,24 @@ Before execution, load these essential files:
 - .moai/config/sections/git-strategy.yaml (auto_branch, branch creation policy)
 - .moai/config/sections/language.yaml (git_commit_messages setting)
 - .moai/specs/SPEC-{ID}/ directory (spec.md, plan.md, acceptance.md)
+- .moai/specs/SPEC-{ID}/progress.md (session resume context: if exists, load to identify completed phases and skip them; if absent, will be created at Phase 1 start)
 - .moai/project/structure.md (architecture context for implementation decisions)
 - .moai/project/tech.md (technology stack context)
 - .moai/project/codemaps/ directory listing (architecture maps for dependency and module understanding)
 
 Pre-execution commands: git status, git branch, git log, git diff.
+
+### Resume Check
+
+Before Phase 1, check if `.moai/specs/SPEC-{ID}/progress.md` exists:
+- If it exists: Load content, identify last completed phase checkpoint, skip all completed phases, resume from the next pending phase. Log: "Resuming SPEC-{ID} from Phase {N}"
+- If it does not exist: Create the file now with initial entry:
+  ```
+  ## SPEC-{ID} Progress
+
+  - Started: {current timestamp}
+  ```
+- The progress.md file persists across sessions and enables seamless resume after interruption.
 
 ---
 
@@ -130,6 +143,85 @@ Constraints: Decompose into atomic tasks where each task completes in a single D
 
 Output: Task list with coverage_verified flag set to true.
 
+### Phase 1.6: Acceptance Criteria Initialization (Failing Checklist)
+
+Purpose: Convert all SPEC acceptance criteria into explicit pending TaskList entries. This creates a visible "failing checklist" — all items start as pending and are marked completed (passing) as implementation progresses, following the Harness Engineering pattern.
+
+Action:
+- Read spec.md acceptance criteria for SPEC-{ID}
+- For each acceptance criterion, execute TaskCreate:
+  - subject: `[AC-N] <acceptance criterion statement>`
+  - description: Requirement reference, expected behavior, verification method
+  - status: pending (starts as "failing")
+- Verify all SPEC requirements are covered by at least one task
+
+Output: TaskList populated with all acceptance criteria as pending items.
+
+Progress update: Append to `.moai/specs/SPEC-{ID}/progress.md`:
+```
+- Phase 1.6 complete: {N} acceptance criteria registered as pending tasks
+```
+
+### Phase 1.7: File Structure Scaffolding
+
+Purpose: Create empty file stubs for all planned new files before implementation begins. This prevents entropy by establishing structure before coding, following the Harness Engineering "Blueprint" pattern.
+
+Condition: Execute only for planned new files (files that do not yet exist in the codebase). Skip if all planned files already exist (modification-only SPEC).
+
+Action:
+- Identify all planned new files from Phase 1.5 task decomposition
+- For each planned new file that does not yet exist:
+  - Create empty stub with minimal required structure matching the project's language conventions (e.g., package declaration for Go, module header for Python, empty class for TypeScript)
+  - Do NOT add any implementation logic — stubs only
+- After stub creation: Capture LSP baseline (this is the clean baseline before any implementation)
+
+Output: List of stub files created, LSP baseline diagnostics captured.
+
+Progress update: Append to `.moai/specs/SPEC-{ID}/progress.md`:
+```
+- Phase 1.7 complete: {N} stub files created, LSP baseline captured
+```
+
+### Phase 1.8: Pre-Implementation MX Context Scan
+
+Purpose: Scan files that will be modified during implementation to build an MX context map for implementation agents.
+
+**Scan Target:** All existing files listed in the task decomposition (from Phase 1.5).
+
+**MX Context Extraction:**
+- @MX:ANCHOR: Identify invariant contracts. Pass to implementation agents as "do not break" constraints with fan_in counts.
+- @MX:WARN: Identify danger zones. Alert agents to approach these areas with extra caution.
+- @MX:NOTE: Collect business logic context. Include in agent prompts for informed implementation.
+- @MX:TODO: Match against SPEC requirements. If a TODO aligns with a task, the implementation resolves it.
+- @MX:LEGACY: Identify legacy code without SPEC. Flag for careful handling during modifications.
+
+**Output:** MX context map included in Phase 2 agent prompts. The map is structured per-file:
+- file_path: list of tags with type, line, description, and constraints
+
+**Skip Condition:** If target files do not exist (greenfield implementation), skip this phase.
+
+See .claude/rules/moai/workflow/mx-tag-protocol.md for tag type definitions.
+
+### Batch Mode Decision [MANDATORY EVALUATION]
+
+Before routing to Phase 2, MoAI MUST evaluate whether to use Skill("batch") for parallel implementation.
+
+Evaluate ALL of the following conditions:
+
+- Condition A: task_count >= 5 (from Phase 1.5 decomposition)
+- Condition B: predicted_file_changes >= 10 (estimated from SPEC scope)
+- Condition C: independent_tasks >= 3 (tasks with no inter-dependencies)
+
+Decision:
+
+- If ANY condition is met: Execute Skill("batch") directly. Batch mode replaces sequential Phase 2. Each batch unit executes one atomic task in an isolated git worktree, runs tests, and creates a PR. MoAI collects all PRs and merges in dependency order via manager-git.
+- If NO condition is met: Continue to standard sequential Phase 2 below.
+
+Batch execution instructions when triggered:
+1. Provide Skill("batch") with the full task list from Phase 1.5, the SPEC document content, and the development_mode from quality.yaml
+2. Each batch agent MUST follow the same DDD/TDD cycle defined in the Development Mode Routing section
+3. After all batch agents complete, collect results and jump directly to Phase 2.5 (Quality Validation)
+
 ### Development Mode Routing
 
 Before Phase 2, determine the development methodology by reading `.moai/config/sections/quality.yaml`:
@@ -148,7 +240,7 @@ Before Phase 2, determine the development methodology by reading `.moai/config/s
 
 Agent: manager-ddd subagent
 
-Input: Approved execution plan from Phase 1 plus task decomposition from Phase 1.5.
+Input: Approved execution plan from Phase 1 plus task decomposition from Phase 1.5. Include `.moai/project/structure.md` and `.moai/project/tech.md` as onboarding context in the agent prompt so the implementation agent understands the project's architecture conventions before writing code.
 
 Requirements:
 
@@ -177,7 +269,7 @@ This divergence data is consumed by /moai sync for SPEC document updates and pro
 
 Agent: manager-tdd subagent
 
-Input: Approved execution plan from Phase 1 plus task decomposition from Phase 1.5.
+Input: Approved execution plan from Phase 1 plus task decomposition from Phase 1.5. Include `.moai/project/structure.md` and `.moai/project/tech.md` as onboarding context in the agent prompt so the implementation agent understands the project's architecture conventions before writing code.
 
 Requirements:
 
@@ -249,9 +341,15 @@ If coverage is below target (quality.yaml test_coverage_target):
 - Auto-route to coverage workflow (workflows/coverage.md)
 - Re-run quality validation after coverage improvement
 
-If status is PASS or WARNING: Continue to Phase 2.7.
+If status is PASS or WARNING: Continue to Phase 2.8.
 
-### Phase 2.7: Post-Implementation Review (Optional)
+### Phase 2.7: Re-planning Gate Check
+
+Purpose: Detect stagnation and trigger re-assessment if implementation is stuck. See .claude/rules/moai/workflow/spec-workflow.md for trigger conditions, communication path, and detection method.
+
+Check `.moai/specs/SPEC-{ID}/progress.md` for stagnation signals. If triggered, return structured stagnation report to MoAI for user escalation.
+
+### Phase 2.8: Post-Implementation Review (Optional)
 
 Purpose: Multi-dimensional review iteration for high-quality output. Activated when quality status is WARNING or when --review flag is set.
 
@@ -269,9 +367,9 @@ Iteration behavior:
 
 Output: review_findings per dimension, iterations_completed count, final review status.
 
-### Phase 2.8: MX Tag Update
+### Phase 2.9: MX Tag Update
 
-Purpose: Update @MX code annotations for modified files. See @.claude/rules/moai/workflow/mx-tag-protocol.md for tag rules.
+Purpose: Update @MX code annotations for modified files. See .claude/rules/moai/workflow/mx-tag-protocol.md for tag rules.
 
 **TDD Mode:**
 - Remove `@MX:TODO` tags for tests that now pass
@@ -285,6 +383,25 @@ Purpose: Update @MX code annotations for modified files. See @.claude/rules/moai
 - Convert `@MX:LEGACY` to `@MX:SPEC` if SPEC retroactively created
 
 Output: MX_TAG_REPORT with tags added, updated, removed by type.
+
+### Phase 2.10: Simplify Pass [MANDATORY]
+
+Purpose: Apply a parallel quality pass to all files modified during implementation. This phase is ALWAYS executed after Phase 2.9 — it is not optional.
+
+Action: MoAI MUST call Skill("simplify") at this phase. Do not delegate to a subagent. Call it directly.
+
+Skill("simplify") will:
+- Use parallel agents to review all modified files for reuse opportunities, quality issues, and efficiency improvements
+- Enforce CLAUDE.md coding standards compliance
+- Fix discovered issues automatically
+
+Scope: Only files listed in the implementation output (files_created + files_modified). Do not run on unrelated files.
+
+Output: simplify_report with files_improved count, issues_fixed list, and compliance_status.
+
+If simplify_report contains remaining unfixed issues:
+- Include them in the quality findings passed to Phase 2.5 re-evaluation
+- Do NOT block progress for suggestion-level issues; only block for critical issues
 
 ### LSP Quality Gates
 
@@ -309,9 +426,20 @@ Tasks for manager-git:
 - Create feature branch (if auto_branch enabled)
 - Stage all relevant implementation and test files
 - Create commits with conventional commit messages
+- If SPEC metadata contains `issue_number` (non-zero): Include `Fixes #{issue_number}` in commit message footer
 - Verify each commit was created successfully
 
-Output: branch_name, commits array (sha and message), files_staged count, status.
+Commit message format when issue_number exists:
+```
+feat(scope): description
+
+SPEC: SPEC-{ID}
+Fixes #{issue_number}
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+```
+
+Output: branch_name, commits array (sha and message), files_staged count, status, issue_number (from SPEC metadata).
 
 ### Phase 4: Completion and Guidance
 
@@ -328,17 +456,51 @@ Options:
 
 ---
 
+## Execution Mode Gate Integration
+
+When the run phase is invoked from plan.md Decision Point 3.5 or moai.md Phase 11.5, the gate passes these parameters:
+- `execution_mode`: worktree | team | sub-agent
+- `active_mode`: cc | glm | cg
+- `tmux_available`: true | false
+
+**If execution_mode == "worktree":**
+This run invocation is already inside the isolated tmux session and worktree.
+Proceed with standard sub-agent run phase in the current environment.
+No additional routing needed — CC/GLM/CG env is already configured by the Gate.
+
+**If execution_mode == "team":**
+Apply Team Mode Routing below. The active_mode determines worker model selection:
+- CC: All teammates use Claude (default behavior)
+- GLM: All teammates inherit GLM env from tmux session
+- CG: Leader=Claude (clean session), Workers=GLM (tmux env injected)
+
+**If execution_mode == "sub-agent":**
+Skip Team Mode Routing. Proceed directly to Phase 1 (Strategy).
+
+**If no execution_mode provided (direct `/moai run` invocation):**
+Apply existing --team/--solo flag logic in Team Mode Routing below.
+
+---
+
 ## Team Mode Routing
 
 When --team flag is provided or auto-selected, the run phase MUST switch to team orchestration:
 
 1. Verify prerequisites: workflow.team.enabled == true AND CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 env var is set
-2. If prerequisites met: Read team/run.md and execute the team workflow (TeamCreate with backend-dev + frontend-dev + tester + quality)
+2. If prerequisites met: Read ${CLAUDE_SKILL_DIR}/team/run.md and execute the team workflow (TeamCreate with backend-dev + frontend-dev + tester + quality)
 3. If prerequisites NOT met: Warn user then fallback to standard sub-agent mode
 
 Team composition: backend-dev (inherit) + frontend-dev (inherit) + tester (inherit) + quality (inherit, read-only)
 
-For detailed team orchestration steps, see team/run.md.
+### Worktree Isolation [HARD]
+
+- [HARD] Implementation teammates (backend-dev, frontend-dev, tester) MUST use `isolation: "worktree"` when spawned via Task()
+- [HARD] Read-only teammates (quality) MUST NOT use `isolation: "worktree"` — permissionMode: plan is sufficient
+- After team shutdown, run `git worktree prune` to clean up stale worktree references
+
+See .claude/rules/moai/workflow/worktree-integration.md for the complete worktree decision tree.
+
+For detailed team orchestration steps, see ${CLAUDE_SKILL_DIR}/team/run.md.
 
 ---
 
@@ -360,7 +522,8 @@ All of the following must be verified:
 - Phase 1: manager-strategy returned execution plan with requirements and success criteria
 - User approval checkpoint blocked Phase 2 until user confirmed
 - Phase 1.5: Tasks decomposed with requirement traceability
-- Phase 2: Implementation completed according to development_mode
+- Phase 1.8: MX context map built for target files (skipped for greenfield)
+- Phase 2: Implementation completed according to development_mode (with MX context)
 - Phase 2.5: manager-quality completed TRUST 5 validation with PASS or WARNING status
 - Quality gate blocked Phase 3 if status was CRITICAL
 - Phase 3: manager-git created commits (branch or direct) only if quality permitted
@@ -368,5 +531,5 @@ All of the following must be verified:
 
 ---
 
-Version: 2.6.0
-Updated: 2026-02-23
+Version: 2.10.0
+Updated: 2026-03-11. Added GitHub Issue linking: Phase 3 reads SPEC issue_number for Fixes #N in commits/PRs. Previous: Harness Engineering improvements (v2.9.0).

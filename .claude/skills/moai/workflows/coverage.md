@@ -66,12 +66,22 @@ Expected Output:
 
 [HARD] Delegate gap analysis to the expert-testing subagent.
 
+Pre-Analysis MX Tag Scan:
+
+Before prioritizing gaps, scan analyzed files for existing @MX tags:
+- @MX:ANCHOR: Auto-promote any uncovered @MX:ANCHOR function to P1 (Critical) regardless of other factors
+- @MX:TODO with @MX:TEST sub-line: Identify functions already flagged as needing tests
+- @MX:WARN: Prioritize coverage for dangerous code paths (promote to P1 or P2)
+- Build critical_functions set from @MX:ANCHOR scan results
+- This scan ensures coverage priorities align with code importance marked by developers and other agents
+- See .claude/rules/moai/workflow/mx-tag-protocol.md for tag type definitions
+
 Analysis Tasks:
 
 - Identify files below the coverage target
 - List uncovered functions and methods
-- Prioritize gaps by risk:
-  - P1 (Critical): Public API functions, high fan_in (>=3), functions with @MX:ANCHOR
+- Prioritize gaps by risk (informed by MX tag scan results):
+  - P1 (Critical): Public API functions, high fan_in (>=3), functions with @MX:ANCHOR, functions with @MX:WARN
   - P2 (High): Business logic, error handling paths
   - P3 (Medium): Internal utilities, helper functions
   - P4 (Low): Generated code, configuration, trivial getters/setters
@@ -98,6 +108,22 @@ Gap Report Structure:
 ### Low Priority Gaps (P4)
 - file_generated.go (excluded from target)
 ```
+
+### Batch Mode Decision [MANDATORY EVALUATION]
+
+After Phase 2, before generating tests, MoAI MUST evaluate whether to use Skill("batch").
+
+Condition: total_gap_count (P1 + P2 gaps) >= 10
+
+Decision:
+
+- If condition is met: Execute Skill("batch") directly. Batch mode assigns each gap file to an independent agent running in a git worktree. Each agent generates tests for its assigned file, runs them to verify, and reports results. MoAI collects all generated test files and proceeds to Phase 4.
+- If condition is not met: Continue to standard sequential Phase 3 below.
+
+Batch execution instructions when triggered:
+1. Group gaps by file (one batch unit = one file with its gaps)
+2. Each batch agent receives: its assigned file path, gap list (functions to cover), development_mode from quality.yaml, existing test patterns from nearby test files, coverage target
+3. Each agent must write tests, run them, and confirm they pass before completing
 
 ## Phase 3: Test Generation
 
@@ -185,13 +211,15 @@ Next Steps (AskUserQuestion):
 1. Parse arguments (extract flags: --target, --file, --report, --package, --uncovered, --critical)
 2. Read coverage target from quality.yaml if --target not specified
 3. Delegate coverage measurement to expert-testing subagent
-4. Delegate gap analysis to expert-testing subagent
-5. If --report: Display gap report and exit
-6. Delegate test generation to expert-testing subagent
-7. Verify tests pass and re-measure coverage
-8. TaskCreate/TaskUpdate for all gaps and generated tests
-9. Report results with next step options
+4. Scan target files for @MX tags (Pre-Analysis MX Tag Scan)
+5. Delegate gap analysis to expert-testing subagent (with MX context)
+6. If --report: Display gap report and exit
+7. Delegate test generation to expert-testing subagent
+8. Verify tests pass and re-measure coverage
+9. TaskCreate/TaskUpdate for all gaps and generated tests
+10. Report results with next step options
 
 ---
 
-Version: 1.0.0
+Version: 1.1.0
+Updated: 2026-02-25. Added Pre-Analysis MX Tag Scan for @MX:ANCHOR-driven coverage prioritization.

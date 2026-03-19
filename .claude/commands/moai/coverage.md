@@ -1,5 +1,5 @@
 ---
-description: 테스트 커버리지 분석, 갭 식별 및 누락된 테스트 생성
+description: Analyze test coverage, identify gaps, and generate missing tests
 argument-hint: "[--target N] [--file PATH] [--report]"
 ---
 

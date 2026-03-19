@@ -56,6 +56,32 @@ Success Criteria:
 - TRUST 5 quality gates passed
 - MX tags added for new code (NOTE, ANCHOR, WARN as appropriate)
 
+### Re-planning Gate
+
+Detect when implementation is stuck or diverging from SPEC and trigger re-assessment.
+
+Triggers:
+- 3+ iterations with no new SPEC acceptance criteria met
+- Test coverage dropping instead of increasing across iterations
+- New errors introduced exceed errors fixed in a cycle
+- Agent explicitly reports inability to meet a SPEC requirement
+
+Communication path:
+- Implementation agent (manager-ddd/tdd) detects trigger condition
+- Agent returns structured stagnation report to MoAI (agents cannot call AskUserQuestion)
+- MoAI presents gap analysis to user via AskUserQuestion with options:
+  - Continue with current approach (minor adjustments needed)
+  - Revise SPEC (requirements need refinement)
+  - Try alternative approach (re-delegate to manager-strategy)
+  - Pause for manual intervention (user takes over)
+
+Detection method:
+- Append acceptance criteria completion count and error count delta to `.moai/specs/SPEC-{ID}/progress.md` at the end of each iteration
+- Compare against previous entry to detect stagnation
+- Flag stagnation when acceptance criteria completion rate is zero for 3+ consecutive entries
+
+Integration: Referenced by run.md Phase 2.7 and loop.md iteration checks
+
 ## Sync Phase
 
 Generate documentation and prepare for deployment.
@@ -107,8 +133,8 @@ When team mode is enabled (workflow.team.enabled and AGENT_TEAMS env), phases ca
 
 | Phase | Sub-agent Mode | Team Mode | Condition |
 |-------|---------------|-----------|-----------|
-| Plan | manager-spec (single) | team-researcher + team-analyst + team-architect (parallel) | Complexity >= threshold |
-| Run | manager-ddd/tdd (sequential) | team-backend-dev + team-frontend-dev + team-tester (parallel) | Domains >= 3 or files >= 10 |
+| Plan | manager-spec (single) | team-reader (researcher) + team-reader (analyst) + team-reader (architect) (parallel) | Complexity >= threshold |
+| Run | manager-ddd/tdd (sequential) | team-coder (backend) + team-coder (frontend) + team-tester (parallel) | Domains >= 3 or files >= 10 |
 | Sync | manager-docs (single) | manager-docs (always sub-agent) | N/A |
 
 ### Team Mode Plan Phase
@@ -124,8 +150,11 @@ When team mode is enabled (workflow.team.enabled and AGENT_TEAMS env), phases ca
 ### Team Mode Run Phase
 - TeamCreate for implementation team
 - Task decomposition with file ownership boundaries
+- [HARD] Implementation teammates (backend-dev, frontend-dev, tester) MUST use `isolation: "worktree"` for parallel file safety
+- [HARD] Read-only teammates (quality) MUST NOT use isolation — permissionMode: plan is sufficient
 - Teammates self-claim tasks from shared list
 - Quality validation after all implementation completes
+- Worktree cleanup via `git worktree prune` after team shutdown
 - Shutdown team
 
 ### Token Cost Awareness
@@ -155,14 +184,14 @@ When to prefer sub-agent mode:
 
 Detailed team orchestration steps are defined in dedicated workflow files:
 
-- Plan phase: @.claude/skills/moai/team/plan.md
-- Run phase: @.claude/skills/moai/team/run.md
-- Fix phase: @.claude/skills/moai/team/debug.md
-- Review: @.claude/skills/moai/team/review.md
+- Plan phase: .claude/skills/moai/team/plan.md
+- Run phase: .claude/skills/moai/team/run.md
+- Fix phase: .claude/skills/moai/team/debug.md
+- Review: .claude/skills/moai/team/review.md
 
 ### Known Limitations
 
-For complete limitations list, see @CLAUDE.md Section 15.
+For complete limitations list, see CLAUDE.md Section 15.
 
 ### Prerequisites
 

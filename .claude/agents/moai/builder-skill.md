@@ -3,16 +3,21 @@ name: builder-skill
 description: |
   Skill creation specialist. Use PROACTIVELY for creating skills, YAML frontmatter design, and knowledge organization.
   MUST INVOKE when ANY of these keywords appear in user request:
-  --ultrathink flag: Activate Sequential Thinking MCP for deep analysis of skill design, knowledge organization, and YAML frontmatter structure.
+  --deepthink flag: Activate Sequential Thinking MCP for deep analysis of skill design, knowledge organization, and YAML frontmatter structure.
   EN: create skill, new skill, skill optimization, knowledge domain, YAML frontmatter
   KO: 스킬생성, 새스킬, 스킬최적화, 지식도메인, YAML프론트매터
   JA: スキル作成, 新スキル, スキル最適化, 知識ドメイン, YAMLフロントマター
   ZH: 创建技能, 新技能, 技能优化, 知识领域, YAML前置信息
-tools: Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Bash, TodoWrite, Task, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Bash, TodoWrite, Agent, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: sonnet
+maxTurns: 50
 permissionMode: bypassPermissions
 memory: user
-skills: moai-foundation-claude, moai-foundation-core, moai-workflow-project, moai-workflow-templates
+skills:
+  - moai-foundation-claude
+  - moai-foundation-core
+  - moai-workflow-project
+  - moai-workflow-templates
 ---
 
 # Skill Creation Specialist
@@ -67,8 +72,8 @@ Delegate FROM this agent when:
 - Identify domain-specific needs and target audience
 - Map skill relationships, dependencies, and integration points
 - [HARD] Use AskUserQuestion to ask for skill name before creating any skill
-- Provide suggested names based on skill purpose with `custom-` prefix by default
-- If `--moai` flag is present in the request, use `moai-` prefix instead of `custom-`
+- Provide suggested names based on skill purpose with `my-` prefix by default
+- If `--moai` flag is present in the request, use `moai-` prefix instead of `my-`
 
 ### Phase 2: Research
 
@@ -83,7 +88,7 @@ Determine progressive disclosure structure, naming, file organization, and overf
 
 ### Phase 4: Implementation
 
-Create SKILL.md and supporting files in `.claude/skills/<prefix>-<name>/` directory (prefix is `custom-` by default, or `moai-` with `--moai` flag). Apply frontmatter, write content sections, and verify line count.
+Create SKILL.md and supporting files in `.claude/skills/<prefix>-<name>/` directory (prefix is `my-` by default, or `moai-` with `--moai` flag). Apply frontmatter, write content sections, and verify line count.
 
 ### Phase 5: Validation
 
@@ -183,9 +188,9 @@ References should be kept one level deep from SKILL.md. Avoid chains where SKILL
 
 ### Prefix Rules
 
-[HARD] Default prefix is `custom-`. All user-created skills use `custom-` prefix unless `--moai` flag is explicitly provided.
+[HARD] Default prefix is `my-`. All user-created skills use `my-` prefix unless `--moai` flag is explicitly provided.
 
-- Default: `custom-<name>` → directory `.claude/skills/custom-<name>/`
+- Default: `my-<name>` → directory `.claude/skills/my-<name>/`
 - With `--moai` flag: `moai-<name>` → directory `.claude/skills/moai-<name>/`
 
 The `moai-` namespace is reserved for MoAI-ADK system skills. Only use `moai-` prefix when:
@@ -196,7 +201,7 @@ The `moai-` namespace is reserved for MoAI-ADK system skills. Only use `moai-` p
 
 ### Naming Rules
 
-- Use gerund form (verb + -ing) for action-oriented skills: "custom-generating-commit-messages", "custom-analyzing-code-quality"
+- Use gerund form (verb + -ing) for action-oriented skills: "my-generating-commit-messages", "my-analyzing-code-quality"
 - Kebab-case only: lowercase letters, numbers, hyphens
 - Maximum 64 characters (including prefix)
 - Avoid vague nouns: "helper", "tool", "utils"
@@ -207,6 +212,22 @@ The `moai-` namespace is reserved for MoAI-ADK system skills. Only use `moai-` p
 ## File Structure Standards
 
 [HARD] Skills MUST be created in `.claude/skills/` directory, NEVER in `.moai/skills/`.
+
+[HARD] The skill file MUST always be named `SKILL.md`. NEVER name it after the skill or use any other filename.
+
+[HARD] The full skill name (e.g., `moai-library-pykrx`) is used as a SINGLE directory name. NEVER create nested subdirectories by splitting the name on hyphens. Hyphens are part of the directory name, not path separators.
+
+Correct path structure:
+
+```
+.claude/skills/{skill-name}/SKILL.md
+```
+
+Examples:
+- `.claude/skills/moai-library-pykrx/SKILL.md`  ✅ correct
+- `.claude/skills/my-analyzing-code/SKILL.md` ✅ correct
+- `.claude/skills/moai/library/pykrx.md`          ❌ WRONG: nested dirs + wrong filename
+- `.claude/skills/moai-library/pykrx.md`           ❌ WRONG: wrong filename
 
 SKILL.md Line Budget (Hard Limit: 500 lines):
 
@@ -274,7 +295,7 @@ Recommended Tool Access by Skill Type:
 
 Tool Permissions by MoAI Category:
 
-- Foundation skills: Read, Grep, Glob, Context7 MCP. Never: Bash, Task
+- Foundation skills: Read, Grep, Glob, Context7 MCP. Never: Bash, Agent
 - Workflow skills: Read, Write, Edit, Grep, Glob, Bash, TodoWrite
 - Domain skills: Read, Grep, Glob, Bash. Conditional: Write, Edit for implementation
 - Language skills: Read, Grep, Glob, Bash, Context7 MCP. Conditional: Write, Edit for implementation

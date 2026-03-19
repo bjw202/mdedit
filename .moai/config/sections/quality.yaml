@@ -67,22 +67,3 @@ constitution:
         meaningful_assertions: true
         mutation_testing_enabled: false
         specification_based: true
-lsp_state_tracking:
-    capture_points:
-        - phase_start
-        - post_transformation
-        - pre_sync
-    comparison:
-        baseline: phase_start
-        regression_threshold: 0
-    enabled: true
-    logging:
-        include_lsp_in_reports: true
-        log_completion_markers: true
-        log_lsp_state_changes: true
-        log_regression_detection: true
-report_generation:
-    auto_create: false
-    enabled: true
-    user_choice: Minimal
-    warn_user: true

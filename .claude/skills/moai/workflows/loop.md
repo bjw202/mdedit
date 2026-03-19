@@ -79,6 +79,16 @@ Step 4 - Completion Condition Check:
 Step 5 - Task Generation:
 - [HARD] TaskCreate for all newly discovered issues with pending status
 
+Step 5.5 - Pre-Fix MX Context Scan:
+- Scan files with newly discovered issues for existing @MX tags
+- @MX:ANCHOR functions: Pass as "do not break" constraints to fix agents
+- @MX:WARN zones: Pass danger context; ensure fix does not worsen the warned condition
+- @MX:NOTE context: Provide business logic understanding before modification
+- @MX:TODO items: Match against current issues for resolution tracking
+- Output: MX context map included in Step 6 fix agent prompts
+- Skip if no @MX tags found in target files
+- See .claude/rules/moai/workflow/mx-tag-protocol.md for tag type definitions
+
 Step 6 - Fix Execution:
 - [HARD] Before each fix: TaskUpdate to change item to in_progress
 - [HARD] Agent delegation mandate: ALL fix tasks MUST be delegated to specialized agents. NEVER execute fixes directly.
@@ -107,7 +117,7 @@ Step 7.5 - MX Tag Check:
   - Unresolved issues: Keep @MX:TODO
 - Remove resolved @MX:TODO tags for fixed issues
 - Generate MX_TAG_REPORT with tags added/removed/updated
-- See @.claude/rules/moai/workflow/mx-tag-protocol.md for tag rules
+- See .claude/rules/moai/workflow/mx-tag-protocol.md for tag rules
 
 Step 8 - Snapshot Save:
 - Save iteration snapshot to $CLAUDE_PROJECT_DIR/.moai/cache/loop-snapshots/
@@ -174,12 +184,28 @@ Resume commands:
 
 ## Language-Specific Commands
 
-Python: pytest --tb=short (tests), coverage run -m pytest (coverage)
-TypeScript: npm test or jest (tests), npm run coverage (coverage)
-Go: go test ./... (tests), go test -cover ./... (coverage)
-Rust: cargo test (tests), cargo tarpaulin (coverage)
+Test runner and coverage tool selection is based on auto-detected project language:
 
-Language detection: pyproject.toml (Python), package.json (TypeScript/JavaScript), go.mod (Go), Cargo.toml (Rust)
+| Language | Indicator File | Test Command | Coverage Command |
+|----------|---------------|--------------|--------------------|
+| Go | go.mod | `go test ./...` | `go test -cover ./...` |
+| Python | pyproject.toml / setup.py | `pytest --tb=short` | `coverage run -m pytest` |
+| TypeScript/JavaScript | package.json | `npm test` or `jest` | `npm run coverage` or `c8` |
+| Rust | Cargo.toml | `cargo test` | `cargo tarpaulin` |
+| Java (Maven) | pom.xml | `mvn test -q` | `mvn jacoco:report` |
+| Java (Gradle) | build.gradle | `gradle test -q` | `gradle jacocoTestReport` |
+| Kotlin | build.gradle.kts | `gradle test -q` | `gradle jacocoTestReport` |
+| C# | *.csproj | `dotnet test` | `dotnet test --collect:"XPlat Code Coverage"` |
+| Ruby | Gemfile | `bundle exec rspec` or `bundle exec rake test` | `simplecov` (via .simplecov config) |
+| PHP | composer.json | `vendor/bin/phpunit` | `vendor/bin/phpunit --coverage-text` |
+| Scala | build.sbt | `sbt test` | `sbt coverage test coverageReport` |
+| Elixir | mix.exs | `mix test` | `mix test --cover` |
+| Swift | Package.swift | `swift test` | `swift test --enable-code-coverage` |
+| Flutter/Dart | pubspec.yaml | `flutter test` or `dart test` | `flutter test --coverage` |
+| R | DESCRIPTION | `Rscript -e 'testthat::test_package(".")'` | `covr::package_coverage()` |
+| C++ | CMakeLists.txt | `ctest --test-dir build` | `gcov`/`lcov` (if configured) |
+
+Language detection priority: Check for indicator files in project root. If multiple present, prefer the one with the most associated source files. If detection fails, prompt user to specify language.
 
 ## Cancellation
 
@@ -198,11 +224,11 @@ All fixes within the loop follow CLAUDE.md Section 7 Safe Development Protocol:
 2. If --resume: Load state from specified snapshot and continue
 3. Detect project language from indicator files
 4. Initialize iteration counter and memory tracking (start time)
-5. Loop: Execute per-iteration cycle (Steps 1-9)
+5. Loop: Execute per-iteration cycle (Steps 1-9, including Step 5.5 MX Context Scan)
 6. On exit: Report final summary with evidence
 7. If memory checkpoint created: Display resume instructions
 
 ---
 
-Version: 2.0.0
-Source: loop.md command v2.2.0
+Version: 2.2.0
+Updated: 2026-03-02. Expanded Language-Specific Commands to 16 languages with test runner, coverage tool, and indicator file for each.

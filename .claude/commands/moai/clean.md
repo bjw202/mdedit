@@ -1,5 +1,5 @@
 ---
-description: 테스트 검증을 통한 데드 코드 식별 및 안전한 제거
+description: Identify and safely remove dead code with test verification
 argument-hint: "[--dry] [--safe-only] [--file PATH]"
 ---
 

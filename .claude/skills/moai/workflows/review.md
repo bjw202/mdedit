@@ -38,7 +38,7 @@ Flow: Identify Changes -> Analyze Perspectives -> Consolidate -> Report
 - --branch BRANCH: Compare current branch against BRANCH (default: main)
 - --security: Focus primarily on security review (OWASP, injection, auth)
 - --file PATH: Review specific file(s) only
-- --team: Use parallel multi-perspective review team (see team/review.md)
+- --team: Use parallel multi-perspective review team (see ${CLAUDE_SKILL_DIR}/team/review.md)
 
 ## Phase 1: Identify Changes
 
@@ -58,7 +58,7 @@ Collect:
 
 [HARD] Delegate review to the manager-quality subagent with all perspectives.
 
-If --team flag: Route to team/review.md for parallel multi-perspective review with 4 dedicated reviewers.
+If --team flag: Route to ${CLAUDE_SKILL_DIR}/team/review.md for parallel multi-perspective review with 4 dedicated reviewers.
 
 If no --team flag (default single-agent mode): Delegate to manager-quality subagent with instructions to review from all 4 perspectives sequentially.
 
@@ -143,6 +143,20 @@ Produce a consolidated review report organized by severity:
 - TRUST 5 Score: N/5
 ```
 
+### Simplify Pass [MANDATORY EVALUATION]
+
+After Phase 4 consolidation, MoAI MUST evaluate whether to call Skill("simplify").
+
+Condition: Any of the following Quality perspective findings exist:
+- At least 1 Warning-level or higher Quality finding
+- TRUST 5 compliance score < 5/5
+- At least 3 Suggestion-level Quality findings
+
+Decision:
+
+- If condition is met: Execute Skill("simplify") directly on the files identified in Phase 1. Do not delegate to a subagent — call it directly. Skill("simplify") will use parallel agents to resolve code quality issues found in the review. After completion, re-run the Quality perspective (Phase 2, Perspective 3 only) to verify the findings are resolved and update the report.
+- If condition is not met: Proceed directly to Phase 5.
+
 ## Phase 5: Next Steps
 
 Present options via AskUserQuestion:
@@ -165,7 +179,7 @@ When --team flag is provided, review delegates to the team-based multi-perspecti
 
 Team composition: 4 review agents (security, performance, quality, UX) analyzing in parallel.
 
-For detailed team orchestration steps, see team/review.md.
+For detailed team orchestration steps, see ${CLAUDE_SKILL_DIR}/team/review.md.
 
 Fallback: If team mode is unavailable, standard single-agent sequential review continues.
 
@@ -183,7 +197,7 @@ Team Prerequisites:
 ## Execution Summary
 
 1. Parse arguments (extract flags: --staged, --branch, --security, --file, --team)
-2. If --team: Route to team/review.md workflow
+2. If --team: Route to ${CLAUDE_SKILL_DIR}/team/review.md workflow
 3. Identify code changes (git diff based on flags)
 4. Delegate multi-perspective review to manager-quality subagent
 5. Check @MX tag compliance for changed files

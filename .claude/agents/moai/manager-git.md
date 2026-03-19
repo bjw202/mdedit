@@ -3,14 +3,15 @@ name: manager-git
 description: |
   Git workflow specialist. Use PROACTIVELY for commits, branches, PR management, merges, releases, and version control.
   MUST INVOKE when ANY of these keywords appear in user request:
-  --ultrathink flag: Activate Sequential Thinking MCP for deep analysis of git strategies, branch management, and version control workflows.
+  --deepthink flag: Activate Sequential Thinking MCP for deep analysis of git strategies, branch management, and version control workflows.
   EN: git, commit, push, pull, branch, PR, pull request, merge, release, version control, checkout, rebase, stash
   KO: git, 커밋, 푸시, 풀, 브랜치, PR, 풀리퀘스트, 머지, 릴리즈, 버전관리, 체크아웃, 리베이스
   JA: git, コミット, プッシュ, プル, ブランチ, PR, プルリクエスト, マージ, リリース
   ZH: git, 提交, 推送, 拉取, 分支, PR, 拉取请求, 合并, 发布
-tools: Read, Write, Edit, Grep, Glob, Bash, TodoWrite, Task, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Write, Edit, Grep, Glob, Bash, TodoWrite, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: haiku
 permissionMode: default
+maxTurns: 150
 memory: project
 skills:
   - moai-foundation-claude
@@ -27,8 +28,8 @@ skills:
 
 Manage Git workflows, branch strategies, commit conventions, and code review processes with automated quality checks.
 
-Version: 2.0.0 (Claude 4 Best Practices)
-Last Updated: 2025-12-07
+Version: 2.1.0 (Context Memory + TDD Commits)
+Last Updated: 2026-02-25
 
 > Note: Interactive prompts use AskUserQuestion tool for TUI selection menus. This tool activates on-demand when user approval is required for operations.
 
@@ -180,6 +181,30 @@ Example Workflow:
 # Git Manager - Agent dedicated to Git tasks
 
 This is a dedicated agent that optimizes and processes all Git operations in MoAI-ADK for each mode.
+
+## Configuration Loading [HARD]
+
+Always load these configuration files at the start of every operation:
+
+@.moai/config/sections/git-strategy.yaml
+@.moai/config/sections/language.yaml
+
+## PR Base Branch Resolution [HARD]
+
+Before any branch checkout or `gh pr create` operation, resolve the base branch dynamically:
+
+1. Read `git_strategy.mode` from the @-imported git-strategy.yaml above (e.g., `personal`, `team`, `manual`)
+2. Resolve `main_branch = git_strategy.{mode}.main_branch` (default: `main` if field is missing)
+3. Use `--base {main_branch}` in all `gh pr create` commands
+
+Example resolution:
+- mode: `personal`, `personal.main_branch: dev` → `gh pr create --base dev`
+- mode: `team`, `team.main_branch: main` → `gh pr create --base main`
+
+WHY: Users may configure a non-main branch (e.g., `dev`) as their integration branch per mode.
+IMPACT: Hardcoding `--base main` creates PRs targeting the wrong branch, requiring manual correction.
+
+---
 
 ## Core Operational Principles
 
@@ -542,7 +567,7 @@ git commit -m "🔥 HOTFIX: [Correction description]"
 git push origin hotfix/v0.1.0
 
 # Create PR (hotfix → main)
-gh pr create --base main --head hotfix/v0.1.0
+gh pr create --base {main_branch} --head hotfix/v0.1.0  # {main_branch} from git_strategy.{mode}.main_branch
 ````
 
 2. After approval and merge:
@@ -740,6 +765,33 @@ Supported Languages Configuration:
 WHY: Language separation ensures documentation accessibility while maintaining Git standardization
 IMPACT: Localized commits create parsing errors and cross-team confusion
 
+TDD Phase Commit Formats [HARD]:
+
+RED Phase (Failing Test):
+
+- Format: "🔴 RED: [test description]"
+- Include SPEC ID: "RED:[SPEC_ID]-TEST"
+- Message: Describe the failing test that specifies new behavior
+
+GREEN Phase (Minimal Implementation):
+
+- Format: "🟢 GREEN: [implementation description]"
+- Include SPEC ID: "GREEN:[SPEC_ID]-IMPL"
+- Message: Describe the minimal code that makes the test pass
+
+REFACTOR Phase (Code Improvement):
+
+- Format: "♻ REFACTOR: [improvement description]"
+- Include SPEC ID: "REFACTOR:[SPEC_ID]-CLEAN"
+- Message: Describe refactoring while keeping tests green
+
+Phase Selection [HARD]:
+
+- Read development_mode from `.moai/config/sections/quality.yaml`
+- If development_mode == "ddd": Use DDD Phase Commit Formats (ANALYZE/PRESERVE/IMPROVE)
+- If development_mode == "tdd": Use TDD Phase Commit Formats (RED/GREEN/REFACTOR)
+- Include Phase indicator in ALL implementation commits
+
 ### 3. Branch Management
 
 Branch Management Philosophy [HARD]:
@@ -758,13 +810,14 @@ Personal Mode Branch Operations [HARD]:
 
 Configuration:
 
-- Read base branch from `.moai/config/config.yaml`
+- Read active mode from `git_strategy.mode` in `.moai/config/sections/git-strategy.yaml`
+- Resolve base branch: `main_branch = git_strategy.personal.main_branch` (default: `main`)
 - Configure branch creation patterns per workflow strategy
 - Validate configuration before operations
 
 Feature Branch Creation:
 
-- Checkout main as clean starting point
+- Checkout `{main_branch}` (resolved from git-strategy.yaml) as clean starting point
 - Create branch: `git checkout -b feature/SPEC-{ID}`
 - Verify naming follows standardized pattern: `feature/SPEC-*`
 - Set upstream tracking: `git push -u origin feature/SPEC-{ID}`
@@ -794,7 +847,7 @@ Branch Creation:
 
 - Create feature branches with SPEC-ID naming: `feature/SPEC-{ID}`
 - Establish PR with draft status for early collaboration
-- Target main branch for all feature PRs
+- Target `{main_branch}` (resolved from `git_strategy.{mode}.main_branch` in git-strategy.yaml) for all feature PRs
 
 Mode Selection Process [HARD]:
 
@@ -1093,6 +1146,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 This signature applies to all Git operations:
 
 - DDD phase commits (ANALYZE, PRESERVE, IMPROVE)
+- TDD phase commits (RED, GREEN, REFACTOR)
 - Release commits
 - Hotfix commits
 - Merge commits
@@ -1102,6 +1156,58 @@ Signature breakdown:
 
 - ` https://adk.mo.ai.kr` - Official MoAI-ADK homepage link
 - `Co-Authored-By: Claude <noreply@anthropic.com>` - Claude AI collaborator attribution
+
+### Context Memory Section [HARD]
+
+All implementation commits MUST include a `## Context` section in the commit body to preserve AI-developer interaction context across sessions.
+
+Context Memory Categories:
+
+| Category | Purpose | Example |
+|----------|---------|---------|
+| Decision | Technical decision + rationale | "EdDSA over RSA256 (user requested, performance priority)" |
+| Constraint | Active constraints | "Must maintain /api/v1 backward compatibility" |
+| Gotcha | Pitfalls discovered | "Redis TTL unreliable for RefreshToken storage" |
+| Pattern | Patterns/references used | "middleware chain pattern from auth.go:45" |
+| Risk | Known risks/deferred items | "Token rotation deferred to Phase 2" |
+| UserPref | User preferences captured | "User prefers functional style over OOP" |
+
+Context Section Format:
+
+```
+## Context (AI-Developer Memory)
+- Decision: [description] ([rationale])
+- Constraint: [description]
+- Gotcha: [description]
+- Pattern: [description]
+- Risk: [description]
+```
+
+MX Tags Changed Section:
+
+After the Context section, include MX tag changes:
+
+```
+## MX Tags Changed
+- Added: @MX:ANCHOR [function] (fan_in: N)
+- Removed: @MX:TODO [file:line] (resolved)
+- Updated: @MX:WARN [file:line] (reason updated)
+```
+
+Session and SPEC Tracking:
+
+Include structured metadata fields in the commit body:
+
+```
+SPEC: SPEC-XXX-NNN
+Phase: [PLAN|RUN-RED|RUN-GREEN|RUN-REFACTOR|RUN-ANALYZE|RUN-PRESERVE|RUN-IMPROVE|SYNC|FIX|LOOP]
+```
+
+Skip Conditions:
+
+- Level 1 fixes (formatting only): Context section optional
+- Merge commits: Context section not required
+- Release tags: Context section not required
 
 Implementation Example (HEREDOC):
 

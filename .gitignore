@@ -1,20 +1,9 @@
 # ============================================
-# MdEdit Project .gitignore
-# ============================================
-# Version: 0.33.0 (MoAI-ADK base) + Tauri/Rust additions
-# Updated: 2026-02-24
-# ============================================
-
-# ===========================================
-# Rust / Cargo Build Artifacts
-# ===========================================
-/target/
-src-tauri/target/
-src-tauri/WixTools/
-src-tauri/gen/
-
-# ============================================
 # MoAI-ADK Package Distribution .gitignore
+# ============================================
+# Version: 0.33.0
+# Updated: 2026-01-10
+# Purpose: Essential patterns for user projects
 # ============================================
 
 # ===========================================
@@ -174,6 +163,8 @@ secret-*.*
 .claude/.env.local*
 .claude/local/
 .claude/plans/
+.claude/agent-memory/
+.claude/worktrees/
 
 # Skill-specific credentials
 .claude/skills/*/.env*
@@ -185,10 +176,11 @@ secret-*.*
 !.claude/skills/*/modules/*token*.md
 
 # ===========================================
-# Playwright E2E Test Artifacts
+# Local-Only Files (never sync via git pull)
 # ===========================================
-playwright-report/
-test-results/
+.moai/status_line.sh
+.moai/memory/
+.moai/worktrees/
 
 # ===========================================
 # Node.js (for docs/Nextra)
@@ -212,3 +204,11 @@ dist-ssr/
 .vercel/
 .netlify/
 .firebase/
+
+# User Custom Patterns (preserved by moai update)
+/target/
+src-tauri/target/
+src-tauri/WixTools/
+src-tauri/gen/
+playwright-report/
+test-results/

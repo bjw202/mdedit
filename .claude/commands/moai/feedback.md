@@ -1,6 +1,6 @@
 ---
-description: 피드백 수집 및 GitHub 이슈 생성 (버그 리포트, 기능 요청)
-argument-hint: "[\"설명\"]"
+description: Collect feedback and create GitHub issue (bug report, feature request)
+argument-hint: "[\"description\"]"
 ---
 
 Use Skill("moai") with arguments: feedback $ARGUMENTS

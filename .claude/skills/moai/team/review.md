@@ -22,7 +22,7 @@ progressive_disclosure:
 # MoAI Extension: Triggers
 triggers:
   keywords: ["team review", "multi-perspective review", "parallel review"]
-  agents: ["team-quality"]
+  agents: ["team-validator"]
   phases: ["review"]
 ---
 # Workflow: Team Review - Multi-Perspective Code Review
@@ -55,11 +55,11 @@ Flow: TeamCreate -> Perspective Assignment -> Parallel Review -> Report Consolid
 
 ## Phase 1: Spawn Review Team
 
-Use the review team pattern. All spawns MUST use Task() with `team_name` and `name` parameters. Launch all four in a single response for parallel execution:
+Use the review team pattern. All spawns MUST use Agent() with `team_name` and `name` parameters. Launch all four in a single response for parallel execution:
 
 ```
-Task(
-  subagent_type: "team-quality",
+Agent(
+  subagent_type: "team-validator",
   team_name: "moai-review-{target}",
   name: "security-reviewer",
   mode: "plan",
@@ -71,8 +71,8 @@ Task(
     When done, mark your task as completed via TaskUpdate and send findings to the team lead via SendMessage."
 )
 
-Task(
-  subagent_type: "team-quality",
+Agent(
+  subagent_type: "team-validator",
   team_name: "moai-review-{target}",
   name: "perf-reviewer",
   mode: "plan",
@@ -84,8 +84,8 @@ Task(
     When done, mark your task as completed via TaskUpdate and send findings to the team lead via SendMessage."
 )
 
-Task(
-  subagent_type: "team-quality",
+Agent(
+  subagent_type: "team-validator",
   team_name: "moai-review-{target}",
   name: "quality-reviewer",
   mode: "plan",
@@ -97,8 +97,8 @@ Task(
     When done, mark your task as completed via TaskUpdate and send findings to the team lead via SendMessage."
 )
 
-Task(
-  subagent_type: "team-quality",
+Agent(
+  subagent_type: "team-validator",
   team_name: "moai-review-{target}",
   name: "ux-reviewer",
   mode: "plan",
@@ -146,8 +146,14 @@ After all reviews complete:
    SendMessage(type: "shutdown_request", recipient: "quality-reviewer", content: "Review complete, shutting down")
    SendMessage(type: "shutdown_request", recipient: "ux-reviewer", content: "Review complete, shutting down")
    ```
-2. TeamDelete to clean up resources
-3. Optionally create fix tasks for critical issues
+2. Clean up GLM env vars and restore Claude-only operation:
+   ```bash
+   moai cc
+   ```
+   This safely removes GLM env vars while preserving ANTHROPIC_AUTH_TOKEN and other settings.
+   Do NOT manually Read/Write settings.local.json — use the CLI command which handles JSON merging correctly.
+3. TeamDelete to clean up resources
+4. Optionally create fix tasks for critical issues
 
 ## Fallback
 

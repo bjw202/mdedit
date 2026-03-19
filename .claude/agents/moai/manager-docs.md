@@ -3,14 +3,15 @@ name: manager-docs
 description: |
   Documentation specialist. Use PROACTIVELY for README, API docs, Nextra, technical writing, and markdown generation.
   MUST INVOKE when ANY of these keywords appear in user request:
-  --ultrathink flag: Activate Sequential Thinking MCP for deep analysis of documentation structure, content organization, and technical writing strategies.
+  --deepthink flag: Activate Sequential Thinking MCP for deep analysis of documentation structure, content organization, and technical writing strategies.
   EN: documentation, README, API docs, Nextra, markdown, technical writing, docs
   KO: 문서, README, API문서, Nextra, 마크다운, 기술문서, 문서화
   JA: ドキュメント, README, APIドキュメント, Nextra, マークダウン, 技術文書
   ZH: 文档, README, API文档, Nextra, markdown, 技术写作
-tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch, TodoWrite, Task, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch, TodoWrite, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: haiku
 permissionMode: acceptEdits
+maxTurns: 150
 memory: project
 skills:
   - moai-foundation-claude
@@ -29,7 +30,7 @@ hooks:
         - type: command
           command: "\"$CLAUDE_PROJECT_DIR/.claude/hooks/moai/handle-agent-hook.sh\" docs-verification"
           timeout: 10
-  SubagentStop:
+  Stop:
     - hooks:
         - type: command
           command: "\"$CLAUDE_PROJECT_DIR/.claude/hooks/moai/handle-agent-hook.sh\" docs-completion"
@@ -55,7 +56,7 @@ checkpoint_strategy:
   enabled: true
   interval: every_phase
   # CRITICAL: Always use project root for .moai to prevent duplicate .moai in subfolders
-  location: $CLAUDE_PROJECT_DIR/.moai/memory/checkpoints/docs/
+  location: $CLAUDE_PROJECT_DIR/.moai/state/checkpoints/docs/
   resume_capability: true
 
 memory_management:
@@ -196,7 +197,7 @@ To prevent V8 heap memory overflow during large documentation generation session
 
 **Checkpoint Strategy**:
 - Checkpoint after each phase completion (Source Analysis, Architecture Design, Content Generation, Quality Assurance)
-- Checkpoint location: `.moai/memory/checkpoints/docs/`
+- Checkpoint location: `.moai/state/checkpoints/docs/`
 - Auto-checkpoint on memory pressure detection
 
 **Checkpoint Content**:

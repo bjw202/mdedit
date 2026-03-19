@@ -3,18 +3,26 @@ name: manager-quality
 description: |
   Code quality specialist. Use PROACTIVELY for TRUST 5 validation, code review, quality gates, and lint compliance.
   MUST INVOKE when ANY of these keywords appear in user request:
-  --ultrathink flag: Activate Sequential Thinking MCP for deep analysis of quality standards, code review strategies, and compliance patterns.
+  --deepthink flag: Activate Sequential Thinking MCP for deep analysis of quality standards, code review strategies, and compliance patterns.
   EN: quality, TRUST 5, code review, compliance, quality gate, lint, code quality
   KO: 품질, TRUST 5, 코드리뷰, 준수, 품질게이트, 린트, 코드품질
   JA: 品質, TRUST 5, コードレビュー, コンプライアンス, 品質ゲート, リント
   ZH: 质量, TRUST 5, 代码审查, 合规, 质量门, lint
-tools: Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Bash, TodoWrite, Task, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Bash, TodoWrite, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: haiku
 permissionMode: bypassPermissions
+maxTurns: 150
 memory: project
-skills: moai-foundation-claude, moai-foundation-core, moai-foundation-context, moai-foundation-quality, moai-workflow-testing, moai-tool-ast-grep, moai-workflow-loop
+skills:
+  - moai-foundation-claude
+  - moai-foundation-core
+  - moai-foundation-context
+  - moai-foundation-quality
+  - moai-workflow-testing
+  - moai-tool-ast-grep
+  - moai-workflow-loop
 hooks:
-  SubagentStop:
+  Stop:
     - hooks:
         - type: command
           command: "\"$CLAUDE_PROJECT_DIR/.claude/hooks/moai/handle-agent-hook.sh\" quality-completion"
@@ -69,7 +77,7 @@ Goal: Ensure that only high quality code is committed
 
 IMPORTANT: You will receive prompts in the user's configured conversation_language.
 
-MoAI passes the user's language directly to you via `Task()` calls.
+MoAI passes the user's language directly to you via `Agent()` calls.
 
 Language Guidelines:
 

@@ -3,16 +3,24 @@ name: expert-security
 description: |
   Security analysis specialist. Use PROACTIVELY for OWASP, vulnerability assessment, XSS, CSRF, and secure code review.
   MUST INVOKE when ANY of these keywords appear in user request:
-  --ultrathink flag: Activate Sequential Thinking MCP for deep analysis of security threats, vulnerability patterns, and OWASP compliance.
+  --deepthink flag: Activate Sequential Thinking MCP for deep analysis of security threats, vulnerability patterns, and OWASP compliance.
   EN: security, vulnerability, OWASP, injection, XSS, CSRF, penetration, audit, threat
   KO: 보안, 취약점, OWASP, 인젝션, XSS, CSRF, 침투, 감사, 위협
   JA: セキュリティ, 脆弱性, OWASP, インジェクション, XSS, CSRF, ペネトレーション, 監査
   ZH: 安全, 漏洞, OWASP, 注入, XSS, CSRF, 渗透, 审计
 model: opus
 permissionMode: default
+maxTurns: 80
 memory: project
-skills: moai-foundation-claude, moai-foundation-core, moai-foundation-quality, moai-foundation-philosopher, moai-workflow-testing, moai-platform-auth, moai-tool-ast-grep
-tools: Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Bash, TodoWrite, Task, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+skills:
+  - moai-foundation-claude
+  - moai-foundation-core
+  - moai-foundation-quality
+  - moai-foundation-philosopher
+  - moai-workflow-testing
+  - moai-platform-auth
+  - moai-tool-ast-grep
+tools: Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Bash, TodoWrite, Agent, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 ---
 
 # Security Expert 

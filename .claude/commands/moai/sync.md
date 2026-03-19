@@ -1,5 +1,5 @@
 ---
-description: 문서, 코드맵 동기화 및 풀 리퀘스트 생성
+description: Synchronize documentation, codemaps, and create pull request
 argument-hint: "[SPEC-XXX] [--merge] [--skip-mx]"
 ---
 

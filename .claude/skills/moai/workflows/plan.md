@@ -32,7 +32,7 @@ triggers:
 
 Create comprehensive SPEC documents using EARS format as the first step of the Plan-Run-Sync workflow.
 
-For phase overview and token budgets, see: @.claude/rules/moai/workflow/spec-workflow.md
+For phase overview and token budgets, see: .claude/rules/moai/workflow/spec-workflow.md
 
 ## Scope
 
@@ -51,7 +51,8 @@ For phase overview and token budgets, see: @.claude/rules/moai/workflow/spec-wor
 - --worktree: Create isolated Git worktree environment (highest priority)
 - --branch: Create traditional feature branch (second priority)
 - No flag: SPEC only by default; user may be prompted based on config
-- --team: Enable team-based exploration (see team/plan.md for parallel research team)
+- --team: Enable team-based exploration (see ${CLAUDE_SKILL_DIR}/team/plan.md for parallel research team)
+- --no-issue: Skip GitHub Issue creation after SPEC generation
 - resume SPEC-XXX: Continue from last saved draft state
 
 Flag priority: --worktree takes precedence over --branch, which takes precedence over default.
@@ -213,7 +214,8 @@ Input: Approved plan from Phase 1B, validated SPEC ID from Phase 1.5.
 File generation (all three files created simultaneously):
 
 - .moai/specs/SPEC-{ID}/spec.md
-  - YAML frontmatter with 7 required fields (id, version, status, created, updated, author, priority)
+  - YAML frontmatter with 8 required fields (id, version, status, created, updated, author, priority, issue_number)
+  - issue_number: GitHub Issue number linked to this SPEC (0 if --no-issue or Issue creation skipped)
   - HISTORY section immediately after frontmatter
   - Complete EARS structure with all 5 requirement types
   - Content written in conversation_language
@@ -232,6 +234,70 @@ Quality constraints:
 - Requirement modules limited to 5 or fewer per SPEC
 - Acceptance criteria minimum 2 Given/When/Then scenarios
 - Technical terms and function names remain in English
+
+### Phase 2.5: GitHub Issue Creation (Conditional)
+
+Purpose: Create a GitHub Issue linked to the SPEC document for bidirectional traceability between planning artifacts and issue tracker.
+
+Execution conditions:
+- `--no-issue` flag is NOT set
+- GitHub CLI (`gh`) is available
+- Repository has a remote origin
+
+Skip conditions:
+- `--no-issue` flag is set
+- `gh` CLI not available (log warning and continue)
+- No remote origin configured
+
+#### Step 2.5.1: Create GitHub Issue
+
+Agent: manager-git subagent
+
+Create a GitHub Issue from SPEC metadata:
+
+```bash
+gh issue create \
+  --title "[SPEC-{ID}] {SPEC title}" \
+  --body "$(cat <<'EOF'
+## SPEC Reference
+
+- **SPEC ID**: SPEC-{ID}
+- **Status**: draft
+- **Priority**: {priority}
+- **Created**: {created_date}
+
+## Requirements Summary
+
+{Brief summary from spec.md EARS requirements}
+
+## Acceptance Criteria
+
+{Summary from acceptance.md}
+
+---
+
+*This issue was automatically created by MoAI from SPEC-{ID}.*
+*SPEC location: `.moai/specs/SPEC-{ID}/spec.md`*
+EOF
+)" \
+  --label "spec"
+```
+
+#### Step 2.5.2: Update SPEC Metadata
+
+After Issue creation, update the SPEC frontmatter with the issue number:
+
+- Read the issue number from `gh issue create` output
+- Update `issue_number` field in `.moai/specs/SPEC-{ID}/spec.md` YAML frontmatter
+- Add cross-reference comment in the Issue: `gh issue comment {number} --body "SPEC document: .moai/specs/SPEC-{ID}/spec.md"`
+
+#### Step 2.5.3: Bidirectional Reference
+
+The SPEC ↔ Issue link enables:
+- SPEC spec.md frontmatter contains `issue_number: {N}` for downstream workflows
+- GitHub Issue body contains SPEC-ID and file path for human navigation
+- run.md Phase 3 uses `issue_number` to include `Fixes #{N}` in commits/PRs
+- sync.md leverages `Fixes #{N}` in PR for automatic Issue closure on merge
 
 ### Phase 3: Git Environment Setup (Conditional)
 
@@ -295,6 +361,44 @@ Options:
 - Modify Plan
 - Add New Feature (create additional SPEC)
 
+### Decision Point 3.5: Execution Mode Selection Gate
+
+Triggered when: User selects "Start Implementation" in Decision Point 3.
+
+**Step 1 — Detect active mode:**
+Read `.moai/config/sections/llm.yaml` → `llm.team_mode` field:
+- `""` (empty) = CC mode (all agents use Claude)
+- `"glm"` = GLM mode (all agents use GLM)
+- `"cg"` = CG mode (Leader=Claude, Workers=GLM)
+
+**Step 2 — Detect tmux availability:**
+Bash: `test -n "$TMUX" && echo "tmux" || echo "no-tmux"`
+
+**Step 3 — Present options when tmux is available:**
+AskUserQuestion with 3 options (descriptions adapt to active_mode):
+- Option 1 (Recommended): Worktree + {active_mode}
+  - CC: "독립 worktree에서 CC 모드 실행. 모든 에이전트 Claude. 최고 품질."
+  - GLM: "독립 worktree에서 GLM 모드 실행. 모든 에이전트 GLM. 비용 최적화."
+  - CG: "독립 worktree에서 CG 모드 실행. Leader=Claude, Workers=GLM. 품질-비용 균형."
+- Option 2: Team Mode — 현재 세션에서 Agent Teams 실행. Worktree 없이 직접 실행.
+- Option 3: Sub-agent Mode — 순차 실행. 가장 안정적이고 토큰 효율적.
+
+**Step 3 (tmux unavailable):** AskUserQuestion with 2 options:
+- Option 1 (Recommended): Sub-agent Mode — 순차 실행. tmux 없이 가장 안정적.
+- Option 2: Team Mode (in-process) — 현재 세션에서 Agent Teams 실행.
+
+**Step 4 — Worktree 선택 시 실행:**
+- CC: 추가 env 설정 불필요. worktree 생성 후 새 tmux 세션에서 claude 실행.
+- GLM: 새 tmux 세션에 injectTmuxSessionEnv()로 GLM env 주입 후 실행.
+- CG: 새 tmux 세션에 injectTmuxSessionEnv() 적용 + settings.local.json에서 GLM env 제거(Leader 격리).
+- 새 tmux 세션에서 worktree 디렉토리로 이동 후 `/moai run SPEC-{ID}` 실행.
+- 현재 세션 종료 (worktree 세션이 독립적으로 실행됨).
+
+**Step 5 — Gate 결과를 run 워크플로우에 전달:**
+- `execution_mode`: worktree | team | sub-agent
+- `active_mode`: cc | glm | cg
+- `tmux_available`: true | false
+
 ---
 
 ## Team Mode Routing
@@ -302,12 +406,12 @@ Options:
 When --team flag is provided or auto-selected, the plan phase MUST switch to team orchestration:
 
 1. Verify prerequisites: workflow.team.enabled == true AND CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 env var is set
-2. If prerequisites met: Read team/plan.md and execute the team workflow (TeamCreate with researcher + analyst + architect)
+2. If prerequisites met: Read ${CLAUDE_SKILL_DIR}/team/plan.md and execute the team workflow (TeamCreate with researcher + analyst + architect)
 3. If prerequisites NOT met: Warn user then fallback to standard sub-agent mode (manager-spec)
 
 Team composition: researcher (haiku) + analyst (inherit) + architect (inherit)
 
-For detailed team orchestration steps, see team/plan.md.
+For detailed team orchestration steps, see ${CLAUDE_SKILL_DIR}/team/plan.md.
 
 ---
 
@@ -319,13 +423,15 @@ All of the following must be verified:
 - User approval obtained via AskUserQuestion before SPEC creation
 - Phase 2: All 3 SPEC files created (spec.md, plan.md, acceptance.md)
 - Directory naming follows .moai/specs/SPEC-{ID}/ format
-- YAML frontmatter contains all 7 required fields
+- YAML frontmatter contains all 8 required fields (including issue_number)
 - EARS structure is complete
+- Phase 2.5: GitHub Issue created and linked (unless --no-issue)
 - Phase 3: Appropriate git action taken based on flags and user choice
 - If --worktree: SPEC committed before worktree creation
 - Next steps presented to user
 
 ---
 
-Version: 2.6.0
-Updated: 2026-02-23
+Version: 2.7.0
+Updated: 2026-03-11
+Changes: Added Phase 2.5 GitHub Issue creation with bidirectional SPEC-Issue linking, --no-issue flag, issue_number SPEC frontmatter field.

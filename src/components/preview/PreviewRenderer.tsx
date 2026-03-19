@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 // @MX:ANCHOR: [AUTO] PreviewRenderer - renders sanitized HTML and triggers mermaid diagram rendering
 // @MX:REASON: [AUTO] Central render target used by MarkdownPreview and exported HTML functions (fan_in >= 3)
@@ -10,6 +11,8 @@ import mermaid from 'mermaid';
 // @MX:REASON: [AUTO] One broken diagram must not prevent other diagrams or the preview from rendering
 // @MX:NOTE: [AUTO] mermaid.parse() is called before render() to pre-validate syntax
 // This prevents mermaid's native bomb-icon error SVG from being rendered into the DOM
+// @MX:NOTE: [AUTO] 링크 클릭 시 시스템 기본 브라우저로 열기
+// Preview 패널 내부의 링크를 클릭하면 WebView 내부가 아닌 시스템 기본 브라우저로 엽니다.
 
 // Initialize mermaid once at module load time
 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
@@ -35,6 +38,7 @@ export function PreviewRenderer({ html, fontSize }: PreviewRendererProps): JSX.E
       return;
     }
 
+    // Mermaid diagram rendering
     const containers = containerRef.current.querySelectorAll('.mermaid-container');
     containers.forEach(async (el) => {
       const diagram = el.getAttribute('data-diagram') ?? '';
@@ -47,6 +51,28 @@ export function PreviewRenderer({ html, fontSize }: PreviewRendererProps): JSX.E
         el.innerHTML = '<p class="text-sm text-amber-500 italic py-2">⚠ Diagram syntax error</p>';
       }
     });
+
+    // 링크 클릭 핸들러 - 시스템 기본 브라우저로 열기
+    const handleLinkClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const anchor = target.closest('a');
+      if (anchor && anchor.href) {
+        event.preventDefault();
+        event.stopPropagation();
+        openUrl(anchor.href).catch((err) => {
+          console.error('Failed to open URL:', err);
+        });
+      }
+    };
+
+    containerRef.current.addEventListener('click', handleLinkClick);
+
+    // Cleanup: 이벤트 리스너 제거
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.removeEventListener('click', handleLinkClick);
+      }
+    };
   }, [html]);
 
   return (

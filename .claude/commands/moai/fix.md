@@ -1,5 +1,5 @@
 ---
-description: LSP 오류, 린트 문제, 타입 오류 자동 감지 및 수정
+description: Auto-detect and fix LSP errors, linting issues, and type errors
 argument-hint: "[--dry] [--seq] [--level N] [--resume] [--team]"
 ---
 

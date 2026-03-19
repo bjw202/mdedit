@@ -3,16 +3,28 @@ name: expert-debug
 description: |
   Debugging specialist. Use PROACTIVELY for error diagnosis, bug fixing, exception handling, and troubleshooting.
   MUST INVOKE when ANY of these keywords appear in user request:
-  --ultrathink flag: Activate Sequential Thinking MCP for deep analysis of error patterns, root causes, and debugging strategies.
+  --deepthink flag: Activate Sequential Thinking MCP for deep analysis of error patterns, root causes, and debugging strategies.
   EN: debug, error, bug, exception, crash, troubleshoot, diagnose, fix error
   KO: 디버그, 에러, 버그, 예외, 크래시, 문제해결, 진단, 오류수정
   JA: デバッグ, エラー, バグ, 例外, クラッシュ, トラブルシュート, 診断
   ZH: 调试, 错误, bug, 异常, 崩溃, 故障排除, 诊断
-tools: Read, Write, Edit, Grep, Glob, Bash, TodoWrite, Task, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Write, Edit, Grep, Glob, Bash, TodoWrite, Agent, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 model: sonnet
+maxTurns: 100
 permissionMode: default
 memory: project
-skills: moai-foundation-claude, moai-foundation-core, moai-foundation-quality, moai-workflow-testing, moai-workflow-loop, moai-lang-python, moai-lang-typescript, moai-lang-javascript, moai-lang-go, moai-lang-rust, moai-tool-ast-grep
+skills:
+  - moai-foundation-claude
+  - moai-foundation-core
+  - moai-foundation-quality
+  - moai-workflow-testing
+  - moai-workflow-loop
+  - moai-lang-python
+  - moai-lang-typescript
+  - moai-lang-javascript
+  - moai-lang-go
+  - moai-lang-rust
+  - moai-tool-ast-grep
 hooks:
   PostToolUse:
     - matcher: "Write|Edit"
@@ -20,7 +32,7 @@ hooks:
         - type: command
           command: "\"$CLAUDE_PROJECT_DIR/.claude/hooks/moai/handle-agent-hook.sh\" debug-verification"
           timeout: 10
-  SubagentStop:
+  Stop:
     - hooks:
         - type: command
           command: "\"$CLAUDE_PROJECT_DIR/.claude/hooks/moai/handle-agent-hook.sh\" debug-completion"

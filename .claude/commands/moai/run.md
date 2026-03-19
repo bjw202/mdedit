@@ -1,5 +1,5 @@
 ---
-description: DDD/TDD 방법론으로 SPEC 요구사항 구현
+description: Implement SPEC requirements using DDD/TDD methodology
 argument-hint: "SPEC-XXX [--team] [--resume SPEC-XXX]"
 ---
 
