@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn test_run_compiles() {
         // Verify the library compiles correctly
-        assert!(true);
+        // This test validates the build configuration
     }
 
     #[test]
