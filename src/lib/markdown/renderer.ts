@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
 import { mermaidPlugin } from './mermaidPlugin';
+import markdownItKatex from '@traptitech/markdown-it-katex';
 import type { ShikiHighlighter } from './codeHighlight';
 import { resolveImageSrc } from '@/lib/image/imageResolver';
 
@@ -162,6 +163,10 @@ export async function renderMarkdown(
 
   // Register mermaid plugin
   md.use(mermaidPlugin);
+
+  // KaTeX 수식 렌더링 플러그인 등록 (SPEC-PREVIEW-003)
+  // throwOnError: false - 잘못된 LaTeX로 인한 전체 프리뷰 중단 방지
+  md.use(markdownItKatex, { throwOnError: false });
 
   // Register table scroll wrapper plugin
   md.use(tableScrollPlugin);

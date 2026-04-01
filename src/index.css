@@ -242,6 +242,12 @@
   @apply flex justify-center mb-4;
 }
 
+/* KaTeX 수식 다크 모드 지원 (SPEC-PREVIEW-003) */
+/* 다크 모드에서 수식 색상이 상위 텍스트 색상을 상속받도록 설정 */
+.dark .katex {
+  color: inherit;
+}
+
 /* Print styles for PDF export (SPEC-EXPORT-001) */
 @media print {
   /* Hide all application UI except preview content */

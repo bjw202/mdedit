@@ -176,3 +176,75 @@ describe('renderMarkdown: data-line plugin (SPEC-PREVIEW-002)', () => {
     expect(result).toContain('data-line="2"');
   });
 });
+
+describe('renderMarkdown: KaTeX math rendering (SPEC-PREVIEW-003)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // 테스트 1: 인라인 수식이 .katex 클래스로 렌더링되는지 확인
+  it('renders inline math with .katex class', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('Euler: $e^{i\\pi} + 1 = 0$', null);
+    expect(result).toContain('class="katex"');
+  });
+
+  // 테스트 2: 블록 수식이 .katex-display 클래스로 렌더링되는지 확인
+  it('renders block math with .katex-display class', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('$$\nE = mc^2\n$$', null);
+    expect(result).toContain('katex-display');
+  });
+
+  // 테스트 3: 잘못된 LaTeX 구문이 렌더링을 중단시키지 않는지 확인 (throwOnError: false)
+  it('does NOT crash on invalid LaTeX (throwOnError: false)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    // 잘못된 LaTeX 표현식 - 크래시 없이 렌더링되어야 함
+    await expect(renderMarkdown('$\\invalid{syntax$', null)).resolves.toBeTruthy();
+  });
+
+  // 테스트 4: 코드 블록 내 달러 기호가 수식으로 처리되지 않는지 확인
+  it('does NOT treat dollar signs inside code blocks as math', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('`$not math$`', null);
+    // 코드 블록 내부는 수식 렌더링 대상이 아님
+    expect(result).toContain('<code>');
+    expect(result).not.toContain('class="katex"');
+  });
+
+  // 테스트 5: 수식 + 테이블 + 코드 혼합 콘텐츠가 정상 렌더링되는지 확인
+  it('renders mixed content (math + table + code) correctly', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = [
+      'Inline: $a^2 + b^2 = c^2$',
+      '',
+      '| Col1 | Col2 |',
+      '|------|------|',
+      '| A    | B    |',
+      '',
+      '```js',
+      'const x = 1;',
+      '```',
+    ].join('\n');
+    const result = await renderMarkdown(content, null);
+    expect(result).toContain('class="katex"');
+    expect(result).toContain('<table');
+    expect(result).toContain('<code');
+  });
+
+  // 테스트 6: 그리스 문자가 올바르게 렌더링되는지 확인
+  it('renders Greek letters correctly', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('$\\alpha + \\beta = \\gamma$', null);
+    expect(result).toContain('class="katex"');
+    // KaTeX는 그리스 문자를 span 요소로 렌더링함
+    expect(result).toContain('<span');
+  });
+
+  // 테스트 7: 중첩 중괄호가 올바르게 렌더링되는지 확인
+  it('renders nested braces correctly', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('$\\frac{x^{2}}{y^{2}}$', null);
+    expect(result).toContain('class="katex"');
+  });
+});
