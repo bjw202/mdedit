@@ -1,162 +1,60 @@
-# Architecture Overview - markdown-editor-rust
+# Architecture Overview - MdEdit v0.4.0
 
-> **Status**: Pre-implementation (no source code yet)
-> **Last Updated**: 2026-02-24
-> **Project Phase**: Architecture Design
+> **Last Updated**: 2026-04-01
+> **Version**: 0.4.0
+> **Stack**: Tauri v2 (Rust) + React 18 + TypeScript + CodeMirror 6
 
----
+## Project Summary
 
-## System Overview
+MdEdit는 크로스 플랫폼 데스크톱 마크다운 에디터. Tauri v2 (Rust 백엔드) + React 18 (프론트엔드) 기반.
 
-markdown-editor-rust is a **3-pane desktop application** built with Tauri v2 (Rust backend) and React (TypeScript frontend). The architecture separates concerns into a thin Rust process layer and a rich React UI layer.
+- **3-pane 레이아웃**: 사이드바 파일 탐색기, CodeMirror 6 에디터, 실시간 마크다운 미리보기
+- **마크다운 렌더링**: markdown-it + Shiki 구문 강조 + Mermaid 다이어그램 + KaTeX 수식
+- **내보내기**: HTML, PDF (네이티브 print), DOCX (docx npm 패키지)
+- **파일 감시**: notify crate로 외부 변경 자동 감지
+- **상태 관리**: Zustand (persist middleware로 localStorage 저장)
+- **이미지 처리**: inline-blob (base64 data URI) 또는 file-save (./images/) 모드
 
-```
-┌────────────────────────────────────────────────────────────┐
-│                     Application Window                      │
-├──────────────┬──────────────────────┬──────────────────────┤
-│  File         │     Editor Panel     │   Preview Panel      │
-│  Explorer     │  (CodeMirror 6)      │  (markdown-it +      │
-│  (Sidebar)    │  Markdown highlight  │   Shiki + Mermaid)   │
-│               │  Syntax: 16+ langs   │   Real-time render   │
-│  Tree view    │                      │   300ms debounce     │
-│  File CRUD    │  Auto-save support   │   XSS-safe HTML      │
-├──────────────┴──────────────────────┴──────────────────────┤
-│                     Tauri IPC Bridge                        │
-│              invoke() ←→ Rust command handlers              │
-├────────────────────────────────────────────────────────────┤
-│                     Rust Backend                            │
-│   std::fs  │  notify (watcher)  │  tauri-plugin-dialog     │
-└────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Architectural Layers
-
-### Layer 1: Rust Backend (`src-tauri/`)
-
-**Role**: Native OS integration, file system access, file watching
-
-- Exposes 9 Tauri commands (IPC endpoints) to the frontend
-- Manages `notify` crate watcher lifecycle in `Mutex<WatcherState>`
-- No business logic - pure data I/O and OS bridging
-- Compiled to native binary (~5-10MB base, target ~15MB total)
-
-**Key modules**:
-- `commands/file_ops.rs` - CRUD file operations
-- `commands/directory_ops.rs` - Directory listing + native dialog
-- `commands/watcher.rs` - File change detection → Tauri event emit
-- `state/app_state.rs` - Shared mutable state (watcher handle)
-
-### Layer 2: IPC Bridge (`src/lib/tauri/ipc.ts`)
-
-**Role**: Type-safe wrapper around all Tauri `invoke()` calls
-
-Single point of contact between React and Rust. All Tauri commands are exposed through typed `FileAPI` functions. Frontend never calls `invoke()` directly.
-
-### Layer 3: React State (`src/store/`)
-
-**Role**: Application state management (Zustand)
-
-Three independent stores:
-- `editorStore` - Active file path, content, dirty/saving state
-- `fileStore` - Directory tree, expanded paths, root path
-- `uiStore` - Sidebar width, preview width, theme (persisted to localStorage)
-
-### Layer 4: React Components (`src/components/`)
-
-**Role**: UI rendering and user interaction
-
-Three main panels:
-- `sidebar/FileExplorer` - Tree view, file CRUD actions
-- `editor/MarkdownEditor` - CodeMirror 6 instance with markdown extensions
-- `preview/PreviewRenderer` - markdown-it HTML + post-process Mermaid SVG
-
-### Layer 5: Rendering Pipeline (`src/lib/markdown/`)
-
-**Role**: Markdown → HTML conversion
+## High-Level Architecture
 
 ```
-Raw Markdown Text
-      │
-      ▼ (markdown-it)
-Token Stream
-      │
-      ├─ Mermaid blocks → <div data-mermaid-code="...">
-      ├─ Code blocks → Shiki HTML (VS Code highlighting)
-      └─ Standard MD → HTML
-      │
-      ▼
-PreviewRenderer innerHTML update
-      │
-      ▼ (useEffect)
-mermaid.render() → SVG injection
+┌─────────────────────────────────────────────────────────────┐
+│                     Tauri v2 Shell                           │
+│                                                             │
+│  ┌──────────────────────┐  ┌────────────────────────────┐  │
+│  │   Rust Backend       │  │   React Frontend           │  │
+│  │   (src-tauri/src/)   │  │   (src/)                   │  │
+│  │                      │  │                            │  │
+│  │  ┌────────────────┐  │  │  ┌──────────────────────┐  │  │
+│  │  │ file_ops       │  │◄─┤  │ lib/tauri/ipc.ts     │  │  │
+│  │  │ directory_ops   │  │  │  │ (19 IPC wrappers)    │  │  │
+│  │  │ watcher        │  │  │  └──────────────────────┘  │  │
+│  │  │ image_ops      │  │  │                            │  │
+│  │  │ browser_ops    │  │  │  ┌──────────────────────┐  │  │
+│  │  └────────────────┘  │  │  │ Components           │  │  │
+│  │                      │  │  │  layout/ editor/      │  │  │
+│  │  ┌────────────────┐  │  │  │  preview/ sidebar/    │  │  │
+│  │  │ AppState       │  │  │  └──────────────────────┘  │  │
+│  │  │  watcher       │  │  │                            │  │
+│  │  │  watch_path    │  │  │  ┌──────────────────────┐  │  │
+│  │  └────────────────┘  │  │  │ Zustand Stores       │  │  │
+│  │                      │  │  │  editor / file / ui   │  │  │
+│  └──────────────────────┘  │  └──────────────────────┘  │  │
+│                            │                            │  │
+│                            │  ┌──────────────────────┐  │  │
+│                            │  │ Markdown Pipeline     │  │  │
+│                            │  │  markdown-it + Shiki  │  │  │
+│                            │  │  + Mermaid + KaTeX    │  │  │
+│                            │  └──────────────────────┘  │  │
+│                            └────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
----
+## Module Map
 
-## Key Data Models
+자세한 내용은 각 영역별 codemap 참조:
 
-```typescript
-// Frontend types (src/types/file.ts)
-interface FileNode {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-  children?: FileNode[];    // null = not loaded (lazy)
-  extension?: string;
-}
-
-interface FileChangedEvent {
-  kind: 'Created' | 'Modified' | 'Deleted' | { Renamed: { oldPath: string } };
-  path: string;
-}
-```
-
-```rust
-// Rust models (src-tauri/src/models/)
-pub struct FileNode {
-    pub name: String,
-    pub path: String,
-    pub is_directory: bool,
-    pub children: Option<Vec<FileNode>>,
-    pub extension: Option<String>,
-}
-```
-
----
-
-## IPC Command Map
-
-| Command | Direction | Purpose |
-|---|---|---|
-| `read_file(path)` | Frontend → Rust | Load file content |
-| `write_file(path, content)` | Frontend → Rust | Save file |
-| `create_file(path)` | Frontend → Rust | New file |
-| `delete_file(path)` | Frontend → Rust | Delete file/folder |
-| `rename_file(old, new)` | Frontend → Rust | Rename |
-| `read_directory(path)` | Frontend → Rust | List folder contents |
-| `open_directory_dialog()` | Frontend → Rust | Native folder picker |
-| `start_watch(path)` | Frontend → Rust | Start fs watcher |
-| `stop_watch()` | Frontend → Rust | Stop watcher |
-| `file-changed` event | Rust → Frontend | File system change notification |
-
----
-
-## Design Patterns
-
-- **Lazy Loading**: File tree only loads directory contents on folder expand
-- **Debounce**: Preview rendering delayed 300ms to avoid render storms
-- **Singleton Init**: Shiki highlighter and Mermaid initialized once at startup
-- **Event-Driven**: File changes propagate via Tauri events (not polling)
-- **Immutable State**: Zustand stores use immer-style replacements
-
----
-
-## Future Architecture Considerations (Post V1.0)
-
-- Tab system: Multiple open files → `editorStore` holds array of `OpenFile` records
-- Split editor: Secondary CodeMirror instance side-by-side
-- Plugin system: Markdown-it plugin registry
-- Search/Replace: CodeMirror search extension + `grep` Rust command
-- Settings UI: Additional `settingsStore` + Tauri `store` plugin
+- [frontend.md](./frontend.md) — React 컴포넌트, 훅, 스토어, 라이브러리
+- [backend.md](./backend.md) — Rust 모듈, IPC 커맨드, 상태 관리
+- [pipelines.md](./pipelines.md) — 렌더링, 이미지, 내보내기 파이프라인 + 데이터 플로우
+- [testing.md](./testing.md) — 테스트 아키텍처, 커버리지 맵, 패턴
