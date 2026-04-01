@@ -41,6 +41,7 @@ markdown-editor-rust uses a deliberately lightweight technology stack optimized 
 | Markdown Parser | markdown-it | v14.x | Performance optimized; CommonMark compliant; plugin-friendly architecture |
 | Code Highlighting | Shiki | v1.x | VS Code quality syntax highlighting; same grammar files as VS Code |
 | Diagram Rendering | mermaid.js | v11.x | Flowchart, sequence, state, Git diagrams; active development |
+| Math Rendering | KaTeX | v0.16.x | Fast LaTeX rendering; ~300KB lightweight; markdown-it-katex plugin integration |
 
 ### State Management
 

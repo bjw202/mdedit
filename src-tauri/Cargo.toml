@@ -1,6 +1,6 @@
 [package]
 name = "mdedit"
-version = "0.3.0"
+version = "0.4.0"
 description = "MdEdit - Markdown Desktop Editor"
 authors = []
 license = ""

@@ -129,6 +129,7 @@ Live preview panel showing rendered Markdown output synchronized with editor.
 - Standard Markdown elements (headings, lists, tables, blockquotes)
 - Syntax-highlighted code blocks using Shiki highlighter
 - Mermaid diagram rendering (flowcharts, sequence, state, etc.)
+- KaTeX 기반 LaTeX 수학 수식 렌더링 (인라인 `$...$`, 블록 `$$...$$`) (SPEC-PREVIEW-003)
 - Table rendering with alignment support
 - Footnotes and reference links
 - Strikethrough and superscript support
@@ -273,6 +274,10 @@ Fast, reliable file I/O with filesystem synchronization.
 - **SPEC-IMG-MODE-001**: Configurable image insert mode setting
   - Status: Completed (2026-03-12)
   - Allows users to choose between inline-blob (base64) and file-save image insertion modes
+
+- **SPEC-PREVIEW-003**: KaTeX 기반 LaTeX 수학 수식 렌더링
+  - Status: Completed (2026-04-01)
+  - 인라인($...$) 및 블록($$...$$) 수식 렌더링, 다크 모드 지원, 에러 내성(throwOnError: false)
 
 ### Font Size Control Enhancement
 

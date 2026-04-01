@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-003
 version: "1.0.0"
-status: draft
+status: implemented
 created: "2026-04-01"
 updated: "2026-04-01"
 author: "jw"
