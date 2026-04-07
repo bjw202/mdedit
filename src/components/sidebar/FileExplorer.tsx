@@ -33,6 +33,22 @@ function filterTree(nodes: FileNode[], query: string): FileNode[] {
 }
 
 /**
+ * Recursively filters a FileNode tree to include only .md files and their ancestor directories.
+ * Directories are always included so the user can still expand and navigate them.
+ */
+function filterMdOnly(nodes: FileNode[]): FileNode[] {
+  return nodes.reduce<FileNode[]>((acc, node) => {
+    if (node.isDirectory) {
+      const filteredChildren = node.children ? filterMdOnly(node.children) : node.children;
+      acc.push({ ...node, children: filteredChildren });
+    } else if (node.name.toLowerCase().endsWith('.md')) {
+      acc.push(node);
+    }
+    return acc;
+  }, []);
+}
+
+/**
  * Derives the last segment of a path (folder name) for display.
  * Handles both Unix ('/') and Windows ('\') path separators.
  */
@@ -90,7 +106,7 @@ export function FileExplorer(): JSX.Element {
     void readDirectory(currentPath).then((tree) => setFileTree(tree));
   }, [setFileTree]);
 
-  const visibleTree = filterTree(fileTree, searchQuery);
+  const visibleTree = filterTree(filterMdOnly(fileTree), searchQuery);
 
   // Empty state - no folder opened
   if (!watchedPath) {
