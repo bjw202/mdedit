@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tauri dev",
     "dev-vite": "vite",
+    "prebuild": "node -e \"if (process.platform === 'win32') { require('child_process').execSync('cargo clean', { stdio: 'inherit', cwd: 'src-tauri' }); }\"",
     "build": "tauri build",
     "build-vite": "vite build",
     "preview": "vite preview",
