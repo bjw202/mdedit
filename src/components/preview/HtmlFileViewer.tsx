@@ -97,8 +97,12 @@ export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
     );
   }
 
-  // asset:// URL로 변환하여 iframe에 전달
-  const assetUrl = convertFileSrc(htmlPath);
+  // asset:// URL로 변환하여 iframe에 전달.
+  // convertFileSrc는 전체 경로를 encodeURIComponent로 인코딩(슬래시 → %2F)하므로
+  // iframe 내부 상대경로(예: ./style.css) 해소가 깨진다. %2F를 실제 슬래시로 되돌려
+  // 계층적 asset URL을 만들면, asset 핸들러가 선행 1바이트만 제거 후 percent-decode하여
+  // 절대경로로 올바르게 해소하고, 형제 자산(CSS·이미지)도 정확히 매칭된다.
+  const assetUrl = convertFileSrc(htmlPath).replace(/%2F/gi, '/');
 
   return (
     <iframe

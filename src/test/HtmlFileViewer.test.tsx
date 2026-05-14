@@ -73,6 +73,18 @@ describe('HtmlFileViewer', () => {
     expect(iframe.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
   });
 
+  it('정상 파일: iframe src가 %2F 없는 계층적 asset URL이다 (상대경로 해소용)', async () => {
+    // convertFileSrc의 %2F 인코딩을 실제 슬래시로 되돌려야 iframe 내부
+    // 상대경로(./style.css 등)가 형제 경로로 올바르게 해소된다.
+    const { HtmlFileViewer } = await import('@/components/preview/HtmlFileViewer');
+    render(<HtmlFileViewer htmlPath="/project/test.html" />);
+
+    const iframe = screen.getByTestId('html-preview-iframe') as HTMLIFrameElement;
+    const src = iframe.getAttribute('src') ?? '';
+    expect(src).not.toMatch(/%2F/i);
+    expect(src).toContain('/project/test.html');
+  });
+
   it('파일 크기 5MB 초과 시 "미리보기 불가" 안내를 표시한다', async () => {
     // fileTree에 크기 초과 파일 노드 추가
     mockFileStoreState.fileTree = [
