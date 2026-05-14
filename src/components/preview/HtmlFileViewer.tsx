@@ -1,8 +1,10 @@
 // @MX:WARN: [AUTO] sandbox 속성 설정 — iframe 보안 격리의 핵심 제어점
-// @MX:REASON: sandbox 권한을 잘못 확장(예: allow-same-origin 추가)하면 iframe 내 스크립트가
-//   앱 본체 DOM·권한에 접근할 수 있어 앱 권한 탈취 위험이 생긴다.
-//   현재 allow-scripts만 부여: 스크립트 실행은 허용, 앱 본체 접근은 차단.
-//   변경 전 반드시 acceptance 시나리오 3(앱 권한 탈취 차단)을 재검증할 것.
+// @MX:REASON: sandbox="allow-scripts allow-same-origin" — iframe 콘텐츠는 asset:// origin에서
+//   제공되어 앱 셸(tauri://) origin과 분리된다. allow-same-origin은 iframe을 자기 자신의
+//   asset: 자산(CSS·이미지)과만 same-origin으로 묶을 뿐 앱 셸과는 여전히 cross-origin이므로
+//   __TAURI__·parent 접근은 차단된다(수동 검증 5-B에서 확정). allow-popups·allow-forms·
+//   allow-top-navigation 등 추가 권한은 부여 금지. sandbox 권한 변경 시 acceptance
+//   시나리오 3(앱 권한 탈취 차단)을 반드시 재검증할 것.
 // @MX:SPEC: SPEC-PREVIEW-004 REQ-PREVIEW004-002, REQ-PREVIEW004-005
 
 import { useState } from 'react';
@@ -32,9 +34,9 @@ interface HtmlFileViewerProps {
  *
  * - 파일 크기가 5MB 초과 시 "미리보기 불가" 안내를 표시한다.
  * - iframe 로드 오류 시 오류 안내를 표시하고 앱을 중단하지 않는다.
- * - sandbox="allow-scripts": 스크립트 실행만 허용, 앱 본체 접근 차단.
- *   NOTE: allow-same-origin 미부여. 만약 CSS/이미지 같은 동일-폴더 자산이
- *   로드되지 않는 경우 수동 검증 체크리스트(manual-verification.md) 5-B 항목을 참고하라.
+ * - sandbox="allow-scripts allow-same-origin": 스크립트 실행 + 동일-폴더 asset 자산
+ *   (CSS·이미지) 로드를 허용한다. iframe은 asset:// origin이라 앱 셸과는 cross-origin이므로
+ *   앱 본체·권한 접근은 여전히 차단된다 (수동 검증 5-B에서 확정).
  */
 export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   const [loadError, setLoadError] = useState(false);
@@ -103,9 +105,9 @@ export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
       src={assetUrl}
       title="HTML 파일 미리보기"
       className="w-full h-full border-0"
-      // sandbox 속성: allow-scripts만 허용
-      // allow-same-origin 미부여 — 앱 본체 접근 완전 차단
-      sandbox="allow-scripts"
+      // sandbox 속성: allow-scripts allow-same-origin
+      // allow-same-origin은 iframe을 자기 asset: 자산과만 묶을 뿐 앱 셸과는 cross-origin 유지
+      sandbox="allow-scripts allow-same-origin"
       onError={() => setLoadError(true)}
       data-testid="html-preview-iframe"
     />

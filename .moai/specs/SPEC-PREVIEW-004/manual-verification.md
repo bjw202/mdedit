@@ -1,7 +1,7 @@
 # SPEC-PREVIEW-004 — 수동 검증 체크리스트
 
 > 이 파일에 열거된 시나리오는 jsdom 환경에서 검증 불가능하므로,
-> `npm run tauri dev`로 앱을 실행하여 실제 Chromium WebView + Tauri 런타임에서 직접 검증해야 한다.
+> `npm run dev`로 앱을 실행하여 실제 Chromium WebView + Tauri 런타임에서 직접 검증해야 한다.
 >
 > 보안 시나리오 3·4·5·5-A는 acceptance.md에서 **must-pass** 기준으로 지정된 항목이다.
 > 하나라도 실패하면 전체 SPEC이 실패한다.
@@ -78,7 +78,7 @@
 
 ### 검증 절차
 
-1. 앱 실행: `npm run tauri dev`
+1. 앱 실행: `npm run dev`
 2. `/tmp/html-test-folder` 폴더 열기
 3. 사이드바에서 `attack-ipc.html` 클릭
 4. 프리뷰 패널에서 표시된 결과 확인
@@ -195,7 +195,7 @@
 
 ### 검증 절차
 
-1. 앱을 완전히 종료 후 재시작: `npm run tauri dev`
+1. 앱을 완전히 종료 후 재시작: `npm run dev`
 2. **폴더를 열지 않은 상태**에서 asset URL 직접 요청
 3. 브라우저 개발자 도구 콘솔에서 다음 실행:
    ```javascript
@@ -318,21 +318,25 @@ python3 -c "print('<html><body>' + 'x' * (5*1024*1024 + 1000) + '</body></html>'
 
 ## 오픈 질문 (manual-verification 후 결정)
 
-### 5-B: allow-same-origin 부여 필요 여부
+### 5-B: allow-same-origin 부여 필요 여부 — 확정됨
 
-현재 구현: `sandbox="allow-scripts"` (allow-same-origin 미부여)
+**1차 검증 결과 (2026-05-14, `sandbox="allow-scripts"`)**:
+- 시나리오 1: 스크립트는 실행됐으나 **외부 CSS·이미지가 로드되지 않음**.
+  `allow-scripts`만 주면 iframe 문서가 불투명 origin을 가져 자기 자신의
+  `asset:` 상대경로 자산조차 cross-origin으로 차단됨.
+- 시나리오 3: IPC 탈취 정상 차단 (sandbox 동작 확인).
 
-**이슈**: allow-same-origin 없이는 iframe 내의 상대 URL 자산(CSS, 이미지)이
-asset 프로토콜로 올바르게 로드될 수 있는지 불확실하다.
+**결정**: `sandbox="allow-scripts allow-same-origin"`으로 변경.
+- 근거: iframe 콘텐츠는 `asset://` origin에서 제공되고 앱 셸은 `tauri://`
+  (dev는 `localhost:1420`) origin이다. `allow-same-origin`은 iframe을 자기
+  자신의 `asset:` 자산과만 same-origin으로 묶으며, 앱 셸과는 여전히
+  cross-origin이므로 `__TAURI__`·`parent` 접근은 차단된 채로 유지된다.
+- 위험한 케이스(프레임 콘텐츠가 임베더와 same-origin → sandbox 자가 해제)는
+  origin이 다르므로 해당하지 않는다.
 
-**수동 검증 방법**:
-1. 시나리오 1(정상 HTML + 외부 CSS·이미지) 실행
-2. CSS가 적용되는지, 이미지가 로드되는지 확인
-3. **CSS/이미지가 로드되지 않는 경우**: `sandbox="allow-scripts allow-same-origin"` 추가 검토
-4. **allow-same-origin 추가 시 주의**: acceptance 시나리오 3(IPC 탈취 차단) 재검증 필수.
-   same-origin이 허용되면 iframe이 앱 본체와 같은 origin을 공유하게 되어
-   window.parent.__TAURI__ 접근 가능성이 증가한다.
-
-**결정 기준**:
-- 자산이 로드되면: 현재 구현 유지 (allow-scripts만)
-- 자산이 로드되지 않으면: allow-same-origin 추가 + 보안 시나리오 3 재검증
+**재검증 필요 (2차 라운드 — must-pass)**:
+1. **시나리오 1 재실행** — `normal.html`에서 CSS(파란 배경+금색)와 이미지(금테)가
+   로드되어야 한다.
+2. **시나리오 3 재실행 (필수)** — `attack-ipc.html`에서 `__TAURI__`·IPC·parent
+   접근이 **여전히 모두 차단**되어야 한다. 하나라도 ⚠️가 나오면 이 결정을 롤백한다.
+3. 시나리오 4·5도 재확인 권장 (scope 경계는 sandbox와 무관하므로 변화 없어야 함).

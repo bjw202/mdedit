@@ -65,12 +65,12 @@ describe('HtmlFileViewer', () => {
     expect(iframe.tagName).toBe('IFRAME');
   });
 
-  it('정상 파일: iframe에 sandbox="allow-scripts" 속성이 있다', async () => {
+  it('정상 파일: iframe에 sandbox="allow-scripts allow-same-origin" 속성이 있다', async () => {
     const { HtmlFileViewer } = await import('@/components/preview/HtmlFileViewer');
     render(<HtmlFileViewer htmlPath="/project/test.html" />);
 
     const iframe = screen.getByTestId('html-preview-iframe') as HTMLIFrameElement;
-    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
   });
 
   it('파일 크기 5MB 초과 시 "미리보기 불가" 안내를 표시한다', async () => {
