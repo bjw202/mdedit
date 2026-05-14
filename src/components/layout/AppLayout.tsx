@@ -16,10 +16,11 @@ import { MarkdownEditor } from '@/components/editor/MarkdownEditor';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
 import type { FormatAction } from '@/components/editor/EditorToolbar';
 import { FileExplorer } from '@/components/sidebar/FileExplorer';
-import { MarkdownPreview } from '@/components/preview/MarkdownPreview';
+import { PreviewContainer } from '@/components/preview/PreviewContainer';
 import { wrapSelection, prefixLine } from '@/components/editor/extensions/keyboard-shortcuts';
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { insertImageFromDialog } from '@/lib/image/imageHandler';
+import { getFileViewType } from '@/components/preview/PreviewContainer';
 
 // @MX:NOTE: Root layout component - composes Header, 3-pane panels, Footer
 // Entry point for the entire application UI shell
@@ -246,12 +247,44 @@ export function AppLayout(): JSX.Element {
     }
   };
 
+  // HTML 파일이 선택된 경우 편집기 대신 보기 전용 플레이스홀더를 표시
+  const isHtmlFile = getFileViewType(currentFile) === 'html';
+
   // Editor panel: toolbar + editor (inlined to avoid re-creating the component function on every render)
   const editorPanel = (
     <div className="h-full flex flex-col">
       <EditorToolbar onFormat={handleFormat} />
       <div className="flex-1 overflow-hidden">
-        <MarkdownEditor onViewReady={handleViewReady} />
+        {isHtmlFile ? (
+          // HTML 보기 전용 플레이스홀더 — 편집 불가 안내
+          <div
+            className="h-full flex flex-col items-center justify-center gap-2 p-4 text-center select-none bg-gray-50 dark:bg-gray-900"
+            data-testid="html-view-only-placeholder"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-8 h-8 text-gray-300 dark:text-gray-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+              />
+            </svg>
+            <p className="text-sm text-gray-400 dark:text-gray-500">
+              이 형식은 편집할 수 없습니다
+            </p>
+            <p className="text-xs text-gray-300 dark:text-gray-600">
+              HTML 파일은 보기 전용입니다. 프리뷰 패널에서 내용을 확인하세요.
+            </p>
+          </div>
+        ) : (
+          <MarkdownEditor onViewReady={handleViewReady} />
+        )}
       </div>
     </div>
   );
@@ -282,7 +315,7 @@ export function AppLayout(): JSX.Element {
         <ResizablePanels
           sidebar={<FileExplorer />}
           editor={editorPanel}
-          preview={<MarkdownPreview previewRef={previewRef} />}
+          preview={<PreviewContainer previewRef={previewRef} />}
         />
       </div>
       <Footer

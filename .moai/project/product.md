@@ -141,7 +141,29 @@ Live preview panel showing rendered Markdown output synchronized with editor.
 - Lazy load Mermaid diagrams to reduce initial paint time
 - Optimize re-renders only changed sections
 
-**Non-Goal**: Does not support HTML-in-Markdown. Markdown-it renders with html: false to prevent XSS.
+**Non-Goal**: Does not support HTML-in-Markdown (raw HTML embedded in Markdown documents). Markdown-it renders with html: false to prevent XSS. This is distinct from the standalone HTML file viewing feature (see Feature 3 below).
+
+---
+
+### 2a. Standalone HTML File Viewing (View-Only)
+
+Display standalone `.html` files in a sandboxed preview, separate from Markdown editing.
+
+**Included**:
+- View `.html` files in sidebar file explorer
+- Sandboxed iframe rendering (`sandbox="allow-scripts allow-same-origin"`)
+- Execute scripts and load external assets (CSS, images) from the same folder as the HTML file
+- Tauri asset protocol with runtime scope registration — permits access only to user-opened folders
+- View-only mode — HTML files cannot be edited
+- Graceful error handling for oversized files (>5MB) and load failures
+
+**Security Model**:
+- Scripts are sandboxed and cannot access app IPC, file system, or app permissions
+- Asset access limited to currently opened folder and subfolders
+- Path traversal attempts (e.g., `../../../etc/passwd`) are blocked by asset scope
+- Distinct from Markdown preview: HTML preview is independent and does not affect Markdown rendering
+
+**Non-Goal**: Does not support HTML editing or in-HTML search/outline. Does not extend Markdown-specific features (scroll sync, outline) to HTML files.
 
 ---
 
@@ -266,6 +288,12 @@ Fast, reliable file I/O with filesystem synchronization.
 ## Feature Status by SPEC
 
 ### Completed Features
+
+- **SPEC-PREVIEW-004**: Standalone HTML file viewing (view-only)
+  - Status: Completed (2026-05-14)
+  - Displays `.html` files in sandboxed iframe with script and asset loading
+  - Tauri asset protocol with runtime scope registration for security
+  - Files over 5MB show graceful "미리보기 불가" message
 
 - **SPEC-IMG-WIDGET-001**: CodeMirror 6 image widget decoration for inline-blob images
   - Status: Completed (2026-03-12)

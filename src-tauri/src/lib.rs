@@ -28,6 +28,7 @@ pub fn run() {
             file_ops::print_current_window,
             directory_ops::read_directory,
             directory_ops::open_directory_dialog,
+            directory_ops::register_asset_scope,
             watcher::start_watch,
             watcher::stop_watch,
             image_ops::save_image_from_clipboard,

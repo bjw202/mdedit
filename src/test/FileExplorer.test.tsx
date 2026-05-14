@@ -25,7 +25,8 @@ const mockTree: FileNode[] = [
     path: '/project/src',
     isDirectory: true,
     children: [
-      { name: 'main.ts', path: '/project/src/main.ts', isDirectory: false },
+      // .md 파일 포함 — filterViewableFiles가 이를 통과시킨다
+      { name: 'main.md', path: '/project/src/main.md', isDirectory: false },
     ],
   },
 ];
@@ -90,12 +91,12 @@ describe('FileExplorer', () => {
     render(<FileExplorer />);
     const searchInput = screen.getByRole('searchbox');
     fireEvent.change(searchInput, { target: { value: 'main' } });
-    // Should show main.ts but not README.md
-    expect(screen.getByText('main.ts')).toBeInTheDocument();
+    // Should show main.md but not README.md
+    expect(screen.getByText('main.md')).toBeInTheDocument();
     expect(screen.queryByText('README.md')).not.toBeInTheDocument();
   });
 
-  it('should show all files when search is cleared', () => {
+  it('should show all viewable files when search is cleared', () => {
     useFileStore.setState({ watchedPath: '/project', fileTree: mockTree });
     render(<FileExplorer />);
     const searchInput = screen.getByRole('searchbox');
@@ -182,5 +183,40 @@ describe('FileExplorer', () => {
     const goUpBtn = screen.getByRole('button', { name: /go to parent folder/i });
     fireEvent.click(goUpBtn);
     expect(mockOpenFolderPath).toHaveBeenCalledWith('D:\\');
+  });
+
+  // SPEC-PREVIEW-004: filterViewableFiles — .html 파일도 사이드바에 표시되어야 한다
+
+  it('should show .html files in the file tree (SPEC-PREVIEW-004)', () => {
+    const treeWithHtml: FileNode[] = [
+      { name: 'index.html', path: '/project/index.html', isDirectory: false },
+      { name: 'README.md', path: '/project/README.md', isDirectory: false },
+    ];
+    useFileStore.setState({ watchedPath: '/project', fileTree: treeWithHtml });
+    render(<FileExplorer />);
+    expect(screen.getByText('index.html')).toBeInTheDocument();
+    expect(screen.getByText('README.md')).toBeInTheDocument();
+  });
+
+  it('should hide non-viewable files like .ts but show .html files', () => {
+    const treeWithMixed: FileNode[] = [
+      { name: 'index.html', path: '/project/index.html', isDirectory: false },
+      { name: 'app.ts', path: '/project/app.ts', isDirectory: false },
+      { name: 'notes.md', path: '/project/notes.md', isDirectory: false },
+    ];
+    useFileStore.setState({ watchedPath: '/project', fileTree: treeWithMixed });
+    render(<FileExplorer />);
+    expect(screen.getByText('index.html')).toBeInTheDocument();
+    expect(screen.getByText('notes.md')).toBeInTheDocument();
+    expect(screen.queryByText('app.ts')).not.toBeInTheDocument();
+  });
+
+  it('should show .HTML (uppercase) files in the file tree', () => {
+    const treeWithUpperHtml: FileNode[] = [
+      { name: 'PAGE.HTML', path: '/project/PAGE.HTML', isDirectory: false },
+    ];
+    useFileStore.setState({ watchedPath: '/project', fileTree: treeWithUpperHtml });
+    render(<FileExplorer />);
+    expect(screen.getByText('PAGE.HTML')).toBeInTheDocument();
   });
 });

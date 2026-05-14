@@ -155,6 +155,20 @@ export async function openImageDialog(): Promise<string | null> {
   return invoke<string | null>('open_image_dialog');
 }
 
+// @MX:NOTE: [AUTO] asset 프로토콜 scope 등록 — SPEC-PREVIEW-004 HTML 파일 보기 기능
+// @MX:SPEC: SPEC-PREVIEW-004
+
+/**
+ * 열린 폴더를 Tauri asset 프로토콜 런타임 scope에 등록한다.
+ * 폴더와 하위 경로 전체를 WebView에서 asset:// URL로 접근 가능하게 허용한다.
+ * 세션 누적 방식 — 앱 재시작 시 Tauri가 scope를 초기화한다.
+ *
+ * @param path - 열린 폴더의 절대 경로
+ */
+export async function registerAssetScope(path: string): Promise<void> {
+  return invoke<void>('register_asset_scope', { path });
+}
+
 // @MX:NOTE: [AUTO] Browser IPC wrappers for system browser operations
 // @MX:SPEC: SPEC-PREVIEW-001
 

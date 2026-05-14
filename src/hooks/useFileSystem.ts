@@ -11,6 +11,7 @@ import {
   renameFile as ipcRenameFile,
   saveFileAs as ipcSaveFileAs,
   startWatch,
+  registerAssetScope,
 } from '@/lib/tauri/ipc';
 import { useFileStore } from '@/store/fileStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -70,6 +71,11 @@ export function useFileSystem(): FileSystemHook {
       setWatchedPath(selectedPath);
       setFileTree(tree);
       useUIStore.getState().setLastWatchedPath(selectedPath);
+      // asset 프로토콜 scope 런타임 등록 — HTML 파일 보기를 위해 해당 폴더를 WebView 허용 목록에 추가
+      // 실패 시 앱 탐색은 계속되나 HTML 보기 기능이 동작하지 않을 수 있음
+      registerAssetScope(selectedPath).catch((err: unknown) => {
+        console.error('[useFileSystem] registerAssetScope failed:', err);
+      });
       // startWatch is non-blocking: watcher failure must not prevent navigation
       startWatch(selectedPath).catch((err: unknown) => {
         console.warn('[useFileSystem] startWatch failed (non-fatal):', err);
@@ -86,6 +92,11 @@ export function useFileSystem(): FileSystemHook {
       setWatchedPath(path);
       setFileTree(tree);
       useUIStore.getState().setLastWatchedPath(path);
+      // asset 프로토콜 scope 런타임 등록 — HTML 파일 보기를 위해 해당 폴더를 WebView 허용 목록에 추가
+      // 실패 시 앱 탐색은 계속되나 HTML 보기 기능이 동작하지 않을 수 있음
+      registerAssetScope(path).catch((err: unknown) => {
+        console.error('[useFileSystem] registerAssetScope failed:', err);
+      });
       // startWatch is non-blocking: watcher failure must not prevent navigation
       startWatch(path).catch((err: unknown) => {
         console.warn('[useFileSystem] startWatch failed (non-fatal):', err);
@@ -114,8 +125,12 @@ export function useFileSystem(): FileSystemHook {
     await openFolderPath(selectedPath);
   };
 
+  // @MX:NOTE: [AUTO] .html 파일과 .md 파일의 처리 경로가 분기되는 지점.
+  //   .html: 편집기에 내용을 싣지 않고 파일 경로만 store에 설정 → HtmlFileViewer가 iframe으로 렌더링.
+  //   그 외: 기존 동작 유지 — readFile → setContent → setCurrentFilePath.
+  // @MX:SPEC: SPEC-PREVIEW-004 REQ-PREVIEW004-001
   const openFile = async (path: string): Promise<void> => {
-    // Check for unsaved changes and warn the user
+    // 미저장 변경사항 경고
     const { dirty } = useEditorStore.getState();
     if (dirty) {
       const confirmed = window.confirm(
@@ -126,6 +141,17 @@ export function useFileSystem(): FileSystemHook {
       }
     }
 
+    // HTML 파일: 편집기에 내용을 로드하지 않고 파일 경로만 store에 설정
+    if (path.toLowerCase().endsWith('.html')) {
+      setCurrentFile(path);
+      // HTML 보기 모드에서는 편집기 내용·상태를 초기화한다
+      setContent('');
+      setCurrentFilePath(path);
+      useUIStore.getState().setSaveStatus('saved');
+      return;
+    }
+
+    // 마크다운 및 그 외 파일: 기존 동작 유지
     const content = await readFile(path);
     setCurrentFile(path);
     setContent(content);
