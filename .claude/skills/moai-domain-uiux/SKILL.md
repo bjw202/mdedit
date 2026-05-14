@@ -2,21 +2,17 @@
 name: moai-domain-uiux
 description: >
   UI/UX design systems specialist covering accessibility, icons, theming,
-  design tokens, and user experience patterns.
-  Use when user asks about design systems, WCAG accessibility compliance, ARIA patterns,
-  icon libraries, dark mode theming, design tokens, or user experience research.
-  Do NOT use for React component coding or frontend implementation
-  (use moai-domain-frontend instead) or shadcn/ui specifics
-  (use moai-library-shadcn instead).
+  design tokens, and user experience patterns. Use when working on design
+  systems, WCAG compliance, ARIA patterns, or dark mode theming.
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read Grep Glob mcp__context7__resolve-library-id mcp__context7__get-library-docs
+allowed-tools: Read, Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 user-invocable: false
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
   category: "domain"
   status: "active"
-  updated: "2026-03-11"
+  updated: "2026-03-28"
   modularized: "true"
   tags: "domain, uiux, design-systems, accessibility, components, icons, theming"
 
@@ -52,7 +48,7 @@ Module Organization:
 - Accessibility: modules/accessibility-wcag.md (WCAG 2.2 compliance, testing, navigation)
 - Icons: modules/icon-libraries.md (10+ libraries, selection guide, performance optimization)
 - Theming: modules/theming-system.md (theme system, CSS variables, brand customization)
-- Web Interface Guidelines: modules/web-interface-guidelines.md (Vercel Labs comprehensive UI/UX compliance)
+- Web Interface Guidelines: modules/web-interface-guidelines.md (Vercel Labs comprehensive UI/UX compliance, frontend composition rules)
 - Examples: examples.md (practical implementation examples)
 - Reference: reference.md (external documentation links)
 
@@ -236,3 +232,40 @@ Official Resources:
 Last Updated: 2026-03-11
 Status: Production Ready
 Version: 3.0.0
+
+<!-- moai:evolvable-start id="rationalizations" -->
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "Accessibility is a nice-to-have, not a requirement" | WCAG compliance is a legal requirement in many jurisdictions. It is also a core quality dimension, not optional. |
+| "Dark mode is just inverting colors" | Naive inversion breaks contrast ratios, image visibility, and semantic color meanings. Dark mode is a design exercise. |
+| "The design system is too rigid, I need custom styles" | Custom styles that bypass the design system create inconsistency. Extend the system instead of working around it. |
+| "Icons do not need labels, they are self-explanatory" | Icons are ambiguous without context. Screen readers cannot describe unlabeled icons. Always add aria-label. |
+| "I will handle responsive design at the end" | Responsive retrofitting breaks layouts. Design for the smallest viewport first, then enhance. |
+
+<!-- moai:evolvable-end -->
+
+<!-- moai:evolvable-start id="red-flags" -->
+## Red Flags
+
+- Interactive element has no visible focus indicator
+- Color contrast ratio below 4.5:1 for normal text
+- Icon used without aria-label or accompanying text
+- Design token bypassed with hardcoded color or spacing value
+- No dark mode variant defined for a new component
+- Responsive breakpoints absent from new layout components
+
+<!-- moai:evolvable-end -->
+
+<!-- moai:evolvable-start id="verification" -->
+## Verification
+
+- [ ] Color contrast meets WCAG AA (4.5:1 normal text, 3:1 large text) (show contrast check output)
+- [ ] All interactive elements have visible focus indicators
+- [ ] Icons have accessible names (aria-label or accompanying visible text)
+- [ ] Design tokens used for colors, spacing, and typography (no hardcoded values)
+- [ ] Dark mode renders correctly without broken contrast or invisible elements
+- [ ] Layout tested at mobile (320px), tablet (768px), and desktop (1280px) widths
+
+<!-- moai:evolvable-end -->

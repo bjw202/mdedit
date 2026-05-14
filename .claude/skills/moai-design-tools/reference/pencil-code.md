@@ -50,12 +50,26 @@ Use the component mapping reference to translate Pencil node types to React prim
 | `frame` (flex row) | `<div>` | `flex flex-row` |
 | `frame` (flex col) | `<div>` | `flex flex-col` |
 | `frame` (grid) | `<div>` | `grid` |
+| `frame` (slot) | `<div>` with `{children}` | `min-h-[...] border-dashed` |
 | `text` (body) | `<p>` or `<span>` | `text-sm text-gray-700` |
 | `text` (heading) | `<h1>`–`<h6>` | `text-xl font-semibold` |
 | `image` | `<img>` or `next/image` | `object-cover` |
 | `button` frame | `<button>` | `btn` pattern |
 | `input` frame | `<input>` | `input` pattern |
 | `card` frame | `<div>` | `rounded-lg border bg-white p-4` |
+| `rectangle` | `<div>` | Sized/colored block |
+| `ellipse` | `<div>` | `rounded-full` |
+| `line` | `<hr>` or `<div>` | `border-t` or absolute positioned |
+| `polygon` / `path` | `<svg>` | Inline SVG with viewBox |
+| `ref` (component instance) | Mapped component | Props from overrides |
+| `icon-font` | Icon component | Icon library class |
+| `note` / `prompt` / `context` | Skipped in code generation | Design-time only annotations |
+
+**Component Instance Handling (Ref type):**
+When a node has `type: "ref"`, it references a reusable component. Map the origin component to a React component and apply property overrides from the `descendants` object as props.
+
+**Slot Handling:**
+Frames marked as slots become React `children` props. Suggested slot components become TypeScript type annotations or JSDoc comments indicating expected content.
 
 ### Step 4: Generate Code with Design Token Mapping
 
@@ -89,6 +103,24 @@ module.exports = {
   }
 };
 ```
+
+### Step 5: Audit Design Consistency
+
+Use property search tools to ensure consistency before code generation:
+
+```
+// Search for all unique color values used in the design
+colors = search_all_unique_properties(nodeIds: ["root"])
+// Returns all unique property values across the design
+
+// Replace inconsistent values with design tokens
+replace_all_matching_properties(
+  match: { color: "#3B82F5" },  // Typo in hex
+  replace: { color: "#3B82F6" }  // Correct primary color
+)
+```
+
+These tools help ensure design consistency before generating code, reducing manual fixes in the generated output.
 
 ## Design Token Extraction
 
@@ -339,8 +371,10 @@ export interface CardProps {
 Always read the .pen frame data before generating code:
 1. `batch_get` to retrieve frame structure
 2. `get_variables` to extract design tokens
-3. `get_screenshot` to validate design intent
-4. Generate code based on extracted data
+3. `search_all_unique_properties` to audit design consistency
+4. `replace_all_matching_properties` to fix inconsistencies
+5. `get_screenshot` to validate design intent
+6. Generate code based on extracted data
 
 ### Design Token Priority
 
@@ -404,6 +438,7 @@ Solution: Use snapshot_layout to check computed rectangles.
 
 ---
 
-Last Updated: 2026-03-11
-Tool Version: Pencil MCP (Latest)
-Workflow: Prompt-based (batch_get → analyze → generate)
+Last Updated: 2026-04-05
+Tool Version: Pencil MCP (14 tools)
+.pen Schema: 2.9 (13 node types)
+Workflow: Prompt-based (batch_get → analyze → audit → generate)

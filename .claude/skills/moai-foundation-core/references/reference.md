@@ -272,7 +272,7 @@ async def delegate_task(task_description: str, context: dict):
     else:  # complex
         # Parallel then sequential integration
         parallel_results = await Promise.all([
-            Task(subagent_type=router.get_primary_agent(d), prompt=f"{d}: {task_description}")
+            Agent(subagent_type=router.get_primary_agent(d), prompt=f"{d}: {task_description}")
             for d in analysis.domains
         ])
 
@@ -423,7 +423,7 @@ diagnose.verify_module_structure()
 
 ### Related Skills
 
-- moai-foundation-claude - Claude Code integration patterns
+- moai-foundation-cc - Claude Code integration patterns
 - moai-workflow-project - Project management with core principles
 - moai-workflow-testing - Testing workflows with TRUST 5
 - moai-workflow-templates - Template management integration

@@ -7,13 +7,13 @@ description: >
   integrating state management.
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read Grep Glob mcp__context7__resolve-library-id mcp__context7__get-library-docs
+allowed-tools: Read, Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 user-invocable: false
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
   category: "domain"
   status: "active"
-  updated: "2026-01-11"
+  updated: "2026-03-28"
   modularized: "true"
   tags: "frontend, react, nextjs, vue, ui, components"
   author: "MoAI-ADK Team"
@@ -36,7 +36,7 @@ Core Capabilities:
 - Next.js 16: App Router, Server Actions, ISR, Route handlers
 - Vue 3.5: Composition API, TypeScript, Pinia state management
 - Component Architecture: Design systems, compound components, CVA
-- Performance: Code splitting, dynamic imports, memoization
+- Performance: Code splitting, dynamic imports, memoization, Framer Motion animations
 
 When to Use:
 
@@ -78,6 +78,10 @@ State Management in modules/state-management.md:
 Performance Optimization in modules/performance-optimization.md:
 
 - Code splitting, Dynamic imports, Image optimization, Memoization
+
+AI-Assisted Frontend Patterns in modules/ai-frontend-patterns.md:
+
+- Visual reference strategy, Playwright verification, motion design, reasoning-level tuning
 
 Vercel React Best Practices in modules/vercel-react-best-practices.md:
 
@@ -125,9 +129,13 @@ Languages: TypeScript 5.9+, JavaScript ES2024
 
 Styling: Tailwind CSS 3.4+, CSS Modules, shadcn/ui
 
+Animation: Framer Motion
+
 State: Zustand, Redux Toolkit, Pinia
 
 Testing: Vitest, Testing Library, Playwright
+
+Verification: Playwright (visual inspection, functional testing)
 
 ---
 
@@ -145,5 +153,42 @@ Official documentation:
 
 ---
 
-Version: 2.0.0
-Last Updated: 2026-01-11
+Version: 2.1.0
+Last Updated: 2026-03-28
+
+<!-- moai:evolvable-start id="rationalizations" -->
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "Accessibility can be added after launch" | Post-launch accessibility is a rewrite, not an addition. Semantic HTML and ARIA are foundational, not decorative. |
+| "This component is too simple to need its own test" | Simple components compose into complex UIs. A broken simple component cascades failures everywhere it is used. |
+| "Server components are always faster" | Server components add network round trips. Client components with proper caching can outperform naive server components. Measure, do not assume. |
+| "I will just use any as the TypeScript type for now" | any disables the type checker for everything downstream. One any infects the entire call chain. |
+| "Global CSS is fine for this project" | Global CSS creates specificity conflicts as the project grows. Scoped styles (CSS modules, Tailwind) prevent collisions. |
+
+<!-- moai:evolvable-end -->
+
+<!-- moai:evolvable-start id="red-flags" -->
+## Red Flags
+
+- Component renders user-provided HTML without sanitization (XSS vector)
+- TypeScript `any` type used in component props or state definitions
+- No loading or error states defined for async data fetching components
+- Accessibility attributes (aria-label, role) missing from interactive elements
+- Bundle size increased by more than 50KB without justification
+- Component has more than 300 lines without extraction into sub-components
+
+<!-- moai:evolvable-end -->
+
+<!-- moai:evolvable-start id="verification" -->
+## Verification
+
+- [ ] All interactive elements have accessible names (aria-label or visible text)
+- [ ] Components handle loading, error, and empty states
+- [ ] No TypeScript `any` in new or modified code (show grep results)
+- [ ] Bundle size impact measured for new dependencies (show analyzer output)
+- [ ] User-provided content rendered with proper escaping or sanitization
+- [ ] Components under 300 lines or decomposed with clear sub-component boundaries
+
+<!-- moai:evolvable-end -->

@@ -103,6 +103,9 @@ Hooks support environment variables and must be quoted to handle spaces:
 
 **Important**: Quote the entire path: `"\"$CLAUDE_PROJECT_DIR/path\""` not `"$CLAUDE_PROJECT_DIR/path"`
 
+Hook timeout range: 1–600,000ms (max 10 minutes). Default is 5,000ms for most hooks.
+Long-running hooks (PostToolUse, quality gates) should set `"timeout": 60000` or higher.
+
 ## StatusLine Configuration
 
 StatusLine does NOT support environment variables. Use relative paths from project root:
@@ -124,7 +127,7 @@ Tool permissions in settings.json:
 
 - Read, Write, Edit: File operations
 - Bash: Shell command execution
-- Task: Agent delegation
+- Agent: Sub-agent delegation
 - AskUserQuestion: User interaction
 
 ## Quality Configuration
@@ -172,7 +175,6 @@ Team behavior is controlled by the `workflow.team` section in `.moai/config/sect
 | team.default_model | string | inherit | Default model for teammates (inherit/haiku/sonnet/opus) |
 | team.require_plan_approval | boolean | true | Require plan approval before implementing |
 | team.delegate_mode | boolean | true | Team lead coordination-only mode (no direct implementation) |
-| team.teammate_display | string | auto | Display mode: auto, in-process, or tmux |
 
 ### Auto-Selection Thresholds
 

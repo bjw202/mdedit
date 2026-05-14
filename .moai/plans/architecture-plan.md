@@ -3,6 +3,7 @@
 ## Context
 
 VS Code의 마크다운 편집/프리뷰 기능만을 추출한 경량 데스크탑 앱을 제작한다.
+
 - 불필요한 무거운 의존성 없이, Rust/Tauri 기반으로 네이티브 수준의 가벼움 구현
 - 현재 프로젝트는 소스 코드 없는 MoAI-ADK 프레임워크 초기 상태
 
@@ -11,7 +12,7 @@ VS Code의 마크다운 편집/프리뷰 기능만을 추출한 경량 데스크
 ## 기술 스택 결정
 
 | 역할 | 선택 | 이유 |
-|---|---|---|
+| --- | --- | --- |
 | 네이티브 런타임 | Tauri v2 (Rust) | 가볍고 빠른 바이너리, 강력한 IPC, 크로스 플랫폼 |
 | 프론트엔드 | React 18 + TypeScript + Vite | CodeMirror 생태계 호환, 빠른 번들링 |
 | 에디터 컴포넌트 | CodeMirror 6 | 경량, 모듈화, 마크다운 + 중첩 코드블록 하이라이팅 지원 |
@@ -107,21 +108,21 @@ markdown-editor-rust/
 ### 핵심 커맨드 (IPC: Frontend → Rust)
 
 | 커맨드 | 인자 | 반환 | 역할 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `read_file` | `path: String` | `String` | 파일 내용 읽기 |
 | `write_file` | `path, content` | `()` | 파일 저장 |
 | `create_file` | `path: String` | `()` | 새 파일 생성 |
 | `delete_file` | `path: String` | `()` | 파일/폴더 삭제 |
 | `rename_file` | `old_path, new_path` | `()` | 이름 변경 |
 | `read_directory` | `path: String` | `Vec<FileNode>` | 디렉토리 1단계 조회 (지연 로딩) |
-| `open_directory_dialog` | - | `Option<String>` | 네이티브 폴더 선택 |
+| `open_directory_dialog` | \- | `Option<String>` | 네이티브 폴더 선택 |
 | `start_watch` | `path: String` | `()` | 파일 변경 감시 시작 |
-| `stop_watch` | - | `()` | 감시 중단 |
+| `stop_watch` | \- | `()` | 감시 중단 |
 
 ### 이벤트 (Rust → Frontend)
 
 | 이벤트 | 페이로드 | 설명 |
-|---|---|---|
+| --- | --- | --- |
 | `file-changed` | `FileChangedEvent { kind, path }` | 파일 생성/수정/삭제 알림 |
 
 ### Cargo.toml 핵심 의존성
@@ -168,6 +169,7 @@ strip = true
 ### 핵심 데이터 흐름
 
 **파일 열기:**
+
 ```
 FileTreeNode 클릭
   → fileStore.openFile(path)
@@ -178,6 +180,7 @@ FileTreeNode 클릭
 ```
 
 **실시간 프리뷰 (300ms 디바운스):**
+
 ```
 사용자 타이핑
   → CodeMirror updateListener → onChange(content)
@@ -189,6 +192,7 @@ FileTreeNode 클릭
 ```
 
 **파일 변경 감지:**
+
 ```
 외부 파일 수정 → notify crate 감지
   → app.emit("file-changed", payload)
@@ -215,7 +219,7 @@ FileTreeNode 클릭
 
 ### Mermaid 처리 전략
 
-- markdown-it 플러그인으로 ` ```mermaid ` 블록을 `<div data-mermaid-code="...">` 로 변환
+- markdown-it 플러그인으로 ```` ```mermaid ```` 블록을 `<div data-mermaid-code="...">` 로 변환
 - `PreviewRenderer`의 `useEffect`에서 `mermaid.render()` 를 통해 SVG로 교체
 - `securityLevel: 'strict'` 로 XSS 방지
 
@@ -270,11 +274,11 @@ Phase 6: UI 마무리
 2. 폴더 열기 → 파일 트리 렌더링 확인
 3. `.md` 파일 클릭 → 에디터에 내용 + 문법 하이라이팅 표시 확인
 4. 타이핑 → 300ms 후 오른쪽 프리뷰 자동 업데이트 확인
-5. ` ```mermaid ` 다이어그램 코드 입력 → SVG 렌더링 확인
-6. ` ```typescript ` 코드블록 → Shiki 하이라이팅 확인
+5. ```` ```mermaid ```` 다이어그램 코드 입력 → SVG 렌더링 확인
+6. ```` ```typescript ```` 코드블록 → Shiki 하이라이팅 확인
 7. Ctrl+S → 파일 저장 + "저장됨" 표시 확인
 8. 외부 에디터로 파일 수정 → 앱에서 재로드 감지 확인
-9. `cargo tauri build` → 배포 바이너리 크기 확인 (목표: ~15MB 이하)
+9. `cargo tauri build` → 배포 바이너리 크기 확인 (목표: \~15MB 이하)
 
 ---
 

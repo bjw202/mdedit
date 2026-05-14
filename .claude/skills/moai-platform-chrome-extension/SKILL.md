@@ -3,14 +3,10 @@ name: moai-platform-chrome-extension
 description: >
   Chrome Extension Manifest V3 development specialist covering service workers,
   content scripts, message passing, chrome.* APIs, side panel, declarativeNetRequest,
-  permissions model, and Chrome Web Store publishing. Use when building browser
-  extensions, implementing content scripts, configuring service workers, or
-  publishing to Chrome Web Store. [KO: 크롬 확장 프로그램, 매니페스트 V3, 서비스 워커,
-  콘텐츠 스크립트] [JA: Chrome拡張機能、マニフェストV3、サービスワーカー]
-  [ZH: Chrome扩展程序、Manifest V3、Service Worker]
+  and Chrome Web Store publishing. Use when building browser extensions.
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read Grep Glob Bash(npm:*) Bash(npx:*) Bash(node:*) WebFetch WebSearch mcp__context7__resolve-library-id mcp__context7__get-library-docs
+allowed-tools: Read, Grep, Glob, Bash(npm:*), Bash(npx:*), Bash(node:*), WebFetch, WebSearch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 user-invocable: false
 metadata:
   version: "1.0.0"
@@ -320,3 +316,39 @@ Generated with: MoAI-ADK Skill Factory v1.0
 Last Updated: 2026-02-01
 Version: 1.0.0 (Initial Release)
 Coverage: Manifest V3, Service Workers, Content Scripts, Messaging, Chrome APIs, UI, Security, Publishing
+
+<!-- moai:evolvable-start id="rationalizations" -->
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "I will request broad permissions and narrow them later" | Users see permissions at install time. Broad permissions deter installation and may trigger Chrome Web Store rejection. |
+| "Content scripts can access everything on the page, so security is the page's problem" | Content scripts run in the user's context. Injecting untrusted content via a content script is an XSS vector in the extension. |
+| "Manifest V2 still works, I do not need to migrate" | Chrome Web Store no longer accepts MV2 submissions. MV2 extensions will be disabled in future Chrome releases. |
+| "Service workers are the same as background pages" | Service workers are event-driven and terminate when idle. Persistent state must use chrome.storage, not global variables. |
+| "I will add CSP later, it is just a security header" | Missing CSP in manifest.json allows inline scripts and eval(), which are the primary extension exploit vectors. |
+
+<!-- moai:evolvable-end -->
+
+<!-- moai:evolvable-start id="red-flags" -->
+## Red Flags
+
+- manifest.json requests `<all_urls>` or `*://*/*` host permission without justification
+- Content script uses eval() or innerHTML with untrusted content
+- Service worker stores state in global variables (lost on termination)
+- Missing content_security_policy in manifest.json
+- Extension communicates with external servers without origin validation
+
+<!-- moai:evolvable-end -->
+
+<!-- moai:evolvable-start id="verification" -->
+## Verification
+
+- [ ] Permissions in manifest.json are minimal and each is justified in documentation
+- [ ] Content Security Policy defined in manifest.json (no unsafe-eval, no unsafe-inline)
+- [ ] Service worker uses chrome.storage for persistent state (no global variable state)
+- [ ] Message passing validates sender origin before processing
+- [ ] Extension tested in Chrome with developer mode (show test results)
+- [ ] Manifest V3 compliance verified (no MV2-only APIs used)
+
+<!-- moai:evolvable-end -->

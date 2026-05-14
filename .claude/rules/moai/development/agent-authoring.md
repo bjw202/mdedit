@@ -28,12 +28,15 @@ All agent definitions use YAML frontmatter. The following fields are available:
 | disallowedTools | No | None | Tools to deny (denylist approach, alternative to tools) |
 | model | No | inherit | Model selection: sonnet, opus, haiku, or inherit |
 | permissionMode | No | default | Permission behavior for the agent |
-| maxTurns | No | Unlimited | Maximum agentic turns before stopping |
+| maxTurns | No | Unlimited | Maximum agentic turns before stopping (deprecated since v2.1.69+, use maxContextSize instead) |
 | skills | No | None | Skills injected into agent context at startup |
 | mcpServers | No | None | MCP servers available to this agent |
 | hooks | No | None | Lifecycle hooks scoped to this agent |
 | memory | No | None | Persistent memory scope for cross-session learning |
 | background | No | false | Run agent in background without blocking conversation (v2.1.46+) |
+| color | No | None | Display color in UI: red, blue, green, yellow, purple, orange, pink, cyan |
+| effort | No | inherit | Session effort override: low, medium, high, xhigh, max (xhigh/max require Opus 4.7+) |
+| initialPrompt | No | None | Auto-submitted first user turn when agent runs as main session agent via --agent flag (v2.1.83+) |
 | isolation | No | none | Isolation mode: "worktree" creates isolated git worktree (v2.1.49+) |
 
 ### Field Details
@@ -48,13 +51,19 @@ All agent definitions use YAML frontmatter. The following fields are available:
 
 **hooks**: Supports PreToolUse, PostToolUse, and SubagentStop events scoped to this agent. See @hooks-system.md for configuration format.
 
-**background**: When set to true, the agent runs in the background without blocking the main conversation. Results are delivered asynchronously on the next turn. Available since Claude Code v2.1.46.
+**background**: When set to true, the agent runs in the background without blocking the main conversation. Results are delivered asynchronously on the next turn. Available since Claude Code v2.1.46. **WARNING**: Background agents auto-deny all non-pre-approved permission prompts. Do NOT set `background: true` for agents that need Write/Edit operations unless paths are pre-approved in settings.json.
 
 **isolation**: Controls agent execution isolation. When set to "worktree", the agent runs in an isolated git worktree, preventing conflicts with the main working directory. Available since Claude Code v2.1.49.
 
-## Task(agent_type) Restrictions
+**effort**: Overrides session effort level for this agent. Valid values: `low`, `medium`, `high`, `xhigh`, `max`. The `xhigh` and `max` values require Opus 4.7 or later. On Opus 4.6, the highest supported effort level is `high`.
 
-The `tools` field supports `Task(worker, researcher)` syntax to restrict which subagents an agent can spawn.
+**color**: Display color for the agent in the task list and transcript UI. Valid values: `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink`, `cyan`.
+
+**initialPrompt**: When the agent runs as the main session agent (via `claude --agent <name>` or the `agent` setting), this prompt is auto-submitted as the first user turn. Commands and skills within the prompt are processed. If the user also provides a prompt, `initialPrompt` is prepended. Available since v2.1.83.
+
+## Agent(agent_type) Restrictions
+
+The `tools` field supports `Agent(worker, researcher)` syntax to restrict which subagent types an agent can spawn. Prior to v2.1.63, this was `Task(worker, researcher)` — the old syntax still works as a backward-compatible alias.
 
 - Only applies to agents running as the main thread via `claude --agent`
 - Has no effect on subagent definitions (subagents cannot spawn other subagents)
@@ -69,7 +78,8 @@ The `permissionMode` field controls how the agent handles permission checks:
 |------|----------|----------|
 | default | Standard permission checking with user prompts | General-purpose agents |
 | acceptEdits | Auto-accept file edit operations | Trusted implementation agents |
-| delegate | Coordination-only mode, restricts to team management tools | Team lead agents |
+| auto | Background classifier reviews commands; protected-dir writes still prompt | Balanced automation agents |
+| delegate | Coordination-only mode, restricts to team management tools | Team lead agents (MoAI-specific, experimental) |
 | dontAsk | Auto-deny all permission prompts | Strict sandbox agents |
 | bypassPermissions | Skip all permission checks (use with caution) | Fully trusted automation |
 | plan | Read-only exploration mode, no write operations | Research and analysis agents |
@@ -120,30 +130,41 @@ Create new MoAI components:
 - builder-skill: New skill creation
 - builder-plugin: Plugin creation
 
-### Team Agents (5) - Experimental
+### Dynamic Team Generation (Experimental)
 
-**Architecture**: team-* agents are sub-agent DEFINITIONS (`.claude/agents/`) used as ROLE TEMPLATES for Agent Teams teammates. They are NOT invoked as standalone subagents.
+**Architecture**: Agent Teams teammates are spawned dynamically using `Agent(subagent_type: "general-purpose")` with runtime parameter overrides. No static team-* agent definition files are used.
 
 **Key distinction from regular subagents**:
 - Regular subagents: spawned from main conversation, return results, cannot communicate with each other
-- team-* as teammates: spawned with `team_name` + `name` parameters, get Agent Teams tools (SendMessage, TaskList etc.) automatically injected by the framework
+- Dynamic teammates: spawned with `team_name` + `name` parameters, get Agent Teams tools (SendMessage, TaskList etc.) automatically injected by the framework
 
 **Spawn pattern** (Agent Teams only):
 ```
-Agent(subagent_type: "team-reader", team_name: "...", name: "researcher", model: "haiku")
+Agent(subagent_type: "general-purpose", team_name: "...", name: "researcher", model: "haiku", mode: "plan")
 ```
 
-**DO NOT** invoke team-* agents without `team_name` parameter. They reference SendMessage/TaskList in their body which are only available in Agent Teams context.
+Role profiles are defined in `.moai/config/sections/workflow.yaml` under `team.role_profiles`:
+
+| Role Profile | Default Model | Mode | Isolation | Purpose |
+|-------------|---------------|------|-----------|---------|
+| researcher | haiku | plan (read-only) | none | Codebase exploration, analysis |
+| analyst | sonnet | plan (read-only) | none | Requirements analysis, validation |
+| architect | sonnet | plan (read-only) | none | Solution design, architecture |
+| implementer | sonnet | acceptEdits | worktree | Backend, frontend, full-stack code |
+| tester | sonnet | acceptEdits | worktree | Test creation, coverage validation |
+| designer | sonnet | acceptEdits | worktree | UI/UX design with MCP tools |
+| reviewer | haiku | plan (read-only) | none | Code review, quality validation |
 
 Requires: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings.json env
 
-| Agent | Default Model | Phase | Mode | Isolation | Background | Purpose |
-|-------|---------------|-------|------|-----------|------------|---------|
-| team-reader | sonnet | plan | plan (read-only) | none | true | Codebase exploration, requirements analysis, technical design (role via prompt) |
-| team-coder | sonnet | run | acceptEdits | worktree | true | Backend, frontend, or full-stack implementation (role via prompt) |
-| team-tester | sonnet | run | acceptEdits | worktree | true | Test creation with exclusive test file ownership |
-| team-designer | sonnet | run | acceptEdits | worktree | true | UI/UX design with Pencil/Figma MCP (requires Pencil MCP server) |
-| team-validator | haiku | run | plan (read-only) | none | true | TRUST 5 quality validation |
+## Frontmatter Format Rules
+
+[HARD] Field format constraints:
+- `tools`: Comma-separated string ONLY (`tools: Read, Write, Edit`). YAML arrays NOT supported.
+- `disallowedTools`: Comma-separated string ONLY. Same format as tools.
+- `skills`: YAML array format (`skills:\n  - moai-lang-go`). Exception to CSV convention.
+- `model`: One of: `inherit`, `opus`, `sonnet`, `haiku`. Never use `glm`, `high`, `medium`, `low`.
+- `permissionMode`: One of: `default`, `acceptEdits`, `auto`, `delegate`, `dontAsk`, `bypassPermissions`, `plan`.
 
 ## Rules
 
@@ -158,20 +179,28 @@ Requires: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings.json env
 
 Recommended tool sets by category:
 
-Manager agents: Read, Write, Edit, Grep, Glob, Bash, Skill, TodoWrite (NOTE: Agent tool is NOT included - subagents cannot spawn other subagents per official docs)
+Manager agents: Read, Write, Edit, Grep, Glob, Bash, Skill, TodoWrite (NOTE: Agent tool is NOT included by default for regular subagents. However, Agent Teams teammates CAN spawn other teammates using Agent() with the team_name parameter, v2.1.50+)
 
 Expert agents: Read, Write, Edit, Grep, Glob, Bash
 
 Builder agents: Read, Write, Edit, Grep, Glob
 
-Team implementation agents: Read, Write, Edit, Grep, Glob, Bash (+ skills preloading for domain expertise)
-
-Team research agents: Read, Grep, Glob, Bash (read-only via permissionMode: plan)
+Dynamic teammates (general-purpose): Inherit all tools from parent session. Permission control via `mode` parameter at spawn time.
 
 Notes:
-- Use `skills` field to preload domain-specific knowledge into team agents
-- Team agents with permissionMode: plan cannot write files regardless of tools listed
-- Prefer skills preloading over large tool lists for domain expertise
+- Dynamic teammates use `mode: "plan"` for read-only enforcement instead of tool restrictions
+- Project-specific context is included in the spawn prompt, not preloaded skills
+- Teammates can self-load skills via Skill() tool when deeper documentation is needed
+
+## Bash Tool Timeout Ceiling
+
+The Claude Code runtime enforces a hard ceiling on the Bash tool's `timeout` parameter:
+
+- Default: 120,000ms (2 minutes)
+- **Maximum: 600,000ms (10 minutes)** — values above this are rejected by Claude Code v2.1.110+
+- When authoring agent prompts that invoke long-running Bash commands (build, test suite, install), specify `timeout` explicitly up to the 600,000ms ceiling
+- Do NOT attempt to specify Bash tool timeouts exceeding 600,000ms; the runtime silently clamps or rejects them
+- Enforcement is performed by Claude Code itself, not by moai-adk-go; documentation here is for agent authors to avoid invalid values
 
 ## Agent Invocation
 
@@ -186,3 +215,13 @@ For team mode invocation:
 - SendMessage for inter-teammate coordination
 - TeamDelete after all teammates shut down
 - See team-plan.md and team-run.md for complete workflow examples
+
+## Plugin Agent Limitations
+
+Agents defined in plugins have restricted frontmatter support. The following fields are ignored when loading agents from plugins:
+
+- hooks
+- mcpServers
+- permissionMode
+
+These fields only work for project-level and personal-level agent definitions.

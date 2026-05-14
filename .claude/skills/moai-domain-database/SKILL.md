@@ -1,12 +1,9 @@
 ---
 name: moai-domain-database
 description: >
-  Database specialist covering PostgreSQL, MongoDB, Redis, Oracle, and
-  advanced data patterns for modern applications.
-  Use when user asks about database schema design, query optimization, indexing strategies,
-  data modeling, migrations, ORM configuration, or database performance tuning.
-  Do NOT use for API design or server-side business logic
-  (use moai-domain-backend instead).
+  Database specialist covering PostgreSQL, MongoDB, Redis, Oracle, and advanced data
+  patterns for modern applications. Use for database schema design, query optimization,
+  indexing strategies, or data modeling.
 license: Apache-2.0
 compatibility: Designed for Claude Code
 allowed-tools: Read, Write, Edit, Bash(psql:*), Bash(mysql:*), Bash(sqlite3:*), Bash(mongosh:*), Bash(redis-cli:*), Bash(npm:*), Bash(npx:*), Bash(prisma:*), Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
@@ -199,3 +196,42 @@ For detailed implementation patterns and database-specific optimizations, see th
 Status: Production Ready
 Last Updated: 2026-01-11
 Maintained by: MoAI-ADK Database Team
+
+<!-- moai:evolvable-start id="rationalizations" -->
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "I do not need an index, the table is small" | Tables grow. The missing index that is invisible at 1K rows becomes a production incident at 1M rows. |
+| "I will add the migration later" | Schema changes without migrations are unreproducible. Every change must have a reversible migration script. |
+| "This query works fine in development" | Development databases have tiny datasets. Production query plans differ dramatically at scale. Explain analyze first. |
+| "NoSQL does not need schema design" | Schemaless does not mean designless. Document structure decisions affect every query and index. |
+| "I will just add a column, it is non-breaking" | Adding a NOT NULL column without a default breaks existing inserts. Column additions need default values or migration backfills. |
+| "Connection pooling is handled by the framework" | Framework defaults are generic. Pool size, timeout, and idle limits must be tuned to the workload. |
+
+<!-- moai:evolvable-end -->
+
+<!-- moai:evolvable-start id="red-flags" -->
+## Red Flags
+
+- Schema change committed without a corresponding migration file
+- Query uses SELECT * in production code instead of explicit column list
+- No index exists for columns used in WHERE, JOIN, or ORDER BY clauses
+- Connection string hardcoded in source instead of environment variable
+- Transaction scope spans user-facing HTTP request duration (long-held locks)
+- No EXPLAIN ANALYZE output for new queries touching large tables
+
+<!-- moai:evolvable-end -->
+
+<!-- moai:evolvable-start id="verification" -->
+## Verification
+
+- [ ] Migration file exists for every schema change (show migration file list)
+- [ ] Indexes exist for frequently queried columns (show index definitions)
+- [ ] EXPLAIN ANALYZE run for new queries on representative data (show output)
+- [ ] Connection credentials sourced from environment variables
+- [ ] Transaction scopes are minimal and do not span I/O waits
+- [ ] Backup and restore procedure documented and tested
+- [ ] Connection pool settings configured with explicit size and timeout
+
+<!-- moai:evolvable-end -->

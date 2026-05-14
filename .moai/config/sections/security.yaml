@@ -1,0 +1,11 @@
+security:
+    extra_ask_patterns: []
+    extra_dangerous_bash_patterns:
+        - curl\s+.*\|\s*(ba)?sh
+        - wget\s+.*\|\s*(ba)?sh
+        - chmod\s+777
+        - rm\s+-rf\s+/[^.]
+        - mkfs\.
+        - dd\s+if=.*of=/dev/
+    extra_deny_patterns: []
+    extra_sensitive_content_patterns: []
