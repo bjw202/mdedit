@@ -1,10 +1,10 @@
 // @MX:ANCHOR: [AUTO] Tauri IPC commands for directory operations
 // @MX:REASON: Public API boundary for directory listing and dialog (fan_in >= 3)
-// @MX:SPEC: SPEC-FS-001
+// @MX:SPEC: SPEC-FS-001, SPEC-PREVIEW-004
 
 use crate::commands::file_ops::validate_path;
 use crate::models::file_node::FileNode;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 /// Reads a directory one level deep and returns a sorted FileNode list.
@@ -85,11 +85,94 @@ pub async fn open_directory_dialog(app: tauri::AppHandle) -> Result<Option<Strin
     Ok(folder.map(|p| p.to_string()))
 }
 
+// @MX:WARN: [AUTO] asset 프로토콜 scope 등록 — 보안 신뢰 경계(trust boundary)
+// @MX:REASON: 여기서 등록한 경로가 WebView에서 로컬 파일을 접근할 수 있는 허용 범위를 결정한다.
+//   경로 정규화(canonicalize) 누락 또는 과도하게 넓은 경로 등록 시 경로 탈출·범위 밖 파일 읽기로 직결됨.
+//   SPEC-PREVIEW-004 acceptance 시나리오 4·5가 이 함수의 올바른 동작에 의존한다.
+// @MX:SPEC: SPEC-PREVIEW-004
+
+/// 폴더 경로를 절대 경로로 변환하고 심링크를 해소하는 순수 함수.
+/// AppHandle 없이 단위 테스트 가능.
+///
+/// # Errors
+/// - 경로가 빈 문자열인 경우
+/// - 경로에 ".." 탈출 시도가 있는 경우
+/// - `std::fs::canonicalize` 실패(존재하지 않는 경로 등)
+pub fn canonicalize_folder_path(path: &str) -> Result<PathBuf, String> {
+    // 빈 경로 거부
+    if path.is_empty() {
+        return Err("폴더 경로가 비어 있습니다.".to_string());
+    }
+    // ".." 경로 탈출 거부 (validate_path와 일관된 방식)
+    if path.contains("..") {
+        return Err("유효하지 않은 경로: 경로 탈출은 허용되지 않습니다.".to_string());
+    }
+    // 절대 경로화 + 심링크 해소
+    std::fs::canonicalize(path)
+        .map_err(|e| format!("경로 정규화 실패: {}", e))
+}
+
+/// 열린 폴더를 asset 프로토콜 scope에 런타임 등록한다.
+/// 폴더와 하위 경로 전체(`recursive=true`)를 허용 목록에 추가하며, 세션 누적 방식으로 동작한다.
+/// 앱 재시작 시 Tauri가 scope를 초기화하므로 별도 초기화 코드가 불필요하다.
+///
+/// NOTE: AppHandle을 요구하므로 직접 단위 테스트 불가. 경로 정규화 로직은
+///       `canonicalize_folder_path`로 분리하여 단위 테스트한다.
+#[tauri::command]
+pub async fn register_asset_scope(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    use tauri::Manager;
+
+    let canonical = canonicalize_folder_path(&path)?;
+
+    app.asset_protocol_scope()
+        .allow_directory(&canonical, true)
+        .map_err(|e| format!("asset scope 등록 실패: {}", e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
     use std::env;
+
+    // --- canonicalize_folder_path 단위 테스트 (SPEC-PREVIEW-004) ---
+
+    #[test]
+    fn test_canonicalize_folder_path_빈_경로_거부() {
+        let result = canonicalize_folder_path("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("비어 있습니다"));
+    }
+
+    #[test]
+    fn test_canonicalize_folder_path_dotdot_탈출_거부() {
+        let result = canonicalize_folder_path("../../etc");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("탈출"), "오류 메시지에 '탈출' 포함 필요: {}", err);
+    }
+
+    #[test]
+    fn test_canonicalize_folder_path_존재하지_않는_경로_오류() {
+        let result = canonicalize_folder_path("/nonexistent/path_preview004_test");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("정규화 실패"));
+    }
+
+    #[test]
+    fn test_canonicalize_folder_path_유효한_디렉토리_절대경로_반환() {
+        let dir = env::temp_dir().join("test_canon_preview004");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.to_str().unwrap();
+
+        let result = canonicalize_folder_path(input);
+        assert!(result.is_ok(), "오류: {:?}", result.err());
+        let canonical = result.unwrap();
+        // 결과는 반드시 절대 경로여야 한다
+        assert!(canonical.is_absolute(), "절대 경로가 아님: {:?}", canonical);
+
+        fs::remove_dir_all(&dir).ok();
+    }
 
     fn make_temp_dir(name: &str) -> std::path::PathBuf {
         let dir = env::temp_dir().join(name);

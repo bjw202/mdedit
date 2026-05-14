@@ -15,6 +15,7 @@ vi.mock('@/lib/tauri/ipc', () => ({
   saveFileAs: vi.fn().mockResolvedValue(null),
   startWatch: vi.fn().mockResolvedValue(undefined),
   stopWatch: vi.fn().mockResolvedValue(undefined),
+  registerAssetScope: vi.fn().mockResolvedValue(undefined),
 }));
 
 import * as ipc from '@/lib/tauri/ipc';
@@ -192,5 +193,84 @@ describe('useFileSystem', () => {
 
     expect(ipc.renameFile).toHaveBeenCalledWith(oldPath, '/project/app.ts');
     expect(ipc.readDirectory).toHaveBeenCalledWith(mockDir);
+  });
+
+  // SPEC-PREVIEW-004: openFolder / openFolderPath가 registerAssetScope를 호출해야 한다
+
+  it('openFolderPath: should call registerAssetScope with the opened path', async () => {
+    vi.mocked(ipc.readDirectory).mockResolvedValue(mockTree);
+
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFolderPath(mockDir);
+    });
+
+    expect(ipc.registerAssetScope).toHaveBeenCalledWith(mockDir);
+  });
+
+  it('openFolder: should call registerAssetScope after folder is selected', async () => {
+    vi.mocked(ipc.openDirectoryDialog).mockResolvedValue(mockDir);
+    vi.mocked(ipc.readDirectory).mockResolvedValue(mockTree);
+
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFolder();
+    });
+
+    expect(ipc.registerAssetScope).toHaveBeenCalledWith(mockDir);
+  });
+
+  // SPEC-PREVIEW-004: openFile이 .html 파일을 편집기에 로드하지 않아야 한다
+
+  it('openFile: .html 파일은 readFile을 호출하지 않는다', async () => {
+    const htmlPath = '/project/index.html';
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(htmlPath);
+    });
+
+    expect(ipc.readFile).not.toHaveBeenCalled();
+    expect(useFileStore.getState().currentFile).toBe(htmlPath);
+  });
+
+  it('openFile: .html 파일은 currentFile을 설정한다', async () => {
+    const htmlPath = '/project/page.html';
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(htmlPath);
+    });
+
+    expect(useFileStore.getState().currentFile).toBe(htmlPath);
+  });
+
+  it('openFile: .HTML 대문자 확장자도 HTML 분기로 처리된다', async () => {
+    const htmlPath = '/project/page.HTML';
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(htmlPath);
+    });
+
+    expect(ipc.readFile).not.toHaveBeenCalled();
+    expect(useFileStore.getState().currentFile).toBe(htmlPath);
+  });
+
+  it('openFile: .md 파일은 기존과 동일하게 readFile을 호출한다', async () => {
+    const mdPath = '/project/README.md';
+    const content = '# Hello';
+    vi.mocked(ipc.readFile).mockResolvedValue(content);
+
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(mdPath);
+    });
+
+    expect(ipc.readFile).toHaveBeenCalledWith(mdPath);
+    expect(useEditorStore.getState().content).toBe(content);
   });
 });

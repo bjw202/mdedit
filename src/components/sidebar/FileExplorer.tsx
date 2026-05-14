@@ -33,20 +33,27 @@ function filterTree(nodes: FileNode[], query: string): FileNode[] {
 }
 
 /**
- * Recursively filters a FileNode tree to include only .md files and their ancestor directories.
+ * Recursively filters a FileNode tree to include only viewable files (.md, .html) and their ancestor directories.
  * Directories are always included so the user can still expand and navigate them.
+ * .HTML(대문자) 파일도 toLowerCase()로 정규화하여 포함한다.
  */
-function filterMdOnly(nodes: FileNode[]): FileNode[] {
+function filterViewableFiles(nodes: FileNode[]): FileNode[] {
   return nodes.reduce<FileNode[]>((acc, node) => {
     if (node.isDirectory) {
-      const filteredChildren = node.children ? filterMdOnly(node.children) : node.children;
+      const filteredChildren = node.children ? filterViewableFiles(node.children) : node.children;
       acc.push({ ...node, children: filteredChildren });
-    } else if (node.name.toLowerCase().endsWith('.md')) {
-      acc.push(node);
+    } else {
+      const lower = node.name.toLowerCase();
+      if (lower.endsWith('.md') || lower.endsWith('.html')) {
+        acc.push(node);
+      }
     }
     return acc;
   }, []);
 }
+
+// 이전 이름과의 하위 호환성 유지 — 내부적으로 filterViewableFiles를 사용한다
+const filterMdOnly = filterViewableFiles;
 
 /**
  * Derives the last segment of a path (folder name) for display.
