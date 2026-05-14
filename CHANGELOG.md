@@ -4,6 +4,16 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Added
+- **독립 HTML 파일 보기 (SPEC-PREVIEW-004)**:
+  - 사이드바 파일 트리에서 `.html` 파일 표시 및 선택 가능
+  - 샌드박스 iframe (`sandbox="allow-scripts allow-same-origin"`)에서 보기 전용 렌더링
+  - 같은 폴더의 외부 자산(CSS, 이미지)과 스크립트 정상 로드
+  - Tauri asset 프로토콜 + 런타임 scope 등록으로 열린 폴더로만 접근 제한
+  - 5MB 초과 파일은 "미리보기 불가" 메시지 표시
+  - 편집기 패널에는 "이 형식은 편집할 수 없습니다" 플레이스홀더 표시
+  - 마크다운 렌더링 파이프라인에 미영향
+
 ### Fixed
 - **system 테마 export 정합성**: `system` 테마일 때 HTML/PDF/DOCX export가 항상 라이트 테마로 출력되던 버그 수정 — `window.matchMedia('prefers-color-scheme: dark')`로 실제 OS 다크 모드를 반영 (`AppLayout.tsx`)
 - **파일 경로 이중 상태 불일치**: `Mod-Shift-s`, `Mod-Shift-i` 단축키 및 이미지 붙여넣기/드래그 핸들러에서 `fileStore.currentFile`이 갱신되지 않아 헤더 파일명이 구버전을 표시하던 버그 수정 (`MarkdownEditor.tsx`)
