@@ -191,24 +191,56 @@
 
 ---
 
-## 시나리오 5-A (보안 must-pass): 앱 재시작 후 빈 scope 확인
+## 시나리오 5-A (보안 must-pass): 재시작 후 scope가 bounded 상태임을 확인
 
-### 검증 절차
+> **[SUPERSEDED] 원래 5-A 문구("앱 재시작 후 빈 scope 확인")는 v1.2.0에서 폐기되었다.**
+> 1차 수동 검증(2026-05-14)에서, 폴더를 수동으로 열지 않았는데도
+> `fetch('asset://localhost//tmp/html-test-folder/normal.html')`이 status=200을 반환했다.
+>
+> **근본 원인 (확인됨)**: `src/App.tsx` 23-32행 — 앱이 시작 시 직전에 열었던 폴더를
+> 자동 복원한다(SPEC-UI-003 REQ-UI-003-06/07의 기존 의도된 기능). 자동 복원은
+> `openFolderPath(lastWatchedPath)`를 호출하고, 이는 본 SPEC의 M1 구현 이후
+> `registerAssetScope`(= `allow_directory`)를 호출한다. 따라서 재시작 직후
+> asset scope는 사용자가 아무것도 하기 전에 직전 폴더로 즉시 다시 채워진다.
+>
+> **이것은 취약점이 아니다.** 근거:
+> - scope는 여전히 **bounded**(allow-all 아님): 시나리오 5에서 폴더가 열려 있어도
+>   `/etc/passwd`가 status=403을 반환함이 이미 증명됨. 정적 `scope: []` + 런타임
+>   `allow_directory`는 한정된 scope를 만든다.
+> - 자동 복원되는 폴더는 사용자가 직전 세션에서 **명시적으로 연** 폴더이므로
+>   "scope는 사용자가 명시적으로 연 폴더만 포함한다"는 보안 속성이 그대로 성립한다.
+> - 시작 시 HTML이 자동 렌더링되지 않으므로(사용자가 `.html`을 클릭해야 함)
+>   자동 복원은 자동 실행 공격면을 추가하지 않는다.
+> - Rust `asset_protocol_scope`는 프로세스 시작 시점엔 비어 있다 — 즉시 한 폴더를
+>   다시 등록하는 것은 프런트엔드 자동 복원이다.
 
-1. 앱을 완전히 종료 후 재시작: `npm run dev`
-2. **폴더를 열지 않은 상태**에서 asset URL 직접 요청
-3. 브라우저 개발자 도구 콘솔에서 다음 실행:
+### 검증 절차 (수정된 판별 테스트)
+
+1. 직전 세션에서 폴더 A(`/tmp/html-test-folder`)를 명시적으로 연다.
+2. 앱을 완전히 종료 후 재시작: `npm run dev`. **시작 후 폴더를 수동으로 조작하지 않는다**
+   (SPEC-UI-003 자동 복원이 폴더 A를 다시 열도록 둔다).
+3. 브라우저 개발자 도구 콘솔에서 다음 두 요청을 실행:
    ```javascript
-   fetch('asset://localhost//tmp/test.txt')
-     .then(r => r.text())
-     .then(t => console.log('⚠️ 취약: 내용 로드됨:', t))
-     .catch(e => console.log('✅ 안전: 차단됨:', e));
+   // (a) 자동 복원된 폴더 A 안의 파일 → 200 기대 (사용자가 연 폴더이므로 정상)
+   fetch('asset://localhost//tmp/html-test-folder/normal.html')
+     .then(r => console.log('(a) 복원 폴더 파일 status:', r.status, '— 200이어야 정상'))
+     .catch(e => console.log('(a) 오류:', e));
+
+   // (b) 등록된 폴더 밖 경로 → 403 must-pass
+   fetch('asset://localhost//etc/passwd')
+     .then(r => console.log('(b) /etc/passwd status:', r.status, '— 403이어야 안전'))
+     .catch(e => console.log('(b) 차단됨(안전):', e));
    ```
 
 ### 합격 기준
 
-- 폴더를 열기 전에는 **어떤 로컬 파일도** asset URL로 접근할 수 없어야 한다
-- `tauri.conf.json`의 `assetProtocol.scope: []`가 기본 차단 상태임을 확인
+- **(a) 복원된 폴더 A의 파일은 접근 가능(status 200)** — 폴더 A는 사용자가 명시적으로
+  연 폴더이므로 이는 기대된 정상 동작이다.
+- **(b) 등록된 폴더 밖 경로(`/etc/passwd` 등)는 차단(status 403)** — 반드시 성립.
+- (a)와 (b)가 함께 성립하여 scope가 allow-all이 아니라 **bounded**(사용자가 연 폴더로
+  한정)임이 증명된다.
+- 원래 기대였던 "scope가 완전히 빈 상태"는 SPEC-UI-003 자동 복원과 양립하지 않으므로
+  더 이상 합격 기준이 아니다.
 
 ---
 
