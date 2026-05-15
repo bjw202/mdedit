@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>샘플 02 — 풍부한 콘텐츠</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        line-height: 1.7;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 24px;
+        color: #111827;
+      }
+      h1 { color: #059669; border-bottom: 2px solid #059669; padding-bottom: 8px; }
+      h2 { color: #047857; margin-top: 28px; }
+      h3 { color: #065f46; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 14px;
+      }
+      th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+      th { background: #ecfdf5; color: #065f46; font-weight: 600; }
+      tr:hover td { background: #f9fafb; }
+      pre {
+        background: #1f2937;
+        color: #f3f4f6;
+        padding: 16px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-size: 13px;
+      }
+      code { font-family: "SF Mono", Monaco, Consolas, "Courier New", monospace; }
+      :not(pre) > code {
+        background: #f3f4f6;
+        color: #be185d;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin: 16px 0;
+      }
+      .card {
+        padding: 16px;
+        background: #f0fdf4;
+        border-left: 3px solid #059669;
+        border-radius: 4px;
+      }
+      .card-title { font-weight: 600; color: #065f46; margin-bottom: 4px; }
+      .card-meta { font-size: 12px; color: #6b7280; }
+    </style>
+  </head>
+  <body>
+    <h1>풍부한 콘텐츠</h1>
+    <p>표 · 코드 블록 · 그리드 레이아웃 등 다양한 요소가 정상 렌더링되는지 확인합니다.</p>
+
+    <h2>표</h2>
+    <table>
+      <thead>
+        <tr><th>항목</th><th>값</th><th>비고</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>CSP</td><td>OK</td><td><code>frame-src</code> 허용 추가</td></tr>
+        <tr><td>Asset Scope</td><td>OK</td><td>UNC 접두사 정규화</td></tr>
+        <tr><td>iframe sandbox</td><td>OK</td><td><code>allow-scripts allow-same-origin</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>코드 블록</h2>
+    <pre><code>// Rust
+pub fn canonicalize_folder_path(path: &str) -> Result&lt;PathBuf, String&gt; {
+    let canonical = std::fs::canonicalize(path)?;
+    // Windows에서 \\?\ UNC 접두사 제거
+    #[cfg(target_os = "windows")]
+    if let Some(stripped) = canonical.to_string_lossy().strip_prefix(r"\\?\") {
+        return Ok(PathBuf::from(stripped));
+    }
+    Ok(canonical)
+}</code></pre>
+
+    <h2>그리드 카드</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">렌더링</div>
+        <div class="card-meta">HTML + CSS 일체 정상</div>
+      </div>
+      <div class="card">
+        <div class="card-title">한글</div>
+        <div class="card-meta">시스템 폰트로 표시</div>
+      </div>
+      <div class="card">
+        <div class="card-title">샌드박스</div>
+        <div class="card-meta">앱 셸과 격리됨</div>
+      </div>
+    </div>
+
+    <h3>인라인 강조</h3>
+    <p>본문 중간에 <em>이탤릭</em>, <strong>볼드</strong>, <code>monospace</code>, <mark>하이라이트</mark>가 자연스럽게 섞일 수 있습니다.</p>
+  </body>
+</html>
