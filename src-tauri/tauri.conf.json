@@ -19,7 +19,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' tauri: asset: https://asset.localhost http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data: asset: https://asset.localhost http://asset.localhost blob:; connect-src 'self' tauri: asset: https://asset.localhost http://asset.localhost ws://localhost:* http://localhost:*; frame-src 'self' asset: https://asset.localhost http://asset.localhost",
+      "csp": "default-src 'self' tauri: asset: ipc: https://asset.localhost http://asset.localhost http://ipc.localhost http://tauri.localhost; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data: asset: https://asset.localhost http://asset.localhost blob:; connect-src 'self' tauri: ipc: asset: https://asset.localhost http://asset.localhost http://ipc.localhost http://tauri.localhost ws://localhost:* http://localhost:*; frame-src 'self' asset: https://asset.localhost http://asset.localhost http://tauri.localhost",
       "assetProtocol": {
         "enable": true,
         "scope": []
