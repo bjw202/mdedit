@@ -59,7 +59,13 @@ export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   // iframe 내부 상대경로(예: ./style.css) 해소가 깨진다. %2F를 실제 슬래시로 되돌려
   // 계층적 asset URL을 만들면, asset 핸들러가 선행 1바이트만 제거 후 percent-decode하여
   // 절대경로로 올바르게 해소하고, 형제 자산(CSS·이미지)도 정확히 매칭된다.
-  const assetUrl = convertFileSrc(htmlPath).replace(/%2F/gi, '/');
+  const rawUrl = convertFileSrc(htmlPath);
+  const assetUrl = rawUrl.replace(/%2F/gi, '/');
+
+  // [DEBUG] Windows WebView2 차단 진단용 — 작동 확인 후 제거 예정.
+  // 콘솔에서 htmlPath, convertFileSrc 원본, replace 후 URL을 모두 확인할 수 있다.
+  // eslint-disable-next-line no-console
+  console.log('[HtmlFileViewer]', { htmlPath, rawUrl, assetUrl });
 
   return (
     <iframe
