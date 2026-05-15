@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>샘플 03 — 인터랙티브 스크립트</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        line-height: 1.6;
+        max-width: 640px;
+        margin: 40px auto;
+        padding: 0 24px;
+        color: #1f2937;
+      }
+      h1 { color: #7c3aed; border-bottom: 2px solid #7c3aed; padding-bottom: 8px; }
+      .panel {
+        padding: 20px;
+        background: #f5f3ff;
+        border-radius: 8px;
+        margin: 16px 0;
+      }
+      button {
+        padding: 8px 16px;
+        background: #7c3aed;
+        color: white;
+        border: 0;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        margin-right: 8px;
+      }
+      button:hover { background: #6d28d9; }
+      .counter {
+        font-size: 32px;
+        font-weight: 700;
+        color: #5b21b6;
+        margin: 12px 0;
+      }
+      .log {
+        margin-top: 16px;
+        padding: 12px;
+        background: #1f2937;
+        color: #d1d5db;
+        font-family: monospace;
+        font-size: 13px;
+        border-radius: 4px;
+        min-height: 60px;
+        white-space: pre-wrap;
+      }
+      .note {
+        font-size: 13px;
+        color: #6b7280;
+        margin-top: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>인터랙티브 스크립트</h1>
+    <p><code>sandbox="allow-scripts allow-same-origin"</code> 환경에서 자체 스크립트가 정상 동작하는지 확인합니다.</p>
+
+    <div class="panel">
+      <div class="counter" id="counter">0</div>
+      <button id="inc">+1 증가</button>
+      <button id="dec">-1 감소</button>
+      <button id="reset">초기화</button>
+      <div class="log" id="log">콘솔 로그 출력 영역…</div>
+    </div>
+
+    <p class="note">
+      샌드박스 격리가 정상 동작한다면, 이 페이지의 스크립트는 부모 앱 셸(<code>window.parent</code>)에 접근할 수 없어야 합니다.
+      아래 "부모 접근 시도" 버튼으로 보안 격리도 함께 확인할 수 있습니다.
+    </p>
+
+    <div class="panel">
+      <button id="probe">부모 접근 시도</button>
+      <div class="log" id="probe-log">결과가 여기에 표시됩니다.</div>
+    </div>
+
+    <script>
+      (function () {
+        var n = 0;
+        var counter = document.getElementById('counter');
+        var log = document.getElementById('log');
+        var probeLog = document.getElementById('probe-log');
+
+        function append(msg) {
+          var ts = new Date().toLocaleTimeString();
+          log.textContent += '\n[' + ts + '] ' + msg;
+          log.scrollTop = log.scrollHeight;
+        }
+
+        function render() { counter.textContent = String(n); }
+
+        document.getElementById('inc').addEventListener('click', function () {
+          n++; render(); append('inc → ' + n);
+        });
+        document.getElementById('dec').addEventListener('click', function () {
+          n--; render(); append('dec → ' + n);
+        });
+        document.getElementById('reset').addEventListener('click', function () {
+          n = 0; render(); append('reset');
+        });
+
+        document.getElementById('probe').addEventListener('click', function () {
+          var lines = [];
+          try {
+            var pl = window.parent && window.parent.location && window.parent.location.href;
+            lines.push('parent.location.href: ' + pl);
+            lines.push('→ 보안 격리 실패 (예상과 다름)');
+          } catch (e) {
+            lines.push('parent.location 접근 차단됨 ✓');
+            lines.push('오류: ' + (e && e.message ? e.message : String(e)));
+          }
+          try {
+            var t = window.parent.__TAURI__ || window.parent.__TAURI_INTERNALS__;
+            if (t) {
+              lines.push('parent.__TAURI__ 접근 가능 (보안 격리 실패)');
+            } else {
+              lines.push('parent.__TAURI__ 접근 불가 ✓');
+            }
+          } catch (e) {
+            lines.push('parent.__TAURI__ 접근 차단됨 ✓');
+          }
+          probeLog.textContent = lines.join('\n');
+        });
+
+        append('초기 렌더 완료');
+      })();
+    </script>
+  </body>
+</html>
