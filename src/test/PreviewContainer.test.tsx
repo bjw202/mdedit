@@ -24,8 +24,6 @@ vi.mock('@/components/preview/HtmlFileViewer', () => ({
   HtmlFileViewer: vi.fn(({ htmlPath }: { htmlPath: string }) => (
     <div data-testid="html-file-viewer" data-path={htmlPath} />
   )),
-  shouldRenderHtml: vi.fn(() => true),
-  HTML_PREVIEW_MAX_BYTES: 5 * 1024 * 1024,
 }));
 
 // ---- getFileViewType 순수 함수 테스트 ----

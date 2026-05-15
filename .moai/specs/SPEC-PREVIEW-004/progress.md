@@ -34,3 +34,16 @@
   - progress.md: M5 완료 표시
   - 코드맵: frontend.md 컴포넌트 수 증가(HtmlFileViewer, PreviewContainer) 및 backend.md register_asset_scope 커맨드 추가 — 갱신 권장
 - M5 완료, SPEC-PREVIEW-004 전체 완료 → PR 준비 완료
+
+### v1.3.0 (2026-05-15) — 사용자 피드백 기반 사후 amend
+
+- Windows에서 "이 콘텐츠는 차단되었습니다" 회귀 발견 → 두 가지 누락 진단
+  - `tauri.conf.json` CSP에 `frame-src` 디렉티브 없음 (Chromium WebView2가 명시 요구)
+  - Windows 자산 호스트 `http://asset.localhost` CSP 미허용
+- 수정: CSP에 `frame-src` 디렉티브 추가 + 기존 디렉티브에 `http://asset.localhost` 허용 (커밋 eb6ce32)
+- 검증: macOS dev 모드 정상 작동 확인. Windows 검증 사용자 측 대기
+- 5MB 파일 크기 임계 제거 — iframe + asset 프로토콜이 OS-level 스트리밍이라 OOM 보호 명목이 실재 위협 없음. Claude/Codex 산출물(인라인 base64 등)의 정상 사용을 차단하던 회귀를 제거
+  - `HtmlFileViewer.tsx`: `shouldRenderHtml`/`HTML_PREVIEW_MAX_BYTES`/`findFileSizeInTree` 제거
+  - 테스트 갱신: `HtmlFileViewer.test.tsx`, `PreviewContainer.test.tsx`
+  - SPEC: REQ-PREVIEW004-005에서 5MB 항목 삭제
+- 보안 불변식 유지: iframe sandbox 격리(allow-scripts allow-same-origin)와 asset scope bounded 속성은 그대로
