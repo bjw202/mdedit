@@ -108,8 +108,22 @@ pub fn canonicalize_folder_path(path: &str) -> Result<PathBuf, String> {
         return Err("유효하지 않은 경로: 경로 탈출은 허용되지 않습니다.".to_string());
     }
     // 절대 경로화 + 심링크 해소
-    std::fs::canonicalize(path)
-        .map_err(|e| format!("경로 정규화 실패: {}", e))
+    let canonical = std::fs::canonicalize(path)
+        .map_err(|e| format!("경로 정규화 실패: {}", e))?;
+
+    // Windows에서 std::fs::canonicalize는 \\?\ UNC 확장 경로 접두사를 붙인다.
+    // Tauri의 asset_protocol_scope는 이 접두사를 인식하지 못해 scope 매칭이 실패한다.
+    // 결과적으로 asset 요청이 차단되어 WebView2가 "콘텐츠 차단" 페이지를 렌더링한다.
+    // \\?\ 접두사를 제거하여 일반 Windows 경로(C:\...) 형식으로 반환한다.
+    #[cfg(target_os = "windows")]
+    {
+        let s = canonical.to_string_lossy();
+        if let Some(stripped) = s.strip_prefix(r"\\?\") {
+            return Ok(PathBuf::from(stripped));
+        }
+    }
+
+    Ok(canonical)
 }
 
 /// 열린 폴더를 asset 프로토콜 scope에 런타임 등록한다.
@@ -169,6 +183,30 @@ mod tests {
         assert!(result.is_ok(), "오류: {:?}", result.err());
         let canonical = result.unwrap();
         // 결과는 반드시 절대 경로여야 한다
+        assert!(canonical.is_absolute(), "절대 경로가 아님: {:?}", canonical);
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    // Windows에서 std::fs::canonicalize가 추가하는 \\?\ 접두사가
+    // asset_protocol_scope 매칭 실패를 유발하는 회귀를 방지한다.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_canonicalize_folder_path_windows_unc_접두사_제거() {
+        let dir = env::temp_dir().join("test_canon_unc_preview004");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.to_str().unwrap();
+
+        let result = canonicalize_folder_path(input);
+        assert!(result.is_ok(), "오류: {:?}", result.err());
+        let canonical = result.unwrap();
+
+        let path_str = canonical.to_string_lossy();
+        assert!(
+            !path_str.starts_with(r"\\?\"),
+            r"\\?\ 접두사가 남아 있으면 asset scope 매칭이 실패한다: {}",
+            path_str
+        );
         assert!(canonical.is_absolute(), "절대 경로가 아님: {:?}", canonical);
 
         fs::remove_dir_all(&dir).ok();

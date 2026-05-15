@@ -62,11 +62,6 @@ export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   const rawUrl = convertFileSrc(htmlPath);
   const assetUrl = rawUrl.replace(/%2F/gi, '/').replace(/%5C/gi, '/');
 
-  // [DEBUG] Windows WebView2 차단 진단용 — 작동 확인 후 제거 예정.
-  // 콘솔에서 htmlPath, convertFileSrc 원본, replace 후 URL을 모두 확인할 수 있다.
-  // eslint-disable-next-line no-console
-  console.log('[HtmlFileViewer]', { htmlPath, rawUrl, assetUrl });
-
   return (
     <iframe
       src={assetUrl}
