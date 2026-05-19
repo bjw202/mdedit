@@ -4,16 +4,6 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
-### Added
-- **독립 HTML 파일 보기 (SPEC-PREVIEW-004)**:
-  - 사이드바 파일 트리에서 `.html` 파일 표시 및 선택 가능
-  - 샌드박스 iframe (`sandbox="allow-scripts allow-same-origin"`)에서 보기 전용 렌더링
-  - 같은 폴더의 외부 자산(CSS, 이미지)과 스크립트 정상 로드
-  - Tauri asset 프로토콜 + 런타임 scope 등록으로 열린 폴더로만 접근 제한
-  - 5MB 초과 파일은 "미리보기 불가" 메시지 표시
-  - 편집기 패널에는 "이 형식은 편집할 수 없습니다" 플레이스홀더 표시
-  - 마크다운 렌더링 파이프라인에 미영향
-
 ### Fixed
 - **system 테마 export 정합성**: `system` 테마일 때 HTML/PDF/DOCX export가 항상 라이트 테마로 출력되던 버그 수정 — `window.matchMedia('prefers-color-scheme: dark')`로 실제 OS 다크 모드를 반영 (`AppLayout.tsx`)
 - **파일 경로 이중 상태 불일치**: `Mod-Shift-s`, `Mod-Shift-i` 단축키 및 이미지 붙여넣기/드래그 핸들러에서 `fileStore.currentFile`이 갱신되지 않아 헤더 파일명이 구버전을 표시하던 버그 수정 (`MarkdownEditor.tsx`)
@@ -66,6 +56,32 @@ All notable changes to MdEdit are documented here.
 - Rust: 78 tests passing
 
 ---
+
+## [0.5.0] - 2026-05-19
+
+### Added
+- **독립 HTML 파일 보기 (SPEC-PREVIEW-004)**:
+  - 사이드바 파일 트리에서 `.html` 파일 표시 및 선택 가능
+  - 샌드박스 iframe (`sandbox="allow-scripts allow-same-origin"`)에서 보기 전용 렌더링
+  - 같은 폴더의 외부 자산(CSS, 이미지)과 스크립트 정상 로드
+  - Tauri asset 프로토콜 + 런타임 scope 등록으로 열린 폴더로만 접근 제한
+  - 편집기 패널에는 "이 형식은 편집할 수 없습니다" 플레이스홀더 표시
+  - 마크다운 렌더링 파이프라인에 미영향
+- **사이드바 파일 익스플로러 `.md` 필터**: 마크다운 파일만 표시하도록 필터 적용
+- **Playwright E2E 회귀 테스트**: `e2e/html-file-viewer.spec.ts`로 HtmlFileViewer 동작 검증
+- **HTML 미리보기 샘플 4종**: `samples/html/`에 basic / rich-content / interactive 샘플 + README 추가
+
+### Changed
+- **HTML 파일 미리보기 5MB 임계 제거** (SPEC-PREVIEW-004 v1.3.0): Tauri asset 스트리밍 기반으로 변경되어 대용량 HTML도 미리보기 가능
+
+### Fixed
+- **Windows WebView2 CSP 차단 수정** (SPEC-PREVIEW-004 Windows 호환성):
+  - Tauri v2 IPC(`ipc:`) 및 `tauri:` 호스트를 CSP `frame-src`에 허용
+  - `frame-src`를 스킴 단위(`asset:`, `tauri:`, `https:` 등)로 광범위 허용해 Windows에서 iframe 차단 해소
+  - iframe asset URL의 Windows 백슬래시(`%5C`) 인코딩을 슬래시로 정규화
+  - `index.html` 메타 CSP를 Windows asset URL 차단 회귀에 맞춰 정정 (SPEC-PREVIEW-004 v1.3.1)
+  - `directory_ops.rs` 보강으로 asset scope 등록 안정화
+  - CSP 진단 과정에서 일시 비활성화했던 설정을 본 fix 이후 정상 복구
 
 ## [0.1.0] — Initial Implementation
 
