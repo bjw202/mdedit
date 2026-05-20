@@ -314,11 +314,16 @@ Fast, reliable file I/O with filesystem synchronization.
   - Status: Completed (2026-04-01)
   - 인라인($...$) 및 블록($$...$$) 수식 렌더링, 다크 모드 지원, 에러 내성(throwOnError: false)
 
-### Font Size Control Enhancement
+### Font Size Control Enhancement (Preview Zoom Integration)
 
-- Font size buttons (A-/A+) now apply to both editor panel and preview panel
-- Previously only affected editor panel; preview panel had hardcoded size
-- User-facing change committed at 2026-03-12
+- **Status**: Completed (2026-05-21)
+- Font size buttons (A-/A+) now apply preview zoom: fontSize setting interpreted as CSS zoom ratio (zoom = fontSize/14)
+- Preview zoom scales headings, inline code, tables, images, and spacing proportionally (like browser zoom)
+- Code file viewer (CodeFileViewer) synchronized with preview zoom control
+- Previously: A-/A+ only scaled editor panel; preview headings and code blocks used fixed Tailwind sizes
+- Integration: `src/lib/preview/previewZoom.ts` (new), plus enhancements to MarkdownPreview.tsx, CodeFileViewer.tsx, src/index.css
+- Scope: Affects markdown preview and code viewer only; .html iframe viewer and editor panel unchanged
+- Zero new npm dependencies (456 tests passing, full typecheck compliance)
 
 ---
 
