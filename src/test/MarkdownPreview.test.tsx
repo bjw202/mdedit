@@ -1,15 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { useUIStore } from '@/store/uiStore';
 
 // Mock usePreview hook
 vi.mock('@/hooks/usePreview', () => ({
   usePreview: vi.fn(() => ({ html: '', isLoading: false })),
 }));
 
-// Mock PreviewRenderer
+// Mock PreviewRenderer — html과 zoom 두 prop 모두 캡처
 vi.mock('@/components/preview/PreviewRenderer', () => ({
-  PreviewRenderer: vi.fn(({ html }: { html: string }) => (
-    <div data-testid="preview-renderer">{html}</div>
+  PreviewRenderer: vi.fn(({ html, zoom }: { html: string; zoom?: number }) => (
+    <div data-testid="preview-renderer" data-zoom={zoom}>{html}</div>
   )),
 }));
 
@@ -38,6 +39,13 @@ vi.mock('@/store/editorStore', () => ({
 describe('MarkdownPreview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 각 테스트 전에 fontSize를 기본값으로 초기화
+    useUIStore.setState({ fontSize: 14 });
+  });
+
+  afterEach(() => {
+    // 상태 오염 방지
+    useUIStore.setState({ fontSize: 14 });
   });
 
   it('renders placeholder when content is empty', async () => {
@@ -103,6 +111,28 @@ describe('MarkdownPreview', () => {
 
     expect(mockPreviewRenderer).toHaveBeenCalledWith(
       expect.objectContaining({ html: '<h1>Test</h1>' }),
+      expect.anything(),
+    );
+  });
+
+  it('fontSize=28이면 PreviewRenderer에 zoom=2를 전달한다 (비례 스케일 검증)', async () => {
+    const { usePreview } = await import('@/hooks/usePreview');
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const mockPreviewRenderer = PreviewRenderer as ReturnType<typeof vi.fn>;
+
+    (usePreview as ReturnType<typeof vi.fn>).mockReturnValue({
+      html: '<p>content</p>',
+      isLoading: false,
+    });
+
+    // fontSize를 28(기본값 14의 두 배)로 설정
+    useUIStore.setState({ fontSize: 28 });
+
+    const { MarkdownPreview } = await import('@/components/preview/MarkdownPreview');
+    render(<MarkdownPreview />);
+
+    expect(mockPreviewRenderer).toHaveBeenCalledWith(
+      expect.objectContaining({ zoom: 2 }),
       expect.anything(),
     );
   });

@@ -116,7 +116,14 @@
 
 /* Preview panel markdown styling (manual prose classes - no @tailwindcss/typography needed) */
 .preview-content {
+  /* zoom=1 시 현재 외관을 유지하는 기본 폰트 크기 (uiStore fontSize 기본값 14px와 일치) */
+  font-size: 14px;
   @apply text-gray-900 dark:text-gray-100 leading-relaxed;
+}
+
+/* 코드 뷰어 기본 폰트 크기 — Shiki <pre> 상속을 보장하여 zoom=1 외관을 유지 */
+.code-file-viewer {
+  font-size: 14px;
 }
 
 .preview-content h1 {
