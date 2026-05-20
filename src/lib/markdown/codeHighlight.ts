@@ -1,10 +1,10 @@
 import { createHighlighter } from 'shiki';
 
-// @MX:ANCHOR: [AUTO] getHighlighter - shared Shiki singleton used by renderer, usePreview, exportHtml
-// @MX:REASON: [AUTO] Called by multiple modules; singleton prevents redundant initialization (fan_in >= 3)
+// @MX:ANCHOR: [AUTO] getHighlighter - shared Shiki singleton used by renderer, usePreview, exportHtml, CodeFileViewer
+// @MX:REASON: [AUTO] Called by multiple modules; singleton prevents redundant initialization (fan_in >= 4)
 // @MX:NOTE: [AUTO] Shiki singleton - lazy-initialized to avoid blocking startup
 // Uses Shiki v1 API (createHighlighter, not deprecated getHighlighter)
-// @MX:SPEC: SPEC-PREVIEW-001
+// @MX:SPEC: SPEC-PREVIEW-001, SPEC-PREVIEW-005 REQ-PREVIEW005-003
 
 type ShikiHighlighter = Awaited<ReturnType<typeof createHighlighter>>;
 
@@ -30,6 +30,7 @@ export async function getHighlighter(): Promise<ShikiHighlighter> {
         'markdown',
         'css',
         'html',
+        'toml', // SPEC-PREVIEW-005: extensionLangMap의 toml 확장자 지원을 위해 추가
       ],
     });
   }

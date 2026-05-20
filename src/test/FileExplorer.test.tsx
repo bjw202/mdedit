@@ -198,7 +198,9 @@ describe('FileExplorer', () => {
     expect(screen.getByText('README.md')).toBeInTheDocument();
   });
 
-  it('should hide non-viewable files like .ts but show .html files', () => {
+  it('SPEC-PREVIEW-005: .ts 같은 코드 파일도 .html/.md와 함께 표시되어야 한다', () => {
+    // SPEC-PREVIEW-005 이전: app.ts는 숨겨졌었다(버그).
+    // SPEC-PREVIEW-005 이후: extensionLangMap에 있는 코드 파일은 모두 표시된다.
     const treeWithMixed: FileNode[] = [
       { name: 'index.html', path: '/project/index.html', isDirectory: false },
       { name: 'app.ts', path: '/project/app.ts', isDirectory: false },
@@ -208,7 +210,8 @@ describe('FileExplorer', () => {
     render(<FileExplorer />);
     expect(screen.getByText('index.html')).toBeInTheDocument();
     expect(screen.getByText('notes.md')).toBeInTheDocument();
-    expect(screen.queryByText('app.ts')).not.toBeInTheDocument();
+    // SPEC-PREVIEW-005: .ts는 코드 파일이므로 이제 표시되어야 한다
+    expect(screen.getByText('app.ts')).toBeInTheDocument();
   });
 
   it('should show .HTML (uppercase) files in the file tree', () => {
@@ -218,5 +221,62 @@ describe('FileExplorer', () => {
     useFileStore.setState({ watchedPath: '/project', fileTree: treeWithUpperHtml });
     render(<FileExplorer />);
     expect(screen.getByText('PAGE.HTML')).toBeInTheDocument();
+  });
+
+  // SPEC-PREVIEW-005: 코드/데이터 파일(.py/.json/.yaml/.ts 등)도 사이드바에 표시되어야 한다
+
+  it('SPEC-PREVIEW-005: 코드 확장자 파일(.py, .json, .yaml, .ts)이 사이드바에 표시되어야 한다', () => {
+    const treeWithCodeFiles: FileNode[] = [
+      { name: 'notes.py', path: '/project/notes.py', isDirectory: false },
+      { name: 'config.json', path: '/project/config.json', isDirectory: false },
+      { name: 'data.yaml', path: '/project/data.yaml', isDirectory: false },
+      { name: 'readme.md', path: '/project/readme.md', isDirectory: false },
+      { name: 'index.html', path: '/project/index.html', isDirectory: false },
+      { name: 'archive.zip', path: '/project/archive.zip', isDirectory: false },
+      {
+        name: 'src',
+        path: '/project/src',
+        isDirectory: true,
+        children: [
+          { name: 'app.ts', path: '/project/src/app.ts', isDirectory: false },
+        ],
+      },
+    ];
+    useFileStore.setState({ watchedPath: '/project', fileTree: treeWithCodeFiles });
+    render(<FileExplorer />);
+
+    // 코드/데이터 파일은 표시되어야 한다
+    expect(screen.getByText('notes.py')).toBeInTheDocument();
+    expect(screen.getByText('config.json')).toBeInTheDocument();
+    expect(screen.getByText('data.yaml')).toBeInTheDocument();
+    // 기존 .md/.html도 계속 표시되어야 한다
+    expect(screen.getByText('readme.md')).toBeInTheDocument();
+    expect(screen.getByText('index.html')).toBeInTheDocument();
+    // 디렉토리는 항상 포함되어야 한다
+    expect(screen.getByText('src')).toBeInTheDocument();
+    // 알 수 없는 확장자는 제외되어야 한다
+    expect(screen.queryByText('archive.zip')).not.toBeInTheDocument();
+  });
+
+  it('SPEC-PREVIEW-005: extensionLangMap에 없는 확장자만 제외하고 모든 지원 확장자는 표시한다', () => {
+    const mixedTree: FileNode[] = [
+      { name: 'script.sh', path: '/project/script.sh', isDirectory: false },
+      { name: 'style.css', path: '/project/style.css', isDirectory: false },
+      { name: 'config.toml', path: '/project/config.toml', isDirectory: false },
+      { name: 'main.js', path: '/project/main.js', isDirectory: false },
+      { name: 'unknown.bin', path: '/project/unknown.bin', isDirectory: false },
+      { name: 'image.png', path: '/project/image.png', isDirectory: false },
+    ];
+    useFileStore.setState({ watchedPath: '/project', fileTree: mixedTree });
+    render(<FileExplorer />);
+
+    // extensionLangMap에 있는 파일들은 모두 표시되어야 한다
+    expect(screen.getByText('script.sh')).toBeInTheDocument();
+    expect(screen.getByText('style.css')).toBeInTheDocument();
+    expect(screen.getByText('config.toml')).toBeInTheDocument();
+    expect(screen.getByText('main.js')).toBeInTheDocument();
+    // 지원되지 않는 확장자는 제외되어야 한다
+    expect(screen.queryByText('unknown.bin')).not.toBeInTheDocument();
+    expect(screen.queryByText('image.png')).not.toBeInTheDocument();
   });
 });
