@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-005
 version: "1.0.0"
-status: draft
+status: completed
 created: "2026-05-20"
 updated: "2026-05-20"
 author: "jw"
@@ -23,6 +23,7 @@ lifecycle: spec-anchored
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-05-20 | jw | 최초 SPEC 작성 — 이미 설치된 Shiki 하이라이터를 재사용하는 제네릭 소스/데이터 파일 뷰어. `getFileViewType`에 `'code'` 분기 추가, 신규 `CodeFileViewer` 컴포넌트, 확장자→Shiki 언어 매핑 모듈. 신규 의존성 0. |
+| 1.0.0 | 2026-05-20 | jw | 구현 완료 — 명세대로 구현되었으며, `useCodePreview` 훅은 `CodeFileViewer` 내부 effect로 통합. 79개 신규/확장 테스트 + 전체 테스트 424 통과. 신규 npm 의존성 없음. |
 
 ## Overview
 

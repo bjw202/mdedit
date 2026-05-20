@@ -4,6 +4,19 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Added
+- **소스/설정 파일 제네릭 보기 (SPEC-PREVIEW-005)**:
+  - 코드·데이터 파일 `.py`, `.js`/`.mjs`/`.cjs`, `.ts`, `.json`, `.jsonl`, `.yaml`/`.yml`, `.toml`, `.sh`/`.bash`, `.css`를 확장자 기반 라우팅으로 감지
+  - 신규 `CodeFileViewer` 컴포넌트가 공유 Shiki 하이라이터로 구문 강조된 보기 전용 렌더링 제공
+  - 에디터 버퍼 변경 시 300ms 디바운스로 라이브 재렌더
+  - 다크/라이트 테마 자동 감지 및 연동 (`github-dark`/`github-light`)
+  - 구문 강조 오류 또는 미지원 확장자 발생 시 안전한 텍스트 폴백 처리
+  - 신규 의존성 없음 — 기존 Shiki 싱글톤 재사용
+  - 79개 신규/확장 테스트 추가 (전체 테스트 424 통과)
+  - `src/lib/preview/extensionLangMap.ts` + `src/components/preview/CodeFileViewer.tsx` 신규 작성
+  - `PreviewContainer.tsx` 타입 확장 (`'code'` 분기 추가)
+  - `src/lib/markdown/codeHighlight.ts` `toml` 언어 추가
+
 ### Fixed
 - **system 테마 export 정합성**: `system` 테마일 때 HTML/PDF/DOCX export가 항상 라이트 테마로 출력되던 버그 수정 — `window.matchMedia('prefers-color-scheme: dark')`로 실제 OS 다크 모드를 반영 (`AppLayout.tsx`)
 - **파일 경로 이중 상태 불일치**: `Mod-Shift-s`, `Mod-Shift-i` 단축키 및 이미지 붙여넣기/드래그 핸들러에서 `fileStore.currentFile`이 갱신되지 않아 헤더 파일명이 구버전을 표시하던 버그 수정 (`MarkdownEditor.tsx`)
