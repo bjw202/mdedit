@@ -100,4 +100,12 @@ describe('PreviewRenderer', () => {
     const previewDiv = container.firstChild as HTMLElement;
     expect(previewDiv.className).toContain('preview-content');
   });
+
+  it('zoom prop이 2이면 .preview-content의 inline style.zoom이 "2"이다 (헤딩 포함 전체 스케일)', async () => {
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const { container } = render(<PreviewRenderer html="<h1>x</h1>" zoom={2} />);
+    const previewDiv = container.firstChild as HTMLElement;
+    // CSS zoom 속성이 숫자로 설정되면 브라우저(jsdom)는 문자열 "2"로 반환
+    expect(previewDiv.style.zoom).toBe('2');
+  });
 });

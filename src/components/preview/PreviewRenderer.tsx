@@ -2,15 +2,17 @@ import { useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
 import { openUrlInBrowser } from '@/lib/tauri/ipc';
 
-// @MX:ANCHOR: [AUTO] PreviewRenderer - renders sanitized HTML and triggers mermaid diagram rendering
-// @MX:REASON: [AUTO] Central render target used by MarkdownPreview and exported HTML functions (fan_in >= 3)
+// @MX:ANCHOR: [AUTO] PreviewRenderer - sanitized HTML을 DOM에 렌더하고 mermaid 다이어그램을 처리하는 핵심 컴포넌트
+// @MX:REASON: [AUTO] MarkdownPreview, 내보내기 함수 등에서 직접 사용되는 중심 렌더 타겟 (fan_in >= 3)
 // @MX:SPEC: SPEC-PREVIEW-001
-// @MX:NOTE: [AUTO] dangerouslySetInnerHTML is intentionally used here
-// This is safe because markdown-it renders with html:false which blocks raw HTML injection
-// @MX:WARN: [AUTO] mermaid.render() is async inside forEach - errors per-diagram are caught individually
-// @MX:REASON: [AUTO] One broken diagram must not prevent other diagrams or the preview from rendering
-// @MX:NOTE: [AUTO] mermaid.parse() is called before render() to pre-validate syntax
-// This prevents mermaid's native bomb-icon error SVG from being rendered into the DOM
+// @MX:NOTE: [AUTO] dangerouslySetInnerHTML은 의도적으로 사용됨
+// markdown-it이 html:false로 렌더하므로 원시 HTML 주입이 차단되어 안전하다
+// @MX:WARN: [AUTO] mermaid.render()가 forEach 내부에서 async로 실행됨 — 다이어그램별로 개별 catch
+// @MX:REASON: [AUTO] 하나의 깨진 다이어그램이 다른 다이어그램이나 미리보기 전체를 막아서는 안 됨
+// @MX:NOTE: [AUTO] mermaid.parse()를 render() 전에 호출하여 문법 오류를 사전 검증
+// mermaid 내장 bomb-icon 오류 SVG가 DOM에 삽입되는 것을 방지한다
+// @MX:NOTE: [AUTO] zoom prop: fontSize → zoom(= fontSize/14) 변환은 MarkdownPreview에서 담당
+// PreviewRenderer는 전달받은 zoom 값을 style={{ zoom }}으로 직접 적용한다
 // @MX:NOTE: [AUTO] 링크 클릭 시 시스템 기본 브라우저로 열기
 // Preview 패널 내부의 링크를 클릭하면 WebView 내부가 아닌 시스템 기본 브라우저로 엽니다.
 
@@ -20,8 +22,9 @@ mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'defaul
 /** Props for the PreviewRenderer component */
 interface PreviewRendererProps {
   html: string;
-  /** Font size in px applied to preview content */
-  fontSize?: number;
+  /** CSS zoom 비율 — fontSize/14 로 파생된 값. 기본 1(변화 없음).
+   *  헤딩·코드·테이블 등 Tailwind 고정 크기 요소를 포함해 전체를 비례 스케일한다. */
+  zoom?: number;
 }
 
 /**
@@ -30,7 +33,7 @@ interface PreviewRendererProps {
  * 1. Mermaid diagram rendering (finds .mermaid-container divs)
  * 2. (Extension point) Copy buttons for code blocks
  */
-export function PreviewRenderer({ html, fontSize }: PreviewRendererProps): JSX.Element {
+export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,7 +104,8 @@ export function PreviewRenderer({ html, fontSize }: PreviewRendererProps): JSX.E
     <div
       ref={containerRef}
       className="preview-content"
-      style={fontSize !== undefined ? { fontSize: `${fontSize}px` } : undefined}
+      // zoom을 적용해 헤딩·코드·테이블 등 Tailwind 고정 크기 요소까지 전체 비례 스케일
+      style={{ zoom }}
       // Safe: markdown-it html:false prevents raw HTML injection
       dangerouslySetInnerHTML={{ __html: html }}
     />

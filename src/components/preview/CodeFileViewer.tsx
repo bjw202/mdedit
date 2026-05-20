@@ -14,6 +14,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
 import { getHighlighter } from '@/lib/markdown/codeHighlight';
 import type { ShikiHighlighter } from '@/lib/markdown/codeHighlight';
+import { getPreviewZoom } from '@/lib/preview/previewZoom';
 
 /** 마크다운 경로(usePreview)와 동일한 디바운스 간격 */
 const DEBOUNCE_MS = 300;
@@ -40,6 +41,9 @@ export function CodeFileViewer({ lang }: CodeFileViewerProps): JSX.Element {
   const content = useEditorStore((s) => s.content);
   // theme 구독: 테마 전환 시 effect 재실행을 트리거한다
   const theme = useUIStore((s) => s.theme);
+  // fontSize 구독: A-/A+ 컨트롤에 연동하여 코드 뷰어도 비례 스케일한다
+  const fontSize = useUIStore((s) => s.fontSize);
+  const zoom = getPreviewZoom(fontSize);
 
   // html state와 ref를 동기화
   const updateHtml = (next: string): void => {
@@ -85,10 +89,11 @@ export function CodeFileViewer({ lang }: CodeFileViewerProps): JSX.Element {
   }, [content, highlighter, lang, theme]); // theme 변경 시 재강조
 
   return (
-    <div
-      className="code-file-viewer h-full overflow-auto p-4"
-      // Shiki XSS posture: 입력이 이스케이프되므로 안전
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    // 스크롤 컨테이너는 h-full 유지 — zoom은 내부 래퍼에만 적용
+    <div className="code-file-viewer h-full overflow-auto p-4">
+      {/* zoom 래퍼: Shiki 출력 전체를 비례 스케일 (A-/A+ 컨트롤 연동) */}
+      {/* Shiki XSS posture: 입력이 이스케이프되므로 dangerouslySetInnerHTML 안전 */}
+      <div style={{ zoom }} dangerouslySetInnerHTML={{ __html: html }} />
+    </div>
   );
 }

@@ -27,6 +27,13 @@ All notable changes to MdEdit are documented here.
   - `src/lib/markdown/codeHighlight.ts` `toml` 언어 추가
 
 ### Fixed
+- **미리보기 폰트 크기 축소/확대 (A-/A+) 통합**: 헤더의 A-/A+ 폰트 조절이 마크다운 미리보기의 헤딩·코드·표·이미지·간격을 zoom 배율로 함께 확대/축소하도록 통합
+  - 이전: A-/A+ 버튼은 에디터만 확대/축소, 미리보기 헤딩과 코드는 고정 크기 적용 (인라인 코드, 표도 동일)
+  - 현재: fontSize 설정을 CSS zoom = fontSize/14로 해석하여 미리보기 및 코드 뷰어에 동시 적용, 모든 요소가 브라우저 zoom처럼 비례 축소
+  - 대상 파일: `src/lib/preview/previewZoom.ts` (신규), `MarkdownPreview.tsx`, `CodeFileViewer.tsx`, `src/index.css`, 관련 테스트 개선
+  - `.html` iframe 뷰어와 에디터는 변경 없음
+  - 신규 npm 의존성 없음 (456개 테스트 통과, 타입 체크 통과)
+
 - **system 테마 export 정합성**: `system` 테마일 때 HTML/PDF/DOCX export가 항상 라이트 테마로 출력되던 버그 수정 — `window.matchMedia('prefers-color-scheme: dark')`로 실제 OS 다크 모드를 반영 (`AppLayout.tsx`)
 - **파일 경로 이중 상태 불일치**: `Mod-Shift-s`, `Mod-Shift-i` 단축키 및 이미지 붙여넣기/드래그 핸들러에서 `fileStore.currentFile`이 갱신되지 않아 헤더 파일명이 구버전을 표시하던 버그 수정 (`MarkdownEditor.tsx`)
 - **단축키 일관성**: `Mod-s`를 미저장 파일에서 실행 시 아무 동작도 하지 않던 문제를 수정 — 헤더 Save 버튼과 동일하게 Save As 다이얼로그로 연결 (`MarkdownEditor.tsx`)

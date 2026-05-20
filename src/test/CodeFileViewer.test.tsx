@@ -28,12 +28,13 @@ vi.mock('@/store/editorStore', () => ({
 }));
 
 // ---- Mock: uiStore ----
-const mockUIState: { theme: string } = { theme: 'light' };
+// fontSize를 포함하여 zoom 파생 로직을 테스트할 수 있도록 확장
+const mockUIState: { theme: string; fontSize: number } = { theme: 'light', fontSize: 14 };
 
 vi.mock('@/store/uiStore', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   useUIStore: vi.fn((selector: (s: any) => unknown) =>
-    selector({ theme: mockUIState.theme })
+    selector({ theme: mockUIState.theme, fontSize: mockUIState.fontSize })
   ),
 }));
 
@@ -110,6 +111,7 @@ describe('CodeFileViewer', () => {
     mockEditorState.content = 'print("hi")';
     mockEditorState.currentFilePath = 'notes.py';
     mockUIState.theme = 'light';
+    mockUIState.fontSize = 14;
     setDarkMode(false);
 
     // codeToHtml 기본 반환값 복원
@@ -325,6 +327,28 @@ describe('CodeFileViewer', () => {
 
       // 디바운스 미완료 → codeToHtml 미호출
       expect(mockCodeToHtml).not.toHaveBeenCalled();
+    });
+
+    it('fontSize=28이면 내부 콘텐츠 래퍼의 style.zoom이 "2"이다 (비례 스케일)', async () => {
+      // mockUIState.fontSize를 28로 설정 → zoom = 28/14 = 2
+      mockUIState.fontSize = 28;
+
+      // 시나리오 D가 mockImplementation을 교체했을 수 있으므로 명시적으로 복원
+      const { useUIStore } = await import('@/store/uiStore');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.mocked(useUIStore).mockImplementation((selector: (s: any) => unknown) =>
+        selector({ theme: mockUIState.theme, fontSize: mockUIState.fontSize })
+      );
+
+      const { CodeFileViewer } = await import('@/components/preview/CodeFileViewer');
+      const { container } = render(<CodeFileViewer lang="python" />);
+
+      await waitForHighlight();
+
+      // 내부 zoom 래퍼 div를 찾아 style.zoom 확인
+      const zoomWrapper = container.querySelector('.code-file-viewer > div') as HTMLElement | null;
+      expect(zoomWrapper).not.toBeNull();
+      expect(zoomWrapper?.style.zoom).toBe('2');
     });
 
     it('content가 변경되면 새로운 디바운스 타이머로 재강조된다', async () => {
