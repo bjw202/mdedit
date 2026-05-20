@@ -289,6 +289,13 @@ Fast, reliable file I/O with filesystem synchronization.
 
 ### Completed Features
 
+- **SPEC-UI-004**: View mode toggle for Editor/Preview layout
+  - Status: Completed (2026-05-20)
+  - 3-button segmented toggle in Header (editor / split / preview modes)
+  - Auto-restores selected mode on app restart (localStorage)
+  - `.html` files auto-show preview in editor mode (rendering-only, store value preserved)
+  - Zero new dependencies, 22 new tests added
+
 - **SPEC-PREVIEW-004**: Standalone HTML file viewing (view-only)
   - Status: Completed (2026-05-14)
   - Displays `.html` files in sandboxed iframe with script and asset loading

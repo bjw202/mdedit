@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import type { Theme } from '@/store/uiStore';
 import { ImageModeToggle } from '@/components/settings/ImageModeToggle';
+import { ViewModeToggle } from '@/components/layout/ViewModeToggle';
 
 interface HeaderProps {
   filename?: string;
@@ -170,6 +171,8 @@ export function Header({
         </span>
       </div>
       <div className="flex items-center gap-2">
+        <ViewModeToggle />
+        <span className="text-gray-300 dark:text-gray-600">|</span>
         <ImageModeToggle />
         <span className="text-gray-300 dark:text-gray-600">|</span>
         <button
