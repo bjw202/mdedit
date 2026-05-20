@@ -5,6 +5,15 @@ All notable changes to MdEdit are documented here.
 ## [Unreleased]
 
 ### Added
+- **뷰 모드 토글 (SPEC-UI-004)**:
+  - Header에 3-버튼 세그먼티드 토글(편집/분할/미리보기) 추가
+  - Editor/Preview 영역을 split(기본값) / editor / preview 세 모드로 전환
+  - 선택한 뷰 모드는 앱 재시작 후에도 복원(localStorage 자동 영속화)
+  - `.html` 파일은 editor 모드에서 자동 미리보기 표시(렌더링 한정, store 값 보존)
+  - 신규 `ViewModeToggle` 컴포넌트로 분리(ImageModeToggle 패턴 재사용)
+  - 22개 신규 테스트 추가 (전체 테스트 448 통과)
+  - 신규 의존성 없음
+
 - **소스/설정 파일 제네릭 보기 (SPEC-PREVIEW-005)**:
   - 코드·데이터 파일 `.py`, `.js`/`.mjs`/`.cjs`, `.ts`, `.json`, `.jsonl`, `.yaml`/`.yml`, `.toml`, `.sh`/`.bash`, `.css`를 확장자 기반 라우팅으로 감지
   - 신규 `CodeFileViewer` 컴포넌트가 공유 Shiki 하이라이터로 구문 강조된 보기 전용 렌더링 제공

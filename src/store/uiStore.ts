@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// @MX:ANCHOR: [AUTO] useUIStore - persisted UI state store consumed by AppLayout, Header, ResizablePanels, Footer, useTheme
-// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status); fan_in >= 5
+// @MX:ANCHOR: [AUTO] useUIStore - persisted UI state store consumed by AppLayout, Header, ResizablePanels, Footer, useTheme, ViewModeToggle
+// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode); fan_in >= 5; SPEC-UI-004 viewMode 추가
+// @MX:SPEC: SPEC-UI-004
 // @MX:NOTE: Theme type union for type-safe theme selection
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -12,6 +13,10 @@ export type SaveStatus = 'new' | 'saved' | 'unsaved' | 'saving';
 // @MX:NOTE: ImageInsertMode controls how clipboard-pasted images are inserted into the document
 // @MX:SPEC: SPEC-IMG-MODE-001
 export type ImageInsertMode = 'inline-blob' | 'file-save';
+
+// @MX:NOTE: ViewMode는 Editor/Preview 영역의 표시 상태를 나타내는 3-state 타입 (SPEC-UI-004)
+// 'split'(기본) | 'editor'(편집 전용) | 'preview'(미리보기 전용)
+export type ViewMode = 'split' | 'editor' | 'preview';
 
 interface UIState {
   sidebarWidth: number;
@@ -27,6 +32,8 @@ interface UIState {
   lastWatchedPath: string | null;
   /** Image insert mode for clipboard paste: inline-blob (default) or file-save */
   imageInsertMode: ImageInsertMode;
+  /** 현재 Editor/Preview 표시 모드 — 'split'(기본) | 'editor' | 'preview' (SPEC-UI-004) */
+  viewMode: ViewMode;
   // Actions
   setSidebarWidth: (width: number) => void;
   setPreviewWidth: (width: number) => void;
@@ -38,6 +45,8 @@ interface UIState {
   toggleScrollSync: () => void;
   setLastWatchedPath: (path: string | null) => void;
   setImageInsertMode: (mode: ImageInsertMode) => void;
+  /** Editor/Preview 표시 모드를 설정한다 (SPEC-UI-004) */
+  setViewMode: (mode: ViewMode) => void;
 }
 
 // @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth clamped to [20, 80]% to prevent layout breakage
@@ -55,6 +64,7 @@ export const useUIStore = create<UIState>()(
       scrollSyncEnabled: true,
       lastWatchedPath: null,
       imageInsertMode: 'inline-blob',
+      viewMode: 'split',
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
       setPreviewWidth: (width: number) =>
@@ -70,6 +80,7 @@ export const useUIStore = create<UIState>()(
         set((state) => ({ scrollSyncEnabled: !state.scrollSyncEnabled })),
       setLastWatchedPath: (path: string | null) => set({ lastWatchedPath: path }),
       setImageInsertMode: (mode: ImageInsertMode) => set({ imageInsertMode: mode }),
+      setViewMode: (mode: ViewMode) => set({ viewMode: mode }),
     }),
     {
       name: 'mdedit-ui-store',

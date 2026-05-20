@@ -1,5 +1,8 @@
 import { useRef, useCallback } from 'react';
 import { useUIStore } from '@/store/uiStore';
+import type { ViewMode } from '@/store/uiStore';
+import { useFileStore } from '@/store/fileStore';
+import { getFileViewType } from '@/components/preview/PreviewContainer';
 
 interface ResizablePanelsProps {
   sidebar: React.ReactNode;
@@ -19,15 +22,20 @@ function ResizeDivider({ onMouseDown }: ResizeDividerProps): JSX.Element {
   return <div className={DIVIDER_CLASS} onMouseDown={onMouseDown} />;
 }
 
-// @MX:ANCHOR: [AUTO] 3-pane layout container with drag-to-resize dividers
-// @MX:REASON: [AUTO] Core layout component - used by AppLayout, drives entire panel sizing system (fan_in >= 3)
-// @MX:NOTE: [AUTO] previewWidth is stored as percentage (20-80); editorWidth calculated as calc((100% - fixedPx) * ratio) to prevent sidebar overflow clipping
+// @MX:ANCHOR: [AUTO] 3-pane layout container with drag-to-resize dividers, 3-mode view switching
+// @MX:REASON: [AUTO] Core layout component — AppLayout 유일 사용처. 패널 너비 불변식: split=ratio 기반, editor/preview=전체 폭(ratio 무시 but 보존). SPEC-UI-004 viewMode 분기 추가.
+// @MX:SPEC: SPEC-UI-004
+// @MX:NOTE: [AUTO] previewWidth는 퍼센트(20-80)로 저장. split 모드에서는 calc()로 비율 적용. 단일 패널 모드에서는 ratio를 무시하고 calc(100% - fixedPx) 전체 폭 부여(store 값 보존).
+// @MX:NOTE: [AUTO] effectiveViewMode 파생: viewMode === 'editor' && 현재 파일이 .html이면 'preview'로 강등 (렌더링 한정, store 보존).
+//   setViewMode 미호출 — SPEC-UI-004 REQ-UI-004-004. 비-html 파일로 전환 시 editor 복귀는 자연스럽게 일어남.
 export function ResizablePanels({ sidebar, editor, preview }: ResizablePanelsProps): JSX.Element {
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const previewWidth = useUIStore((s) => s.previewWidth);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarWidth = useUIStore((s) => s.setSidebarWidth);
   const setPreviewWidth = useUIStore((s) => s.setPreviewWidth);
+  const viewMode = useUIStore((s) => s.viewMode);
+  const currentFile = useFileStore((s) => s.currentFile);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingSidebar = useRef(false);
@@ -75,12 +83,28 @@ export function ResizablePanels({ sidebar, editor, preview }: ResizablePanelsPro
   }, []);
 
   const effectiveSidebarWidth = sidebarCollapsed ? 0 : sidebarWidth;
-  // Account for sidebar + divider widths so editor+preview together fill exactly the remaining space.
-  // Without this, the percentage widths overshoot (sidebar is fixed px inside the same flex container),
-  // causing the preview panel to be clipped by the parent overflow-hidden on narrow windows.
-  const fixedWidthPx = effectiveSidebarWidth + (sidebarCollapsed ? 4 : 8);
-  const editorWidth = `calc((100% - ${fixedWidthPx}px) * ${(100 - previewWidth) / 100})`;
-  const previewWidthStyle = `calc((100% - ${fixedWidthPx}px) * ${previewWidth / 100})`;
+
+  // .html 파일 + editor 모드인 경우 렌더링상 preview로 강등 (store의 viewMode는 보존)
+  // SPEC-UI-004 REQ-UI-004-004: 자동 미리보기는 .html 한정, setViewMode 미호출
+  const isHtmlFile = getFileViewType(currentFile) === 'html';
+  const effectiveViewMode: ViewMode = viewMode === 'editor' && isHtmlFile ? 'preview' : viewMode;
+
+  // 구분선 너비 계산: 사이드바 구분선(4px) + editor-preview 구분선(split 모드에서만 4px)
+  // split 모드: 2개의 구분선(사이드바 + editor-preview), 단일 모드: 사이드바 구분선만
+  const dividerPx =
+    (sidebarCollapsed ? 0 : 4) + (effectiveViewMode === 'split' ? 4 : 0);
+  const fixedWidthPx = effectiveSidebarWidth + dividerPx;
+
+  // 모드별 패널 너비 계산
+  const editorWidth =
+    effectiveViewMode === 'split'
+      ? `calc((100% - ${fixedWidthPx}px) * ${(100 - previewWidth) / 100})`
+      : `calc(100% - ${fixedWidthPx}px)`;
+
+  const previewWidthStyle =
+    effectiveViewMode === 'split'
+      ? `calc((100% - ${fixedWidthPx}px) * ${previewWidth / 100})`
+      : `calc(100% - ${fixedWidthPx}px)`;
 
   return (
     <div
@@ -103,18 +127,24 @@ export function ResizablePanels({ sidebar, editor, preview }: ResizablePanelsPro
         </>
       )}
 
-      {/* Editor */}
-      <div style={{ width: editorWidth }} className="h-full overflow-hidden flex-shrink-0">
-        {editor}
-      </div>
+      {/* Editor: preview 단일 모드에서는 렌더하지 않음 */}
+      {effectiveViewMode !== 'preview' && (
+        <div style={{ width: editorWidth }} className="h-full overflow-hidden flex-shrink-0">
+          {editor}
+        </div>
+      )}
 
-      {/* Resize handle between editor and preview */}
-      <ResizeDivider onMouseDown={handlePreviewMouseDown} />
+      {/* Editor↔Preview 구분선: split 모드에서만 렌더 */}
+      {effectiveViewMode === 'split' && (
+        <ResizeDivider onMouseDown={handlePreviewMouseDown} />
+      )}
 
-      {/* Preview */}
-      <div style={{ width: previewWidthStyle }} className="h-full overflow-hidden flex-shrink-0">
-        {preview}
-      </div>
+      {/* Preview: editor 단일 모드에서는 렌더하지 않음 */}
+      {effectiveViewMode !== 'editor' && (
+        <div style={{ width: previewWidthStyle }} className="h-full overflow-hidden flex-shrink-0">
+          {preview}
+        </div>
+      )}
     </div>
   );
 }

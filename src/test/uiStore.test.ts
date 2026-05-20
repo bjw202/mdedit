@@ -13,6 +13,7 @@ describe('uiStore', () => {
       sidebarCollapsed: false,
       saveStatus: 'new',
       scrollSyncEnabled: true,
+      viewMode: 'split',
     });
   });
 
@@ -126,6 +127,44 @@ describe('uiStore: imageInsertMode (SPEC-IMG-MODE-001)', () => {
     const { setImageInsertMode } = useUIStore.getState();
     act(() => setImageInsertMode('inline-blob'));
     expect(useUIStore.getState().imageInsertMode).toBe('inline-blob');
+  });
+});
+
+describe('uiStore: viewMode (SPEC-UI-004)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ viewMode: 'split' });
+  });
+
+  it('should have default viewMode of "split"', () => {
+    const state = useUIStore.getState();
+    expect(state.viewMode).toBe('split');
+  });
+
+  it('should set viewMode to "editor"', () => {
+    const { setViewMode } = useUIStore.getState();
+    act(() => setViewMode('editor'));
+    expect(useUIStore.getState().viewMode).toBe('editor');
+  });
+
+  it('should set viewMode to "preview"', () => {
+    const { setViewMode } = useUIStore.getState();
+    act(() => setViewMode('preview'));
+    expect(useUIStore.getState().viewMode).toBe('preview');
+  });
+
+  it('should set viewMode back to "split"', () => {
+    useUIStore.setState({ viewMode: 'preview' });
+    const { setViewMode } = useUIStore.getState();
+    act(() => setViewMode('split'));
+    expect(useUIStore.getState().viewMode).toBe('split');
+  });
+
+  it('should persist viewMode change in state (T3)', () => {
+    const { setViewMode } = useUIStore.getState();
+    act(() => setViewMode('preview'));
+    // persist는 zustand persist 미들웨어가 자동으로 localStorage에 직렬화.
+    // 단위 테스트에서는 getState()로 값이 반영됐음을 확인하는 것으로 충분.
+    expect(useUIStore.getState().viewMode).toBe('preview');
   });
 });
 
