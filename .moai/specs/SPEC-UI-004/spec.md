@@ -1,7 +1,7 @@
 ---
 id: SPEC-UI-004
 version: "1.0.0"
-status: draft
+status: completed
 created: "2026-05-20"
 updated: "2026-05-20"
 author: "jw"
@@ -104,6 +104,17 @@ FileExplorer 사이드바는 **viewMode와 무관**하며 기존 `☰` 버튼(`t
 - **`getFileViewType` 수정 미포함** — `.html`/`code`/`markdown` 분기 함수는 호출만 하며 함수 본문·반환 타입·우선순위를 변경하지 않는다(SPEC-PREVIEW-004/005 동작 무변경).
 - **스크롤 싱크 로직 변경 미포함** — `useScrollSync`는 수정하지 않는다. 단일 패널 모드에서 싱크 무동작은 의도된 부수효과이다.
 - **`.html` 자동 미리보기의 store 강제 변경 미포함** — `.html` 진입 시 `setViewMode`를 호출하지 않는다. 자동 미리보기는 렌더링용 파생(`effectiveViewMode`)으로만 처리하여 사용자가 선택한 `viewMode`를 보존한다.
+
+## 구현 노트 (Implementation Notes)
+
+Plan을 그대로 채택하여 구현했다. scope 변경 없음, `AppLayout.tsx` 미접촉, 신규 npm 의존성 0.
+
+- `ViewModeToggle`: 신규 세그먼티드 토글 컴포넌트로 분리. active 강조는 `effectiveViewMode`가 아닌 원래 `viewMode` 기준(확정 결정 2). 각 버튼 `aria-pressed` 부여.
+- `effectiveViewMode` 파생: `.html`+editor 자동 미리보기 강등은 `ResizablePanels`에서만 처리하며 store의 `viewMode`는 보존(`setViewMode` 미호출, REQ-UI-004-004).
+- 패널 너비: 단일 모드(editor/preview)는 비율을 무시하고 가용 전체 폭, split 복귀 시 `previewWidth` 비율 보존.
+- persist: 기존 `mdedit-ui-store` zustand 미들웨어로 자동 영속화(추가 설정 없음).
+
+테스트: 신규 22건 추가(must-pass T2·T4 포함), 전체 448/448 통과, 타입체크 clean.
 
 ## References
 
