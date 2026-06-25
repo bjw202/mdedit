@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { act } from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { Footer } from '@/components/layout/Footer';
+import { useUIStore } from '@/store/uiStore';
 
 describe('Footer', () => {
   afterEach(() => cleanup());
@@ -97,5 +99,52 @@ describe('Footer: scroll sync toggle', () => {
     render(<Footer scrollSyncEnabled={false} onScrollSyncToggle={vi.fn()} />);
     const btn = screen.getByRole('button', { name: /scroll sync/i });
     expect(btn).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+describe('Footer: statusMessage (SPEC-UI-005)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ statusMessage: null });
+  });
+
+  afterEach(() => {
+    // cleanup 먼저 호출해 Footer unmount — 이후 store 업데이트가 구독 컴포넌트를 trigger 하지 않음
+    cleanup();
+    // setStatusMessage 액션으로 타이머까지 정리 (단순 setState 는 timer 를 남겨 act warning 유발)
+    useUIStore.getState().setStatusMessage(null);
+  });
+
+  it('renders statusMessage when set in useUIStore (AC-009)', () => {
+    // render 전 store 업데이트는 React act() 경고를 유발하므로 act() 로 감싼다
+    act(() => {
+      useUIStore.setState({ statusMessage: 'Copied: /x/y.md' });
+    });
+    render(<Footer />);
+    const status = screen.getByRole('status');
+    expect(status).toBeInTheDocument();
+    expect(status).toHaveTextContent('Copied: /x/y.md');
+  });
+
+  it('does not render status region when statusMessage is null (AC-009)', () => {
+    // render 전 store 업데이트는 React act() 경고를 유발하므로 act() 로 감싼다
+    act(() => {
+      useUIStore.setState({ statusMessage: null });
+    });
+    render(<Footer />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('updates when statusMessage changes in the store', () => {
+    // render 전 store 업데이트는 React act() 경고를 유발하므로 act() 로 감싼다
+    act(() => {
+      useUIStore.setState({ statusMessage: 'Copied: first' });
+    });
+    render(<Footer />);
+    expect(screen.getByRole('status')).toHaveTextContent('Copied: first');
+
+    act(() => {
+      useUIStore.setState({ statusMessage: 'Copied: second' });
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Copied: second');
   });
 });

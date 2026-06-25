@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { act } from 'react';
 import { useUIStore } from '@/store/uiStore';
 
@@ -195,5 +195,94 @@ describe('uiStore: scrollSyncEnabled', () => {
     const { setScrollSyncEnabled } = useUIStore.getState();
     act(() => setScrollSyncEnabled(false));
     expect(useUIStore.getState().scrollSyncEnabled).toBe(false);
+  });
+});
+
+describe('uiStore: statusMessage (SPEC-UI-005)', () => {
+  afterEach(() => {
+    // 보류 중인 auto-clear 타이머 정리 (module-level ref 누적 방지)
+    useUIStore.getState().setStatusMessage(null);
+    vi.clearAllTimers();
+    // fake timers 가 describe 블록 밖으로 누수되지 않도록 real timers 로 복원
+    vi.useRealTimers();
+  });
+
+  beforeEach(() => {
+    // 매 테스트마다 fake timers 재활성화 — afterEach 가 real timers 로 복원하기 때문
+    vi.useFakeTimers();
+    useUIStore.setState({ statusMessage: null });
+  });
+
+  it('should set statusMessage to a string value (AC-005 기본)', () => {
+    const { setStatusMessage } = useUIStore.getState();
+    act(() => setStatusMessage('Copied: /x/y.md'));
+    expect(useUIStore.getState().statusMessage).toBe('Copied: /x/y.md');
+  });
+
+  it('should have initial statusMessage of null', () => {
+    expect(useUIStore.getState().statusMessage).toBeNull();
+  });
+
+  it('should auto-clear statusMessage after ~2000ms (AC-016, must-pass)', () => {
+    const { setStatusMessage } = useUIStore.getState();
+    act(() => setStatusMessage('Copied: x'));
+    expect(useUIStore.getState().statusMessage).toBe('Copied: x');
+
+    act(() => { vi.advanceTimersByTime(1999); });
+    expect(useUIStore.getState().statusMessage).toBe('Copied: x');
+
+    act(() => { vi.advanceTimersByTime(1); }); // 총 2000ms
+    expect(useUIStore.getState().statusMessage).toBeNull();
+  });
+
+  it('should single-flight: second message replaces first and resets timer (AC-017)', () => {
+    const { setStatusMessage } = useUIStore.getState();
+    act(() => setStatusMessage('first'));
+    act(() => { vi.advanceTimersByTime(1000); });
+    act(() => setStatusMessage('second'));
+
+    expect(useUIStore.getState().statusMessage).toBe('second');
+
+    // 첫 호출 후 총 1999ms — 첫 타이머가 취소됐으므로 여전히 'second'
+    act(() => { vi.advanceTimersByTime(999); });
+    expect(useUIStore.getState().statusMessage).toBe('second');
+
+    // 두 번째 호출 후 총 1000ms (첫 호출 후 총 2000ms) — 아직 남음 (timer B fires at t=3000)
+    act(() => { vi.advanceTimersByTime(1); }); // t=2000
+    expect(useUIStore.getState().statusMessage).toBe('second');
+
+    // 두 번째 호출 기준 1999ms (t=2999) — 여전히 'second'
+    act(() => { vi.advanceTimersByTime(999); });
+    expect(useUIStore.getState().statusMessage).toBe('second');
+
+    // 두 번째 호출 기준 2000ms 도달 (t=3000) → timer B fires → null
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(useUIStore.getState().statusMessage).toBeNull();
+  });
+
+  it('should cancel pending timer and immediately set null on explicit setStatusMessage(null) (AC-018)', () => {
+    const { setStatusMessage } = useUIStore.getState();
+    act(() => setStatusMessage('first'));
+    act(() => { vi.advanceTimersByTime(1000); });
+    act(() => setStatusMessage(null));
+
+    expect(useUIStore.getState().statusMessage).toBeNull();
+
+    // 이후 2000ms 을 추가로 진행해도 추가 상태 변화나 타이머 callback 발생 없음
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(useUIStore.getState().statusMessage).toBeNull();
+  });
+
+  it('should NOT persist statusMessage to localStorage (EC-5 persist exclusion)', () => {
+    // partialize 가 statusMessage 를 제외하므로, localStorage 의 스냅샷에 해당 키가 없어야 한다.
+    localStorage.removeItem('mdedit-ui-store');
+    const { setStatusMessage } = useUIStore.getState();
+    act(() => setStatusMessage('should-not-persist'));
+
+    const raw = localStorage.getItem('mdedit-ui-store');
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw as string);
+    // persist 미들웨어는 { state: {...}, version: n } 형태로 저장한다
+    expect(persisted.state).not.toHaveProperty('statusMessage');
   });
 });

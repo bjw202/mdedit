@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFileStore } from '@/store/fileStore';
 import { useFileSystem } from '@/hooks/useFileSystem';
+import { useUIStore } from '@/store/uiStore';
 import { readDirectory } from '@/lib/tauri/ipc';
 import type { FileNode } from '@/types/file';
 
@@ -92,6 +93,7 @@ interface FileTreeNodeProps {
 export function FileTreeNode({ node, depth, onRefresh }: FileTreeNodeProps): JSX.Element {
   const { currentFile, expandedDirs, updateNodeChildren } = useFileStore();
   const { openFile, createFile, deleteNode, renameNode, openFolderPath } = useFileSystem();
+  const { setStatusMessage } = useUIStore();
 
   const isExpanded = expandedDirs.has(node.path);
   const isActive = currentFile === node.path;
@@ -181,6 +183,31 @@ export function FileTreeNode({ node, depth, onRefresh }: FileTreeNodeProps): JSX
       void deleteNode(node.path).then(() => onRefresh());
     }
   }, [node.name, node.path, deleteNode, onRefresh]);
+
+  // @MX:NOTE: [AUTO] Copy Path / Copy Name 핸들러 (SPEC-UI-005).
+  // Claude Code 등 외부 에이전트/터미널로 path 를 신속 전달하기 위한 유스케이스.
+  // node.path / node.name 원문 그대로 writeText 에 전달 (슬래시 변환 금지, AC-012).
+  // 실패 시 throw 하지 않고 에러 statusMessage 표시 (AC-011).
+  // @MX:SPEC: SPEC-UI-005
+  const handleCopyPath = useCallback(async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(node.path);
+      setStatusMessage(`Copied: ${node.path}`);
+    } catch (err) {
+      console.error('[FileTreeNode] Failed to copy path:', err);
+      setStatusMessage('Failed to copy path');
+    }
+  }, [node.path, setStatusMessage]);
+
+  const handleCopyName = useCallback(async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(node.name);
+      setStatusMessage(`Copied: ${node.name}`);
+    } catch (err) {
+      console.error('[FileTreeNode] Failed to copy name:', err);
+      setStatusMessage('Failed to copy name');
+    }
+  }, [node.name, setStatusMessage]);
 
   const paddingLeft = depth * 12 + 8;
 
@@ -303,6 +330,21 @@ export function FileTreeNode({ node, depth, onRefresh }: FileTreeNodeProps): JSX
               <hr className="border-gray-200 dark:border-gray-700 my-1" />
             </>
           )}
+          <button
+            role="menuitem"
+            className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            onClick={() => { setContextMenu(null); void handleCopyPath(); }}
+          >
+            Copy Path
+          </button>
+          <button
+            role="menuitem"
+            className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            onClick={() => { setContextMenu(null); void handleCopyName(); }}
+          >
+            Copy Name
+          </button>
+          <hr className="border-gray-200 dark:border-gray-700 my-1" />
           <button
             role="menuitem"
             className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
