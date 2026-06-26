@@ -4,6 +4,16 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Changed
+- **파일 탐색기 전체 파일 노출 (SPEC-PREVIEW-007)**:
+  - 확장자 allowlist 필터 제거 — 폴더의 모든 파일(dotfile·확장자 없는 파일 포함)과 디렉터리를 노출 (SPEC-PREVIEW-004/005의 필터 동작 대체)
+  - 인식 안 되는 텍스트 파일(`.gitignore`, `.rs`, `.log`, `.csv` 등)은 평문으로 표시 + 편집 가능
+  - 바이너리/읽기 불가 파일(`.png`, `.pdf`, `.zip` 등)은 "미리보기 불가" 플레이스홀더 표시, 편집기에 로드하지 않음 (신규 `UnsupportedFileViewer`)
+  - 대용량 파일(5MB 초과)은 전체 로드 없이 "미리보기 건너뜀" 안내 (`FileNode.size` 기반 사전 가드)
+  - `.md`/`.markdown`은 항상 마크다운으로 렌더 — 평문 폴백 회귀 방지
+  - 모든 파일 클릭이 예외 없이 안전하게 처리됨(이전 "모든 파일 노출 시 깨짐" 버그 해소)
+  - Rust 변경 없음, 신규 런타임 의존성 없음, 55개 테스트 추가 (전체 534 통과)
+
 ### Fixed
 - **mermaid subgraph 제목 줄바꿈 (SPEC-PREVIEW-006)**:
   - 긴 한국어 subgraph(cluster) 제목이 mermaid의 하드코딩 `foreignObject width=200`(mermaid #6110) 때문에 2줄로 줄바꿈되던 문제를 patch-package로 해결 — 이제 1줄로 표시

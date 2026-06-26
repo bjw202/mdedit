@@ -5,7 +5,6 @@ import { readDirectory } from '@/lib/tauri/ipc';
 import { FileSearch } from './FileSearch';
 import { FileTree } from './FileTree';
 import type { FileNode } from '@/types/file';
-import { getLangForExtension } from '@/lib/preview/extensionLangMap';
 
 // @MX:ANCHOR: [AUTO] Top-level sidebar container - orchestrates file tree, search, open-folder actions
 // @MX:REASON: [AUTO] Public API boundary - used by AppLayout as the sidebar component (fan_in >= 3)
@@ -33,38 +32,9 @@ function filterTree(nodes: FileNode[], query: string): FileNode[] {
   }, []);
 }
 
-/**
- * Recursively filters a FileNode tree to include only viewable files and their ancestor directories.
- *
- * 표시 조건 (SPEC-PREVIEW-005):
- *   1. .md 파일 (마크다운 미리보기)
- *   2. .html 파일 (HTML 파일 보기, SPEC-PREVIEW-004)
- *   3. extensionLangMap에 등록된 코드/데이터 파일 (.py/.ts/.json/.yaml 등, SPEC-PREVIEW-005)
- *
- * 디렉토리는 항상 포함하여 사용자가 탐색할 수 있도록 한다.
- * 대소문자는 toLowerCase()로 정규화하여 처리한다.
- *
- * @MX:NOTE: [AUTO] 허용 확장자 진실 공급원은 extensionLangMap — 이 함수에 확장자를 중복 선언하지 말 것
- * @MX:SPEC: SPEC-PREVIEW-005 REQ-PREVIEW005-001
- */
-function filterViewableFiles(nodes: FileNode[]): FileNode[] {
-  return nodes.reduce<FileNode[]>((acc, node) => {
-    if (node.isDirectory) {
-      const filteredChildren = node.children ? filterViewableFiles(node.children) : node.children;
-      acc.push({ ...node, children: filteredChildren });
-    } else {
-      const lower = node.name.toLowerCase();
-      // .md/.html은 별도 뷰어 경로, extensionLangMap 결과는 코드 뷰어 경로(SPEC-PREVIEW-005)
-      if (lower.endsWith('.md') || lower.endsWith('.html') || getLangForExtension(node.name) !== null) {
-        acc.push(node);
-      }
-    }
-    return acc;
-  }, []);
-}
-
-// 이전 이름과의 하위 호환성 유지 — 내부적으로 filterViewableFiles를 사용한다
-const filterMdOnly = filterViewableFiles;
+// @MX:NOTE: [AUTO] SPEC-PREVIEW-007: filterViewableFiles/filterMdOnly를 제거하여 모든 파일을 노출한다.
+// visibleTree는 이제 filterTree(검색 쿼리 필터)만 적용한다. 확장자 allowlist는 없다.
+// @MX:SPEC: SPEC-PREVIEW-007 REQ-PREVIEW007-001 REQ-PREVIEW007-002
 
 /**
  * Derives the last segment of a path (folder name) for display.
@@ -124,7 +94,8 @@ export function FileExplorer(): JSX.Element {
     void readDirectory(currentPath).then((tree) => setFileTree(tree));
   }, [setFileTree]);
 
-  const visibleTree = filterTree(filterMdOnly(fileTree), searchQuery);
+  // SPEC-PREVIEW-007: allowlist 제거 — filterTree(검색 필터)만 적용
+  const visibleTree = filterTree(fileTree, searchQuery);
 
   // Empty state - no folder opened
   if (!watchedPath) {

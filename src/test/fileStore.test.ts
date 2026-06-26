@@ -23,6 +23,7 @@ describe('fileStore', () => {
       expandedDirs: new Set<string>(),
       watchedPath: null,
       isLoading: false,
+      previewStatus: null,
     });
   });
 
