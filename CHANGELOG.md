@@ -14,6 +14,15 @@ All notable changes to MdEdit are documented here.
   - 모든 파일 클릭이 예외 없이 안전하게 처리됨(이전 "모든 파일 노출 시 깨짐" 버그 해소)
   - Rust 변경 없음, 신규 런타임 의존성 없음, 55개 테스트 추가 (전체 534 통과)
 
+### Fixed
+- **mermaid subgraph 제목 줄바꿈 (SPEC-PREVIEW-006)**:
+  - 긴 한국어 subgraph(cluster) 제목이 mermaid의 하드코딩 `foreignObject width=200`(mermaid #6110) 때문에 2줄로 줄바꿈되던 문제를 patch-package로 해결 — 이제 1줄로 표시
+  - cluster `rect` 렌더러의 `createText` 호출에 명시적 width 전달 (`patches/mermaid+11.12.3.patch`)
+  - mermaid를 정확히 `11.12.3`으로 고정 + `postinstall`로 패치 결정론적 재적용
+  - Playwright 가드 테스트로 1줄 표시·무겹침 검증 (버전 드리프트·패치 누락 시 자동 실패)
+  - config-only / CSS·JS patchwork / ELK 대안은 검증 후 기각 (SPEC에 근거 기록)
+  - 앱 소스 변경 없음, 신규 런타임 의존성 없음
+
 ---
 
 ## [0.6.0] - 2026-05-21

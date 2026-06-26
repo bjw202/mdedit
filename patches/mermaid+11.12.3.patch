@@ -1,0 +1,14 @@
+diff --git a/node_modules/mermaid/dist/chunks/mermaid.core/chunk-JZLCHNYA.mjs b/node_modules/mermaid/dist/chunks/mermaid.core/chunk-JZLCHNYA.mjs
+index 2cdaefe..e0eec96 100644
+--- a/node_modules/mermaid/dist/chunks/mermaid.core/chunk-JZLCHNYA.mjs
++++ b/node_modules/mermaid/dist/chunks/mermaid.core/chunk-JZLCHNYA.mjs
+@@ -363,7 +363,8 @@ var rect = /* @__PURE__ */ __name(async (parent, node) => {
+   const text2 = await createText(labelEl, node.label, {
+     style: node.labelStyle,
+     useHtmlLabels,
+-    isNode: true
++    isNode: true,
++    width: 1e5
+   });
+   let bbox = text2.getBBox();
+   if (evaluate(siteConfig.flowchart.htmlLabels)) {
