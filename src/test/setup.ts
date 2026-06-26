@@ -14,3 +14,12 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+
+// SPEC-UI-005: Mock navigator.clipboard.writeText — jsdom 은 clipboard API 를 구현하지 않음.
+// Object.defineProperty 로 직접 정의하여 configurable: true (이후 테스트에서 mockRejectedValue 교체 가능).
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
+    writeText: vi.fn().mockResolvedValue(undefined),
+  },
+  configurable: true,
+});

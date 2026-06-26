@@ -1,3 +1,4 @@
+import { useUIStore } from '@/store/uiStore';
 import type { SaveStatus } from '@/store/uiStore';
 
 interface FooterProps {
@@ -43,6 +44,9 @@ export function Footer({
   scrollSyncEnabled = true,
   onScrollSyncToggle,
 }: FooterProps): JSX.Element {
+  // SPEC-UI-005: Footer 가 useUIStore.statusMessage 를 직접 구독 (prop drilling 없음).
+  const statusMessage = useUIStore((s) => s.statusMessage);
+
   return (
     <footer className="flex items-center justify-between h-6 px-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-500 select-none">
       <div className="flex items-center gap-4">
@@ -52,6 +56,17 @@ export function Footer({
         <span>Lines: {lineCount}</span>
         <span>{wordCount} words</span>
         <span>{charCount} chars</span>
+        {/* @MX:NOTE: [AUTO] 트랜지언트 피드백 메시지 채널 (SPEC-UI-005). clipboard 복사 성공/실패 등 짧은 알림. */}
+        {/* @MX:SPEC: SPEC-UI-005 */}
+        {statusMessage && (
+          <span
+            className="truncate max-w-xs text-blue-600 dark:text-blue-400"
+            role="status"
+            aria-live="polite"
+          >
+            {statusMessage}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-4">
         {onScrollSyncToggle !== undefined && (
