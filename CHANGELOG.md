@@ -4,6 +4,10 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+---
+
+## [0.6.2] - 2026-06-26
+
 ### Changed
 - **파일 탐색기 전체 파일 노출 (SPEC-PREVIEW-007)**:
   - 확장자 allowlist 필터 제거 — 폴더의 모든 파일(dotfile·확장자 없는 파일 포함)과 디렉터리를 노출 (SPEC-PREVIEW-004/005의 필터 동작 대체)
