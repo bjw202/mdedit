@@ -247,16 +247,20 @@ export function AppLayout(): JSX.Element {
     }
   };
 
-  // HTML 파일이 선택된 경우 편집기 대신 보기 전용 플레이스홀더를 표시
-  const isHtmlFile = getFileViewType(currentFile) === 'html';
+  // SPEC-PREVIEW-007: html/binary/too-large 파일은 편집 불가 — isViewOnly로 확장
+  // previewStatus를 fileStore에서 읽어 binary/too-large 여부를 판정한다
+  const previewStatus = useFileStore((s) => s.previewStatus);
+  const viewType = getFileViewType(currentFile, previewStatus);
+  const isViewOnly = viewType === 'html' || viewType === 'unsupported';
 
   // Editor panel: toolbar + editor (inlined to avoid re-creating the component function on every render)
   const editorPanel = (
     <div className="h-full flex flex-col">
       <EditorToolbar onFormat={handleFormat} />
       <div className="flex-1 overflow-hidden">
-        {isHtmlFile ? (
-          // HTML 보기 전용 플레이스홀더 — 편집 불가 안내
+        {isViewOnly ? (
+          // 보기 전용 플레이스홀더 — HTML/바이너리/대용량 파일 편집 불가 안내
+          // SPEC-PREVIEW-004: .html, SPEC-PREVIEW-007: binary/too-large
           <div
             className="h-full flex flex-col items-center justify-center gap-2 p-4 text-center select-none bg-gray-50 dark:bg-gray-900"
             data-testid="html-view-only-placeholder"
@@ -279,7 +283,9 @@ export function AppLayout(): JSX.Element {
               이 형식은 편집할 수 없습니다
             </p>
             <p className="text-xs text-gray-300 dark:text-gray-600">
-              HTML 파일은 보기 전용입니다. 프리뷰 패널에서 내용을 확인하세요.
+              {viewType === 'html'
+                ? 'HTML 파일은 보기 전용입니다. 프리뷰 패널에서 내용을 확인하세요.'
+                : '이 파일은 편집기에서 열 수 없습니다. 프리뷰 패널의 안내를 확인하세요.'}
             </p>
           </div>
         ) : (

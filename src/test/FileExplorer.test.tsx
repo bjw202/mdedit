@@ -225,13 +225,15 @@ describe('FileExplorer', () => {
 
   // SPEC-PREVIEW-005: 코드/데이터 파일(.py/.json/.yaml/.ts 등)도 사이드바에 표시되어야 한다
 
-  it('SPEC-PREVIEW-005: 코드 확장자 파일(.py, .json, .yaml, .ts)이 사이드바에 표시되어야 한다', () => {
+  // SPEC-PREVIEW-007: allowlist 제거 — 모든 파일 표시
+  it('SPEC-PREVIEW-007: 모든 파일(코드, 바이너리, 미매핑 포함)이 사이드바에 표시된다', () => {
     const treeWithCodeFiles: FileNode[] = [
       { name: 'notes.py', path: '/project/notes.py', isDirectory: false },
       { name: 'config.json', path: '/project/config.json', isDirectory: false },
       { name: 'data.yaml', path: '/project/data.yaml', isDirectory: false },
       { name: 'readme.md', path: '/project/readme.md', isDirectory: false },
       { name: 'index.html', path: '/project/index.html', isDirectory: false },
+      // SPEC-PREVIEW-007: archive.zip도 이제 표시된다 (allowlist 제거)
       { name: 'archive.zip', path: '/project/archive.zip', isDirectory: false },
       {
         name: 'src',
@@ -254,29 +256,29 @@ describe('FileExplorer', () => {
     expect(screen.getByText('index.html')).toBeInTheDocument();
     // 디렉토리는 항상 포함되어야 한다
     expect(screen.getByText('src')).toBeInTheDocument();
-    // 알 수 없는 확장자는 제외되어야 한다
-    expect(screen.queryByText('archive.zip')).not.toBeInTheDocument();
+    // SPEC-PREVIEW-007: allowlist 제거 → 미지원 확장자도 표시된다
+    expect(screen.getByText('archive.zip')).toBeInTheDocument();
   });
 
-  it('SPEC-PREVIEW-005: extensionLangMap에 없는 확장자만 제외하고 모든 지원 확장자는 표시한다', () => {
+  it('SPEC-PREVIEW-007: extensionLangMap 미등록 파일도 모두 표시된다 (allowlist 제거)', () => {
     const mixedTree: FileNode[] = [
       { name: 'script.sh', path: '/project/script.sh', isDirectory: false },
       { name: 'style.css', path: '/project/style.css', isDirectory: false },
       { name: 'config.toml', path: '/project/config.toml', isDirectory: false },
       { name: 'main.js', path: '/project/main.js', isDirectory: false },
+      // SPEC-PREVIEW-007: 이전엔 제외됐던 파일들도 이제 표시된다
       { name: 'unknown.bin', path: '/project/unknown.bin', isDirectory: false },
       { name: 'image.png', path: '/project/image.png', isDirectory: false },
     ];
     useFileStore.setState({ watchedPath: '/project', fileTree: mixedTree });
     render(<FileExplorer />);
 
-    // extensionLangMap에 있는 파일들은 모두 표시되어야 한다
+    // 모든 파일이 표시되어야 한다 (SPEC-PREVIEW-007 REQ-PREVIEW007-001)
     expect(screen.getByText('script.sh')).toBeInTheDocument();
     expect(screen.getByText('style.css')).toBeInTheDocument();
     expect(screen.getByText('config.toml')).toBeInTheDocument();
     expect(screen.getByText('main.js')).toBeInTheDocument();
-    // 지원되지 않는 확장자는 제외되어야 한다
-    expect(screen.queryByText('unknown.bin')).not.toBeInTheDocument();
-    expect(screen.queryByText('image.png')).not.toBeInTheDocument();
+    expect(screen.getByText('unknown.bin')).toBeInTheDocument();
+    expect(screen.getByText('image.png')).toBeInTheDocument();
   });
 });

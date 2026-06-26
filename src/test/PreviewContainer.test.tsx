@@ -5,13 +5,20 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { getFileViewType } from '@/components/preview/PreviewContainer';
 
-// fileStore mock
+// fileStore mock — SPEC-PREVIEW-007: previewStatus 추가
 const mockCurrentFile: { value: string | null } = { value: null };
 
 vi.mock('@/store/fileStore', () => ({
-  useFileStore: vi.fn((selector: (s: { currentFile: string | null }) => unknown) =>
-    selector({ currentFile: mockCurrentFile.value })
+  useFileStore: vi.fn((selector: (s: { currentFile: string | null; previewStatus: null }) => unknown) =>
+    selector({ currentFile: mockCurrentFile.value, previewStatus: null })
   ),
+}));
+
+// UnsupportedFileViewer mock (SPEC-PREVIEW-007 신규 컴포넌트)
+vi.mock('@/components/preview/UnsupportedFileViewer', () => ({
+  UnsupportedFileViewer: vi.fn(({ reason, filename }: { reason: string; filename: string }) => (
+    <div data-testid="unsupported-file-viewer" data-reason={reason} data-filename={filename} />
+  )),
 }));
 
 // MarkdownPreview mock

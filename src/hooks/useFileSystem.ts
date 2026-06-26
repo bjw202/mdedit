@@ -16,6 +16,7 @@ import {
 import { useFileStore } from '@/store/fileStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
+import { FILE_SIZE_THRESHOLD } from '@/lib/preview/previewLimits';
 
 interface FileSystemHook {
   openFolder: () => Promise<void>;
@@ -125,9 +126,13 @@ export function useFileSystem(): FileSystemHook {
     await openFolderPath(selectedPath);
   };
 
-  // @MX:NOTE: [AUTO] .html 파일과 .md 파일의 처리 경로가 분기되는 지점.
-  //   .html: 편집기에 내용을 싣지 않고 파일 경로만 store에 설정 → HtmlFileViewer가 iframe으로 렌더링.
-  //   그 외: 기존 동작 유지 — readFile → setContent → setCurrentFilePath.
+  // @MX:NOTE: [AUTO] SPEC-PREVIEW-007: 파일을 열 때 4분류(html/too-large/text/binary)로 판정.
+  //   1. .html → 기존 경로 유지 (편집기 미로드, previewStatus='html')
+  //   2. size > FILE_SIZE_THRESHOLD → too-large (readFile 회피, previewStatus='too-large')
+  //   3. readFile 성공 → text (편집기 로드, previewStatus='text')
+  //   4. readFile reject → binary (편집기 미로드, previewStatus='binary', 예외 흡수)
+  //   어떤 경우에도 예외를 상위로 전파하지 않는다 (REQ-PREVIEW007-006).
+  // @MX:SPEC: SPEC-PREVIEW-007 REQ-PREVIEW007-003 REQ-PREVIEW007-004 REQ-PREVIEW007-005 REQ-PREVIEW007-006
   // @MX:SPEC: SPEC-PREVIEW-004 REQ-PREVIEW004-001
   const openFile = async (path: string): Promise<void> => {
     // 미저장 변경사항 경고
@@ -141,22 +146,57 @@ export function useFileSystem(): FileSystemHook {
       }
     }
 
-    // HTML 파일: 편집기에 내용을 로드하지 않고 파일 경로만 store에 설정
+    const { setPreviewStatus } = useFileStore.getState();
+
+    // 1순위: HTML 파일 — 편집기에 내용을 로드하지 않고 파일 경로만 store에 설정
     if (path.toLowerCase().endsWith('.html')) {
       setCurrentFile(path);
-      // HTML 보기 모드에서는 편집기 내용·상태를 초기화한다
       setContent('');
       setCurrentFilePath(path);
+      setPreviewStatus('html');
       useUIStore.getState().setSaveStatus('saved');
       return;
     }
 
-    // 마크다운 및 그 외 파일: 기존 동작 유지
-    const content = await readFile(path);
-    setCurrentFile(path);
-    setContent(content);
-    setCurrentFilePath(path);
-    useUIStore.getState().setSaveStatus('saved');
+    // 2순위: 대용량 파일 가드 — FileNode.size로 열기 전에 판정
+    // fileStore tree에서 해당 경로의 노드를 찾아 크기를 확인한다
+    const findNodeSize = (nodes: ReturnType<typeof useFileStore.getState>['fileTree'], targetPath: string): number | undefined => {
+      for (const node of nodes) {
+        if (node.path === targetPath) return node.size;
+        if (node.children) {
+          const found = findNodeSize(node.children, targetPath);
+          if (found !== undefined) return found;
+        }
+      }
+      return undefined;
+    };
+    const nodeSize = findNodeSize(useFileStore.getState().fileTree, path);
+    if (nodeSize !== undefined && nodeSize > FILE_SIZE_THRESHOLD) {
+      setCurrentFile(path);
+      setContent('');
+      setCurrentFilePath(path);
+      setPreviewStatus('too-large');
+      useUIStore.getState().setSaveStatus('saved');
+      return;
+    }
+
+    // 3/4순위: readFile 시도 — 성공이면 text, reject이면 binary
+    try {
+      const content = await readFile(path);
+      setCurrentFile(path);
+      setContent(content);
+      setCurrentFilePath(path);
+      setPreviewStatus('text');
+      useUIStore.getState().setSaveStatus('saved');
+    } catch {
+      // 바이너리/읽기 불가/권한 오류 등 모든 reject를 binary로 흡수
+      // REQ-PREVIEW007-006: 예외를 상위로 전파하지 않는다
+      setCurrentFile(path);
+      setContent('');
+      setCurrentFilePath(path);
+      setPreviewStatus('binary');
+      useUIStore.getState().setSaveStatus('saved');
+    }
   };
 
   const saveFileAs = async (): Promise<string | null> => {
