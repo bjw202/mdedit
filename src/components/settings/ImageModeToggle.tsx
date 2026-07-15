@@ -17,14 +17,30 @@ export function ImageModeToggle(): JSX.Element {
     setImageInsertMode(e.target.value as ImageInsertMode);
   };
 
+  // @MX:NOTE: [AUTO] SPEC-UI-006 — 핸드오프 Surface 매핑은 .md-seg/.md-seg-opt(세그먼티드 버튼)를
+  // 지정하지만, 이 컨트롤은 네이티브 <select>(단일 액션, 상태 로직 없음)로 남긴다. 세그먼트 버튼으로
+  // 재구성하면 마크업이 select→button 구조로 바뀌어 회귀 위험이 커지는 반면 시각 이득은 작다.
+  // 토큰(md-font-ui, --md-border, --md-text-*)만 적용해 다른 .md-* 컨트롤과 시각적으로 통일한다.
+  // @MX:SPEC: SPEC-UI-006
   return (
-    <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+    <label
+      className="flex items-center gap-1"
+      style={{ fontFamily: 'var(--md-font-ui)', fontSize: 12, color: 'var(--md-text-muted)' }}
+    >
       <span>Image:</span>
       <select
         aria-label="Image insert mode"
         value={imageInsertMode}
         onChange={handleChange}
-        className="text-xs rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-0.5 cursor-pointer"
+        className="cursor-pointer"
+        style={{
+          fontSize: 12,
+          borderRadius: 'var(--md-radius-sm)',
+          border: '1px solid var(--md-border)',
+          background: 'transparent',
+          color: 'var(--md-text-primary)',
+          padding: '2px 4px',
+        }}
       >
         <option value="inline-blob">Inline</option>
         <option value="file-save">File</option>

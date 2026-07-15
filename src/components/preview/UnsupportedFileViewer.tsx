@@ -25,14 +25,15 @@ export function UnsupportedFileViewer({ reason, filename }: UnsupportedFileViewe
 
   return (
     <div
-      className="h-full flex flex-col items-center justify-center gap-2 p-4 text-center select-none bg-gray-50 dark:bg-gray-900"
+      className="md-previewpane h-full flex flex-col items-center justify-center gap-2 p-4 text-center select-none"
       data-testid="unsupported-file-viewer"
       data-reason={reason}
       data-filename={filename}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        className="w-8 h-8 text-gray-300 dark:text-gray-600"
+        className="w-8 h-8"
+        style={{ color: 'var(--md-text-faint)' }}
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"

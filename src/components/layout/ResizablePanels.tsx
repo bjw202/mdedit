@@ -11,8 +11,11 @@ interface ResizablePanelsProps {
 }
 
 // Extracted reusable resize divider to eliminate duplication
-const DIVIDER_CLASS =
-  'w-1 h-full bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-600 cursor-col-resize flex-shrink-0 transition-colors';
+// @MX:NOTE: [AUTO] SPEC-UI-006 — 스플리터는 .md-pane-divider(시각 토큰: --md-divider-pane)만 추가한다.
+// 핸드오프의 고정 grid 트랙(.md-body 232px/6px/1fr/6px/1fr)은 채택하지 않았으므로, 드래그 로직·폭
+// 계산(effectiveSidebarWidth 등)과 히트 영역(w-1 = 4px, cursor-col-resize)은 완전히 무변경이다.
+// @MX:SPEC: SPEC-UI-006
+const DIVIDER_CLASS = 'w-1 h-full md-pane-divider cursor-col-resize flex-shrink-0 transition-colors';
 
 interface ResizeDividerProps {
   onMouseDown: () => void;
@@ -121,6 +124,9 @@ export function ResizablePanels({ sidebar, editor, preview }: ResizablePanelsPro
             style={{ width: effectiveSidebarWidth, minWidth: 180 }}
             className="h-full overflow-hidden flex-shrink-0 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
           >
+            {/* SPEC-UI-006: .md-sidebar (flex-column token styling) is applied inside
+                FileExplorer's own root, not here — this wrapper only owns the resizable
+                width/overflow contract (ResizablePanels drag-to-resize invariant). */}
             {sidebar}
           </div>
           <ResizeDivider onMouseDown={handleSidebarMouseDown} />

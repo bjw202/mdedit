@@ -28,7 +28,7 @@ export function FileTree({ nodes, onRefresh }: FileTreeProps): JSX.Element | nul
   const sorted = sortNodes(nodes);
 
   return (
-    <div role="tree" className="overflow-y-auto">
+    <div role="tree">
       {sorted.map((node) => (
         <FileTreeNode
           key={node.path}

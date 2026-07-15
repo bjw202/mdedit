@@ -90,7 +90,7 @@ export function CodeFileViewer({ lang }: CodeFileViewerProps): JSX.Element {
 
   return (
     // 스크롤 컨테이너는 h-full 유지 — zoom은 내부 래퍼에만 적용
-    <div className="code-file-viewer h-full overflow-auto p-4">
+    <div className="md-previewpane code-file-viewer h-full overflow-auto p-4">
       {/* zoom 래퍼: Shiki 출력 전체를 비례 스케일 (A-/A+ 컨트롤 연동) */}
       {/* Shiki XSS posture: 입력이 이스케이프되므로 dangerouslySetInnerHTML 안전 */}
       <div style={{ zoom }} dangerouslySetInnerHTML={{ __html: html }} />
