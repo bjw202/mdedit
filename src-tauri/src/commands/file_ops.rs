@@ -2,21 +2,27 @@
 // @MX:REASON: Public API boundary for all file operations from frontend (fan_in >= 3)
 // @MX:SPEC: SPEC-FS-001
 
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 /// Validates a path string and returns a PathBuf.
-/// Rejects paths containing ".." to prevent path traversal attacks.
+/// Rejects paths that contain a `..` parent-directory component to prevent
+/// path traversal attacks. A literal `..` occurring *within* a single path
+/// component (e.g. a folder named "오징어게임..-시장") is legitimate and allowed.
 // @MX:ANCHOR: [AUTO] Security boundary - validates all incoming paths
 // @MX:REASON: All command handlers call this function (fan_in >= 5)
 pub fn validate_path(path: &str) -> Result<PathBuf, String> {
-    if path.contains("..") {
-        return Err("Invalid path: path traversal not allowed".to_string());
-    }
     if path.is_empty() {
         return Err("Invalid path: path cannot be empty".to_string());
     }
-    let pb = std::path::Path::new(path);
-    Ok(pb.to_path_buf())
+    // 컴포넌트 단위로 상위 디렉토리 탈출(ParentDir)만 거부한다.
+    // 순진한 contains("..")는 이름에 '..'가 포함된 정상 폴더까지 오탐 차단한다.
+    if Path::new(path)
+        .components()
+        .any(|c| matches!(c, Component::ParentDir))
+    {
+        return Err("Invalid path: path traversal not allowed".to_string());
+    }
+    Ok(Path::new(path).to_path_buf())
 }
 
 /// Reads a file and returns its content as a UTF-8 string.
@@ -241,6 +247,19 @@ mod tests {
     fn test_validate_path_accepts_relative_path() {
         let result = validate_path("some/relative/path.txt");
         assert!(result.is_ok());
+    }
+
+    // 회귀 재현: 파일/폴더 이름 내부의 연속 점('..')은 경로 탈출이 아니므로 허용해야 한다.
+    // 실제 버그 사례: ".../삼전닉스-오징어게임..-시장" 폴더가 열리지 않던 문제.
+    // '..'가 경로 구분자로 둘러싸인 독립 컴포넌트(ParentDir)일 때만 탈출로 간주해야 한다.
+    #[test]
+    fn test_validate_path_accepts_dotdot_within_component() {
+        let result = validate_path("/Users/x/runs/삼전닉스-오징어게임..-시장-26.07.14");
+        assert!(
+            result.is_ok(),
+            "이름 내부의 '..'는 경로 탈출이 아니므로 허용되어야 함: {:?}",
+            result.err()
+        );
     }
 
     // --- read_file tests ---

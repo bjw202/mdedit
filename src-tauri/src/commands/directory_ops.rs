@@ -4,7 +4,7 @@
 
 use crate::commands::file_ops::validate_path;
 use crate::models::file_node::FileNode;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 /// Reads a directory one level deep and returns a sorted FileNode list.
@@ -103,8 +103,13 @@ pub fn canonicalize_folder_path(path: &str) -> Result<PathBuf, String> {
     if path.is_empty() {
         return Err("폴더 경로가 비어 있습니다.".to_string());
     }
-    // ".." 경로 탈출 거부 (validate_path와 일관된 방식)
-    if path.contains("..") {
+    // ".." 경로 탈출 거부 (validate_path와 일관된 방식).
+    // 컴포넌트 단위로 상위 디렉토리 탈출(ParentDir)만 거부한다 —
+    // 이름에 '..'가 포함된 정상 폴더(예: "오징어게임..-시장")는 허용해야 한다.
+    if Path::new(path)
+        .components()
+        .any(|c| matches!(c, Component::ParentDir))
+    {
         return Err("유효하지 않은 경로: 경로 탈출은 허용되지 않습니다.".to_string());
     }
     // 절대 경로화 + 심링크 해소
@@ -171,6 +176,24 @@ mod tests {
         let result = canonicalize_folder_path("/nonexistent/path_preview004_test");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("정규화 실패"));
+    }
+
+    // 회귀 재현: 폴더 이름 내부의 연속 점('..')은 경로 탈출이 아니므로 정규화에 성공해야 한다.
+    // 실제 버그 사례: ".../삼전닉스-오징어게임..-시장" 폴더 진입 시 asset scope 등록이 실패하던 문제.
+    #[test]
+    fn test_canonicalize_folder_path_이름내부_dotdot_허용() {
+        let base = env::temp_dir().join("test_canon_dotdot_preview004");
+        let dir = base.join("삼전닉스-오징어게임..-시장");
+        fs::create_dir_all(&dir).unwrap();
+
+        let result = canonicalize_folder_path(dir.to_str().unwrap());
+        assert!(
+            result.is_ok(),
+            "이름 내부의 '..'는 경로 탈출이 아니므로 허용되어야 함: {:?}",
+            result.err()
+        );
+
+        fs::remove_dir_all(&base).ok();
     }
 
     #[test]
