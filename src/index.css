@@ -1,3 +1,21 @@
+/* ============================================================
+   SPEC-UI-006 — mdedit design-system handoff CSS
+   @import must precede all other rules per the CSS spec, so these three
+   imports sit above the @tailwind directives. Load order is an invariant:
+   fonts (so --md-font-* resolve) → tokens (semantic --md-* variables,
+   light + [data-theme="dark"]) → components (.md-* classes, reference
+   tokens only). Reversing token/component order breaks component styling
+   (undefined variable references). These files coexist with the Tailwind
+   layers below and the CodeMirror image-widget CSS further down; .md-*
+   class names never collide with Tailwind utility classes (both additive).
+   ============================================================ */
+/* @MX:NOTE: [AUTO] 토큰→컴포넌트 로드 순서 불변식(REQ-UI-006-001) + 폰트 @font-face 선행 배치.
+   기존 Tailwind 레이어 및 아래 CodeMirror image-widget CSS와 병존한다. */
+/* @MX:SPEC: SPEC-UI-006 */
+@import './styles/mdedit-fonts.css';
+@import './styles/mdedit-tokens.css';
+@import './styles/mdedit-components.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

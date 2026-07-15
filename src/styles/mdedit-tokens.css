@@ -1,0 +1,113 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   mdedit — Design Tokens
+   Derived from the Industry design system (steel-blue technical wireframe).
+   Single source of truth for engineering. Light is the default (:root);
+   set data-theme="dark" on <html> (or any ancestor) to switch.
+
+   Semantic roles only — components must never reference a raw hex or a
+   numbered ramp step directly; always go through a --md-* role below.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Color · semantic roles (LIGHT) ─────────────────────────────────── */
+  --md-bg:              #f2f2f3;   /* app window ground */
+  --md-surface:         #e9e9ea;   /* sidebar, status bar, toolbars */
+  --md-surface-raised:  #fbfbfc;   /* editor field, menus, dialogs */
+  --md-border:          rgba(29, 31, 32, 0.16);
+  --md-border-strong:   rgba(29, 31, 32, 0.28);
+  --md-text-primary:    #1d1f20;
+  --md-text-muted:      #5d5d60;
+  --md-text-faint:      #98989b;
+
+  --md-accent:          #5980a6;   /* steel-blue — the one accent */
+  --md-accent-hover:    #416180;   /* accent one step darker */
+  --md-accent-active:   #2c455d;
+  --md-accent-soft:     #eaf1f8;   /* tinted fill: selected rows, active toggle bg */
+  --md-accent-contrast: #f2f2f3;   /* text/icon on a solid accent fill */
+
+  --md-danger:          #b0473c;   /* destructive / error (unsaved-close warning) */
+  --md-danger-soft:     #f7e7e5;
+  --md-success:         #4f7a54;   /* saved confirmation */
+  --md-dirty:           #c0863a;   /* unsaved-changes indicator dot */
+
+  --md-selection:       rgba(89, 128, 166, 0.28); /* text selection in editor */
+  --md-code-bg:         #e9e9ea;   /* inline code / code-block ground in preview */
+  --md-divider-pane:    rgba(29, 31, 32, 0.12);   /* resizable pane splitters */
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --md-font-ui:      "Barlow", system-ui, sans-serif;
+  --md-font-display: "Barlow Condensed", system-ui, sans-serif; /* wordmark, headings */
+  --md-font-mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --md-fs-titlebar:  13px;   /* header actions + filename */
+  --md-fs-wordmark:  17px;   /* mdedit wordmark (display face) */
+  --md-fs-toolbar:   13px;   /* editor formatting toolbar */
+  --md-fs-tree:      13px;   /* file-tree rows */
+  --md-fs-status:    11.5px; /* status bar */
+  --md-fs-editor:    15px;   /* CodeMirror body (user-adjustable 12–22) */
+  --md-fs-preview:   16px;   /* rendered markdown body */
+
+  --md-lh-ui:        1.4;
+  --md-lh-editor:    1.65;
+  --md-lh-preview:   1.7;
+
+  /* preview heading scale */
+  --md-fs-pre-h1:    30px;
+  --md-fs-pre-h2:    24px;
+  --md-fs-pre-h3:    19px;
+
+  /* ── Spacing (4px base, Industry density 0.85×) ─────────────────────── */
+  --md-space-1: 3px;
+  --md-space-2: 7px;
+  --md-space-3: 10px;
+  --md-space-4: 14px;
+  --md-space-5: 20px;
+  --md-space-6: 28px;
+
+  /* ── Radius ─────────────────────────────────────────────────────────── */
+  --md-radius-sm: 3px;   /* inputs, buttons, tree rows */
+  --md-radius-md: 5px;   /* menus, cards */
+  --md-radius-lg: 8px;   /* dialogs */
+
+  /* ── Elevation ──────────────────────────────────────────────────────── */
+  --md-shadow-sm: 0 1px 2px rgba(43, 43, 45, 0.14);
+  --md-shadow-md: 0 4px 14px rgba(43, 43, 45, 0.16);   /* dropdown menus */
+  --md-shadow-lg: 0 14px 40px rgba(43, 43, 45, 0.24);  /* dialogs */
+
+  /* ── Motion ─────────────────────────────────────────────────────────── */
+  --md-ease:      cubic-bezier(0.2, 0, 0, 1);
+  --md-dur-fast:  120ms;
+  --md-dur-base:  180ms;
+}
+
+[data-theme="dark"] {
+  /* ── Color · semantic roles (DARK) ──────────────────────────────────── */
+  --md-bg:              #191b1d;
+  --md-surface:         #212427;
+  --md-surface-raised:  #2b2f33;
+  --md-border:          rgba(231, 231, 234, 0.14);
+  --md-border-strong:   rgba(231, 231, 234, 0.26);
+  --md-text-primary:    #e7e7ea;
+  --md-text-muted:      #a4a6a9;
+  --md-text-faint:      #6f7275;
+
+  --md-accent:          #7ea6cd;   /* lifted for contrast on dark ground */
+  --md-accent-hover:    #9ec0e2;
+  --md-accent-active:   #b5d2ef;
+  --md-accent-soft:     rgba(126, 166, 205, 0.16);
+  --md-accent-contrast: #14181c;
+
+  --md-danger:          #d97a6f;
+  --md-danger-soft:     rgba(217, 122, 111, 0.16);
+  --md-success:         #7fae84;
+  --md-dirty:           #d9a75c;
+
+  --md-selection:       rgba(126, 166, 205, 0.30);
+  --md-code-bg:         #2b2f33;
+  --md-divider-pane:    rgba(231, 231, 234, 0.12);
+
+  /* Elevation on dark: hairline + deeper ambient darkness */
+  --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --md-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
+  --md-shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.65);
+}
