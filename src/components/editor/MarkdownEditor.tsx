@@ -333,9 +333,13 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   }, []); // Initialize only once on mount; store actions accessed via refs
 
   return (
+    // SPEC-UI-006: .md-editor applies chrome-only tokens (font/line-height/color via CSS;
+    // gutter/selection colors are bridged through the existing --cm-* variables in index.css,
+    // which now also draw from --md-* tokens). CodeMirror extensions/logic are untouched —
+    // this component still just owns the mount container.
     <div
       ref={containerRef}
-      className="h-full w-full overflow-hidden"
+      className="md-editor h-full w-full overflow-hidden"
       data-testid="markdown-editor"
     />
   );

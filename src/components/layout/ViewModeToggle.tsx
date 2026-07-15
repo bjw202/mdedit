@@ -5,12 +5,18 @@
 
 import { useUIStore } from '@/store/uiStore';
 import type { ViewMode } from '@/store/uiStore';
+import { PanelLeftIcon, Columns2Icon, EyeIcon, type IconProps } from '@/components/icons';
 
-// 각 버튼의 설정 목록 — 레이블, 모드 값, 접근성 레이블, 아이콘
-const VIEW_MODE_BUTTONS: { mode: ViewMode; label: string; ariaLabel: string; icon: string }[] = [
-  { mode: 'editor', label: '편집', ariaLabel: '편집 모드', icon: '▤' },
-  { mode: 'split', label: '분할', ariaLabel: '분할 모드', icon: '▦' },
-  { mode: 'preview', label: '미리보기', ariaLabel: '미리보기 모드', icon: '▥' },
+// 각 버튼의 설정 목록 — 레이블, 모드 값, 접근성 레이블, 아이콘(SPEC-UI-006: 텍스트 글리프 → Lucide SVG)
+const VIEW_MODE_BUTTONS: {
+  mode: ViewMode;
+  label: string;
+  ariaLabel: string;
+  Icon: (props: IconProps) => JSX.Element;
+}[] = [
+  { mode: 'editor', label: '편집', ariaLabel: '편집 모드', Icon: PanelLeftIcon },
+  { mode: 'split', label: '분할', ariaLabel: '분할 모드', Icon: Columns2Icon },
+  { mode: 'preview', label: '미리보기', ariaLabel: '미리보기 모드', Icon: EyeIcon },
 ];
 
 /**
@@ -24,12 +30,8 @@ export function ViewModeToggle(): JSX.Element {
   const setViewMode = useUIStore((s) => s.setViewMode);
 
   return (
-    <div
-      className="flex items-center rounded border border-gray-200 dark:border-gray-700 overflow-hidden"
-      role="group"
-      aria-label="뷰 모드 선택"
-    >
-      {VIEW_MODE_BUTTONS.map(({ mode, label, ariaLabel, icon }) => {
+    <div className="md-seg" role="group" aria-label="뷰 모드 선택">
+      {VIEW_MODE_BUTTONS.map(({ mode, label, ariaLabel, Icon }) => {
         const isActive = viewMode === mode;
         return (
           <button
@@ -38,14 +40,9 @@ export function ViewModeToggle(): JSX.Element {
             aria-label={ariaLabel}
             aria-pressed={isActive}
             title={ariaLabel}
-            className={[
-              'text-xs px-1.5 py-0.5 flex items-center gap-0.5 transition-colors',
-              isActive
-                ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700',
-            ].join(' ')}
+            className={`md-seg-opt ${isActive ? 'is-active' : ''}`}
           >
-            <span aria-hidden="true">{icon}</span>
+            <Icon />
             <span>{label}</span>
           </button>
         );

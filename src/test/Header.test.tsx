@@ -10,8 +10,15 @@ describe('Header', () => {
   });
 
   it('shows dirty indicator when file is unsaved', () => {
-    render(<Header filename="test.md" isDirty={true} />);
-    expect(screen.getByText('●')).toBeInTheDocument();
+    // SPEC-UI-006: dirty glyph literal ('●') replaced by the .md-dirty-dot token-styled
+    // indicator (REQ-UI-006-011). Behavior assertion (dot renders only when dirty) preserved.
+    const { container } = render(<Header filename="test.md" isDirty={true} />);
+    expect(container.querySelector('.md-dirty-dot')).toBeInTheDocument();
+  });
+
+  it('does not show dirty indicator when file is saved', () => {
+    const { container } = render(<Header filename="test.md" isDirty={false} />);
+    expect(container.querySelector('.md-dirty-dot')).not.toBeInTheDocument();
   });
 
   it('shows Untitled when no filename', () => {

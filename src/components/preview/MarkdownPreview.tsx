@@ -27,11 +27,14 @@ export function MarkdownPreview({ previewRef }: MarkdownPreviewProps): JSX.Eleme
   const zoom = getPreviewZoom(fontSize);
 
   return (
-    <div ref={previewRef} className="h-full overflow-auto p-4 preview-scroll">
+    <div ref={previewRef} className="md-previewpane h-full overflow-auto p-4 preview-scroll">
       {html ? (
         <PreviewRenderer html={html} zoom={zoom} />
       ) : (
-        <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-600 text-sm select-none">
+        <div
+          className="h-full flex items-center justify-center text-sm select-none"
+          style={{ color: 'var(--md-text-faint)' }}
+        >
           Start writing...
         </div>
       )}

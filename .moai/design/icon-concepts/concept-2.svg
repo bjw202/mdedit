@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="paperTile" x1="158" y1="92" x2="866" y2="932" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fbfbfc"/>
+      <stop offset="1" stop-color="#e8eaec"/>
+    </linearGradient>
+    <linearGradient id="document" x1="326" y1="204" x2="714" y2="824" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5980a6"/>
+      <stop offset="1" stop-color="#2c455d"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="190" fill="url(#paperTile)"/>
+  <rect x="48" y="48" width="928" height="928" rx="176" fill="none" stroke="#416180" stroke-opacity="0.18" stroke-width="16"/>
+  <path d="M300 174H608L760 326V790C760 823 733 850 700 850H300C267 850 240 823 240 790V234C240 201 267 174 300 174Z" fill="url(#document)"/>
+  <path d="M608 174V282C608 306 628 326 652 326H760L608 174Z" fill="#7ea6cd"/>
+  <path d="M326 592V386H382L470 498L558 386H614V592H530V497L470 572L410 497V592H326Z" fill="#fbfbfc"/>
+  <path d="M646 426V544H602L670 620L738 544H694V426H646Z" fill="#fbfbfc"/>
+  <path d="M332 714H668" fill="none" stroke="#7ea6cd" stroke-width="34" stroke-linecap="round"/>
+</svg>

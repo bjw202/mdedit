@@ -1,5 +1,6 @@
 import { useUIStore } from '@/store/uiStore';
 import type { SaveStatus } from '@/store/uiStore';
+import { CheckCircleIcon, CircleIcon } from '@/components/icons';
 
 interface FooterProps {
   lineCount?: number;
@@ -22,13 +23,21 @@ function getSaveStatusLabel(status: SaveStatus): string {
   }
 }
 
-function getSaveStatusColor(status: SaveStatus): string {
+// @MX:NOTE: [AUTO] SPEC-UI-006 — .md-status-item 상태 modifier 클래스(.saved/.dirty) 매핑.
+// 'saving'/'new' 상태는 modifier 없이 기본 --md-text-muted 색을 사용한다(토큰 매핑 표에 정의된
+// 두 상태만 전용 색을 가짐). 판정 로직(saveStatus 값 자체)은 무변경.
+function getSaveStatusClass(status: SaveStatus): string {
   switch (status) {
-    case 'new': return 'text-gray-400 dark:text-gray-600';
-    case 'saved': return 'text-green-500 dark:text-green-400';
-    case 'unsaved': return 'text-yellow-500 dark:text-yellow-400';
-    case 'saving': return 'text-blue-500 dark:text-blue-400';
+    case 'saved': return 'saved';
+    case 'unsaved': return 'dirty';
+    case 'new':
+    case 'saving':
+      return '';
   }
+}
+
+function getSaveStatusIcon(status: SaveStatus): JSX.Element {
+  return status === 'saved' ? <CheckCircleIcon /> : <CircleIcon />;
 }
 
 // @MX:NOTE: Status bar footer - displays line count, cursor position, file encoding,
@@ -48,46 +57,44 @@ export function Footer({
   const statusMessage = useUIStore((s) => s.statusMessage);
 
   return (
-    <footer className="flex items-center justify-between h-6 px-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-500 select-none">
-      <div className="flex items-center gap-4">
-        <span className={getSaveStatusColor(saveStatus)}>
-          {getSaveStatusLabel(saveStatus)}
+    <footer className="md-statusbar">
+      <span className={`md-status-item ${getSaveStatusClass(saveStatus)}`}>
+        {getSaveStatusIcon(saveStatus)}
+        {getSaveStatusLabel(saveStatus)}
+      </span>
+      <span className="md-status-sep" />
+      <span>Lines: {lineCount}</span>
+      <span className="md-status-sep" />
+      <span>{wordCount} words</span>
+      <span className="md-status-sep" />
+      <span>{charCount} chars</span>
+      {/* @MX:NOTE: [AUTO] 트랜지언트 피드백 메시지 채널 (SPEC-UI-005). clipboard 복사 성공/실패 등 짧은 알림. */}
+      {/* @MX:SPEC: SPEC-UI-005 */}
+      {statusMessage && (
+        <span
+          className="truncate max-w-xs"
+          style={{ color: 'var(--md-accent)' }}
+          role="status"
+          aria-live="polite"
+        >
+          {statusMessage}
         </span>
-        <span>Lines: {lineCount}</span>
-        <span>{wordCount} words</span>
-        <span>{charCount} chars</span>
-        {/* @MX:NOTE: [AUTO] 트랜지언트 피드백 메시지 채널 (SPEC-UI-005). clipboard 복사 성공/실패 등 짧은 알림. */}
-        {/* @MX:SPEC: SPEC-UI-005 */}
-        {statusMessage && (
-          <span
-            className="truncate max-w-xs text-blue-600 dark:text-blue-400"
-            role="status"
-            aria-live="polite"
-          >
-            {statusMessage}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-4">
-        {onScrollSyncToggle !== undefined && (
-          <button
-            type="button"
-            role="button"
-            aria-label="Scroll Sync"
-            aria-pressed={scrollSyncEnabled}
-            onClick={onScrollSyncToggle}
-            className={`px-1 rounded transition-colors ${
-              scrollSyncEnabled
-                ? 'text-blue-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900'
-                : 'text-gray-400 dark:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            Sync
-          </button>
-        )}
-        <span>Ln {cursorLine}, Col {cursorCol}</span>
-        <span>{encoding}</span>
-      </div>
+      )}
+      <span className="md-status-spacer" />
+      {onScrollSyncToggle !== undefined && (
+        <button
+          type="button"
+          role="button"
+          aria-label="Scroll Sync"
+          aria-pressed={scrollSyncEnabled}
+          onClick={onScrollSyncToggle}
+          className={`md-status-toggle ${scrollSyncEnabled ? 'is-active' : ''}`}
+        >
+          Sync
+        </button>
+      )}
+      <span>Ln {cursorLine}, Col {cursorCol}</span>
+      <span>{encoding}</span>
     </footer>
   );
 }

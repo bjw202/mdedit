@@ -3,6 +3,17 @@ import { useUIStore } from '@/store/uiStore';
 import type { Theme } from '@/store/uiStore';
 import { ImageModeToggle } from '@/components/settings/ImageModeToggle';
 import { ViewModeToggle } from '@/components/layout/ViewModeToggle';
+import {
+  FilePlusIcon,
+  SaveIcon,
+  FileOutputIcon,
+  DownloadIcon,
+  ChevronDownIcon,
+  MinusIcon,
+  PlusIcon,
+  SunIcon,
+  MoonIcon,
+} from '@/components/icons';
 
 interface HeaderProps {
   filename?: string;
@@ -79,37 +90,38 @@ export function Header({
   };
 
   return (
-    <header className="flex items-center justify-between h-10 px-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 select-none">
-      <div className="flex items-center gap-2">
-        <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">
-          MdEdit
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">|</span>
+    <header className="md-titlebar">
+      <div className="md-tb-group">
+        <span className="md-wordmark">MdEdit</span>
+        <span className="md-vdiv" />
         <button
           onClick={onNew}
           title="New File (Ctrl+N)"
           aria-label="New file"
-          className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="md-btn"
         >
+          <FilePlusIcon />
           New
         </button>
         <button
           onClick={onSave}
           title="Save (Ctrl+S)"
           aria-label="Save"
-          className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="md-btn"
         >
+          <SaveIcon />
           Save
         </button>
         <button
           onClick={onSaveAs}
           title="Save As (Ctrl+Shift+S)"
           aria-label="Save as"
-          className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="md-btn"
         >
+          <FileOutputIcon />
           Save As
         </button>
-        <span className="text-gray-300 dark:text-gray-600">|</span>
+        <span className="md-vdiv" />
 
         {/* Export dropdown */}
         <div className="relative" ref={exportMenuRef}>
@@ -120,9 +132,10 @@ export function Header({
             aria-label="Export"
             aria-haspopup="true"
             aria-expanded={exportMenuOpen}
-            className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="md-btn"
           >
-            Export {exportLoading ? '...' : '▼'}
+            <DownloadIcon />
+            Export {exportLoading ? '...' : <ChevronDownIcon width={12} height={12} />}
           </button>
 
           {exportLoading && (
@@ -135,67 +148,42 @@ export function Header({
           )}
 
           {exportMenuOpen && (
-            <div
-              role="menu"
-              className="absolute left-0 top-full mt-1 z-50 min-w-max bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg"
-            >
-              <button
-                role="menuitem"
-                onClick={handleExportHtml}
-                className="block w-full text-left text-xs px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
+            <div role="menu" className="md-menu absolute left-0 top-full mt-1 z-50">
+              <button role="menuitem" onClick={handleExportHtml} className="md-menu-item w-full">
                 Export as HTML
               </button>
-              <button
-                role="menuitem"
-                onClick={handleExportPdf}
-                className="block w-full text-left text-xs px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
+              <button role="menuitem" onClick={handleExportPdf} className="md-menu-item w-full">
                 Export as PDF
               </button>
-              <button
-                role="menuitem"
-                onClick={handleExportDocx}
-                className="block w-full text-left text-xs px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
+              <button role="menuitem" onClick={handleExportDocx} className="md-menu-item w-full">
                 Export as DOCX
               </button>
             </div>
           )}
         </div>
 
-        <span className="text-gray-300 dark:text-gray-600">|</span>
-        <span className="text-sm text-gray-600 dark:text-gray-400">
+        <span className="md-vdiv" />
+        <span className="md-filename">
           {filename}
-          {isDirty && <span className="ml-1 text-orange-500">●</span>}
+          {isDirty && <span className="md-dirty-dot" />}
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="md-tb-group md-tb-spacer">
         <ViewModeToggle />
-        <span className="text-gray-300 dark:text-gray-600">|</span>
+        <span className="md-vdiv" />
         <ImageModeToggle />
-        <span className="text-gray-300 dark:text-gray-600">|</span>
-        <button
-          onClick={() => setFontSize(fontSize - 1)}
-          className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-          aria-label="Decrease font size"
-        >
-          A-
-        </button>
-        <span className="text-xs text-gray-500 dark:text-gray-500">{fontSize}px</span>
-        <button
-          onClick={() => setFontSize(fontSize + 1)}
-          className="text-xs px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-          aria-label="Increase font size"
-        >
-          A+
-        </button>
-        <button
-          onClick={toggleTheme}
-          className="text-xs px-2 py-0.5 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
+        <span className="md-vdiv" />
+        <div className="md-stepper">
+          <button onClick={() => setFontSize(fontSize - 1)} aria-label="Decrease font size">
+            <MinusIcon width={13} height={13} />
+          </button>
+          <span className="val">{fontSize}px</span>
+          <button onClick={() => setFontSize(fontSize + 1)} aria-label="Increase font size">
+            <PlusIcon width={13} height={13} />
+          </button>
+        </div>
+        <button onClick={toggleTheme} className="md-icon-btn" aria-label="Toggle theme">
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
       </div>
     </header>

@@ -2,7 +2,16 @@
 // @MX:REASON: Public API boundary for all file operations from frontend (fan_in >= 3)
 // @MX:SPEC: SPEC-FS-001
 
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
+
+/// 경로 문자열에 상위 디렉토리 탈출(`..`, ParentDir) 컴포넌트가 있는지 검사한다.
+/// 이름 내부에 '..'가 포함된 정상 컴포넌트(예: "오징어게임..-시장")는 탈출이 아니다.
+// @MX:NOTE: [AUTO] 경로 탈출 탐지 단일 소스 — validate_path와 canonicalize_folder_path가 공유
+pub(crate) fn has_parent_dir_escape(path: &str) -> bool {
+    Path::new(path)
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+}
 
 /// Validates a path string and returns a PathBuf.
 /// Rejects paths that contain a `..` parent-directory component to prevent
@@ -14,12 +23,7 @@ pub fn validate_path(path: &str) -> Result<PathBuf, String> {
     if path.is_empty() {
         return Err("Invalid path: path cannot be empty".to_string());
     }
-    // 컴포넌트 단위로 상위 디렉토리 탈출(ParentDir)만 거부한다.
-    // 순진한 contains("..")는 이름에 '..'가 포함된 정상 폴더까지 오탐 차단한다.
-    if Path::new(path)
-        .components()
-        .any(|c| matches!(c, Component::ParentDir))
-    {
+    if has_parent_dir_escape(path) {
         return Err("Invalid path: path traversal not allowed".to_string());
     }
     Ok(Path::new(path).to_path_buf())

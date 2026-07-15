@@ -6,6 +6,20 @@ All notable changes to MdEdit are documented here.
 
 ---
 
+## [0.7.0] - 2026-07-15
+
+### Changed
+- **UI 디자인 시스템 리스킨 (SPEC-UI-006)**:
+  - Claude Design 핸드오프(steel-blue 디자인 시스템)를 채택한 전체 UI 리스킨 — 헤더·푸터·사이드바·에디터·프리뷰 표면의 시각 스타일 전면 교체
+  - 시맨틱 디자인 토큰 CSS(`mdedit-tokens.css`) + 컴포넌트 클래스 CSS(`mdedit-components.css`) 도입, 라이트/다크 테마 정비
+  - 이모지·리터럴 파이프 아이콘을 인라인 SVG 아이콘(Lucide 기반)으로 교체
+  - Barlow / Barlow Condensed / IBM Plex Mono 로컬 웹폰트 번들(오프라인 데스크톱 앱, 신규 런타임 의존성 없음)
+  - `useTheme`에 `data-theme` 테마 브리지 추가
+  - 앱 아이콘 교체: 기존 밝은 파란 M 스퀘어클 → 다크 나이트 타일 + 흰색 해시(#) + steel-blue 연필. Codex로 SVG 디자인, `tauri icon`으로 전체 세트(PNG/icns/ico/android/ios) 재생성. 새 디자인 시스템과 톤 통일.
+  - 동작 로직(Tauri IPC, export, CodeMirror extensions, store) 무변경 — 표현 계층만 변경
+
+---
+
 ## [0.6.3] - 2026-07-15
 
 ### Fixed

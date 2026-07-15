@@ -4,6 +4,7 @@ import { useFileSystem } from '@/hooks/useFileSystem';
 import { useUIStore } from '@/store/uiStore';
 import { readDirectory } from '@/lib/tauri/ipc';
 import type { FileNode } from '@/types/file';
+import { ChevronRightIcon } from '@/components/icons';
 
 // @MX:SPEC: SPEC-UI-002
 
@@ -14,20 +15,20 @@ function getFileIcon(name: string, isDirectory: boolean, isExpanded?: boolean): 
   if (isDirectory) {
     return isExpanded ? (
       // Open folder icon
-      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-yellow-500 ficon" fill="currentColor" viewBox="0 0 20 20">
         <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v1H2V6z" />
         <path fillRule="evenodd" d="M2 9h16v7a2 2 0 01-2 2H4a2 2 0 01-2-2V9z" clipRule="evenodd" />
       </svg>
     ) : (
       // Closed folder icon
-      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-yellow-400 ficon" fill="currentColor" viewBox="0 0 20 20">
         <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
       </svg>
     );
   }
 
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  const iconClass = 'w-4 h-4';
+  const iconClass = 'w-4 h-4 ficon';
 
   // Markdown files
   if (ext === 'md' || ext === 'mdx') {
@@ -219,31 +220,18 @@ export function FileTreeNode({ node, depth, onRefresh }: FileTreeNodeProps): JSX
         role={node.isDirectory ? undefined : 'treeitem'}
         style={{ paddingLeft: `${paddingLeft}px` }}
         className={[
-          'flex items-center gap-1.5 py-0.5 pr-2 cursor-pointer select-none text-sm rounded',
-          'hover:bg-gray-100 dark:hover:bg-gray-800',
-          isActive ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300',
-        ].join(' ')}
+          'md-tree-row',
+          node.isDirectory ? 'folder' : '',
+          node.isDirectory && isExpanded ? 'open' : '',
+          isActive ? 'is-selected' : '',
+        ].filter(Boolean).join(' ')}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       >
         {/* Directory expand/collapse chevron */}
-        {node.isDirectory && (
-          <span className="w-3 h-3 flex-shrink-0 text-gray-400">
-            {isExpanded ? (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            )}
-          </span>
-        )}
+        {node.isDirectory && <ChevronRightIcon className="chev" />}
         {/* File icon */}
-        <span className="flex-shrink-0">
-          {getFileIcon(node.name, node.isDirectory, isExpanded)}
-        </span>
+        {getFileIcon(node.name, node.isDirectory, isExpanded)}
         {/* Name or rename input */}
         {isRenaming ? (
           <input
@@ -263,7 +251,7 @@ export function FileTreeNode({ node, depth, onRefresh }: FileTreeNodeProps): JSX
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="truncate text-xs">{node.name}</span>
+          <span className="lbl">{node.name}</span>
         )}
       </div>
 
@@ -309,52 +297,53 @@ export function FileTreeNode({ node, depth, onRefresh }: FileTreeNodeProps): JSX
           ref={menuRef}
           role="menu"
           style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }}
-          className="z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1 min-w-[140px] text-sm"
+          className="md-menu z-50"
         >
           {node.isDirectory && (
             <>
               <button
                 role="menuitem"
-                className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                className="md-menu-item w-full"
                 onClick={() => { setContextMenu(null); setIsCreating('file'); setCreateValue(''); }}
               >
                 New File
               </button>
               <button
                 role="menuitem"
-                className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                className="md-menu-item w-full"
                 onClick={() => { setContextMenu(null); setIsCreating('folder'); setCreateValue(''); }}
               >
                 New Folder
               </button>
-              <hr className="border-gray-200 dark:border-gray-700 my-1" />
+              <div className="md-menu-sep" />
             </>
           )}
           <button
             role="menuitem"
-            className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            className="md-menu-item w-full"
             onClick={() => { setContextMenu(null); void handleCopyPath(); }}
           >
             Copy Path
           </button>
           <button
             role="menuitem"
-            className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            className="md-menu-item w-full"
             onClick={() => { setContextMenu(null); void handleCopyName(); }}
           >
             Copy Name
           </button>
-          <hr className="border-gray-200 dark:border-gray-700 my-1" />
+          <div className="md-menu-sep" />
           <button
             role="menuitem"
-            className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            className="md-menu-item w-full"
             onClick={() => { setContextMenu(null); setIsRenaming(true); setRenameValue(node.name); }}
           >
             Rename
           </button>
           <button
             role="menuitem"
-            className="w-full text-left px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-900 text-red-600 dark:text-red-400"
+            className="md-menu-item w-full"
+            style={{ color: 'var(--md-danger)' }}
             onClick={handleDelete}
           >
             Delete

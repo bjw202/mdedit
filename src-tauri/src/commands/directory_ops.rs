@@ -4,7 +4,7 @@
 
 use crate::commands::file_ops::validate_path;
 use crate::models::file_node::FileNode;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 /// Reads a directory one level deep and returns a sorted FileNode list.
@@ -103,13 +103,8 @@ pub fn canonicalize_folder_path(path: &str) -> Result<PathBuf, String> {
     if path.is_empty() {
         return Err("폴더 경로가 비어 있습니다.".to_string());
     }
-    // ".." 경로 탈출 거부 (validate_path와 일관된 방식).
-    // 컴포넌트 단위로 상위 디렉토리 탈출(ParentDir)만 거부한다 —
-    // 이름에 '..'가 포함된 정상 폴더(예: "오징어게임..-시장")는 허용해야 한다.
-    if Path::new(path)
-        .components()
-        .any(|c| matches!(c, Component::ParentDir))
-    {
+    // ".." 경로 탈출 거부 (validate_path와 단일 소스 공유).
+    if crate::commands::file_ops::has_parent_dir_escape(path) {
         return Err("유효하지 않은 경로: 경로 탈출은 허용되지 않습니다.".to_string());
     }
     // 절대 경로화 + 심링크 해소

@@ -21,6 +21,7 @@ import { wrapSelection, prefixLine } from '@/components/editor/extensions/keyboa
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { insertImageFromDialog } from '@/lib/image/imageHandler';
 import { getFileViewType } from '@/components/preview/PreviewContainer';
+import { PanelLeftIcon } from '@/components/icons';
 
 // @MX:NOTE: Root layout component - composes Header, 3-pane panels, Footer
 // Entry point for the entire application UI shell
@@ -296,7 +297,11 @@ export function AppLayout(): JSX.Element {
   );
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-white dark:bg-gray-900 overflow-hidden">
+    // SPEC-UI-006: .md-root/.md-app apply the handoff base font/color/background and the
+    // vertical titlebar/body/statusbar shell. Existing Tailwind sizing/overflow classes are
+    // preserved verbatim (h-screen/w-screen/bg-white/dark:bg-gray-900) so app.test.tsx's
+    // structural assertions keep passing — the two class systems are additive, not a replacement.
+    <div className="md-root md-app flex flex-col h-screen w-screen bg-white dark:bg-gray-900 overflow-hidden">
       <Header
         filename={filename}
         isDirty={saveStatus === 'unsaved'}
@@ -313,10 +318,10 @@ export function AppLayout(): JSX.Element {
         {/* Sidebar toggle button */}
         <button
           onClick={toggleSidebar}
-          className="absolute left-2 top-2 z-10 p-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+          className="md-icon-btn absolute left-2 top-2 z-10"
           aria-label="Toggle sidebar"
         >
-          ☰
+          <PanelLeftIcon width={16} height={16} />
         </button>
         <ResizablePanels
           sidebar={<FileExplorer />}

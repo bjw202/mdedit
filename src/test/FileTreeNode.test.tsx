@@ -72,10 +72,21 @@ describe('FileTreeNode', () => {
   });
 
   it('should apply active highlight when node is the current file', () => {
+    // SPEC-UI-006: active-row highlight now uses the token-styled .is-selected state
+    // modifier (mdedit-components.css) instead of a literal Tailwind color class.
+    // Behavior assertion preserved: active node gets a distinct highlight class,
+    // non-active nodes do not.
     useFileStore.setState({ currentFile: '/project/readme.md' });
     render(<FileTreeNode node={fileNode} depth={0} onRefresh={() => {}} />);
     const nodeEl = screen.getByText('readme.md').closest('[data-testid="file-tree-node"]');
-    expect(nodeEl?.className).toMatch(/bg-blue/);
+    expect(nodeEl?.className).toMatch(/is-selected/);
+  });
+
+  it('should not apply active highlight when node is not the current file', () => {
+    useFileStore.setState({ currentFile: '/project/other.md' });
+    render(<FileTreeNode node={fileNode} depth={0} onRefresh={() => {}} />);
+    const nodeEl = screen.getByText('readme.md').closest('[data-testid="file-tree-node"]');
+    expect(nodeEl?.className).not.toMatch(/is-selected/);
   });
 
   it('should not show children when directory is collapsed', () => {
