@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="nightTile" x1="174" y1="104" x2="850" y2="920" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#416180"/>
+      <stop offset="1" stop-color="#1d1f20"/>
+    </linearGradient>
+    <linearGradient id="steelStroke" x1="296" y1="284" x2="730" y2="748" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fbfbfc"/>
+      <stop offset="1" stop-color="#cbd7e2"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="190" fill="url(#nightTile)"/>
+  <path d="M154 512C154 314 314 154 512 154C710 154 870 314 870 512C870 710 710 870 512 870" fill="none" stroke="#7ea6cd" stroke-opacity="0.18" stroke-width="22" stroke-linecap="round"/>
+  <path d="M350 280L300 744M548 280L498 744M238 420H640M218 604H620" fill="none" stroke="url(#steelStroke)" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M624 326L788 490L574 704L488 728L512 642L726 428L624 326Z" fill="#5980a6"/>
+  <path d="M624 326L788 490L726 552L562 388L624 326Z" fill="#7ea6cd"/>
+  <path d="M512 642L574 704L488 728L512 642Z" fill="#fbfbfc"/>
+  <path d="M740 374L788 422C807 441 807 471 788 490L780 498L616 334L624 326C643 307 673 307 692 326L740 374Z" fill="#f2f2f3"/>
+</svg>
