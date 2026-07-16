@@ -5,7 +5,7 @@
 // ✨ widget appearance on selection, the preset popover morph/Esc 복귀, and the
 // "연결 필요" (not-logged-in) gate.
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EditorState, EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
@@ -346,6 +346,147 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
     const { menu, callbacks } = await build(100);
     menu.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(callbacks.onClose).toHaveBeenCalled();
+    menu.destroy();
+  });
+});
+
+// BUG-9 실기기 재현: 문서/뷰포트 아래쪽에서 ✨ 를 트리거하면 프리셋 메뉴가 뷰포트 밖(아래)에
+// 뜬다 — 표준 popover flip: 아래 공간이 부족하면 위로 뒤집는다.
+describe('decideMenuFlipDirection: popover flip decision (BUG-9, pure)', () => {
+  it('opens below when there is enough space below the anchor', async () => {
+    const { decideMenuFlipDirection } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      decideMenuFlipDirection({ spaceBelow: 300, spaceAbove: 100, menuHeight: 200 }),
+    ).toBe('below');
+  });
+
+  it('flips above when space below is insufficient but space above is larger', async () => {
+    const { decideMenuFlipDirection } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      decideMenuFlipDirection({ spaceBelow: 50, spaceAbove: 400, menuHeight: 200 }),
+    ).toBe('above');
+  });
+
+  it('stays below when neither side fits but below still has more room', async () => {
+    const { decideMenuFlipDirection } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      decideMenuFlipDirection({ spaceBelow: 60, spaceAbove: 40, menuHeight: 200 }),
+    ).toBe('below');
+  });
+
+  it('boundary: exactly enough space below stays below', async () => {
+    const { decideMenuFlipDirection } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      decideMenuFlipDirection({ spaceBelow: 200, spaceAbove: 500, menuHeight: 200 }),
+    ).toBe('below');
+  });
+});
+
+describe('createPresetMenu: flips above the anchor when there is no room below (BUG-9)', () => {
+  const rafCallbacks: FrameRequestCallback[] = [];
+
+  beforeEach(() => {
+    rafCallbacks.length = 0;
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function flushRaf(): void {
+    const cbs = rafCallbacks.splice(0, rafCallbacks.length);
+    cbs.forEach((cb) => cb(0));
+  }
+
+  it('adds the --above class when the anchor is near the bottom of the viewport', async () => {
+    const mod = await import('@/components/editor/extensions/ai-selection-toolbar');
+    const anchorEl = document.createElement('button');
+    document.body.appendChild(anchorEl);
+    // 뷰포트 맨 아래 근처(버튼 아래 40px 만 남음), 위쪽은 충분(700px).
+    vi.spyOn(anchorEl, 'getBoundingClientRect').mockReturnValue({
+      bottom: 760,
+      top: 736,
+      left: 0,
+      right: 0,
+      width: 0,
+      height: 24,
+      x: 0,
+      y: 736,
+      toJSON: () => ({}),
+    } as DOMRect);
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+
+    const callbacks = { onSelectPreset: vi.fn(), onSubmitCustom: vi.fn(), onClose: vi.fn() };
+    const menu = mod.createPresetMenu({ selectionLength: 100, callbacks, anchorEl });
+    document.body.appendChild(menu.dom);
+    vi.spyOn(menu.dom, 'getBoundingClientRect').mockReturnValue({
+      height: 220,
+      bottom: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    flushRaf();
+
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--above')).toBe(true);
+    menu.destroy();
+  });
+
+  it('keeps the default (below) class when there is enough room below', async () => {
+    const mod = await import('@/components/editor/extensions/ai-selection-toolbar');
+    const anchorEl = document.createElement('button');
+    document.body.appendChild(anchorEl);
+    vi.spyOn(anchorEl, 'getBoundingClientRect').mockReturnValue({
+      bottom: 100,
+      top: 76,
+      left: 0,
+      right: 0,
+      width: 0,
+      height: 24,
+      x: 0,
+      y: 76,
+      toJSON: () => ({}),
+    } as DOMRect);
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+
+    const callbacks = { onSelectPreset: vi.fn(), onSubmitCustom: vi.fn(), onClose: vi.fn() };
+    const menu = mod.createPresetMenu({ selectionLength: 100, callbacks, anchorEl });
+    document.body.appendChild(menu.dom);
+    vi.spyOn(menu.dom, 'getBoundingClientRect').mockReturnValue({
+      height: 220,
+      bottom: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    flushRaf();
+
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--above')).toBe(false);
     menu.destroy();
   });
 });

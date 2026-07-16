@@ -382,6 +382,10 @@
   border: 1px solid var(--md-border); border-radius: var(--md-radius-md);
   box-shadow: var(--md-shadow-md); font-family: var(--md-font-ui);
 }
+/* BUG-9: 뷰포트 아래쪽에서 열릴 때(공간 부족) 앵커 위로 뒤집는다(표준 popover flip). */
+.mdedit-ai-preset-menu--above {
+  top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px;
+}
 .mdedit-ai-preset-list { display: flex; flex-direction: column; }
 .mdedit-ai-preset-item {
   display: flex; align-items: center; gap: var(--md-space-3); width: 100%;

@@ -562,8 +562,18 @@ export class SuggestionCardWidget extends WidgetType {
     return other instanceof SuggestionCardWidget && other.key === this.key;
   }
 
+  // BUG-8: 문서 아래쪽에서 카드가 뷰포트 밖에 뜨면 사용자가 수동으로 스크롤해야 한다. key 가
+  // 바뀔 때만(=마운트/phase 전환) toDOM() 이 다시 호출된다 — 버퍼만 채워지는 스트리밍 청크는
+  // eq() 가 true 라 위젯이 재사용되어 toDOM() 이 재호출되지 않으므로, 여기 두면 자연히 "청크마다
+  // 스크롤하지 않는다"는 anti-scroll-jacking 규칙을 만족한다. 카드는 range.to 아래에 놓이므로
+  // range.to 로 스크롤하는 대신 카드 DOM 자체를 스크롤해야 카드 전체(스켈레톤/버튼)가 보인다.
+  // 아직 문서에 붙지 않은 상태로 반환되므로, CodeMirror 가 실제로 삽입한 다음 프레임에 수행한다.
   toDOM(): HTMLElement {
-    return renderSuggestionCard(this.input);
+    const dom = renderSuggestionCard(this.input);
+    requestAnimationFrame(() => {
+      dom.scrollIntoView({ block: 'nearest' });
+    });
+    return dom;
   }
 
   ignoreEvent(): boolean {

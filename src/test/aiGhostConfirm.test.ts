@@ -249,3 +249,69 @@ describe('startSectionFillCommand: trigger builds outline + section-fill request
     expect(aiRequestMock).not.toHaveBeenCalled();
   });
 });
+
+// BUG-8 실기기 재현: 문서 끝에서 섹션 채우기/이어쓰기를 트리거하면 고스트가 뷰포트 밖(아래)에
+// 나타나 사용자가 수동으로 스크롤해야 한다. (a) 고스트 시작(플레이스홀더 등장) 과 (b) 스트리밍
+// 완료(done, 컨트롤 버튼 등장) 시에만 앵커를 뷰포트에 보이게 스크롤한다 — 청크마다는 아니다.
+describe('BUG-8: 고스트 앵커를 시작/완료 시에만 뷰포트로 스크롤', () => {
+  it('startSectionFillCommand 는 고스트 앵커로 EditorView.scrollIntoView 를 1회 디스패치한다', async () => {
+    const { EditorView } = await import('@codemirror/view');
+    const scrollSpy = vi.spyOn(EditorView, 'scrollIntoView');
+    const mod = await import('@/components/editor/extensions/ai-ghost-text');
+    const doc = '# 제목\n본문\n## 결론\n';
+    const { view } = await makeView(doc, doc.length);
+
+    expect(mod.startSectionFillCommand(view)).toBe(true);
+
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    expect(scrollSpy).toHaveBeenCalledWith(doc.length, expect.objectContaining({ y: 'nearest' }));
+    scrollSpy.mockRestore();
+  });
+
+  it('startContinueWritingCommand 도 고스트 앵커로 스크롤을 1회 디스패치한다', async () => {
+    const { EditorView } = await import('@codemirror/view');
+    const scrollSpy = vi.spyOn(EditorView, 'scrollIntoView');
+    const mod = await import('@/components/editor/extensions/ai-ghost-text');
+    const doc = '내용이 있는 문단.\n\n';
+    const { view } = await makeView(doc, doc.length);
+
+    expect(mod.startContinueWritingCommand(view)).toBe(true);
+
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    scrollSpy.mockRestore();
+  });
+
+  it('스트리밍 청크 동안은 스크롤하지 않고, done 전환 시에만 1회 스크롤한다', async () => {
+    const { createAiGhostText, startGhostEffect } = await import(
+      '@/components/editor/extensions/ai-ghost-text'
+    );
+    const { EditorState } = await import('@codemirror/state');
+    const { EditorView } = await import('@codemirror/view');
+    const { useAiStore, idleSlice } = await import('@/store/aiStore');
+
+    const scrollSpy = vi.spyOn(EditorView, 'scrollIntoView');
+    const doc = '# 결론\n';
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const state = EditorState.create({ doc, extensions: [createAiGhostText()] });
+    const mounted = new EditorView({ state, parent });
+
+    // 명령 경로를 거치지 않고 고스트만 직접 배치(시작 스크롤 호출과 분리해서 측정).
+    mounted.dispatch({ effects: startGhostEffect.of({ from: doc.length }) });
+    scrollSpy.mockClear();
+
+    useAiStore.setState({ ...idleSlice, feature: 'section-fill', requestState: 'streaming', streamBuffer: '' });
+    useAiStore.setState({ streamBuffer: '첫' });
+    useAiStore.setState({ streamBuffer: '첫 청크' });
+    useAiStore.setState({ streamBuffer: '첫 청크 완성' });
+    expect(scrollSpy).not.toHaveBeenCalled();
+
+    useAiStore.setState({ requestState: 'done' });
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    expect(scrollSpy).toHaveBeenCalledWith(doc.length, expect.objectContaining({ y: 'nearest' }));
+
+    mounted.destroy();
+    document.body.removeChild(parent);
+    scrollSpy.mockRestore();
+  });
+});

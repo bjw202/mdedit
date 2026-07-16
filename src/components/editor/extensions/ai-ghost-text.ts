@@ -296,7 +296,11 @@ export const startSectionFillCommand: Command = (view) => {
 
   const requestId = `sf-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   useAiStore.getState().startRequest(requestId, 'section-fill');
-  view.dispatch({ effects: startGhostEffect.of({ from: head }) });
+  // BUG-8: 문서 끝(빈 헤딩 섹션)에서 트리거하면 고스트 플레이스홀더가 뷰포트 밖에 뜰 수 있다 —
+  // 시작 시 1회 앵커를 뷰포트에 보이게 스크롤한다(청크마다는 ghostStoreBridge 가 처리).
+  view.dispatch({
+    effects: [startGhostEffect.of({ from: head }), EditorView.scrollIntoView(head, { y: 'nearest' })],
+  });
 
   // 백엔드 계약(team-lead 확정): outline = 전체 헤딩 아웃라인, contextBefore = 커서 앞 본문 꼬리.
   // 1.5K자 상한 절단은 백엔드가 수행하므로 프론트는 커서 앞 원문을 그대로 넘긴다(설계 §7). presetKind·selection 없음.
@@ -323,7 +327,11 @@ export const startContinueWritingCommand: Command = (view) => {
 
   const requestId = `cw-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   useAiStore.getState().startRequest(requestId, 'section-fill');
-  view.dispatch({ effects: startGhostEffect.of({ from: head }) });
+  // BUG-8: 문서 끝에서 트리거하면 고스트 플레이스홀더가 뷰포트 밖에 뜰 수 있다 — 시작 시
+  // 1회 앵커를 뷰포트에 보이게 스크롤한다(청크마다는 ghostStoreBridge 가 처리).
+  view.dispatch({
+    effects: [startGhostEffect.of({ from: head }), EditorView.scrollIntoView(head, { y: 'nearest' })],
+  });
 
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   void aiRequest({
@@ -506,17 +514,32 @@ export function createAiHint(): Extension {
 const ghostStoreBridge = ViewPlugin.fromClass(
   class {
     private unsubscribe: () => void;
+    // BUG-8: streaming → done 전환을 감지해 딱 1회만 스크롤한다(청크마다는 X). idle/error 로
+    // 고스트가 사라지면 다음 시작을 위해 리셋한다.
+    private lastStatus: 'streaming' | 'done' | null = null;
 
     constructor(view: EditorView) {
       this.unsubscribe = useAiStore.subscribe((s) => {
         if (s.feature !== 'section-fill') return;
         if (s.requestState === 'streaming' || s.requestState === 'done') {
-          if (view.state.field(aiGhostField, false)) {
-            view.dispatch({
-              effects: [setGhostTextEffect.of(s.streamBuffer), setGhostStatusEffect.of(s.requestState)],
-            });
+          const ghost = view.state.field(aiGhostField, false);
+          if (ghost) {
+            // 여러 StateEffect 타입(text/status/scroll)을 한 배열에 담으므로 공통 타입으로 넓힌다.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const effects: StateEffect<any>[] = [
+              setGhostTextEffect.of(s.streamBuffer),
+              setGhostStatusEffect.of(s.requestState),
+            ];
+            // BUG-8: 스트리밍 완료(done) 전환 시에만 고스트 앵커를 뷰포트에 보이게 스크롤한다
+            // — 컨트롤 버튼([✓ 넣기]/[✕ 지우기])이 뷰포트 밖에 떠 있지 않도록.
+            if (s.requestState === 'done' && this.lastStatus !== 'done') {
+              effects.push(EditorView.scrollIntoView(ghost.from, { y: 'nearest' }));
+            }
+            this.lastStatus = s.requestState;
+            view.dispatch({ effects });
           }
         } else if (s.requestState === 'idle' || s.requestState === 'error') {
+          this.lastStatus = null;
           if (view.state.field(aiGhostField, false)) {
             view.dispatch({ effects: clearGhostEffect.of(null) });
           }

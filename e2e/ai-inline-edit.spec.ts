@@ -221,4 +221,51 @@ test.describe('AI 인라인 편집 여정 (SPEC-AI-001)', () => {
     await insertBtn.click();
     await expect(aiPage.locator('.cm-content')).toContainText('```mermaid', { timeout: 3_000 });
   });
+
+  // BUG-8 실기기 재현: 문서 아래쪽에서 AI 를 트리거하면 카드가 뷰포트 밖(아래)에 떠서 사용자가
+  // 수동 스크롤해야 한다. 긴 문서 맨 아래에서 선택 → 프리셋 트리거 → 스트리밍 카드가 뷰포트
+  // 안에 보이는지(또는 최소한 스크롤이 발생했는지) 실 WebKit 엔진으로 검증한다.
+  test('긴 문서 맨 아래에서 트리거한 스트리밍 카드가 뷰포트 안에 보인다(BUG-8)', async ({
+    aiPage,
+  }) => {
+    await aiPage.goto('/');
+    const editor = aiPage.locator('.cm-content');
+    await editor.waitFor({ timeout: 10_000 });
+    await editor.click();
+
+    // 뷰포트보다 훨씬 긴 문서 — 마지막 줄은 화면 밖에 있다.
+    const lines = Array.from(
+      { length: 80 },
+      (_, i) => `이것은 ${i + 1}번째 줄의 예시 문장으로 스크롤 길이를 늘리기 위한 채움 텍스트입니다.`,
+    ).join('\n');
+    await editor.fill(lines);
+
+    // 문서 맨 끝으로 이동 후 마지막 줄을 선택(빈 선택으로는 ✨ 툴바가 뜨지 않는다).
+    await aiPage.keyboard.press('ControlOrMeta+End');
+    await aiPage.keyboard.press('Shift+Home');
+
+    const scroller = aiPage.locator('.cm-scroller');
+    const scrollTopBefore = await scroller.evaluate((el) => el.scrollTop);
+
+    await aiPage.locator('.mdedit-ai-sparkle-btn').click();
+    await aiPage
+      .locator('.mdedit-ai-preset-menu .mdedit-ai-preset-item', { hasText: '다듬기' })
+      .click();
+
+    const card = aiPage.locator('.mdedit-ai-card-streaming');
+    await expect(card).toBeVisible({ timeout: 5_000 });
+
+    const viewport = aiPage.viewportSize();
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+    if (box && viewport) {
+      // 카드 전체(위·아래)가 뷰포트 세로 범위 안에 들어와야 한다(약간의 여유 허용).
+      expect(box.y).toBeGreaterThanOrEqual(-2);
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 2);
+    }
+
+    // 최소 보장: 카드가 보이도록 에디터 스크롤러가 실제로 움직였다(스크롤 발생).
+    const scrollTopAfter = await scroller.evaluate((el) => el.scrollTop);
+    expect(scrollTopAfter).toBeGreaterThan(scrollTopBefore);
+  });
 });

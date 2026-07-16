@@ -220,6 +220,8 @@ export interface PresetMenuCallbacks {
 export interface PresetMenuOptions {
   selectionLength: number;
   callbacks: PresetMenuCallbacks;
+  /** BUG-9: 뷰포트 아래쪽 공간이 부족할 때 flip 판정에 쓸 앵커(✨ 버튼). 없으면 측정을 생략한다. */
+  anchorEl?: HTMLElement;
 }
 
 export interface PresetMenuHandle {
@@ -227,12 +229,61 @@ export interface PresetMenuHandle {
   destroy: () => void;
 }
 
+// ============================================================
+// Popover flip (BUG-9) — 뷰포트 아래쪽 공간이 부족하면 위로 뒤집는다
+// ============================================================
+
+export type MenuFlipDirection = 'above' | 'below';
+
+export interface MenuFlipInput {
+  /** 앵커 아래쪽 뷰포트 여유 공간(px). */
+  spaceBelow: number;
+  /** 앵커 위쪽 뷰포트 여유 공간(px). */
+  spaceAbove: number;
+  /** 메뉴 전체 높이(px). */
+  menuHeight: number;
+}
+
+/**
+ * 표준 popover flip 판정(순수). 아래 공간이 메뉴 높이 이상이면 그대로 아래, 부족하면 위쪽
+ * 공간이 더 넓을 때만 위로 뒤집는다 — 양쪽 다 부족하면(둘 다 못 담아도) 기본값인 아래를 유지한다.
+ */
+export function decideMenuFlipDirection({
+  spaceBelow,
+  spaceAbove,
+  menuHeight,
+}: MenuFlipInput): MenuFlipDirection {
+  if (spaceBelow >= menuHeight) return 'below';
+  return spaceAbove > spaceBelow ? 'above' : 'below';
+}
+
+/** flip 판정에 쓰이는 CSS 클래스 — 아래 열림(기본)과 대칭 배치를 담당(mdedit-components.css). */
+const MENU_ABOVE_CLASS = 'mdedit-ai-preset-menu--above';
+
+/**
+ * anchorEl 기준으로 메뉴가 열릴 방향을 측정해 flip 클래스를 토글한다(BUG-9). 레이아웃이 커밋된
+ * 다음 프레임에 측정해야 정확한 rect 를 얻을 수 있어 requestAnimationFrame 으로 미룬다. 에디터
+ * 스크롤러가 스크롤 컨테이너여도 getBoundingClientRect 는 항상 뷰포트 기준이라 그대로 동작한다.
+ */
+function scheduleMenuFlipMeasurement(dom: HTMLElement, anchorEl: HTMLElement): void {
+  requestAnimationFrame(() => {
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const menuRect = dom.getBoundingClientRect();
+    const direction = decideMenuFlipDirection({
+      spaceBelow: window.innerHeight - anchorRect.bottom,
+      spaceAbove: anchorRect.top,
+      menuHeight: menuRect.height,
+    });
+    dom.classList.toggle(MENU_ABOVE_CLASS, direction === 'above');
+  });
+}
+
 /**
  * 프리셋 팝오버를 만든다(설계 §4.1). TableGridPicker 선례(외부 mousedown + Esc 닫기)를 따르되,
  * 외부 클릭 처리는 위젯(호출자)이 담당하고 여기서는 목록 ↔ 직접 입력 morph 와 Esc/← 복귀만 관리한다.
  */
 export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
-  const { selectionLength, callbacks } = options;
+  const { selectionLength, callbacks, anchorEl } = options;
   const items = buildPresetMenuItems(selectionLength);
 
   const dom = document.createElement('div');
@@ -325,6 +376,10 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
 
   dom.addEventListener('keydown', handleKeyDown);
   renderPresets();
+
+  // BUG-9: 앵커가 뷰포트 아래쪽에 있어 아래로 열 공간이 부족하면 위로 뒤집는다. 호출자가
+  // dom 을 문서에 붙인 뒤 레이아웃이 커밋될 다음 프레임에 측정한다.
+  if (anchorEl) scheduleMenuFlipMeasurement(dom, anchorEl);
 
   return {
     dom,
@@ -442,6 +497,8 @@ export class AiSparkleWidget extends WidgetType {
           onSubmitCustom: (instruction) => fire('custom', instruction),
           onClose: closeMenu,
         },
+        // BUG-9: ✨ 버튼을 앵커로 flip 측정(문서/뷰포트 아래쪽 트리거 시 메뉴가 위로 뒤집힌다).
+        anchorEl: btn,
       });
       wrapper.appendChild(menu.dom);
 

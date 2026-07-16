@@ -4,7 +4,7 @@
 // 던지는 "Block decorations may not be specified via plugins" 를 잡지 못한다 — 이 스위트는
 // 프리셋 클릭 → 스트리밍 카드가 항상 보이는지(P7 조용한 실패 금지)를 실제 뷰로 재현한다.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import {
@@ -133,6 +133,80 @@ describe('createAiSuggestionCard: 실제 EditorView 통합 렌더', () => {
       useAiStore.setState({ streamBuffer: '\n안녕' });
       const cardAfterRealText = view.dom.querySelector('.mdedit-ai-card')!;
       expect(cardAfterRealText.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(0);
+    });
+  });
+
+  // BUG-8 실기기 재현: 문서 아래쪽에서 AI 를 트리거하면 카드가 뷰포트 밖(아래)에 떠서 사용자가
+  // 수동으로 스크롤해야 한다. 카드 첫 마운트 + phase 전환 시에만 카드 DOM 을 뷰포트에 보이게
+  // 스크롤한다 — 이미 채워진 버퍼에 청크가 더 도착하는 동안은(위젯이 재사용되는 동안은) 다시
+  // 스크롤하지 않는다(anti-scroll-jacking).
+  describe('BUG-8: 카드 마운트/phase 전환 시 뷰포트로 스크롤', () => {
+    let scrollIntoViewMock: ReturnType<typeof vi.fn>;
+    const rafCallbacks: FrameRequestCallback[] = [];
+
+    beforeEach(() => {
+      scrollIntoViewMock = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewMock;
+      rafCallbacks.length = 0;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function flushRaf(): void {
+      const cbs = rafCallbacks.splice(0, rafCallbacks.length);
+      cbs.forEach((cb) => cb(0));
+    }
+
+    it('카드가 처음 마운트될 때 scrollIntoView(nearest) 를 1회 호출한다', () => {
+      useAiStore.setState({ requestState: 'streaming', requestId: 'render-1', streamBuffer: '' });
+      startSuggestionCard(makeRequest());
+      flushRaf();
+
+      expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(
+        expect.objectContaining({ block: 'nearest' }),
+      );
+    });
+
+    it('같은 phase 안에서 버퍼만 계속 채워지는 청크에는 추가로 호출하지 않는다', () => {
+      useAiStore.setState({ requestState: 'streaming', requestId: 'render-1', streamBuffer: '' });
+      startSuggestionCard(makeRequest());
+      flushRaf();
+
+      // 스켈레톤→텍스트 전환(첫 청크)은 그 자체로 정당한 위젯 재생성(BUG-7)이라 별도로
+      // 스크롤되는 게 맞다 — 이 값을 기준선으로 삼고, 그 이후 "이미 채워진 버퍼"가 계속
+      // 자라는 청크에는 추가 호출이 없어야 한다.
+      useAiStore.setState({ streamBuffer: '첫 청크' });
+      flushRaf();
+      const afterFirstChunk = scrollIntoViewMock.mock.calls.length;
+
+      // 버퍼가 이미 채워진 상태에서 추가 청크가 계속 도착 — 위젯이 재사용되어 재호출되지 않아야 한다.
+      useAiStore.setState({ streamBuffer: '첫 청크 + 두번째' });
+      flushRaf();
+      useAiStore.setState({ streamBuffer: '첫 청크 + 두번째 + 세번째' });
+      flushRaf();
+
+      expect(scrollIntoViewMock.mock.calls.length).toBe(afterFirstChunk);
+    });
+
+    it('phase 가 전환되면(streaming → done) 다시 한 번 스크롤한다', () => {
+      useAiStore.setState({ requestState: 'streaming', requestId: 'render-1', streamBuffer: '' });
+      startSuggestionCard(makeRequest());
+      flushRaf();
+      const afterMount = scrollIntoViewMock.mock.calls.length;
+
+      useAiStore.setState({ streamBuffer: '다듬은 결과' });
+      flushRaf();
+      useAiStore.setState({ requestState: 'done' });
+      flushRaf();
+
+      expect(scrollIntoViewMock.mock.calls.length).toBeGreaterThan(afterMount);
     });
   });
 });
