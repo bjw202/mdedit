@@ -106,22 +106,13 @@ describe('FileExplorer', () => {
     expect(screen.getByText('src')).toBeInTheDocument();
   });
 
-  it('should show "Go to parent folder" button when watchedPath has a parent', () => {
-    useFileStore.setState({ watchedPath: '/project', fileTree: mockTree });
-    render(<FileExplorer />);
-    expect(screen.getByRole('button', { name: /go to parent folder/i })).toBeInTheDocument();
-  });
-
-  it('should not show "Go to parent folder" button when watchedPath is root', () => {
-    useFileStore.setState({ watchedPath: '/', fileTree: [] });
-    render(<FileExplorer />);
-    expect(screen.queryByRole('button', { name: /go to parent folder/i })).not.toBeInTheDocument();
-  });
-
-  it('should call openFolderPath with parent path when Go Up button is clicked', () => {
+  // SPEC-PREVIEW-008: 헤더의 "Go to parent folder" 버튼은 AppLayout의 플로팅 사이드바 토글
+  // 버튼과 물리적으로 겹치는 버그가 있어 제거됨. 동일 기능은 아래 ".." 트리 행(Parent directory)
+  // 테스트로 계속 커버된다.
+  it('should call openFolderPath with parent path when Go Up (".." row) is clicked', () => {
     useFileStore.setState({ watchedPath: '/home/user/project', fileTree: mockTree });
     render(<FileExplorer />);
-    const goUpBtn = screen.getByRole('button', { name: /go to parent folder/i });
+    const goUpBtn = screen.getByRole('button', { name: /parent directory/i });
     fireEvent.click(goUpBtn);
     expect(mockOpenFolderPath).toHaveBeenCalledWith('/home/user');
   });
@@ -158,21 +149,21 @@ describe('FileExplorer', () => {
   it('should navigate to Windows drive root "C:\\" when inside "C:\\Users"', () => {
     useFileStore.setState({ watchedPath: 'C:\\Users', fileTree: [] });
     render(<FileExplorer />);
-    const goUpBtn = screen.getByRole('button', { name: /go to parent folder/i });
+    const goUpBtn = screen.getByRole('button', { name: /parent directory/i });
     fireEvent.click(goUpBtn);
     expect(mockOpenFolderPath).toHaveBeenCalledWith('C:\\');
   });
 
-  it('should not show Go Up button when watchedPath is Windows drive root "C:\\"', () => {
+  it('should not show Go Up (".." row) when watchedPath is Windows drive root "C:\\"', () => {
     useFileStore.setState({ watchedPath: 'C:\\', fileTree: [] });
     render(<FileExplorer />);
-    expect(screen.queryByRole('button', { name: /go to parent folder/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /parent directory/i })).not.toBeInTheDocument();
   });
 
   it('should navigate to correct parent for deep Windows path', () => {
     useFileStore.setState({ watchedPath: 'D:\\Projects\\MyProject', fileTree: [] });
     render(<FileExplorer />);
-    const goUpBtn = screen.getByRole('button', { name: /go to parent folder/i });
+    const goUpBtn = screen.getByRole('button', { name: /parent directory/i });
     fireEvent.click(goUpBtn);
     expect(mockOpenFolderPath).toHaveBeenCalledWith('D:\\Projects');
   });
@@ -180,7 +171,7 @@ describe('FileExplorer', () => {
   it('should navigate to Windows drive root "D:\\" when inside "D:\\Projects"', () => {
     useFileStore.setState({ watchedPath: 'D:\\Projects', fileTree: [] });
     render(<FileExplorer />);
-    const goUpBtn = screen.getByRole('button', { name: /go to parent folder/i });
+    const goUpBtn = screen.getByRole('button', { name: /parent directory/i });
     fireEvent.click(goUpBtn);
     expect(mockOpenFolderPath).toHaveBeenCalledWith('D:\\');
   });

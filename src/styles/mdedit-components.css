@@ -161,7 +161,10 @@
 }
 .md-sidebar-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: var(--md-space-3) var(--md-space-3) var(--md-space-2);
+  /* SPEC-PREVIEW-008: 좌측 padding을 AppLayout의 플로팅 사이드바 토글 버튼
+     (absolute left-2/top-2, 30x30 .md-icon-btn)이 차지하는 폭만큼 확보하여
+     헤더 콘텐츠(폴더 아이콘/제목)가 토글 버튼과 겹치지 않도록 함. */
+  padding: var(--md-space-3) var(--md-space-3) var(--md-space-2) 42px;
 }
 .md-sidebar-title {
   font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
