@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Mock @tauri-apps/api/core — SPEC-PREVIEW-008 inline svg 테스트가 imageResolver 경로(![]())도
+// 검증하므로 jsdom 환경에서 convertFileSrc가 동작하도록 목업한다.
+vi.mock('@tauri-apps/api/core', () => ({
+  convertFileSrc: vi.fn((path: string) => `asset://localhost/${encodeURIComponent(path)}`),
+  invoke: vi.fn(),
+}));
+
 // Mock shiki to avoid async initialization issues in tests
 vi.mock('shiki', () => ({
   createHighlighter: vi.fn().mockResolvedValue({
@@ -246,5 +253,71 @@ describe('renderMarkdown: KaTeX math rendering (SPEC-PREVIEW-003)', () => {
     const { renderMarkdown } = await import('@/lib/markdown/renderer');
     const result = await renderMarkdown('$\\frac{x^{2}}{y^{2}}$', null);
     expect(result).toContain('class="katex"');
+  });
+});
+
+// ---- SPEC-PREVIEW-008 REQ-PREVIEW008-006/007: 인라인 SVG placeholder-and-restore ----
+describe('renderMarkdown: inline SVG placeholder (SPEC-PREVIEW-008)', () => {
+  it('본문의 <svg>...</svg>를 data-mdedit-svg 마커로 치환한다 (html:false 우회 없이 placeholder-and-restore)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = 'text before\n\n<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>\n\ntext after';
+    const result = await renderMarkdown(content, null);
+    expect(result).toContain('data-mdedit-svg=');
+    // 마커에는 sanitize 이전 raw svg가 encodeURIComponent로 인코딩되어 담긴다
+    expect(result).toContain(encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>'));
+  });
+
+  it('일반 원시 HTML(<script>)은 실행 가능한 태그가 아니라 이스케이프된 텍스트로 표시된다 (html:false 유지, REQ-007)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = 'before\n\n<script>window.__xssFlag = true;</script>\n\nafter';
+    const result = await renderMarkdown(content, null);
+    // html:false는 <script> 태그를 실행 가능한 형태로 만들지 않고 &lt;script&gt;로 이스케이프한다
+    expect(result).not.toContain('<script>');
+    expect(result).toContain('&lt;script&gt;');
+    expect(result).not.toContain('data-mdedit-svg=');
+  });
+
+  it('코드펜스 안의 <svg> 텍스트는 치환되지 않고 코드로 그대로 남는다 (오치환 방지)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = ['설명', '', '```html', '<svg><circle r="1"/></svg>', '```'].join('\n');
+    const result = await renderMarkdown(content, null);
+    expect(result).not.toContain('data-mdedit-svg=');
+    // 코드블록 안에서는 이스케이프된 텍스트로 표시된다
+    expect(result).toContain('&lt;svg&gt;');
+  });
+
+  it('svg가 없는 일반 마크다운은 마커를 포함하지 않는다', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('# Title\n\nplain text', null);
+    expect(result).not.toContain('data-mdedit-svg=');
+  });
+
+  it('이미지 문법 ![](icon.svg)는 인라인 svg 경로와 무관하게 정상 렌더된다 (회귀 차단, 시나리오 H)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('![alt text](icon.svg)', null, false, '/project/doc.md');
+    expect(result).toContain('<img');
+    expect(result).toContain('alt="alt text"');
+    expect(result).not.toContain('data-mdedit-svg=');
+  });
+
+  // ---- 평가 결함 1(major): 인라인 코드 스팬(백틱) 안의 <svg> 텍스트는 치환되면 안 된다 ----
+  // plan.md 위험표: "플레이스홀더 치환을 코드펜스/인라인코드 밖에만 적용" — 인라인 코드도 보호 대상.
+  it('인라인 코드(백틱) 안의 <svg onload=...> 텍스트는 플레이스홀더로 치환되지 않고 코드로 남는다', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = 'Inline code svg text: `<svg onload=alert(1)></svg>` should stay as code.';
+    const result = await renderMarkdown(content, null);
+    expect(result).not.toContain('data-mdedit-svg=');
+    // 인라인 코드는 <code>...</code>로 렌더되고 내용은 이스케이프된 텍스트여야 한다
+    expect(result).toContain('<code>');
+    expect(result).toMatch(/<code>&lt;svg onload=alert\(1\)&gt;&lt;\/svg&gt;<\/code>/);
+  });
+
+  it('인라인 코드 밖의 <svg>는 여전히 정상적으로 플레이스홀더로 치환된다 (회귀 차단)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content =
+      'before `inline code` <svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/></svg> after';
+    const result = await renderMarkdown(content, null);
+    expect(result).toContain('data-mdedit-svg=');
+    expect(result).toContain('<code>inline code</code>');
   });
 });

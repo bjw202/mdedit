@@ -17,6 +17,8 @@ import { useFileStore } from '@/store/fileStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
 import { FILE_SIZE_THRESHOLD } from '@/lib/preview/previewLimits';
+import { isRasterImagePath, isSvgPath } from '@/lib/preview/mediaExtensions';
+import { findFileNodeSize } from '@/lib/preview/fileTreeUtils';
 
 interface FileSystemHook {
   openFolder: () => Promise<void>;
@@ -158,19 +160,46 @@ export function useFileSystem(): FileSystemHook {
       return;
     }
 
-    // 2순위: 대용량 파일 가드 — FileNode.size로 열기 전에 판정
-    // fileStore tree에서 해당 경로의 노드를 찾아 크기를 확인한다
-    const findNodeSize = (nodes: ReturnType<typeof useFileStore.getState>['fileTree'], targetPath: string): number | undefined => {
-      for (const node of nodes) {
-        if (node.path === targetPath) return node.size;
-        if (node.children) {
-          const found = findNodeSize(node.children, targetPath);
-          if (found !== undefined) return found;
-        }
+    // 2순위: 래스터 이미지(.png/.jpg/.jpeg/.gif/.webp/.bmp/.ico/.avif) — SPEC-PREVIEW-008 D1/D2
+    // read_file은 비-UTF-8을 reject하므로 시도 자체를 회피하고, 편집기에는 로드하지 않는다(보기 전용).
+    // 대용량 가드(3순위)도 건너뛴다 — ImageFileViewer는 asset://로 OS 스트리밍하므로 크기 무관(REQ-003).
+    // previewStatus는 확장하지 않으므로(D1) 'text'를 그대로 쓰되, 실제 라우팅은
+    // getFileViewType의 확장자 분기가 담당하므로 이 값은 라우팅에 영향을 주지 않는다.
+    if (isRasterImagePath(path)) {
+      setCurrentFile(path);
+      setContent('');
+      setCurrentFilePath(path);
+      setPreviewStatus('text');
+      useUIStore.getState().setSaveStatus('saved');
+      return;
+    }
+
+    // 2.5순위: SVG — 소스 뷰(Shiki)용 원본 텍스트를 대용량 가드 없이 로드한다 (렌더 뷰가 기본, D3/D6).
+    // 렌더 뷰는 크기와 무관하게 항상 표시되어야 하므로 FILE_SIZE_THRESHOLD 이전에 위치한다.
+    // 대용량 소스 하이라이팅 자체의 성능 가드는 SvgFileViewer 컴포넌트가 담당한다(D3).
+    if (isSvgPath(path)) {
+      try {
+        const svgContent = await readFile(path);
+        setCurrentFile(path);
+        setContent(svgContent);
+        setCurrentFilePath(path);
+        setPreviewStatus('text');
+        useUIStore.getState().setSaveStatus('saved');
+      } catch {
+        // REQ-PREVIEW007-006과 동일하게 예외를 흡수한다
+        setCurrentFile(path);
+        setContent('');
+        setCurrentFilePath(path);
+        setPreviewStatus('binary');
+        useUIStore.getState().setSaveStatus('saved');
       }
-      return undefined;
-    };
-    const nodeSize = findNodeSize(useFileStore.getState().fileTree, path);
+      return;
+    }
+
+    // 3순위: 대용량 파일 가드 — FileNode.size로 열기 전에 판정
+    // fileStore tree에서 해당 경로의 노드를 찾아 크기를 확인한다 (SPEC-PREVIEW-008: ImageFileViewer/
+    // SvgFileViewer와 동일한 findFileNodeSize 유틸을 공유하도록 리팩토링)
+    const nodeSize = findFileNodeSize(useFileStore.getState().fileTree, path);
     if (nodeSize !== undefined && nodeSize > FILE_SIZE_THRESHOLD) {
       setCurrentFile(path);
       setContent('');

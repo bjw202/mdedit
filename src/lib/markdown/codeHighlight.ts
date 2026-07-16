@@ -31,6 +31,7 @@ export async function getHighlighter(): Promise<ShikiHighlighter> {
         'css',
         'html',
         'toml', // SPEC-PREVIEW-005: extensionLangMap의 toml 확장자 지원을 위해 추가
+        'xml', // SPEC-PREVIEW-008: SvgFileViewer 소스 뷰(.svg → XML) 구문 강조를 위해 추가
       ],
     });
   }

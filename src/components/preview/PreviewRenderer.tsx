@@ -1,12 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import mermaid from 'mermaid';
 import { openUrlInBrowser } from '@/lib/tauri/ipc';
+import { sanitizeSvg } from '@/lib/preview/svgSanitize';
 
 // @MX:ANCHOR: [AUTO] PreviewRenderer - sanitized HTML을 DOM에 렌더하고 mermaid 다이어그램을 처리하는 핵심 컴포넌트
 // @MX:REASON: [AUTO] MarkdownPreview, 내보내기 함수 등에서 직접 사용되는 중심 렌더 타겟 (fan_in >= 3)
 // @MX:SPEC: SPEC-PREVIEW-001
+// @MX:SPEC: SPEC-PREVIEW-008 REQ-PREVIEW008-005 REQ-PREVIEW008-006
 // @MX:NOTE: [AUTO] dangerouslySetInnerHTML은 의도적으로 사용됨
-// markdown-it이 html:false로 렌더하므로 원시 HTML 주입이 차단되어 안전하다
+// markdown-it이 html:false로 렌더하므로 원시 HTML 주입이 차단되어 안전하다.
+// SPEC-PREVIEW-008: renderer.ts가 남긴 data-mdedit-svg 마커만 예외적으로 svgSanitize(DOMPurify SVG
+// 프로파일)를 거쳐 복원되며, 그 외 원시 HTML은 여전히 markdown-it html:false로 차단된다.
 // @MX:WARN: [AUTO] mermaid.render()가 forEach 내부에서 async로 실행됨 — 다이어그램별로 개별 catch
 // @MX:REASON: [AUTO] 하나의 깨진 다이어그램이 다른 다이어그램이나 미리보기 전체를 막아서는 안 됨
 // @MX:NOTE: [AUTO] mermaid.parse()를 render() 전에 호출하여 문법 오류를 사전 검증
@@ -18,6 +22,26 @@ import { openUrlInBrowser } from '@/lib/tauri/ipc';
 
 // Initialize mermaid once at module load time
 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
+
+// SPEC-PREVIEW-008 D4: renderer.ts(extractInlineSvg)가 남긴 마커 형식과 반드시 일치해야 한다.
+const SVG_MARKER_RE = /<div data-mdedit-svg="([^"]*)"><\/div>/g;
+
+// @MX:NOTE: [AUTO] 인라인 SVG sanitize + 복원 — SvgFileViewer 렌더 뷰와 동일한 svgSanitize를 사용한다
+// (적용 지점 단일화, SPEC-PREVIEW-008 Security). 이 함수는 순수 문자열 변환이므로 렌더 본문에서
+// dangerouslySetInnerHTML에 넘기기 직전에 동기적으로 호출해도 안전하다(부수효과 없음).
+function restoreInlineSvgMarkers(html: string): string {
+  if (!html.includes('data-mdedit-svg=')) return html;
+
+  return html.replace(SVG_MARKER_RE, (_match, encoded: string) => {
+    try {
+      const raw = decodeURIComponent(encoded);
+      return sanitizeSvg(raw);
+    } catch {
+      // 디코딩/파싱 실패 시 앱 중단 대신 빈 렌더로 폴백 (REQ-PREVIEW008-005)
+      return '';
+    }
+  });
+}
 
 /** Props for the PreviewRenderer component */
 interface PreviewRendererProps {
@@ -35,6 +59,9 @@ interface PreviewRendererProps {
  */
 export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // SPEC-PREVIEW-008: dangerouslySetInnerHTML 직전에 인라인 svg 마커를 sanitize된 svg로 복원한다.
+  const safeHtml = useMemo(() => restoreInlineSvgMarkers(html), [html]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -98,7 +125,7 @@ export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.E
         containerRef.current.removeEventListener('click', handleLinkClick);
       }
     };
-  }, [html]);
+  }, [safeHtml]);
 
   return (
     <div
@@ -106,8 +133,9 @@ export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.E
       className="preview-content"
       // zoom을 적용해 헤딩·코드·테이블 등 Tailwind 고정 크기 요소까지 전체 비례 스케일
       style={{ zoom }}
-      // Safe: markdown-it html:false prevents raw HTML injection
-      dangerouslySetInnerHTML={{ __html: html }}
+      // Safe: markdown-it html:false prevents raw HTML injection; svg 마커만 svgSanitize를 거쳐
+      // safeHtml에 복원되었다 (SPEC-PREVIEW-008 REQ-PREVIEW008-005/006)
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
   );
 }
