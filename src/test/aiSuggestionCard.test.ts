@@ -82,6 +82,15 @@ describe('reduceCard: card state machine transitions', () => {
     const { reduceCard } = await import('@/components/editor/extensions/ai-suggestion-card');
     expect(reduceCard(initial, { type: 'diagram-fallback' }).phase).toBe('diagram-fallback');
   });
+
+  // BUG-6: '✓ 목록으로' 클릭이 재요청을 발행하면 카드는 diagram-fallback 에서 streaming 으로
+  // 되돌아가야 스켈레톤/글로우가 다시 보인다 — reducer 가 이 전이를 무시하면 클릭이 아무
+  // 시각적 반응 없이 죽은 것처럼 보인다(무한루프 증상의 일부).
+  it('stream event is accepted from diagram-fallback and returns to streaming (BUG-6)', async () => {
+    const { reduceCard } = await import('@/components/editor/extensions/ai-suggestion-card');
+    const fallback = { phase: 'diagram-fallback' as const, suggestion: '', retryCount: 0 };
+    expect(reduceCard(fallback, { type: 'stream' }).phase).toBe('streaming');
+  });
 });
 
 describe('isEmptyOrIdentical: empty/identical suggestion guard', () => {
@@ -218,6 +227,55 @@ describe('renderSuggestionCard: DOM per phase (jsdom)', () => {
     expect(callbacks.onCancel).toHaveBeenCalled();
   });
 
+  it('streaming with an empty buffer renders a 3-line shimmer skeleton, no visible text (SPEC-AI-002 REQ-AI2-004)', async () => {
+    const { dom } = await render({
+      state: { phase: 'streaming', suggestion: '', retryCount: 0 },
+      actions: { modes: ['replace'], primary: 'replace' },
+      presetKind: 'polish',
+      streamBuffer: '',
+    });
+    const lines = dom.querySelectorAll('.mdedit-ai-skeleton-line');
+    expect(lines).toHaveLength(3);
+    const stream = dom.querySelector('.mdedit-ai-stream');
+    expect(stream).toBeTruthy();
+    expect(stream?.textContent).toBe('');
+    // 대기 중에도 취소 수단은 항상 동작해야 한다(REQ-AI2-009).
+    expect(dom.querySelector('.mdedit-ai-cancel')).toBeTruthy();
+  });
+
+  it('streaming with a non-empty buffer shows no skeleton (SPEC-AI-002 REQ-AI2-005)', async () => {
+    const { dom } = await render({
+      state: { phase: 'streaming', suggestion: '', retryCount: 0 },
+      actions: { modes: ['replace'], primary: 'replace' },
+      presetKind: 'polish',
+      streamBuffer: '다듬는 중',
+    });
+    expect(dom.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(0);
+    expect(dom.querySelector('.mdedit-ai-stream')?.textContent).toBe('다듬는 중');
+  });
+
+  // BUG-7 실기기 재현: 첫 청크가 개행/공백뿐이면 눈에 보이는 출력이 없는데도 스켈레톤이
+  // 사라져 "죽은" 카드처럼 보인다. 공백만 있는 버퍼는 여전히 빈 것으로 취급해야 한다.
+  it('streaming with a whitespace-only buffer still renders the skeleton (BUG-7, no visible output yet)', async () => {
+    const { dom } = await render({
+      state: { phase: 'streaming', suggestion: '', retryCount: 0 },
+      actions: { modes: ['replace'], primary: 'replace' },
+      presetKind: 'polish',
+      streamBuffer: '\n\n',
+    });
+    expect(dom.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(3);
+  });
+
+  it('streaming with real text after leading whitespace hides the skeleton (BUG-7)', async () => {
+    const { dom } = await render({
+      state: { phase: 'streaming', suggestion: '', retryCount: 0 },
+      actions: { modes: ['replace'], primary: 'replace' },
+      presetKind: 'polish',
+      streamBuffer: '\n안녕',
+    });
+    expect(dom.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(0);
+  });
+
   it('done (replace) shows the suggestion, a direct-instruction input, and 바꾸기', async () => {
     const { dom, callbacks } = await render({
       state: { phase: 'done', suggestion: '제안된 문장.', retryCount: 0 },
@@ -333,6 +391,24 @@ describe('renderSuggestionCard: DOM per phase (jsdom)', () => {
     });
     expect(dom.textContent).toContain('원문이 바뀌어');
     expect(dom.querySelector('.mdedit-ai-apply')).toBeNull();
+  });
+});
+
+describe('stripMermaidFence: ```mermaid 펜스 제거 (BUG-3a 사전 검증 대상 정규화)', () => {
+  it('```mermaid 펜스로 감싼 코드에서 본문만 추출한다', async () => {
+    const { stripMermaidFence } = await import('@/components/editor/extensions/ai-suggestion-card');
+    expect(stripMermaidFence('```mermaid\nflowchart LR\n A-->B\n```')).toBe('flowchart LR\n A-->B');
+  });
+
+  it('펜스가 없으면 트림만 하고 그대로 반환한다', async () => {
+    const { stripMermaidFence } = await import('@/components/editor/extensions/ai-suggestion-card');
+    expect(stripMermaidFence('  flowchart LR\n A-->B  ')).toBe('flowchart LR\n A-->B');
+  });
+
+  it('펜스 앞뒤에 사족이 붙어도 펜스 안의 코드만 추출한다', async () => {
+    const { stripMermaidFence } = await import('@/components/editor/extensions/ai-suggestion-card');
+    const withProse = '여기 다이어그램입니다:\n```mermaid\nflowchart LR\n A-->B\n```\n참고하세요.';
+    expect(stripMermaidFence(withProse)).toBe('flowchart LR\n A-->B');
   });
 });
 

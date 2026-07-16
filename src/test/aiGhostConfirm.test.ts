@@ -154,6 +154,74 @@ describe('ghost interaction: confirm / dismiss / vanish', () => {
   });
 });
 
+// SPEC-AI-002: 고스트 대기(빈 텍스트) 플레이스홀더 — 첫 청크 전 pulse 위젯, 확정 불가.
+describe('ghost waiting placeholder: 첫 청크 전 "✨ 작성 중…" (REQ-AI2-006/007/011)', () => {
+  it('startGhostEffect 직후(text === "")는 Decoration.none 이 아니라 플레이스홀더 위젯을 렌더한다', async () => {
+    const { aiGhostField } = await import('@/components/editor/extensions/ai-ghost-text');
+    const doc = '# 결론\n';
+    const { view } = await makeView(doc, doc.length);
+    view.dispatch({ effects: (await import('@/components/editor/extensions/ai-ghost-text')).startGhostEffect.of({ from: doc.length }) });
+
+    expect(view.state.field(aiGhostField)).toEqual({ from: doc.length, text: '' });
+
+    // ghostDecorations 는 확장 내부 함수라 EditorView.decorations.from(field, ...) 로만 소비된다.
+    // 실제 EditorView 에 마운트해 DOM 상에서 플레이스홀더 위젯을 검증한다.
+    const { createAiGhostText } = await import('@/components/editor/extensions/ai-ghost-text');
+    const { EditorState } = await import('@codemirror/state');
+    const { EditorView } = await import('@codemirror/view');
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const state = EditorState.create({ doc, extensions: [createAiGhostText()] });
+    const mounted = new EditorView({ state, parent });
+    mounted.dispatch({ effects: (await import('@/components/editor/extensions/ai-ghost-text')).startGhostEffect.of({ from: doc.length }) });
+
+    const placeholder = mounted.dom.querySelector('.mdedit-ai-ghost-placeholder');
+    expect(placeholder).not.toBeNull();
+    expect(placeholder?.textContent).toBe('✨ 작성 중…');
+    expect(mounted.dom.querySelector('.cm-ai-ghost')).toBeNull();
+
+    mounted.destroy();
+    document.body.removeChild(parent);
+  });
+
+  it('Mod+Enter(confirmGhostCommand) 는 플레이스홀더 대기 중 문서를 변경하지 않는다(REQ-AI2-011)', async () => {
+    const mod = await import('@/components/editor/extensions/ai-ghost-text');
+    const doc = '# 결론\n';
+    const { view, getDoc } = await makeView(doc, doc.length);
+    view.dispatch({ effects: mod.startGhostEffect.of({ from: doc.length }) });
+
+    expect(view.state.field(mod.aiGhostField)?.text).toBe('');
+    expect(mod.confirmGhostCommand(view)).toBe(false);
+    expect(getDoc()).toBe(doc); // 문서 무변경 — "✨ 작성 중…" 미삽입
+    expect(view.state.field(mod.aiGhostField)?.text).toBe(''); // 고스트는 유지(대기 상태 그대로)
+  });
+
+  it('첫 청크 도착(setGhostTextEffect) 이후에는 플레이스홀더가 사라지고 회색 고스트 텍스트가 렌더된다', async () => {
+    const { createAiGhostText, startGhostEffect, setGhostTextEffect } = await import(
+      '@/components/editor/extensions/ai-ghost-text'
+    );
+    const { EditorState } = await import('@codemirror/state');
+    const { EditorView } = await import('@codemirror/view');
+    const doc = '# 결론\n';
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const state = EditorState.create({ doc, extensions: [createAiGhostText()] });
+    const mounted = new EditorView({ state, parent });
+
+    mounted.dispatch({ effects: startGhostEffect.of({ from: doc.length }) });
+    expect(mounted.dom.querySelector('.mdedit-ai-ghost-placeholder')).not.toBeNull();
+
+    mounted.dispatch({ effects: setGhostTextEffect.of('첫 고스트 청크') });
+    expect(mounted.dom.querySelector('.mdedit-ai-ghost-placeholder')).toBeNull();
+    const ghost = mounted.dom.querySelector('.cm-ai-ghost');
+    expect(ghost).not.toBeNull();
+    expect(ghost?.textContent).toBe('첫 고스트 청크');
+
+    mounted.destroy();
+    document.body.removeChild(parent);
+  });
+});
+
 describe('startSectionFillCommand: trigger builds outline + section-fill request', () => {
   it('calls aiRequest with feature section-fill and the outline, sets the ghost anchor', async () => {
     const mod = await import('@/components/editor/extensions/ai-ghost-text');

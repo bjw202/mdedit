@@ -34,6 +34,12 @@
   --md-code-bg:         #e9e9ea;   /* inline code / code-block ground in preview */
   --md-divider-pane:    rgba(29, 31, 32, 0.12);   /* resizable pane splitters */
 
+  /* AI in-flight indicators (SPEC-AI-002) — glowing border + shimmer skeleton + pulse */
+  --md-ai-glow-from:      #8a63d2;   /* violet — glow gradient start */
+  --md-ai-glow-to:        #5980a6;   /* blue — glow gradient end (accent hue) */
+  --md-ai-skeleton-base:  rgba(29, 31, 32, 0.08);
+  --md-ai-skeleton-shine: rgba(29, 31, 32, 0.16);
+
   /* ── Typography ─────────────────────────────────────────────────────── */
   --md-font-ui:      "Barlow", system-ui, sans-serif;
   --md-font-display: "Barlow Condensed", system-ui, sans-serif; /* wordmark, headings */
@@ -105,6 +111,12 @@
   --md-selection:       rgba(126, 166, 205, 0.30);
   --md-code-bg:         #2b2f33;
   --md-divider-pane:    rgba(231, 231, 234, 0.12);
+
+  /* AI in-flight indicators (SPEC-AI-002) — lifted for contrast on dark ground */
+  --md-ai-glow-from:      #a98ee0;
+  --md-ai-glow-to:        #7ea6cd;
+  --md-ai-skeleton-base:  rgba(231, 231, 234, 0.08);
+  --md-ai-skeleton-shine: rgba(231, 231, 234, 0.18);
 
   /* Elevation on dark: hairline + deeper ambient darkness */
   --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);

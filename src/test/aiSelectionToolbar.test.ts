@@ -429,6 +429,56 @@ describe('AiSparkleWidget: login gate and request firing (jsdom)', () => {
   });
 });
 
+// SPEC-AI-002 REQ-AI2-008(선택): 요청이 in-flight인 동안 ✨ 버튼이 pulse 한다.
+describe('AiSparkleWidget: in-flight pulse (SPEC-AI-002 REQ-AI2-008)', () => {
+  function makeCtx(overrides: Record<string, unknown> = {}) {
+    return {
+      getSelection: () => ({ text: 'hello', contextBefore: 'a ', contextAfter: ' b' }),
+      getUiState: () => ({ loggedIn: true, advancedModel: false }),
+      onRequest: vi.fn(),
+      onConnectNeeded: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it('idle 상태에서는 pulse 클래스가 없다', async () => {
+    const { useAiStore, idleSlice } = await import('@/store/aiStore');
+    useAiStore.setState({ ...idleSlice });
+    const { AiSparkleWidget } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    const dom = new AiSparkleWidget(makeCtx() as never, '0:5').toDOM();
+    document.body.appendChild(dom);
+    expect(dom.querySelector('.mdedit-ai-sparkle-btn')?.classList.contains('is-pulsing')).toBe(
+      false,
+    );
+  });
+
+  it('streaming 으로 전이되면 pulse 클래스가 붙고, 종료되면 제거된다', async () => {
+    const { useAiStore, idleSlice } = await import('@/store/aiStore');
+    useAiStore.setState({ ...idleSlice });
+    const { AiSparkleWidget } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    const widget = new AiSparkleWidget(makeCtx() as never, '0:5');
+    const dom = widget.toDOM();
+    document.body.appendChild(dom);
+    const btn = dom.querySelector('.mdedit-ai-sparkle-btn')!;
+    expect(btn.classList.contains('is-pulsing')).toBe(false);
+
+    useAiStore.setState({ requestState: 'streaming', requestId: 'sel-1' });
+    expect(btn.classList.contains('is-pulsing')).toBe(true);
+
+    useAiStore.setState({ requestState: 'done' });
+    expect(btn.classList.contains('is-pulsing')).toBe(false);
+
+    // destroy() 이후에는 구독이 해제되어 더 이상 갱신되지 않는다(리스너 누수 방지).
+    widget.destroy();
+    useAiStore.setState({ requestState: 'streaming', requestId: 'sel-2' });
+    expect(btn.classList.contains('is-pulsing')).toBe(false);
+  });
+});
+
 describe('createAiSelectionToolbar: extension factory', () => {
   it('returns a defined CodeMirror extension', async () => {
     const { createAiSelectionToolbar } = await import(

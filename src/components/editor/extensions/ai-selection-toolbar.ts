@@ -344,6 +344,9 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
  * 클릭 시 미로그인이면 "연결 필요"를, 로그인 상태면 프리셋 팝오버를 연다.
  */
 export class AiSparkleWidget extends WidgetType {
+  /** in-flight pulse(REQ-AI2-008) 구독 해제 — destroy() 에서 정리한다. */
+  private unsubscribePulse: (() => void) | null = null;
+
   constructor(
     private readonly ctx: ToolbarContext,
     /** 선택 범위 키(from:to) — eq 비교로 선택 변경 시 위젯 재생성. */
@@ -366,6 +369,14 @@ export class AiSparkleWidget extends WidgetType {
     btn.setAttribute('aria-label', 'AI로 편집');
     btn.title = 'AI로 편집';
     btn.textContent = '✨';
+
+    // REQ-AI2-008(선택): 요청이 in-flight(streaming)인 동안 ✨ 버튼이 pulse 한다. CSS 전용
+    // 애니메이션 클래스만 토글하고, 요청 종료 시 제거한다.
+    const updatePulse = (): void => {
+      btn.classList.toggle('is-pulsing', useAiStore.getState().requestState === 'streaming');
+    };
+    updatePulse();
+    this.unsubscribePulse = useAiStore.subscribe(updatePulse);
 
     let menu: PresetMenuHandle | null = null;
     let connectHint: HTMLElement | null = null;
@@ -448,6 +459,11 @@ export class AiSparkleWidget extends WidgetType {
   ignoreEvent(): boolean {
     // 위젯 내부 버튼/메뉴 상호작용은 에디터로 흘려보내지 않는다.
     return true;
+  }
+
+  destroy(): void {
+    this.unsubscribePulse?.();
+    this.unsubscribePulse = null;
   }
 }
 

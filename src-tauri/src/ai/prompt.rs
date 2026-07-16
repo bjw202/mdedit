@@ -32,6 +32,8 @@ pub enum AiFeature {
     Custom(String),
     /// 섹션 채우기 — 문체 상속 초안.
     FillSection,
+    /// 이어쓰기 — 문서 끝 자유 위치 이어쓰기(문체 상속, REQ-AI-028 문서 끝 분기).
+    Continue,
 }
 
 impl AiFeature {
@@ -61,6 +63,8 @@ impl AiFeature {
             "custom" => Ok(AiFeature::Custom(custom_instruction.unwrap_or("").to_string())),
             // 프론트는 kebab-case "section-fill"을 보낸다. 구 표기도 관대 수용.
             "section-fill" | "fill_section" => Ok(AiFeature::FillSection),
+            // 이어쓰기(REQ-AI-028 문서 끝 분기): feature="section-fill" + presetKind="continue"로 도착.
+            "continue" => Ok(AiFeature::Continue),
             other => Err(format!("알 수 없는 AI 기능/프리셋: {}", other)),
         }
     }
@@ -78,7 +82,10 @@ impl AiFeature {
                 "주어진 텍스트의 내용을 마크다운 표로 변환하라. 표 헤더와 정렬을 명확히 하라."
             }
             AiFeature::Diagram => {
-                "주어진 절차·관계 설명을 mermaid 다이어그램으로 변환하라. ```mermaid 코드펜스로 감싸고 유효한 mermaid 문법만 출력하라."
+                // BUG-3(b): 코드펜스로 감싸라고 지시하면 모델이 실제로 펜스를 씌워 응답하고,
+                // 프런트 사전 검증(mermaid.parse)이 펜스를 무효 문법으로 판정해 불필요한 자동
+                // 재요청을 유발한다. 순수 mermaid 문법만, 펜스·설명 없이 출력하도록 명시한다.
+                "주어진 절차·관계 설명을 mermaid 다이어그램으로 변환하라. 순수 mermaid 문법 코드만 출력하고, ```mermaid 코드펜스나 다른 설명 문구 없이 다이어그램 코드만 그대로 출력하라."
             }
             AiFeature::Shorten => {
                 "주어진 텍스트에서 핵심만 남겨 짧게 줄여라. 중요한 정보는 잃지 말라."
@@ -88,6 +95,9 @@ impl AiFeature {
             }
             AiFeature::FillSection => {
                 "너는 문서 작성 보조자다. 문서의 어조와 종결어미를 그대로 이어받아 지정된 섹션의 초안을 작성하라. 문서 개요와 직전 본문의 맥락에 맞는 내용을 채워라."
+            }
+            AiFeature::Continue => {
+                "너는 문서 작성 보조자다. 문서의 어조와 종결어미를 그대로 이어받아 직전 본문에 자연스럽게 이어지는 다음 내용을 작성하라. 문서 개요와 직전 본문의 맥락에서 벗어나지 말라."
             }
         };
         format!("{}\n\n{}", task, COMMON_INSTRUCTION)
@@ -184,6 +194,26 @@ pub fn build_section_prompt(outline: &str, tail: &str) -> AssembledPrompt {
     }
 }
 
+/// 이어쓰기(문서 끝 분기, REQ-AI-028) 프롬프트를 조립한다. 구성은 섹션 채우기와 동일하되
+/// (개요 무제한 + 본문 꼬리 1.5K, §7) 시스템 프롬프트만 문체 상속-이어쓰기 템플릿을 쓴다.
+pub fn build_continue_prompt(outline: &str, tail: &str) -> AssembledPrompt {
+    let (tail_ctx, tail_cut) = truncate_tail_at_paragraph(tail, SECTION_TAIL_MAX);
+
+    let mut user_prompt = String::new();
+    user_prompt.push_str("[문서 개요]\n");
+    user_prompt.push_str(outline.trim());
+    if !tail_ctx.trim().is_empty() {
+        user_prompt.push_str("\n\n[직전 본문]\n");
+        user_prompt.push_str(tail_ctx.trim());
+    }
+
+    AssembledPrompt {
+        system_prompt: AiFeature::Continue.system_prompt(),
+        user_prompt,
+        truncated: tail_cut,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,6 +281,17 @@ mod tests {
         );
     }
 
+    // --- 이어쓰기(문서 끝 분기, REQ-AI-028) ---
+
+    #[test]
+    fn resolve_continue_preset_kind_to_continue_variant() {
+        // 프론트 계약: feature="section-fill" + presetKind="continue"로 도착(Gap 2).
+        assert_eq!(
+            AiFeature::resolve("section-fill", Some("continue"), None),
+            Ok(AiFeature::Continue)
+        );
+    }
+
     #[test]
     fn resolve_custom_carries_instruction() {
         assert_eq!(
@@ -275,6 +316,22 @@ mod tests {
         assert!(AiFeature::Diagram.allows_markdown_fence());
         assert!(!AiFeature::Polish.allows_markdown_fence());
         assert!(!AiFeature::Outline.allows_markdown_fence());
+        assert!(!AiFeature::Continue.allows_markdown_fence());
+    }
+
+    #[test]
+    fn continue_system_prompt_instructs_style_inheritance() {
+        let sys = AiFeature::Continue.system_prompt();
+        assert!(sys.contains("이어"), "continue prompt must instruct continuing the prose: {}", sys);
+        assert!(sys.contains("어조와 종결어미"));
+        assert!(sys.contains("결과 텍스트만 출력")); // COMMON_INSTRUCTION
+    }
+
+    #[test]
+    fn fill_section_and_continue_templates_are_distinct() {
+        let fill = AiFeature::FillSection.system_prompt();
+        let cont = AiFeature::Continue.system_prompt();
+        assert_ne!(fill, cont);
     }
 
     // --- system prompt templates ---
@@ -288,6 +345,7 @@ mod tests {
             AiFeature::Diagram,
             AiFeature::Shorten,
             AiFeature::FillSection,
+            AiFeature::Continue,
             AiFeature::Custom("x".to_string()),
         ] {
             let sys = feature.system_prompt();
@@ -314,6 +372,29 @@ mod tests {
     fn custom_prompt_embeds_user_instruction() {
         let sys = AiFeature::Custom("존댓말로 바꿔줘".to_string()).system_prompt();
         assert!(sys.contains("존댓말로 바꿔줘"));
+    }
+
+    // BUG-3(b) 실기기 재현: 기존 다이어그램 프롬프트는 "```mermaid 코드펜스로 감싸고"를 지시해
+    // 모델이 실제로 펜스를 씌워 응답한다. 프런트 사전 검증(mermaid.parse)은 펜스를 무효 문법으로
+    // 판정해 불필요한 자동 재요청을 유발한다(BUG-1 재발 트리거). 프롬프트는 펜스 금지를 명시해야
+    // 한다 — RED(수정 전): 기존 문구가 여전히 펜스 사용을 지시하므로 실패한다.
+    #[test]
+    fn diagram_prompt_forbids_markdown_fence_output() {
+        let sys = AiFeature::Diagram.system_prompt();
+        assert!(
+            sys.contains("mermaid"),
+            "diagram prompt must still mention mermaid"
+        );
+        assert!(
+            !sys.contains("코드펜스로 감싸"),
+            "diagram prompt must not instruct wrapping output in a code fence: {}",
+            sys
+        );
+        assert!(
+            sys.contains("펜스") && sys.contains("없이"),
+            "diagram prompt must explicitly forbid code fences (no-fence instruction): {}",
+            sys
+        );
     }
 
     // --- truncation boundaries ---
@@ -414,5 +495,30 @@ mod tests {
         let long_tail = "긴 본문 ".repeat(1000);
         let prompt = build_section_prompt("# 개요", &long_tail);
         assert!(prompt.truncated);
+    }
+
+    // --- continue prompt assembly(문서 끝 이어쓰기, REQ-AI-028) ---
+
+    #[test]
+    fn continue_prompt_uses_continue_template() {
+        let prompt = build_continue_prompt("# 개요\n## 결론", "직전 본문입니다.");
+        assert!(prompt.system_prompt.contains("이어"));
+        assert!(prompt.user_prompt.contains("[문서 개요]"));
+        assert!(prompt.user_prompt.contains("[직전 본문]"));
+        assert!(prompt.user_prompt.contains("직전 본문입니다."));
+    }
+
+    #[test]
+    fn continue_prompt_flags_truncated_tail() {
+        let long_tail = "긴 본문 ".repeat(1000);
+        let prompt = build_continue_prompt("# 개요", &long_tail);
+        assert!(prompt.truncated);
+    }
+
+    #[test]
+    fn continue_prompt_omits_empty_tail_section() {
+        let prompt = build_continue_prompt("# 개요", "");
+        assert!(!prompt.user_prompt.contains("[직전 본문]"));
+        assert!(prompt.user_prompt.contains("[문서 개요]"));
     }
 }

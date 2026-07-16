@@ -9,7 +9,7 @@ pub mod stream;
 
 use crate::state::app_state::{AppState, InFlightRequest};
 use claude_cli::ErrorPayload;
-use prompt::{build_inline_prompt, build_section_prompt, AiFeature};
+use prompt::{build_continue_prompt, build_inline_prompt, build_section_prompt, AiFeature};
 use provider::{AiModel, AiRequest, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -121,6 +121,8 @@ pub fn ai_request(
     let outline = args.outline.as_deref().unwrap_or("");
     let assembled = match feature {
         AiFeature::FillSection => build_section_prompt(outline, before),
+        // 이어쓰기(문서 끝 분기, REQ-AI-028): 섹션 채우기와 동일한 outline+tail 조립, 템플릿만 다르다.
+        AiFeature::Continue => build_continue_prompt(outline, before),
         _ => build_inline_prompt(&feature, selection, before, after),
     };
     let truncated = assembled.truncated;
@@ -328,6 +330,23 @@ mod tests {
         assert_eq!(args.context_before.as_deref(), Some("앞"));
         assert_eq!(args.context_after.as_deref(), Some("뒤"));
         assert_eq!(args.custom_instruction.as_deref(), Some("영어로"));
+    }
+
+    #[test]
+    fn request_args_deserialize_continue_preset_kind() {
+        // Gap 2(REQ-AI-028 문서 끝 분기): feature="section-fill" + presetKind="continue"로 도착해도
+        // 하위호환으로 기존 필드(outline/contextBefore)와 함께 파싱된다.
+        let json = r#"{
+            "requestId":"cw-1","feature":"section-fill","presetKind":"continue","model":"haiku",
+            "outline":"개요","contextBefore":"직전 본문"
+        }"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(args.feature, "section-fill");
+        assert_eq!(args.preset_kind.as_deref(), Some("continue"));
+        assert_eq!(
+            AiFeature::resolve(&args.feature, args.preset_kind.as_deref(), None),
+            Ok(AiFeature::Continue)
+        );
     }
 
     #[test]

@@ -274,12 +274,27 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
   card.className = `mdedit-ai-card mdedit-ai-card-${state.phase}`;
 
   if (state.phase === 'streaming') {
+    // REQ-AI2-004/005: streamBuffer 가 빌 때만 3줄 shimmer 스켈레톤을 보여준다. 첫 청크가
+    // 도착하면(버퍼가 비지 않으면) 스켈레톤 없이 실제 텍스트만 렌더한다. 카드 글로우 테두리는
+    // .mdedit-ai-card-streaming 클래스로 이미 걸려 있어(CSS 전용) 여기서는 손대지 않는다.
     const body = document.createElement('div');
     body.className = 'mdedit-ai-stream';
     body.textContent = input.streamBuffer;
+    card.appendChild(body);
+    // BUG-7: 첫 청크가 개행/공백뿐이면 눈에 보이는 출력이 없다 — 공백만 있는 버퍼도 빈 것으로
+    // 취급해 스켈레톤을 유지한다(그렇지 않으면 "죽은" 카드처럼 보인다).
+    if (input.streamBuffer.trim() === '') {
+      const skeleton = document.createElement('div');
+      skeleton.className = 'mdedit-ai-skeleton';
+      for (let i = 0; i < 3; i++) {
+        const line = document.createElement('div');
+        line.className = 'mdedit-ai-skeleton-line';
+        skeleton.appendChild(line);
+      }
+      card.appendChild(skeleton);
+    }
     const cancel = makeButton('mdedit-ai-cancel', '✕ 취소');
     cancel.addEventListener('click', () => callbacks.onCancel());
-    card.appendChild(body);
     card.appendChild(cancel);
     return card;
   }
@@ -520,6 +535,20 @@ export interface AiSuggestionCardConfig {
   getActiveCards?: () => Array<{ model: SuggestionCardModel; render: RenderCardInput }>;
 }
 
+// @MX:NOTE: 카드 key 는 버퍼 "빈/찬" 불리언만 반영하고 버퍼 길이는 반영하지 않는다 — 청크마다
+// key 가 바뀌면 위젯이 재생성되어 글로우 애니메이션이 매 청크 재시작된다(REQ-AI2-013). 스켈레톤→
+// 텍스트 전환(빈→찬) 순간에만 1회 재생성되고, 그 이후 청크는 key 가 안정적이라 DOM 이 유지된다.
+/** 카드 key — requestId:phase(:버퍼상태). 스트리밍이 아니면 버퍼 상태를 생략한다. */
+function buildCardKey(model: SuggestionCardModel, render: RenderCardInput): string {
+  const { phase } = render.state;
+  if (phase !== 'streaming') return `${model.requestId}:${phase}`;
+  // BUG-7: 공백/개행만 있는 버퍼도 "빈" 것으로 취급해 스켈레톤 → 텍스트 전환 판정과
+  // 위젯 key(재생성 여부)를 일치시킨다 — 그렇지 않으면 렌더는 스켈레톤을 유지하는데
+  // key 는 'filled' 로 바뀌어 눈에 보이는 출력 없이 위젯이 재생성될 수 있다.
+  const bufferState = render.streamBuffer.trim() === '' ? 'skeleton' : 'filled';
+  return `${model.requestId}:${phase}:${bufferState}`;
+}
+
 /** 활성 카드를 원문 아래 block widget 으로 감싸는 위젯. */
 export class SuggestionCardWidget extends WidgetType {
   constructor(
@@ -557,7 +586,7 @@ export function buildCardDecorations(
     // 앞쪽 편집으로 범위가 문서 밖으로 밀렸으면 클램프해 RangeSet 이 깨지지 않게 한다.
     const from = Math.min(active.model.range.from, docLen);
     const to = Math.min(active.model.range.to, docLen);
-    const key = `${active.model.requestId}:${active.render.state.phase}`;
+    const key = buildCardKey(active.model, active.render);
     const widget = new SuggestionCardWidget(active.render, key);
     decos.push(Decoration.widget({ widget, block: true, side: 1 }).range(to));
     // 원문 흐리게(설계 §4.2 [2]). 뷰 레이어 전용. 빈 범위엔 mark 를 붙이지 않는다.
@@ -717,6 +746,10 @@ export class AiSuggestionCardController {
   private state: CardState = { phase: 'streaming', suggestion: '', retryCount: 0 };
   private streamBuffer = '';
   private diagramAttempts = 0;
+  // BUG-6: '✓ 목록으로'가 눌리면 이 카드는 더 이상 mermaid 검증 경로를 타면 안 된다 — 재요청
+  // 응답이 목록(일반 텍스트)이지 다이어그램이 아니기 때문이다. model.presetKind 는 'diagram'
+  // 으로 고정해 두고(적용 버튼 배치 등 기존 계약 유지), 완료 처리/펜스 삽입만 이 플래그로 우회한다.
+  private listFallbackActive = false;
 
   constructor(
     public readonly model: SuggestionCardModel,
@@ -740,7 +773,9 @@ export class AiSuggestionCardController {
 
   onComplete(finalText: string, opts?: { truncated?: boolean }): void {
     // 다이어그램은 삽입 전 strict 사전 검증(REQ-AI-023) 후 valid/자동재요청/목록폴백으로 분기.
-    if (this.model.presetKind === 'diagram') {
+    // BUG-6: 목록 폴백이 활성화된 뒤에는(재요청 응답이 목록 텍스트) 더 이상 이 분기를 타지
+    // 않는다 — mermaid 검증에 넣으면 항상 실패해 diagram-fallback 으로 되돌아가 무한 루프가 된다.
+    if (this.model.presetKind === 'diagram' && !this.listFallbackActive) {
       void this.handleDiagramComplete(finalText);
       return;
     }
@@ -754,8 +789,11 @@ export class AiSuggestionCardController {
 
   private async handleDiagramComplete(code: string): Promise<void> {
     this.diagramAttempts += 1;
-    const validation = await validateMermaid(code);
-    const outcome = decideDiagramOutcome(validation, this.diagramAttempts, code);
+    // BUG-3(a): 모델이 ```mermaid 펜스로 감싸 응답하면 펜스 채로는 항상 파싱에 실패한다 —
+    // 사전 검증·미리보기·삽입 모두 펜스를 제거한 코드를 기준으로 삼는다(REQ-AI-023).
+    const stripped = stripMermaidFence(code);
+    const validation = await validateMermaid(stripped);
+    const outcome = decideDiagramOutcome(validation, this.diagramAttempts, stripped);
     if (outcome.kind === 'valid') {
       this.commit({ type: 'diagram-valid', code: outcome.code });
     } else if (outcome.kind === 'auto-retry') {
@@ -786,6 +824,26 @@ export class AiSuggestionCardController {
     this.commit({ type: 'stale' });
   }
 
+  // @MX:ANCHOR: [AUTO] enterListFallback - 다이어그램 목록 폴백 모드 전환(BUG-6 재발 방지)
+  // @MX:REASON: [AUTO] 이 호출 없이 목록 폴백 재요청을 발행하면 onComplete 가 여전히
+  //   presetKind==='diagram' 분기를 타 목록 텍스트를 mermaid 검증에 넣고, 항상 실패해
+  //   diagram-fallback 으로 되돌아가는 무한 루프가 재현된다(실기기 확인). wiring(onListFallback)
+  //   에서 재요청 발행과 함께 반드시 호출해야 한다.
+  /**
+   * '✓ 목록으로' 클릭 시 호출 — 이 카드를 목록 폴백 모드로 전환한다(BUG-6). 이후 onComplete 는
+   * mermaid 검증을 건너뛰고 일반 제안으로 처리하며, applyActiveCard 는 펜스를 씌우지 않는다.
+   * 카드를 즉시 streaming(스켈레톤/글로우)으로 되돌려 재요청이 진행 중임을 보여준다.
+   */
+  enterListFallback(): void {
+    this.listFallbackActive = true;
+    this.commit({ type: 'stream' });
+  }
+
+  /** applyActiveCard 가 mermaid 펜스 삽입 여부를 판단할 때 사용(BUG-5/BUG-6). */
+  isListFallbackActive(): boolean {
+    return this.listFallbackActive;
+  }
+
   getRenderInput(): RenderCardInput {
     return {
       state: this.state,
@@ -799,10 +857,21 @@ export class AiSuggestionCardController {
   }
 }
 
-/** ```mermaid 펜스에서 원본 다이어그램 코드만 추출. 펜스가 없으면 트림된 원문. */
-function stripMermaidFence(code: string): string {
+/** ```mermaid 펜스에서 원본 다이어그램 코드만 추출. 펜스가 없으면 트림된 원문(BUG-3a). */
+export function stripMermaidFence(code: string): string {
   const m = code.match(/```mermaid\s*\n([\s\S]*?)```/);
   return (m ? m[1] : code).trim();
+}
+
+/**
+ * 맨 mermaid 코드를 ```mermaid 펜스로 감싼다(BUG-5). 사전 검증·미니 렌더는 stripMermaidFence
+ * 로 벗긴 코드를 쓰지만, 문서에 실제로 삽입되는 텍스트는 마크다운 미리보기가 다이어그램으로
+ * 렌더할 수 있도록 펜스가 필요하다 — 이미 펜스가 있으면(어떤 경로로든) 이중으로 감싸지 않는다.
+ */
+export function ensureMermaidFence(code: string): string {
+  const trimmed = code.trim();
+  if (/^```mermaid\s*\n[\s\S]*```\s*$/.test(trimmed)) return trimmed;
+  return `\`\`\`mermaid\n${trimmed}\n\`\`\``;
 }
 
 /**
@@ -848,11 +917,21 @@ let activeCardUnsub: (() => void) | null = null;
 function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode): void {
   const view = activeView;
   if (!view) return;
+  const rawSuggestion = controller.getState().suggestion;
+  // BUG-5: state.suggestion 은 검증/미니 렌더를 위해 펜스가 벗겨진 맨 코드다(BUG-3a). 문서
+  // 삽입 시점에만 다이어그램 카드에 한해 펜스를 되살려, 마크다운 미리보기가 다이어그램으로
+  // 렌더하게 한다(카드 상태·검증 경로는 건드리지 않는다).
+  // BUG-6: 목록 폴백 모드에서는 응답이 목록(일반 텍스트)이지 다이어그램이 아니므로 펜스를
+  // 씌우지 않는다 — model.presetKind 는 여전히 'diagram' 으로 고정되어 있어 이 플래그가 없으면
+  // 목록 텍스트가 ```mermaid 로 잘못 감싸진다.
+  const isDiagramInsertion =
+    controller.model.presetKind === 'diagram' && !controller.isListFallbackActive();
+  const suggestion = isDiagramInsertion ? ensureMermaidFence(rawSuggestion) : rawSuggestion;
   const result = applySuggestion(view as unknown as ApplyView, {
     from: controller.model.range.from,
     to: controller.model.range.to,
     originalText: controller.model.originalText,
-    suggestion: controller.getState().suggestion,
+    suggestion,
     mode,
   });
   if (result.applied) {
@@ -862,23 +941,35 @@ function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode
   }
 }
 
-/** 재요청 발행 — customInstruction/model 을 담아 새 in-flight 요청을 스폰한다(↻·직접지시·sonnet). */
-function fireReRequest(model: SuggestionCardModel, instruction: string, useModel: AiModel): void {
+// @MX:ANCHOR: [AUTO] fireReRequest - 카드 재요청(↻/직접지시/sonnet/목록폴백) 공통 발행 경로
+// @MX:REASON: [AUTO] BUG-2 재발 방지 — originalArgs 를 기준으로 스프레드해야 selection/
+//   contextBefore/contextAfter 가 재요청에도 실린다. overrides 로만 필드를 덮어써야 하며,
+//   originalArgs 를 생략한 채 부분 필드만 조립하면 재요청 프롬프트가 컨텍스트 없이 비게 된다.
+/**
+ * 재요청 발행 — 원본 요청(originalArgs)을 기준으로 selection/contextBefore/contextAfter 를
+ * 그대로 승계하고, overrides 로 customInstruction/model(및 목록 폴백의 presetKind/feature)만
+ * 덮어써 새 in-flight 요청을 스폰한다(BUG-2). 새로 발행한 requestId 를 반환해 호출자(카드
+ * 컨트롤러)가 구독 대상을 그 id 로 옮길 수 있게 한다(BUG-1).
+ */
+function fireReRequest(originalArgs: AiRequestArgs, overrides: Partial<AiRequestArgs>): string {
   const requestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const merged: AiRequestArgs = { ...originalArgs, ...overrides, requestId };
   const store = useAiStore.getState();
-  store.startRequest(requestId, model.presetKind === 'diagram' ? 'diagram' : 'inline-edit');
+  store.startRequest(requestId, merged.feature);
   store.incrementCount();
-  void aiRequest({
-    requestId,
-    feature: model.presetKind === 'diagram' ? 'diagram' : 'inline-edit',
-    presetKind: model.presetKind,
-    model: useModel,
-    customInstruction: instruction,
-  }).catch((e) =>
+  void aiRequest(merged).catch((e) =>
     useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
   );
+  return requestId;
 }
 
+// @MX:ANCHOR: [AUTO] startSuggestionCard - 카드 컨트롤러 ↔ aiStore 구독 바인딩(fan_in >= 3: 툴바/
+//   재요청 자동재시도/목록폴백 진입점)
+// @MX:REASON: [AUTO] BUG-1 재발 방지 — 구독은 최초 requestId 가 아니라 boundRequestId(재요청마다
+//   갱신)를 따라가야 한다. done/error 에서 구독을 끊으면 fireReRequest 가 새로 스폰한 요청의
+//   스트림을 아무도 받지 못해 카드가 'streaming' 에 영원히 멈춘다(실기기 재현 완료). 구독은
+//   컨트롤러가 살아있는 동안(적용/취소로 레지스트리에서 제거되거나, 새 카드가 activeCardUnsub 를
+//   가로챌 때까지) 유지한다.
 /**
  * 요청을 스트리밍 제안 카드로 바인딩한다(설계 §4.2). 활성 카드로 등록하고 aiStore 를 구독해
  * 스트리밍 버퍼/완료/오류를 컨트롤러로 흘려보낸다. aiRequest 스폰은 호출자(툴바 onRequest)가
@@ -901,35 +992,62 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
     model: request.args.model,
   };
 
+  // BUG-1: 재요청(↻/직접지시/sonnet/목록폴백)마다 새 requestId 가 발행되므로, 구독이 어느
+  // requestId 를 바라볼지는 고정 값이 아니라 이 가변 바인딩을 따라간다.
+  let boundRequestId = request.args.requestId;
+  // 같은 requestId 의 done/error 를 두 번 처리하지 않기 위한 가드(구독을 더 이상 끊지 않으므로 필요).
+  let lastHandledTerminal: string | null = null;
+
   // eslint 없이도 안전한 전방 참조 — 콜백은 controller 할당 이후에만 호출된다.
   let controller: AiSuggestionCardController;
   const callbacks: CardCallbacks = {
     onApply: (mode) => applyActiveCard(controller, mode),
     onCancel: () => {
-      void aiCancel(request.args.requestId).catch(() => undefined);
+      void aiCancel(boundRequestId).catch(() => undefined);
       useAiStore.getState().cancelRequest();
       removeCardController(controller);
     },
-    onReRequest: (instruction, useModel) => fireReRequest(model, instruction, useModel),
-    onListFallback: () => fireReRequest({ ...model, presetKind: 'outline' }, '', model.model),
+    onReRequest: (instruction, useModel) => {
+      // BUG-2: 원본 args(selection/contextBefore/contextAfter)를 그대로 승계하고 지시/모델만 덮어쓴다.
+      boundRequestId = fireReRequest(request.args, { customInstruction: instruction, model: useModel });
+      lastHandledTerminal = null;
+    },
+    onListFallback: () => {
+      // BUG-6: 목록 폴백 모드로 전환 — 이후 onComplete/applyActiveCard 가 더 이상 이 응답을
+      // 다이어그램으로 취급하지 않는다. 재요청 발행 전에 호출해 카드가 즉시 streaming 으로
+      // 돌아가 보이게 한다.
+      controller.enterListFallback();
+      boundRequestId = fireReRequest(request.args, {
+        feature: 'inline-edit',
+        presetKind: 'outline',
+        customInstruction: '',
+        model: model.model,
+      });
+      lastHandledTerminal = null;
+    },
     onOpenOnboarding: () => openOnboarding(),
   };
   controller = new AiSuggestionCardController(model, callbacks, { renderMermaid: renderMermaidInto });
   registerCardController(controller);
 
   // aiStore 스트리밍 → 컨트롤러 반영(useAiRelay 가 ai://chunk 를 버퍼에 누적하면 여기서 미러링).
+  // BUG-1: done/error 에서도 구독을 끊지 않는다 — 재요청이 boundRequestId 를 갱신하면 같은
+  // 구독이 새 요청의 스트림을 계속 받는다. 대신 done/error 재처리를 막기 위해 마지막으로
+  // 처리한 terminal 상태를 기억한다.
   activeCardUnsub = useAiStore.subscribe((s) => {
-    if (s.requestId !== request.args.requestId) return;
+    if (s.requestId !== boundRequestId) return;
     if (s.requestState === 'streaming') {
       controller.onStream(s.streamBuffer);
     } else if (s.requestState === 'done') {
+      const key = `${s.requestId}:done`;
+      if (lastHandledTerminal === key) return;
+      lastHandledTerminal = key;
       controller.onComplete(s.streamBuffer);
-      activeCardUnsub?.();
-      activeCardUnsub = null;
     } else if (s.requestState === 'error' && s.errorInfo) {
+      const key = `${s.requestId}:error`;
+      if (lastHandledTerminal === key) return;
+      lastHandledTerminal = key;
       controller.onError(s.errorInfo);
-      activeCardUnsub?.();
-      activeCardUnsub = null;
     }
   });
 

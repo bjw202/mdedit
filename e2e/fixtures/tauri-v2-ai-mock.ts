@@ -12,7 +12,10 @@ export type AiMockScenario =
   | 'login-error'
   | 'network-error'
   | 'invoke-reject'
-  | 'hang'; // 스트림이 오지 않음(취소 테스트용)
+  | 'hang' // 스트림이 오지 않음(취소 테스트용)
+  // BUG-1/2/3 실기기 재현: 1차 응답은 펜스로 감쌌지만 문법이 진짜 무효인 다이어그램,
+  // 재요청(2차) 응답은 펜스로 감싼 유효 다이어그램. ai_request 호출 순번으로 분기한다.
+  | 'diagram-fenced-then-valid';
 
 declare global {
   interface Window {
@@ -37,6 +40,8 @@ async function injectTauriV2Mock(page: Page): Promise<void> {
       scenario: 'success' as string,
       requests: [] as Array<{ cmd: string; payload: unknown }>,
       resultText: '다듬은 결과 문장이에요.',
+      // 'diagram-fenced-then-valid' 시나리오의 ai_request 호출 순번(1차 무효 → 2차 유효).
+      diagramCallCount: 0,
       emit(event: string, payload: unknown) {
         const ids = listeners.get(event);
         if (!ids) return;
@@ -103,6 +108,18 @@ async function injectTauriV2Mock(page: Page): Promise<void> {
           return Promise.resolve(null);
         case 'hang':
           return Promise.resolve(null);
+        case 'diagram-fenced-then-valid': {
+          mockState.diagramCallCount += 1;
+          const isFirstAttempt = mockState.diagramCallCount === 1;
+          // 1차: 펜스로 감쌌지만 진짜 무효 문법(자동 재요청을 유발해야 함).
+          // 2차(자동 재요청): 펜스로 감싼 유효 mermaid(펜스 제거 후 검증 통과해야 함, BUG-3a).
+          const text = isFirstAttempt
+            ? '```mermaid\nnotarealdiagramtype foo!!!\n```'
+            : '```mermaid\nflowchart LR\n  A[접수] --> B[검토] --> C[승인]\n```';
+          setTimeout(() => mockState.emit('ai://chunk', { requestId, text }), 30);
+          setTimeout(() => mockState.emit('ai://done', { requestId, result: text }), 60);
+          return Promise.resolve(null);
+        }
         default:
           streamSuccess(requestId);
           return Promise.resolve(null);

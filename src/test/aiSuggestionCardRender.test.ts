@@ -74,4 +74,65 @@ describe('createAiSuggestionCard: 실제 EditorView 통합 렌더', () => {
     expect(card).not.toBeNull();
     expect(getActiveCardController()?.getState().phase).toBe('error');
   });
+
+  // SPEC-AI-002: 스켈레톤(빈 버퍼) → 텍스트(첫 청크) 전환 + 이후 청크에서 위젯 eq() 안정성.
+  describe('SPEC-AI-002: 스트리밍 스켈레톤 → 텍스트 전환 + eq() 연속성', () => {
+    it('빈 버퍼는 스켈레톤을 보여주고, 첫 청크 도착 시 텍스트로 교체된다(REQ-AI2-004/005)', () => {
+      useAiStore.setState({ requestState: 'streaming', requestId: 'render-1', streamBuffer: '' });
+      startSuggestionCard(makeRequest());
+
+      const cardBeforeChunk = view.dom.querySelector('.mdedit-ai-card')!;
+      expect(cardBeforeChunk.classList.contains('mdedit-ai-card-streaming')).toBe(true);
+      expect(cardBeforeChunk.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(3);
+      expect(cardBeforeChunk.querySelector('.mdedit-ai-stream')?.textContent).toBe('');
+
+      // 첫 청크 도착 — aiStore 스트리밍 버퍼가 비지 않게 된다(useAiRelay 미러링과 동형).
+      useAiStore.setState({ streamBuffer: '첫 청크' });
+
+      const cardAfterChunk = view.dom.querySelector('.mdedit-ai-card')!;
+      expect(cardAfterChunk.classList.contains('mdedit-ai-card-streaming')).toBe(true);
+      expect(cardAfterChunk.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(0);
+      expect(cardAfterChunk.querySelector('.mdedit-ai-stream')?.textContent).toBe('첫 청크');
+    });
+
+    it('버퍼가 채워진 이후 추가 청크는 카드 DOM 노드를 재생성하지 않는다(REQ-AI2-013, AC-AI2-010)', () => {
+      useAiStore.setState({ requestState: 'streaming', requestId: 'render-1', streamBuffer: '' });
+      startSuggestionCard(makeRequest());
+
+      // 빈→찬 전환(1회 재생성 허용).
+      useAiStore.setState({ streamBuffer: '첫 청크' });
+      const cardAfterFirstChunk = view.dom.querySelector('.mdedit-ai-card')!;
+
+      // 이후 청크들은 버퍼가 계속 채워져 있으므로 key(빈/찬)가 바뀌지 않아 DOM 노드가 유지되어야
+      // 글로우 애니메이션이 육안으로 재시작되지 않는다.
+      useAiStore.setState({ streamBuffer: '첫 청크 + 두번째' });
+      const cardAfterSecondChunk = view.dom.querySelector('.mdedit-ai-card')!;
+      expect(cardAfterSecondChunk).toBe(cardAfterFirstChunk);
+
+      useAiStore.setState({ streamBuffer: '첫 청크 + 두번째 + 세번째' });
+      const cardAfterThirdChunk = view.dom.querySelector('.mdedit-ai-card')!;
+      expect(cardAfterThirdChunk).toBe(cardAfterFirstChunk);
+    });
+
+    // BUG-7 실기기 재현: 첫 청크가 개행/공백뿐이면(보이는 출력 없음) 스켈레톤이 유지되어야
+    // 하고, 위젯 key 도 안 바뀌어야 한다 — 실제 텍스트가 도착할 때만 1회 전환한다.
+    it('공백뿐인 첫 청크는 스켈레톤을 유지하고 위젯을 재생성하지 않는다(BUG-7)', () => {
+      useAiStore.setState({ requestState: 'streaming', requestId: 'render-1', streamBuffer: '' });
+      startSuggestionCard(makeRequest());
+
+      const cardBeforeChunk = view.dom.querySelector('.mdedit-ai-card')!;
+      expect(cardBeforeChunk.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(3);
+
+      // 공백/개행만 담은 첫 청크 — 눈에 보이는 출력은 여전히 없다.
+      useAiStore.setState({ streamBuffer: '\n\n' });
+      const cardAfterWhitespaceChunk = view.dom.querySelector('.mdedit-ai-card')!;
+      expect(cardAfterWhitespaceChunk).toBe(cardBeforeChunk); // 위젯 재생성 없음(key 불변)
+      expect(cardAfterWhitespaceChunk.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(3);
+
+      // 실제 텍스트가 도착하면 그제서야 스켈레톤 → 텍스트로 1회 전환한다.
+      useAiStore.setState({ streamBuffer: '\n안녕' });
+      const cardAfterRealText = view.dom.querySelector('.mdedit-ai-card')!;
+      expect(cardAfterRealText.querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(0);
+    });
+  });
 });
