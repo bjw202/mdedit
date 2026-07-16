@@ -15,6 +15,22 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            // Windows 작업표시줄(실행 중) 아이콘 강제 세팅.
+            // Windows는 실행 창의 AppUserModelID(번들 식별자)에 아이콘 비트맵을
+            // iconcache에 캐싱한다. 예전 버전이 설치됐던 PC는 이 캐시에 옛 아이콘이
+            // 남아, exe/시작메뉴 아이콘은 새것인데 작업표시줄 버튼만 옛것으로 나온다.
+            // 시작 시 새 아이콘 HICON을 창에 직접 밀어넣어(WM_SETICON) 캐시를 덮어쓴다.
+            use tauri::Manager;
+            for (_label, window) in app.webview_windows() {
+                if let Ok(icon) =
+                    tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))
+                {
+                    let _ = window.set_icon(icon);
+                }
+            }
+            Ok(())
+        })
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             file_ops::read_file,
