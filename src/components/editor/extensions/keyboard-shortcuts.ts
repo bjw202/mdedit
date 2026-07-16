@@ -89,6 +89,61 @@ export function prefixLine(view: EditorView, prefix: string): boolean {
   return true;
 }
 
+// @MX:NOTE: [AUTO] Markdown 테이블 스켈레톤 삽입 규칙 — rows는 헤더 포함 총 행 수(rows-1개 공백
+// 패딩 빈 본문 행 생성), 커서가 줄 중간이면 앞뒤 빈 줄로 블록화, 삽입 후 첫 "Header 1" 플레이스홀더를
+// 선택 상태로 만들어 즉시 타이핑 시 교체되도록 한다.
+// @MX:SPEC: SPEC-UI-007
+/**
+ * Builds a Markdown table skeleton string.
+ * `rows` is the TOTAL row count including the header row (body rows = rows - 1).
+ * Empty body cells use a space-padded style (`|     |`) so GFM tables render correctly
+ * even before the user fills them in.
+ */
+function buildTableSkeleton(rows: number, cols: number): string {
+  const headerCells = Array.from({ length: cols }, (_, i) => `Header ${i + 1}`);
+  const header = `| ${headerCells.join(' | ')} |`;
+  const delimiter = `| ${Array(cols).fill('---').join(' | ')} |`;
+  const emptyRow = `|${Array(cols).fill('     ').join('|')}|`;
+  const bodyRowCount = rows - 1;
+  const bodyRows = Array<string>(bodyRowCount).fill(emptyRow);
+  return [header, delimiter, ...bodyRows].join('\n');
+}
+
+/**
+ * Inserts a Markdown table skeleton at the current cursor position.
+ * `rows` is the total row count including the header (1 header + (rows-1) body rows).
+ * If the cursor sits mid-line, blank lines are inserted before/after so the table
+ * becomes a standalone block. After insertion, the first "Header 1" placeholder is
+ * selected so the user can immediately overtype it.
+ */
+export function insertTable(view: EditorView, rows: number, cols: number): boolean {
+  // @MX:NOTE: [AUTO] SPEC-UI-007 그리드 상한은 8x8 — 범위를 벗어나면 no-op으로 조용히 반환한다
+  // (evaluator-active finding #1: rows=0/cols=0 등 비정상 입력 시 Array(n-1).fill이 RangeError를 던지던 결함 수정).
+  if (rows < 1 || cols < 1 || rows > 8 || cols > 8) return false;
+
+  const { state } = view;
+  const changes = state.changeByRange((range) => {
+    const line = state.doc.lineAt(range.from);
+    const skeleton = buildTableSkeleton(rows, cols);
+
+    const needsLeadingPad = range.from > line.from;
+    const needsTrailingPad = range.to < line.to;
+    const insertText = (needsLeadingPad ? '\n' : '') + skeleton + (needsTrailingPad ? '\n' : '');
+
+    const headerOffset = insertText.indexOf('Header 1');
+    const selStart = range.from + headerOffset;
+    const selEnd = selStart + 'Header 1'.length;
+
+    return {
+      changes: { from: range.from, to: range.to, insert: insertText },
+      range: EditorSelection.range(selStart, selEnd),
+    };
+  });
+
+  view.dispatch(changes);
+  return true;
+}
+
 /**
  * Toggles HTML comment wrapping: <!-- selection -->
  * If no selection, inserts <!-- --> with cursor placed inside.

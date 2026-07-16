@@ -231,6 +231,30 @@
 .md-tool-btn:focus-visible { outline: 2px solid var(--md-accent); outline-offset: 1px; }
 .md-tool-sep { width: 1px; height: 18px; background: var(--md-border); margin: 0 4px; }
 
+/* ── Insert Table grid-picker popover (SPEC-UI-007) ──────────────────── */
+.md-table-picker {
+  margin-top: 4px; padding: var(--md-space-2);
+  background: var(--md-surface-raised);
+  border: 1px solid var(--md-border);
+  border-radius: var(--md-radius-md);
+  box-shadow: var(--md-shadow-md);
+}
+.md-table-picker-grid { display: flex; flex-direction: column; gap: 2px; }
+.md-table-picker-row { display: flex; gap: 2px; }
+.md-table-picker-cell {
+  width: 16px; height: 16px; padding: 0;
+  background: var(--md-surface);
+  border: 1px solid var(--md-border);
+  border-radius: 2px; cursor: pointer;
+  transition: background var(--md-dur-fast) var(--md-ease), border-color var(--md-dur-fast) var(--md-ease);
+}
+.md-table-picker-cell.is-armed { background: var(--md-accent-soft); border-color: var(--md-accent); }
+.md-table-picker-cell:focus-visible { outline: 2px solid var(--md-accent); outline-offset: 1px; }
+.md-table-picker-label {
+  margin-top: var(--md-space-2); text-align: center;
+  font-size: 11px; color: var(--md-text-muted);
+}
+
 .md-editor {
   flex: 1; display: flex; min-height: 0; overflow: auto;
   font-family: var(--md-font-mono); font-size: var(--md-fs-editor); line-height: var(--md-lh-editor);
