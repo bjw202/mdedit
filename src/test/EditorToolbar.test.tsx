@@ -82,6 +82,20 @@ describe('EditorToolbar: Rendering', () => {
     render(<EditorToolbar />);
     expect(screen.getByRole('button', { name: /quote|blockquote/i })).toBeInTheDocument();
   });
+
+  it('should render the Insert Table button (SPEC-UI-007)', async () => {
+    const { EditorToolbar } = await import('@/components/editor/EditorToolbar');
+    render(<EditorToolbar />);
+    expect(screen.getByRole('button', { name: /insert table/i })).toBeInTheDocument();
+  });
+
+  it('Insert Table button should have aria-haspopup and aria-expanded (SPEC-UI-007)', async () => {
+    const { EditorToolbar } = await import('@/components/editor/EditorToolbar');
+    render(<EditorToolbar />);
+    const trigger = screen.getByRole('button', { name: /insert table/i });
+    expect(trigger).toHaveAttribute('aria-haspopup', 'true');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
 });
 
 describe('EditorToolbar: Format button callbacks', () => {

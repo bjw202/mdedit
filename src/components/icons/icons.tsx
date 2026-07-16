@@ -255,6 +255,14 @@ export function SunIcon(props: IconProps): JSX.Element {
   );
 }
 
+export function TableIcon(props: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(props)}>
+      <path d="M12 3v18"></path><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M3 9h18"></path><path d="M3 15h18"></path>
+    </svg>
+  );
+}
+
 export function TextQuoteIcon(props: IconProps): JSX.Element {
   return (
     <svg {...svgProps(props)}>

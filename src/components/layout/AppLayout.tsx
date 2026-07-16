@@ -17,7 +17,7 @@ import { EditorToolbar } from '@/components/editor/EditorToolbar';
 import type { FormatAction } from '@/components/editor/EditorToolbar';
 import { FileExplorer } from '@/components/sidebar/FileExplorer';
 import { PreviewContainer } from '@/components/preview/PreviewContainer';
-import { wrapSelection, prefixLine } from '@/components/editor/extensions/keyboard-shortcuts';
+import { wrapSelection, prefixLine, insertTable } from '@/components/editor/extensions/keyboard-shortcuts';
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { insertImageFromDialog } from '@/lib/image/imageHandler';
 import { getFileViewType } from '@/components/preview/PreviewContainer';
@@ -248,6 +248,22 @@ export function AppLayout(): JSX.Element {
     }
   };
 
+  // @MX:NOTE: [AUTO] Insert Table 핸들러 — handleFormat과 동일한 null 가드 패턴(view-only no-op).
+  // FormatAction/handleFormat switch(@MX:ANCHOR)는 변경하지 않고 별도 핸들러로 분리한다.
+  // AC-UI-007-006 테스트 커버리지 결정: 이 null 가드는 기존 handleFormat(line 195-196)과 동일한
+  // 검증되지 않은 관례를 따른다 — handleFormat도 AppLayout 렌더 기반 null-view 전용 단위 테스트가
+  // 없다(Tauri IPC 전체 모킹이 필요해 방어 코드 한 줄 대비 비용이 과도). 대신 insertTable() 자체는
+  // src/test/insertTable.test.ts에서 뷰 상태 전 분기를 직접 검증했고(GridPicker.test.tsx는
+  // onInsertTable === undefined일 때도 셀 클릭이 예외 없이 동작함을 확인), 이 함수는 3줄의 위임
+  // 로직만 담아 회귀 위험이 낮다고 판단해 AppLayout 통합 테스트는 추가하지 않는다.
+  // @MX:SPEC: SPEC-UI-007
+  const handleInsertTable = (rows: number, cols: number): void => {
+    const view = viewRef.current;
+    if (!view) return;
+    insertTable(view, rows, cols);
+    view.focus();
+  };
+
   // SPEC-PREVIEW-007: html/binary/too-large 파일은 편집 불가 — isViewOnly로 확장
   // previewStatus를 fileStore에서 읽어 binary/too-large 여부를 판정한다
   // SPEC-PREVIEW-008: image/svg도 보기 전용 — 이미지·SVG는 편집/주석·소스 저장을 다루지 않는다
@@ -261,7 +277,7 @@ export function AppLayout(): JSX.Element {
   // Editor panel: toolbar + editor (inlined to avoid re-creating the component function on every render)
   const editorPanel = (
     <div className="h-full flex flex-col">
-      <EditorToolbar onFormat={handleFormat} />
+      <EditorToolbar onFormat={handleFormat} onInsertTable={handleInsertTable} />
       <div className="flex-1 overflow-hidden">
         {isViewOnly ? (
           // 보기 전용 플레이스홀더 — HTML/바이너리/대용량 파일 편집 불가 안내
