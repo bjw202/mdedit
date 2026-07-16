@@ -144,6 +144,17 @@
   font-size: 14px;
 }
 
+/* SPEC-PREVIEW-009: 독립 코드 파일 뷰어(CodeFileViewer) 배경 정합성.
+   Shiki codeToHtml은 <pre class="shiki">에 테마 자체 배경색을 인라인 style로 삽입한다
+   (github-light=#fff, github-dark=#24292e). CodeFileViewer 컨테이너(.md-previewpane)는
+   앱 서페이스 배경(var(--md-bg))을 쓰므로, 인라인 배경이 그대로 노출되면 회색/다크 배경 위에
+   흰색(또는 어두운) 사각형이 떠 보이는 불일치가 발생한다.
+   인라인 style은 !important로만 재정의 가능하므로 여기서 투명화하여 컨테이너 배경을 상속시킨다.
+   .preview-content .shiki (마크다운 코드 블록)는 별도 규칙이며 이 변경의 영향을 받지 않는다. */
+.code-file-viewer .shiki {
+  background-color: transparent !important;
+}
+
 .preview-content h1 {
   @apply text-2xl font-bold mb-4 mt-6 pb-2 border-b border-gray-200 dark:border-gray-700;
 }
