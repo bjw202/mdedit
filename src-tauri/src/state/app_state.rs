@@ -4,8 +4,21 @@
 
 use notify::RecommendedWatcher;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::process::Child;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+/// 진행 중(in-flight) AI 요청 핸들. 동시 1개만 유지한다(REQ-AI-009).
+// @MX:NOTE: [AUTO] child = kill 대상, cancel_flag = 릴레이 스레드가 무음 종료를 판정하는 공유 플래그
+pub struct InFlightRequest {
+    /// 이 요청의 프론트 상관 id.
+    pub request_id: String,
+    /// 스폰된 CLI 프로세스(취소 시 kill).
+    pub child: Child,
+    /// 취소 신호. 릴레이 스레드가 종료 시 이 값을 보고 오류 대신 무음 처리한다(§3 P7).
+    pub cancel_flag: Arc<AtomicBool>,
+}
 
 /// Tauri managed application state holding the filesystem watcher and metadata.
 pub struct AppState {
@@ -16,6 +29,12 @@ pub struct AppState {
     /// Per-file last-write timestamps for debouncing rapid successive events.
     // @MX:NOTE: [AUTO] Debounce map - prevents duplicate events within 50ms window
     pub last_write_time: Mutex<HashMap<String, Instant>>,
+    /// 진행 중 AI 요청(동시 1개). 새 요청이 기존을 자동 취소·교체한다(REQ-AI-006/009).
+    pub in_flight: Mutex<Option<InFlightRequest>>,
+    /// 조직 정책 kill-switch로 AI가 강제 비활성인지(REQ-AI-017). lib.rs setup에서 1회 프로브.
+    pub ai_policy_disabled: Mutex<bool>,
+    /// 정책 비활성의 출처(`env`|`policy-file`), 비활성이 아니면 None. setup에서 함께 프로브.
+    pub ai_policy_source: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -25,6 +44,9 @@ impl AppState {
             watcher: Mutex::new(None),
             watch_path: Mutex::new(None),
             last_write_time: Mutex::new(HashMap::new()),
+            in_flight: Mutex::new(None),
+            ai_policy_disabled: Mutex::new(false),
+            ai_policy_source: Mutex::new(None),
         }
     }
 }
@@ -77,6 +99,28 @@ mod tests {
         }
         let path = state.watch_path.lock().unwrap();
         assert_eq!(*path, Some("/tmp/test".to_string()));
+    }
+
+    #[test]
+    fn test_app_state_new_has_no_in_flight() {
+        let state = AppState::new();
+        assert!(state.in_flight.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn test_app_state_new_policy_not_disabled_by_default() {
+        let state = AppState::new();
+        assert!(!*state.ai_policy_disabled.lock().unwrap());
+    }
+
+    #[test]
+    fn test_app_state_policy_flag_can_be_set() {
+        let state = AppState::new();
+        {
+            let mut guard = state.ai_policy_disabled.lock().unwrap();
+            *guard = true;
+        }
+        assert!(*state.ai_policy_disabled.lock().unwrap());
     }
 
     #[test]

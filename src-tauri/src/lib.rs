@@ -2,6 +2,7 @@
 // @MX:REASON: Central wiring of all commands and plugins (fan_in >= 5)
 // @MX:SPEC: SPEC-FS-001
 
+pub mod ai;
 pub mod commands;
 pub mod models;
 pub mod state;
@@ -15,6 +16,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(AppState::new())
         .setup(|app| {
             // Windows 작업표시줄(실행 중) 아이콘 강제 세팅.
             // Windows는 실행 창의 AppUserModelID(번들 식별자)에 아이콘 비트맵을
@@ -29,9 +31,19 @@ pub fn run() {
                     let _ = window.set_icon(icon);
                 }
             }
+
+            // 조직 정책 kill-switch를 1회 프로브해 상태에 저장한다(REQ-AI-017).
+            let (policy_disabled, policy_source) = ai::probe_policy(app.handle());
+            if let Some(state) = app.try_state::<AppState>() {
+                if let Ok(mut guard) = state.ai_policy_disabled.lock() {
+                    *guard = policy_disabled;
+                }
+                if let Ok(mut guard) = state.ai_policy_source.lock() {
+                    *guard = policy_source;
+                }
+            }
             Ok(())
         })
-        .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             file_ops::read_file,
             file_ops::write_file,
@@ -52,6 +64,10 @@ pub fn run() {
             image_ops::read_image_as_base64,
             image_ops::open_image_dialog,
             browser_ops::open_url_in_browser,
+            ai::ai_request,
+            ai::ai_cancel,
+            ai::ai_detect_providers,
+            ai::ai_policy_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

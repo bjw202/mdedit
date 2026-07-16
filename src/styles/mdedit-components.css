@@ -341,3 +341,139 @@
 .md-status-toggle svg { width: 12px; height: 12px; }
 .md-status-toggle.is-active { color: var(--md-accent-hover); background: var(--md-accent-soft); }
 .md-status-toggle:hover { color: var(--md-text-primary); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   AI features (SPEC-AI-001) — ✨ selection toolbar, preset menu, suggestion
+   card (block widget), ghost text. Tokens only; light/dark auto via the same
+   --md-* switch. No raw hex — scrims/tints use color-mix on tokens.
+   NOTE(scrim exception): SettingsModal.tsx renders its own backdrop/panel with
+   inline --md-* token styles (+ one rgba ink scrim). That is a .tsx concern
+   (not this file); a future migration may adopt .mdedit-ai-modal-backdrop below.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ✨ selection toolbar + sparkle button ───────────────────────────────── */
+.mdedit-ai-toolbar {
+  display: inline-flex; align-items: center; position: relative;
+  font-family: var(--md-font-ui);
+}
+.mdedit-ai-sparkle-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; font-size: 13px; line-height: 1;
+  color: var(--md-accent-hover);
+  background: var(--md-surface-raised);
+  border: 1px solid var(--md-border); border-radius: var(--md-radius-sm);
+  box-shadow: var(--md-shadow-sm); cursor: pointer;
+  transition: background var(--md-dur-fast) var(--md-ease), border-color var(--md-dur-fast) var(--md-ease);
+}
+.mdedit-ai-sparkle-btn:hover { background: var(--md-accent-soft); border-color: var(--md-accent); }
+.mdedit-ai-sparkle-btn:focus-visible { outline: 2px solid var(--md-accent); outline-offset: 1px; }
+.mdedit-ai-connect-hint {
+  position: absolute; top: 100%; left: 0; margin-top: 4px; white-space: nowrap;
+  padding: 3px var(--md-space-2); font-size: 11.5px;
+  color: var(--md-accent-contrast); background: var(--md-dirty);
+  border-radius: var(--md-radius-sm); box-shadow: var(--md-shadow-sm);
+}
+
+/* ── preset menu (✨ dropdown) ────────────────────────────────────────────── */
+.mdedit-ai-preset-menu {
+  position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 50;
+  min-width: 190px; padding: var(--md-space-1);
+  background: var(--md-surface-raised);
+  border: 1px solid var(--md-border); border-radius: var(--md-radius-md);
+  box-shadow: var(--md-shadow-md); font-family: var(--md-font-ui);
+}
+.mdedit-ai-preset-list { display: flex; flex-direction: column; }
+.mdedit-ai-preset-item {
+  display: flex; align-items: center; gap: var(--md-space-3); width: 100%;
+  padding: 7px var(--md-space-3); font: inherit; font-size: var(--md-fs-titlebar);
+  color: var(--md-text-primary); text-align: left;
+  background: transparent; border: 0; border-radius: var(--md-radius-sm); cursor: pointer;
+}
+.mdedit-ai-preset-item:hover, .mdedit-ai-preset-item.is-hover {
+  background: var(--md-accent-soft); color: var(--md-accent-hover);
+}
+.mdedit-ai-preset-item:disabled, .mdedit-ai-preset-item.is-disabled { opacity: 0.4; cursor: not-allowed; }
+.mdedit-ai-preset-item:focus-visible { outline: 2px solid var(--md-accent); outline-offset: -2px; }
+.mdedit-ai-preset-sep { height: 1px; margin: var(--md-space-1) 0; border: 0; background: var(--md-border); }
+.mdedit-ai-custom-row, .mdedit-ai-direct-row { display: flex; align-items: center; gap: var(--md-space-2); padding: var(--md-space-1); }
+.mdedit-ai-back {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 28px; padding: 0; font: inherit; color: var(--md-text-muted);
+  background: transparent; border: 0; border-radius: var(--md-radius-sm); cursor: pointer;
+}
+.mdedit-ai-back:hover { background: color-mix(in srgb, var(--md-text-primary) 8%, transparent); color: var(--md-text-primary); }
+.mdedit-ai-custom-input, .mdedit-ai-direct-input {
+  flex: 1; height: 28px; padding: 0 var(--md-space-2);
+  font: inherit; font-size: var(--md-fs-titlebar); color: var(--md-text-primary);
+  background: var(--md-surface-raised); caret-color: var(--md-accent);
+  border: 1px solid var(--md-border); border-radius: var(--md-radius-sm);
+}
+.mdedit-ai-custom-input::placeholder, .mdedit-ai-direct-input::placeholder { color: var(--md-text-faint); }
+.mdedit-ai-custom-input:focus-visible, .mdedit-ai-direct-input:focus-visible {
+  outline: none; border-color: var(--md-accent); box-shadow: 0 0 0 3px var(--md-accent-soft);
+}
+
+/* ── suggestion card (block widget) ───────────────────────────────────────── */
+.mdedit-ai-card {
+  display: flex; flex-direction: column; gap: var(--md-space-3);
+  margin: var(--md-space-3) 0; padding: var(--md-space-4);
+  background: var(--md-surface-raised);
+  border: 1px solid var(--md-border); border-left: 3px solid var(--md-accent);
+  border-radius: var(--md-radius-md); box-shadow: var(--md-shadow-sm);
+  font-family: var(--md-font-ui); font-size: var(--md-fs-titlebar);
+  color: var(--md-text-primary); white-space: normal;
+}
+.mdedit-ai-card-error { border-left-color: var(--md-danger); }
+.mdedit-ai-card-stale { border-left-color: var(--md-dirty); }
+.mdedit-ai-stream, .mdedit-ai-suggestion {
+  white-space: pre-wrap; line-height: var(--md-lh-ui); color: var(--md-text-primary);
+}
+/* streaming: 아직 확정 전이라 살짝 흐리게(타이핑 표시) */
+.mdedit-ai-stream { color: var(--md-text-muted); }
+.mdedit-ai-notice { color: var(--md-text-muted); line-height: var(--md-lh-ui); }
+.mdedit-ai-mermaid-preview {
+  padding: var(--md-space-3); background: var(--md-code-bg);
+  border: 1px solid var(--md-border); border-radius: var(--md-radius-sm);
+  overflow: auto;
+}
+.mdedit-ai-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--md-space-2); }
+.mdedit-ai-done-controls { display: flex; flex-direction: column; gap: var(--md-space-2); }
+
+/* card buttons — shared base (secondary), .is-primary + apply gets accent fill */
+.mdedit-ai-apply, .mdedit-ai-redo, .mdedit-ai-retry, .mdedit-ai-cancel,
+.mdedit-ai-advanced, .mdedit-ai-list-fallback {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  height: 28px; padding: 0 var(--md-space-3);
+  font: inherit; font-size: var(--md-fs-titlebar); line-height: 1;
+  color: var(--md-text-primary);
+  background: transparent; border: 1px solid var(--md-border);
+  border-radius: var(--md-radius-sm); cursor: pointer;
+  transition: background var(--md-dur-fast) var(--md-ease), border-color var(--md-dur-fast) var(--md-ease);
+}
+.mdedit-ai-apply:hover, .mdedit-ai-redo:hover, .mdedit-ai-retry:hover, .mdedit-ai-cancel:hover,
+.mdedit-ai-advanced:hover, .mdedit-ai-list-fallback:hover {
+  background: color-mix(in srgb, var(--md-text-primary) 8%, transparent);
+}
+.mdedit-ai-apply:focus-visible, .mdedit-ai-redo:focus-visible, .mdedit-ai-retry:focus-visible,
+.mdedit-ai-cancel:focus-visible, .mdedit-ai-advanced:focus-visible, .mdedit-ai-list-fallback:focus-visible {
+  outline: 2px solid var(--md-accent); outline-offset: 1px;
+}
+/* primary apply ([바꾸기]) + 목록 폴백 = accent-filled call to action */
+.mdedit-ai-apply.is-primary, .mdedit-ai-list-fallback {
+  color: var(--md-accent-contrast); background: var(--md-accent); border-color: var(--md-accent);
+}
+.mdedit-ai-apply.is-primary:hover, .mdedit-ai-list-fallback:hover {
+  background: var(--md-accent-hover); border-color: var(--md-accent-hover);
+}
+
+/* ── 원문 dim mark — 카드 활성 중 대상 원문을 흐리게(설계 §4.2 [2]) ───────────── */
+.mdedit-ai-dim-original { opacity: 0.4; }
+
+/* ── ghost text (섹션 채우기) — 회색, 뷰 레이어 전용 ─────────────────────────── */
+.cm-ai-ghost { color: var(--md-text-faint); opacity: 0.8; }
+
+/* ── (future) 토큰 기반 모달 스크림 — SettingsModal 이 인라인에서 옮겨올 때 사용 ─── */
+.mdedit-ai-modal-backdrop {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--md-text-primary) 44%, transparent); z-index: 100;
+}
