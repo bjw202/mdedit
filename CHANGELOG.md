@@ -6,6 +6,28 @@ All notable changes to MdEdit are documented here.
 
 ---
 
+## [0.8.0] - 2026-07-16
+
+### Added
+- **이미지·SVG 뷰어 (SPEC-PREVIEW-008)**:
+  - `ImageFileViewer`(png/jpg/gif/webp/bmp/ico/avif): `asset://` 로드, zoom/pan, 체커보드 배경, 픽셀·용량 메타 표시
+  - `SvgFileViewer`: 렌더↔소스 토글, DOMPurify SVG 프로파일 sanitize
+  - 마크다운 내 인라인 `<svg>`: placeholder-restore + DOMPurify 복원(`html:false` 유지)
+- **Mermaid 다이어그램 라이트/다크 테마 연동 (SPEC-PREVIEW-010)**:
+  - mermaid 다이어그램 테마가 앱 라이트/다크 모드를 따라감(dark→`dark`, light→`default`)
+  - 테마 토글 시 이미 렌더된 다이어그램도 라이브 재채색(SVG 색이 baked되므로 재초기화+재렌더)
+  - `securityLevel: 'strict'`는 베이스 상수화로 약화 차단, `system` 모드는 OS `prefers-color-scheme` 변경에 반응
+
+### Fixed
+- **코드 파일 미리보기 배경을 앱 서피스에 맞춤**: Shiki 인라인 배경을 투명화해 컨테이너 배경 상속(라이트/다크 정합)
+- **사이드바 접기 토글과 헤더 겹침 해소**
+- **파일 탐색기 상위 폴더 화살표 아이콘 광학 정렬 수정**
+- **인라인코드 `<svg>` 언급이 실제 SVG 추출을 막던 버그 수정 (SPEC-PREVIEW-008)**
+- **Windows: 작업표시줄에 옛 아이콘이 표시되던 문제**: 실행 시 모든 창에 `set_icon`(WM_SETICON)으로 아이콘을 직접 세팅해 AppUserModelID별 셸 iconcache를 덮어씀 (tauri `image-png` feature 추가)
+- **Windows: 릴리즈 빌드에서 바뀐 아이콘이 .exe에 재임베드되지 않던 문제**: `build.rs`에 아이콘·설정 파일 `cargo:rerun-if-changed` 등록으로 아이콘 변경 시 리소스 자동 재임베드
+
+---
+
 ## [0.7.0] - 2026-07-15
 
 ### Changed
