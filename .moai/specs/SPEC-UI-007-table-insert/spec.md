@@ -1,7 +1,7 @@
 ---
 id: SPEC-UI-007
-version: "0.0.2"
-status: draft
+version: "0.1.0"
+status: completed
 created: "2026-07-16"
 updated: "2026-07-16"
 author: "jw"
@@ -24,6 +24,7 @@ lifecycle: spec-anchored
 |---------|------|--------|---------|
 | 0.0.1 | 2026-07-16 | jw | 최초 SPEC 작성 — 에디터 툴바 "Insert Table" 버튼 + 8×8 그리드 피커 팝오버. Human gate 확정 결정 5건 반영: (1) 그리드 (r, c) 선택 = **총 r행(헤더 포함, 본문 r-1행)** × c열, (2) 크기 라벨 = **행 우선** 행렬 표기 "r × c", (3) 빈 본문 셀 = 공백 패딩 `|     |` 스타일, (4) view-only 모드 = no-op(기존 포맷 버튼 가드 패턴), (5) 테스트 범위 = 컴포넌트 테스트만(신규 Playwright E2E 없음). |
 | 0.0.2 | 2026-07-16 | jw | plan-audit 리뷰(SPEC-UI-007-review-1) 반영: **D1** AC 매핑 표 수정 — AC-UI-007-010을 REQ-UI-007-002(다크모드 토큰)로 정정, tsc/vitest 게이트는 표 밖 Quality Gates 노트로 이동(acceptance.md와 1:1 복원, REQ-002 커버·고아 AC 제거). **D2** REQ-UI-007-015("적용할 수 있다", shall 아님, AC 없음)를 Requirements에서 삭제하고 Design Notes / Future Considerations로 이동(REQ는 001–014). **D3** REQ-011/012/013 이중 부정 제거(shall not + 긍정형 동사). **D4** REQ-007에서 API 식별자(`EditorSelection.range`, `view.focus()`)를 행동 서술로 교체, 구현 지시는 Delta/Design Notes로 이동. **D5** REQ-010/"정상적으로" 제거. |
+| 0.1.0 | 2026-07-16 | jw | 구현 완료 — REQ-001~014 전체 구현, AC-001~010 검증 통과, evaluator-active 지적 보완(insertTable 1~8 범위 가드 + 테스트 6건). 계획 대비 드리프트 0% (icons/index.ts는 배럴 재노출로 수정 불필요). |
 
 ## Summary
 
@@ -81,6 +82,7 @@ lifecycle: spec-anchored
 - **REQ-UI-007-012**: The system **shall not** 신규 런타임 의존성(`lucide-react`, floating-ui, 포털/팝오버 라이브러리 등)을 추가한다.
 - **REQ-UI-007-013**: The system **shall not** 신규 키보드 단축키 바인딩을 등록한다(`markdownKeyBindings` 무변경).
 - **REQ-UI-007-014**: **IF** EditorView가 null인 상태에서 삽입이 요청되면, **then** the system **shall** 문서 dispatch를 시도하지 않고 조용히 반환한다(에러/예외 없음).
+  - **[as-implemented]** `insertTable`은 `rows`/`cols`가 1..8 범위를 벗어나면(view가 유효한 경우에도) `false`를 반환하고 dispatch를 시도하지 않는다 — evaluator-active 지적 반영, 예외 없는 무동작 보장을 강화한 범위 가드(테스트 6건 추가).
 
 ## Design Notes / Future Considerations
 

@@ -1,7 +1,7 @@
 ---
 id: SPEC-UI-007
 version: "0.0.1"
-status: draft
+status: completed
 created: "2026-07-16"
 updated: "2026-07-16"
 author: "jw"

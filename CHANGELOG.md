@@ -4,6 +4,9 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Added
+- **에디터 툴바 표 삽입 (SPEC-UI-007)**: 툴바에 표 삽입 버튼 + 8×8 그리드 피커 팝오버 추가 — 셀 호버 시 "행 × 열" 크기 라벨과 하이라이트 표시, 클릭 시 헤더/구분 행 포함 markdown 표 스켈레톤을 커서 위치에 삽입하고 첫 헤더 셀 선택 상태로 포커스 복귀 (#11)
+
 ---
 
 ## [0.8.0] - 2026-07-16
