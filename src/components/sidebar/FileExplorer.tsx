@@ -150,8 +150,11 @@ export function FileExplorer(): JSX.Element {
             title={`Go to parent folder: ${parentPath ?? ''}`}
             className="md-icon-btn flex-shrink-0"
           >
+            {/* 커스텀 경로(M5 10l7-7...v18)는 24 viewBox의 75%를 채워 형제 아이콘(60~70%)보다
+                시각적 무게가 위로 쏠려 보임(각지 화살촉이 상단 가장자리에 거의 닿음).
+                Lucide의 표준 arrow-up 경로로 교체해 형제 아이콘과 동일한 여백 비율(상하 5유닛)을 확보. */}
             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
             </svg>
           </button>
         )}
