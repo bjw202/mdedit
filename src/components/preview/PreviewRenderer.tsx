@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { openUrlInBrowser } from '@/lib/tauri/ipc';
 import { sanitizeSvg } from '@/lib/preview/svgSanitize';
+import { useUIStore } from '@/store/uiStore';
 
 // @MX:ANCHOR: [AUTO] PreviewRenderer - sanitized HTML을 DOM에 렌더하고 mermaid 다이어그램을 처리하는 핵심 컴포넌트
 // @MX:REASON: [AUTO] MarkdownPreview, 내보내기 함수 등에서 직접 사용되는 중심 렌더 타겟 (fan_in >= 3)
 // @MX:SPEC: SPEC-PREVIEW-001
 // @MX:SPEC: SPEC-PREVIEW-008 REQ-PREVIEW008-005 REQ-PREVIEW008-006
+// @MX:SPEC: SPEC-PREVIEW-010
 // @MX:NOTE: [AUTO] dangerouslySetInnerHTML은 의도적으로 사용됨
 // markdown-it이 html:false로 렌더하므로 원시 HTML 주입이 차단되어 안전하다.
 // SPEC-PREVIEW-008: renderer.ts가 남긴 data-mdedit-svg 마커만 예외적으로 svgSanitize(DOMPurify SVG
@@ -20,8 +22,21 @@ import { sanitizeSvg } from '@/lib/preview/svgSanitize';
 // @MX:NOTE: [AUTO] 링크 클릭 시 시스템 기본 브라우저로 열기
 // Preview 패널 내부의 링크를 클릭하면 WebView 내부가 아닌 시스템 기본 브라우저로 엽니다.
 
-// Initialize mermaid once at module load time
-mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
+// SPEC-PREVIEW-010 D2: securityLevel/startOnLoad는 고정 베이스 상수로 유지하고 theme만 동적으로
+// 교체한다. 재초기화 시 이 상수를 재사용하여 securityLevel: 'strict' 약화를 원천 차단한다(REQ-004).
+// @MX:WARN: [AUTO] securityLevel을 'strict'보다 약한 값으로 절대 덮어쓰지 않는다
+// @MX:REASON: [AUTO] mermaid 라벨 HTML 이스케이프/스크립트 차단이 풀리면 XSS 경로가 열린다
+const MERMAID_BASE_CONFIG = { startOnLoad: false, securityLevel: 'strict' as const };
+
+/**
+ * theme(light/dark/system) 값으로부터 실효 다크 여부를 판정한다.
+ * system 모드에서는 OS `prefers-color-scheme`를 직접 조회한다(useTheme.ts와 동일한 판정 로직).
+ */
+function getEffectiveIsDark(theme: string): boolean {
+  if (theme === 'dark') return true;
+  if (theme === 'light') return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
 
 // SPEC-PREVIEW-008 D4: renderer.ts(extractInlineSvg)가 남긴 마커 형식과 반드시 일치해야 한다.
 const SVG_MARKER_RE = /<div data-mdedit-svg="([^"]*)"><\/div>/g;
@@ -60,6 +75,24 @@ interface PreviewRendererProps {
 export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // SPEC-PREVIEW-010: 앱 테마 신호를 구독해 mermaid 다이어그램 테마를 연동한다.
+  const theme = useUIStore((s) => s.theme);
+  const [isDark, setIsDark] = useState<boolean>(() => getEffectiveIsDark(theme));
+
+  // system 모드에서는 명시적 theme 값이 바뀌지 않아도 OS 색 구성 변경(change 이벤트)에
+  // 반응해야 하므로, matchMedia 리스너로 실효 다크 여부를 별도 파생한다(REQ-003).
+  useEffect(() => {
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      setIsDark(mediaQuery.matches);
+      const handler = (e: MediaQueryListEvent): void => setIsDark(e.matches);
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
+    }
+    setIsDark(theme === 'dark');
+    return undefined;
+  }, [theme]);
+
   // SPEC-PREVIEW-008: dangerouslySetInnerHTML 직전에 인라인 svg 마커를 sanitize된 svg로 복원한다.
   const safeHtml = useMemo(() => restoreInlineSvgMarkers(html), [html]);
 
@@ -67,6 +100,11 @@ export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.E
     if (!containerRef.current) {
       return;
     }
+
+    // SPEC-PREVIEW-010 REQ-001/002: mermaid.render가 산출한 SVG는 색을 굽어 넣으므로(baked),
+    // 테마가 바뀔 때마다 현재 테마로 재초기화한 뒤 컨테이너를 다시 render해야 재채색된다.
+    // 이 effect의 의존성에 isDark를 포함시켜 테마 토글만으로도 재실행되게 한다(D5).
+    mermaid.initialize({ ...MERMAID_BASE_CONFIG, theme: isDark ? 'dark' : 'default' });
 
     // Mermaid diagram rendering
     const containers = containerRef.current.querySelectorAll('.mermaid-container');
@@ -125,7 +163,7 @@ export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.E
         containerRef.current.removeEventListener('click', handleLinkClick);
       }
     };
-  }, [safeHtml]);
+  }, [safeHtml, isDark]);
 
   return (
     <div
