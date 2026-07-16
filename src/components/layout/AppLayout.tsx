@@ -250,9 +250,13 @@ export function AppLayout(): JSX.Element {
 
   // SPEC-PREVIEW-007: html/binary/too-large 파일은 편집 불가 — isViewOnly로 확장
   // previewStatus를 fileStore에서 읽어 binary/too-large 여부를 판정한다
+  // SPEC-PREVIEW-008: image/svg도 보기 전용 — 이미지·SVG는 편집/주석·소스 저장을 다루지 않는다
+  // (Non-Goals). 여기서 제외하면 MarkdownEditor가 편집기 버퍼(빈 값 또는 SVG 원본)를 편집 가능하게
+  // 노출해 SPEC-PREVIEW-008의 보기 전용 요구(REQ-PREVIEW008-001)를 어기게 된다.
   const previewStatus = useFileStore((s) => s.previewStatus);
   const viewType = getFileViewType(currentFile, previewStatus);
-  const isViewOnly = viewType === 'html' || viewType === 'unsupported';
+  const isViewOnly =
+    viewType === 'html' || viewType === 'unsupported' || viewType === 'image' || viewType === 'svg';
 
   // Editor panel: toolbar + editor (inlined to avoid re-creating the component function on every render)
   const editorPanel = (

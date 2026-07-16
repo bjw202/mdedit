@@ -142,19 +142,11 @@ export function FileExplorer(): JSX.Element {
     <div className="md-sidebar h-full overflow-hidden">
       {/* Folder header with name, Go Up button, and Refresh button */}
       <div className="md-sidebar-head">
-        {canGoUp && (
-          <button
-            type="button"
-            aria-label="Go to parent folder"
-            onClick={handleGoUp}
-            title={`Go to parent folder: ${parentPath ?? ''}`}
-            className="md-icon-btn flex-shrink-0"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-            </svg>
-          </button>
-        )}
+        {/* SPEC-PREVIEW-008: 헤더의 "상위 폴더로 이동" 버튼(위쪽 화살표)은 제거함.
+            AppLayout.tsx의 사이드바 접기/펴기 플로팅 토글 버튼(absolute left-2 top-2, 30x30)이
+            이 위치(헤더 첫 번째 자식)와 물리적으로 겹치는 실제 버그가 있었음.
+            상위 폴더 이동 기능은 트리의 ".." 행(handleGoUp, 아래 md-tree)으로 계속 제공되므로
+            기능 손실 없이 겹침만 제거됨. */}
         <FolderIcon width={14} height={14} style={{ color: 'var(--md-accent)', flexShrink: 0 }} />
         <span className="md-sidebar-title truncate flex-1" title={watchedPath ?? ''}>
           {getBaseName(watchedPath)}

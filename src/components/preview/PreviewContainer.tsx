@@ -4,35 +4,45 @@
 //   fan_in: AppLayout(1) + 미래 통합 진입점 추가 가능성 → ANCHOR 유지.
 // @MX:SPEC: SPEC-PREVIEW-004 REQ-PREVIEW004-001, SPEC-PREVIEW-005 REQ-PREVIEW005-001
 // @MX:SPEC: SPEC-PREVIEW-007 REQ-PREVIEW007-003 REQ-PREVIEW007-004 REQ-PREVIEW007-005 REQ-PREVIEW007-007
+// @MX:SPEC: SPEC-PREVIEW-008 REQ-PREVIEW008-001 REQ-PREVIEW008-004 REQ-PREVIEW008-008
 
 import type { RefObject } from 'react';
 import { useFileStore } from '@/store/fileStore';
 import type { PreviewStatus } from '@/store/fileStore';
 import { getLangForExtension } from '@/lib/preview/extensionLangMap';
+import { isRasterImagePath, isSvgPath } from '@/lib/preview/mediaExtensions';
 import { MarkdownPreview } from './MarkdownPreview';
 import { HtmlFileViewer } from './HtmlFileViewer';
 import { CodeFileViewer } from './CodeFileViewer';
 import { UnsupportedFileViewer } from './UnsupportedFileViewer';
+import { ImageFileViewer } from './ImageFileViewer';
+import { SvgFileViewer } from './SvgFileViewer';
 
 /**
  * 파일 종류를 판단하는 순수 함수 (경로 기반 기본 분류 + previewStatus 오버라이드).
  *
- * 분기 우선순위 (SPEC-PREVIEW-007 결정 1, 회귀 수정):
+ * 분기 우선순위 (SPEC-PREVIEW-008 REQ-PREVIEW008-001 확장자 우선 규약 포함):
  * 1. .html(대소문자 무관) → 'html'  (SPEC-PREVIEW-004 기존 동작 유지)
  * 2. .md / .markdown(대소문자 무관) → 'markdown'  (회귀 수정: previewStatus='text'로 덮어써지지 않도록)
- * 3. extensionLangMap 조회 성공 → 'code'  (SPEC-PREVIEW-005 기존 동작 유지)
- * 4. previewStatus = 'binary' | 'too-large' → 'unsupported'  (SPEC-PREVIEW-007 신규)
- * 5. previewStatus = 'text' → 'text'  (SPEC-PREVIEW-007 신규)
- * 6. 그 외 → 'markdown'  (기존 폴백)
+ * 3. 래스터 이미지 확장자(.png/.jpg/.jpeg/.gif/.webp/.bmp/.ico/.avif) → 'image'  (SPEC-PREVIEW-008 신규)
+ * 4. .svg → 'svg'  (SPEC-PREVIEW-008 신규, D6: 'text' 평문 경로로 넘어가지 않도록 previewStatus보다 앞)
+ * 5. extensionLangMap 조회 성공 → 'code'  (SPEC-PREVIEW-005 기존 동작 유지)
+ * 6. previewStatus = 'binary' | 'too-large' → 'unsupported'  (SPEC-PREVIEW-007 신규)
+ * 7. previewStatus = 'text' → 'text'  (SPEC-PREVIEW-007 신규)
+ * 8. 그 외 → 'markdown'  (기존 폴백)
+ *
+ * 3·4순위(이미지·SVG)는 파일 경로(확장자)만으로 판정하며 previewStatus(binary/text) 판정보다
+ * 반드시 앞에 위치한다. read_file이 래스터를 reject(→binary)하거나 svg를 성공 처리(→text)하는
+ * 것을 확장자 분기가 선점하지 않으면 SPEC-PREVIEW-008이 고치려는 오라우팅이 재발한다(D1).
  *
  * @param path - 파일 경로 또는 파일명
  * @param previewStatus - openFile이 판정한 파일 분류 결과 (단일 진실 공급원)
- * @returns 'html' | 'code' | 'unsupported' | 'text' | 'markdown'
+ * @returns 'html' | 'code' | 'unsupported' | 'text' | 'markdown' | 'image' | 'svg'
  */
 export function getFileViewType(
   path: string | null | undefined,
   previewStatus: PreviewStatus = null
-): 'html' | 'code' | 'unsupported' | 'text' | 'markdown' {
+): 'html' | 'code' | 'unsupported' | 'text' | 'markdown' | 'image' | 'svg' {
   if (!path) return 'markdown';
 
   const lower = path.toLowerCase();
@@ -45,15 +55,19 @@ export function getFileViewType(
   // .md 파일은 항상 마크다운 뷰어로 렌더되어야 한다 (핵심 기능 보호)
   if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'markdown';
 
-  // 3순위: 코드 매핑 조회 — SPEC-PREVIEW-005 기존 동작 유지
+  // 3·4순위: 이미지·SVG 확장자 분기 (SPEC-PREVIEW-008 D1) — previewStatus 판정보다 앞
+  if (isRasterImagePath(path)) return 'image';
+  if (isSvgPath(path)) return 'svg';
+
+  // 5순위: 코드 매핑 조회 — SPEC-PREVIEW-005 기존 동작 유지
   if (getLangForExtension(path) !== null) return 'code';
 
-  // 4순위: previewStatus 기반 분류 — SPEC-PREVIEW-007 신규
+  // 6순위: previewStatus 기반 분류 — SPEC-PREVIEW-007 신규
   // 경로만으로는 바이너리·대용량 여부를 알 수 없으므로 openFile이 판정한 상태를 참조한다
   if (previewStatus === 'binary' || previewStatus === 'too-large') return 'unsupported';
   if (previewStatus === 'text') return 'text';
 
-  // 5순위: 폴백
+  // 7순위: 폴백
   return 'markdown';
 }
 
@@ -80,6 +94,14 @@ export function PreviewContainer({ previewRef }: PreviewContainerProps): JSX.Ele
 
   if (viewType === 'html' && currentFile) {
     return <HtmlFileViewer htmlPath={currentFile} />;
+  }
+
+  if (viewType === 'image' && currentFile) {
+    return <ImageFileViewer imagePath={currentFile} />;
+  }
+
+  if (viewType === 'svg' && currentFile) {
+    return <SvgFileViewer svgPath={currentFile} />;
   }
 
   if (viewType === 'code') {

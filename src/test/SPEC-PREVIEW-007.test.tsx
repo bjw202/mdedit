@@ -147,12 +147,12 @@ describe('useFileSystem.openFile — 파일 분류 (SPEC-PREVIEW-007)', () => {
 
     const { result } = renderHook(() => useFileSystem());
     await act(async () => {
-      await result.current.openFile('/project/logo.png');
+      await result.current.openFile('/project/data.bin');
     });
 
     expect(useFileStore.getState().previewStatus as PreviewStatus).toBe('binary');
     expect(useEditorStore.getState().content).toBe('');
-    expect(useFileStore.getState().currentFile).toBe('/project/logo.png');
+    expect(useFileStore.getState().currentFile).toBe('/project/data.bin');
   });
 
   it('시나리오 D: 바이너리 파일 reject → 예외가 상위로 전파되지 않는다', async () => {
@@ -291,7 +291,7 @@ describe('useFileSystem.openFile — 파일 분류 (SPEC-PREVIEW-007)', () => {
     await act(async () => { await result.current.openFile('/project/readme.txt'); });
     expect(useFileStore.getState().previewStatus as PreviewStatus).toBe('text');
 
-    await act(async () => { await result.current.openFile('/project/image.png'); });
+    await act(async () => { await result.current.openFile('/project/image.bin'); });
     expect(useFileStore.getState().previewStatus as PreviewStatus).toBe('binary');
   });
 

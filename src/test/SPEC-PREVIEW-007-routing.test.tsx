@@ -89,7 +89,7 @@ describe('getFileViewType — text/unsupported 분기 추가 (SPEC-PREVIEW-007)'
 
   it('미지원 확장자 + previewStatus="binary" → "unsupported" (신규)', async () => {
     const { getFileViewType } = await import('@/components/preview/PreviewContainer');
-    expect(getFileViewType('/project/logo.png', 'binary' as never)).toBe('unsupported');
+    expect(getFileViewType('/project/archive.dat', 'binary' as never)).toBe('unsupported');
   });
 
   it('미지원 확장자 + previewStatus="too-large" → "unsupported" (신규)', async () => {
@@ -152,7 +152,7 @@ describe('PreviewContainer — text/unsupported 렌더 (SPEC-PREVIEW-007)', () =
   });
 
   it('previewStatus="binary" → UnsupportedFileViewer를 reason="binary"로 렌더한다', async () => {
-    mockFileState.currentFile = '/project/logo.png';
+    mockFileState.currentFile = '/project/archive.dat';
     mockFileState.previewStatus = 'binary';
     const { PreviewContainer } = await import('@/components/preview/PreviewContainer');
     const ref = { current: null } as React.RefObject<HTMLDivElement>;
@@ -175,15 +175,15 @@ describe('PreviewContainer — text/unsupported 렌더 (SPEC-PREVIEW-007)', () =
   });
 
   it('UnsupportedFileViewer에 파일명이 올바르게 전달된다', async () => {
-    mockFileState.currentFile = '/project/logo.png';
+    mockFileState.currentFile = '/project/archive.dat';
     mockFileState.previewStatus = 'binary';
     const { PreviewContainer } = await import('@/components/preview/PreviewContainer');
     const ref = { current: null } as React.RefObject<HTMLDivElement>;
     render(<PreviewContainer previewRef={ref} />);
     const viewer = screen.queryByTestId('unsupported-file-viewer');
     expect(viewer).not.toBeNull();
-    // 파일명만 추출: 'logo.png'
-    expect(viewer!.getAttribute('data-filename')).toBe('logo.png');
+    // 파일명만 추출: 'archive.dat'
+    expect(viewer!.getAttribute('data-filename')).toBe('archive.dat');
   });
 
   it('.md + previewStatus=null → MarkdownPreview 렌더 (회귀 차단)', async () => {

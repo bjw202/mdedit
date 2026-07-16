@@ -40,6 +40,20 @@ vi.mock('@/components/preview/CodeFileViewer', () => ({
   )),
 }));
 
+// ImageFileViewer mock — SPEC-PREVIEW-008
+vi.mock('@/components/preview/ImageFileViewer', () => ({
+  ImageFileViewer: vi.fn(({ imagePath }: { imagePath: string }) => (
+    <div data-testid="image-file-viewer" data-path={imagePath} />
+  )),
+}));
+
+// SvgFileViewer mock — SPEC-PREVIEW-008
+vi.mock('@/components/preview/SvgFileViewer', () => ({
+  SvgFileViewer: vi.fn(({ svgPath }: { svgPath: string }) => (
+    <div data-testid="svg-file-viewer" data-path={svgPath} />
+  )),
+}));
+
 // extensionLangMap mock — 실제 매핑을 사용하지 않고 테스트 제어용 목업
 vi.mock('@/lib/preview/extensionLangMap', () => ({
   getLangForExtension: vi.fn((path: string | null | undefined) => {
@@ -177,6 +191,47 @@ describe('getFileViewType', () => {
     // html은 extensionLangMap에 없으므로 순서 테스트: .html → 'html'
     expect(getFileViewType('index.html')).toBe('html');
   });
+
+  // ---- SPEC-PREVIEW-008 시나리오 A: 래스터 이미지 확장자 분기 (must-pass) ----
+
+  it.each(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'avif'])(
+    '.%s 파일 → image (시나리오 A)',
+    (ext) => {
+      expect(getFileViewType(`logo.${ext}`)).toBe('image');
+    },
+  );
+
+  it('대문자 .PNG → image (대소문자 무관)', () => {
+    expect(getFileViewType('LOGO.PNG')).toBe('image');
+  });
+
+  it('previewStatus="binary"여도 이미지 확장자는 image로 우선 라우팅된다 (D1, 시나리오 A)', () => {
+    expect(getFileViewType('logo.png', 'binary')).toBe('image');
+  });
+
+  it('previewStatus="too-large"여도 이미지 확장자는 image로 우선 라우팅된다 (시나리오 C, must-pass)', () => {
+    expect(getFileViewType('big.png', 'too-large')).toBe('image');
+  });
+
+  // ---- SPEC-PREVIEW-008 시나리오 D: SVG 확장자 분기 (must-pass) ----
+
+  it('.svg 파일 → svg (시나리오 D)', () => {
+    expect(getFileViewType('icon.svg')).toBe('svg');
+  });
+
+  it('대문자 .SVG → svg (대소문자 무관)', () => {
+    expect(getFileViewType('ICON.SVG')).toBe('svg');
+  });
+
+  it('previewStatus="text"여도 svg 확장자는 svg로 우선 라우팅된다 (D6, text 평문 뷰로 가지 않음)', () => {
+    expect(getFileViewType('icon.svg', 'text')).toBe('svg');
+  });
+
+  // ---- SPEC-PREVIEW-008 시나리오 H: 기존 회귀 차단 ----
+
+  it('.gitignore(확장자 없음)는 여전히 previewStatus 기반 분류를 따른다', () => {
+    expect(getFileViewType('.gitignore', 'text')).toBe('text');
+  });
 });
 
 // ---- PreviewContainer 컴포넌트 분기 테스트 ----
@@ -284,5 +339,45 @@ describe('PreviewContainer', () => {
     expect(screen.getByTestId('markdown-preview')).toBeDefined();
     expect(screen.queryByTestId('code-file-viewer')).toBeNull();
     expect(screen.queryByTestId('html-file-viewer')).toBeNull();
+  });
+
+  // ---- SPEC-PREVIEW-008 시나리오 A: ImageFileViewer 렌더 (must-pass) ----
+
+  it('.png 파일 → ImageFileViewer를 렌더링한다 (시나리오 A)', async () => {
+    mockCurrentFile.value = '/project/logo.png';
+    const { PreviewContainer } = await import('@/components/preview/PreviewContainer');
+    const ref = { current: null } as React.RefObject<HTMLDivElement>;
+    render(<PreviewContainer previewRef={ref} />);
+    expect(screen.getByTestId('image-file-viewer')).toBeDefined();
+    expect(screen.queryByTestId('unsupported-file-viewer')).toBeNull();
+    expect(screen.queryByTestId('markdown-preview')).toBeNull();
+  });
+
+  it('ImageFileViewer에 imagePath prop이 전달된다', async () => {
+    mockCurrentFile.value = '/project/photo.jpg';
+    const { PreviewContainer } = await import('@/components/preview/PreviewContainer');
+    const ref = { current: null } as React.RefObject<HTMLDivElement>;
+    render(<PreviewContainer previewRef={ref} />);
+    expect(screen.getByTestId('image-file-viewer').getAttribute('data-path')).toBe('/project/photo.jpg');
+  });
+
+  // ---- SPEC-PREVIEW-008 시나리오 D: SvgFileViewer 렌더 (must-pass) ----
+
+  it('.svg 파일 → SvgFileViewer를 렌더링한다 (시나리오 D, CodeFileViewer lang=text로 가지 않음)', async () => {
+    mockCurrentFile.value = '/project/icon.svg';
+    const { PreviewContainer } = await import('@/components/preview/PreviewContainer');
+    const ref = { current: null } as React.RefObject<HTMLDivElement>;
+    render(<PreviewContainer previewRef={ref} />);
+    expect(screen.getByTestId('svg-file-viewer')).toBeDefined();
+    expect(screen.queryByTestId('code-file-viewer')).toBeNull();
+    expect(screen.queryByTestId('markdown-preview')).toBeNull();
+  });
+
+  it('SvgFileViewer에 svgPath prop이 전달된다', async () => {
+    mockCurrentFile.value = '/project/icon.svg';
+    const { PreviewContainer } = await import('@/components/preview/PreviewContainer');
+    const ref = { current: null } as React.RefObject<HTMLDivElement>;
+    render(<PreviewContainer previewRef={ref} />);
+    expect(screen.getByTestId('svg-file-viewer').getAttribute('data-path')).toBe('/project/icon.svg');
   });
 });

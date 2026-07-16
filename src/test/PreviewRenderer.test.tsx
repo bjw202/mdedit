@@ -108,4 +108,35 @@ describe('PreviewRenderer', () => {
     // CSS zoom 속성이 숫자로 설정되면 브라우저(jsdom)는 문자열 "2"로 반환
     expect(previewDiv.style.zoom).toBe('2');
   });
+
+  // ---- SPEC-PREVIEW-008 REQ-PREVIEW008-006: 인라인 SVG 마커 sanitize + 복원 (시나리오 G, must-pass) ----
+
+  it('data-mdedit-svg 마커를 sanitize된 <svg>로 복원해 DOM에 렌더한다', async () => {
+    const rawSvg = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4" /></svg>';
+    const html = `<p>before</p><div data-mdedit-svg="${encodeURIComponent(rawSvg)}"></div><p>after</p>`;
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const { container } = render(<PreviewRenderer html={html} />);
+    expect(container.querySelector('svg')).not.toBeNull();
+    expect(container.querySelector('circle')).not.toBeNull();
+    expect(container.querySelector('[data-mdedit-svg]')).toBeNull();
+  });
+
+  it('악성 마커(<script>, onload)는 sanitize되어 스크립트가 DOM에 남지 않는다 (시나리오 F/G, must-pass)', async () => {
+    const evilSvg =
+      '<svg xmlns="http://www.w3.org/2000/svg" onload="window.__prevRendererXss = true"><script>window.__prevRendererXss = true;</script><rect width="1" height="1" /></svg>';
+    const html = `<div data-mdedit-svg="${encodeURIComponent(evilSvg)}"></div>`;
+    (window as unknown as Record<string, unknown>).__prevRendererXss = undefined;
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const { container } = render(<PreviewRenderer html={html} />);
+    expect(container.querySelector('script')).toBeNull();
+    expect(container.innerHTML).not.toContain('onload');
+    expect(container.querySelector('rect')).not.toBeNull();
+    expect((window as unknown as Record<string, unknown>).__prevRendererXss).toBeUndefined();
+  });
+
+  it('마커가 없는 일반 html은 변화 없이 그대로 렌더된다 (회귀 차단)', async () => {
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const { container } = render(<PreviewRenderer html="<p>plain text</p>" />);
+    expect(container.querySelector('p')?.textContent).toBe('plain text');
+  });
 });

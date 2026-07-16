@@ -273,4 +273,97 @@ describe('useFileSystem', () => {
     expect(ipc.readFile).toHaveBeenCalledWith(mdPath);
     expect(useEditorStore.getState().content).toBe(content);
   });
+
+  // ---- SPEC-PREVIEW-008 시나리오 A/C: 래스터 이미지 조기 분기 (must-pass) ----
+
+  it('openFile: 래스터 이미지(.png)는 readFile을 호출하지 않는다 (read_file reject 낭비 회피)', async () => {
+    const imgPath = '/project/logo.png';
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(imgPath);
+    });
+
+    expect(ipc.readFile).not.toHaveBeenCalled();
+    expect(useFileStore.getState().currentFile).toBe(imgPath);
+    expect(useEditorStore.getState().content).toBe('');
+  });
+
+  it('openFile: 대용량 이미지(big.png > 5MB)도 too-large 가드 없이 currentFile을 설정한다 (시나리오 C, must-pass)', async () => {
+    const imgPath = '/project/big.png';
+    useFileStore.setState({
+      fileTree: [{ name: 'big.png', path: imgPath, isDirectory: false, size: 6 * 1024 * 1024 }],
+    });
+
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(imgPath);
+    });
+
+    expect(useFileStore.getState().currentFile).toBe(imgPath);
+    expect(useFileStore.getState().previewStatus).not.toBe('too-large');
+  });
+
+  it('openFile: .SVG 대문자 확장자도 이미지와 동일하게 조기 분기된다', async () => {
+    const imgPath = '/project/LOGO.PNG';
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(imgPath);
+    });
+
+    expect(ipc.readFile).not.toHaveBeenCalled();
+    expect(useFileStore.getState().currentFile).toBe(imgPath);
+  });
+
+  // ---- SPEC-PREVIEW-008 시나리오 D/E: SVG 조기 분기 (must-pass) ----
+
+  it('openFile: .svg는 readFile을 호출하여 소스 텍스트를 로드한다 (렌더 뷰 기본, D6)', async () => {
+    const svgPath = '/project/icon.svg';
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>';
+    vi.mocked(ipc.readFile).mockResolvedValue(svgContent);
+
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(svgPath);
+    });
+
+    expect(ipc.readFile).toHaveBeenCalledWith(svgPath);
+    expect(useEditorStore.getState().content).toBe(svgContent);
+    expect(useFileStore.getState().currentFile).toBe(svgPath);
+  });
+
+  it('openFile: 대용량 SVG(big.svg > 5MB)도 too-large 가드 없이 readFile을 시도한다 (D3)', async () => {
+    const svgPath = '/project/big.svg';
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>';
+    vi.mocked(ipc.readFile).mockResolvedValue(svgContent);
+    useFileStore.setState({
+      fileTree: [{ name: 'big.svg', path: svgPath, isDirectory: false, size: 6 * 1024 * 1024 }],
+    });
+
+    const { result } = renderHook(() => useFileSystem());
+
+    await act(async () => {
+      await result.current.openFile(svgPath);
+    });
+
+    expect(ipc.readFile).toHaveBeenCalledWith(svgPath);
+    expect(useEditorStore.getState().content).toBe(svgContent);
+  });
+
+  it('openFile: SVG readFile이 실패해도 예외를 전파하지 않고 binary로 흡수한다', async () => {
+    const svgPath = '/project/broken.svg';
+    vi.mocked(ipc.readFile).mockRejectedValue(new Error('read failed'));
+
+    const { result } = renderHook(() => useFileSystem());
+
+    await expect(
+      act(async () => {
+        await result.current.openFile(svgPath);
+      }),
+    ).resolves.not.toThrow();
+    expect(useFileStore.getState().currentFile).toBe(svgPath);
+  });
 });
