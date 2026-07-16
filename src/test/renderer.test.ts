@@ -320,4 +320,67 @@ describe('renderMarkdown: inline SVG placeholder (SPEC-PREVIEW-008)', () => {
     expect(result).toContain('data-mdedit-svg=');
     expect(result).toContain('<code>inline code</code>');
   });
+
+  // ---- 실사용 버그 리포트: 인라인코드 <svg> 언급이 뒤따르는 실제 SVG 추출을 가로막는 straddling-match 결함 ----
+  // samples/svg-in-markdown.md 섹션 1에서 재현됨. 원인: INLINE_SVG_RE가 문서 전체를 대상으로
+  // lazy 매칭하기 때문에, 인라인 코드 `<svg>` 안의 <svg에서 시작해 [\s\S]*?가 코드 스팬 경계를
+  // 건너뛰어 실제 블록의 </svg>까지 통째로 삼켜버린다. 매치 시작 오프셋이 보호구간(인라인코드) 안에
+  // 있으므로 isProtected가 true가 되어 전체 스팬이 무변환으로 방치되고, 결과적으로 실제 SVG가
+  // 이스케이프된 원시 텍스트로 렌더된다.
+  it('인라인코드 <svg> 언급 뒤에 오는 실제 SVG 블록은 straddling 없이 정상 추출된다 (실사용 버그 재현)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = [
+      '붙여넣은 `<svg>` 입니다.',
+      '',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" /></svg>',
+    ].join('\n');
+    const result = await renderMarkdown(content, null);
+
+    // 실제 SVG는 마커로 추출되어야 한다 (버그 상태에서는 이 마커가 생성되지 않았다)
+    expect(result).toContain('data-mdedit-svg=');
+    expect(result).toContain(
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" /></svg>',
+      ),
+    );
+    // 인라인코드 언급은 여전히 리터럴 <code> 텍스트로 남아야 한다
+    expect(result).toMatch(/<code>&lt;svg&gt;<\/code>/);
+  });
+
+  it('인라인코드 언급 없이 실제 SVG만 있으면 여전히 정상 추출된다 (회귀 차단)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>';
+    const result = await renderMarkdown(content, null);
+    expect(result).toContain('data-mdedit-svg=');
+  });
+
+  it('실제 SVG 없이 인라인코드 <svg onload=...>만 있으면 여전히 리터럴로 남는다 (평가 결함 1 회귀 차단)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = 'Inline code svg text: `<svg onload=alert(1)></svg>` should stay as code.';
+    const result = await renderMarkdown(content, null);
+    expect(result).not.toContain('data-mdedit-svg=');
+    expect(result).toMatch(/<code>&lt;svg onload=alert\(1\)&gt;&lt;\/svg&gt;<\/code>/);
+  });
+
+  it('여러 인라인코드 <svg> 언급 뒤 실제 SVG 하나만 마커가 된다 (엣지 케이스)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = [
+      '첫 언급: `<svg>` 두번째 언급: `<svg id="x">`',
+      '',
+      '실제 도형입니다.',
+      '',
+      '<svg xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 1,1 1,0"/></svg>',
+    ].join('\n');
+    const result = await renderMarkdown(content, null);
+
+    // 마커는 정확히 하나만 생성되어야 한다 (실제 svg 1개)
+    const markerCount = (result.match(/data-mdedit-svg=/g) ?? []).length;
+    expect(markerCount).toBe(1);
+    expect(result).toContain(
+      encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 1,1 1,0"/></svg>'),
+    );
+    // 두 인라인코드 언급은 모두 리터럴로 남아야 한다
+    expect(result).toMatch(/<code>&lt;svg&gt;<\/code>/);
+    expect(result).toMatch(/<code>&lt;svg id=&quot;x&quot;&gt;<\/code>/);
+  });
 });

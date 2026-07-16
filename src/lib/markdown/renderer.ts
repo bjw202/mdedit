@@ -156,37 +156,61 @@ function getCodeProtectedRanges(content: string): Array<[number, number]> {
   return ranges;
 }
 
-function isProtected(pos: number, ranges: Array<[number, number]>): boolean {
-  return ranges.some(([start, end]) => pos >= start && pos < end);
-}
-
 /**
  * 코드블록 밖의 <svg>...</svg> 블록을 플레이스홀더 토큰으로 치환한다.
  * 치환된 원본 svg 마크업은 svgMap에 보관되어 렌더 이후 복원 단계에서 사용된다.
+ *
+ * @MX:NOTE: [AUTO] 실사용 버그 수정 — 이전 구현은 INLINE_SVG_RE를 문서 전체에 대해 매칭한 뒤
+ * 매치의 "시작 오프셋"만 보호구간(코드펜스/인라인코드) 여부로 필터링했다. 이 방식은 보호구간
+ * 안의 `<svg`에서 시작한 lazy 매치([\s\S]*?)가 보호구간 경계를 건너뛰어 보호구간 밖의 진짜
+ * `</svg>`까지 통째로 삼키는 straddling match를 만들 수 있었다(예: 인라인코드 `` `<svg>` ``
+ * 뒤에 실제 <svg>...</svg> 블록이 오는 경우). 매치 시작 오프셋이 보호구간 안에 있으므로 필터를
+ * 통과하지 못해 전체 스팬이 무변환으로 방치되고, 결과적으로 실제 SVG가 렌더되지 않았다.
+ * 수정: content를 보호구간 기준으로 분절(segment)하여, 보호구간은 원문 그대로 복사하고
+ * **보호구간이 아닌 부분 문자열에 대해서만** 정규식을 독립적으로 실행한다. 정규식이 각 세그먼트
+ * 문자열 밖을 볼 수 없으므로 경계를 건너뛰는 매치 자체가 구조적으로 불가능해진다.
  */
 function extractInlineSvg(content: string): { content: string; svgMap: Map<string, string> } {
-  if (!INLINE_SVG_RE.test(content)) {
+  if (!/<svg/i.test(content)) {
     return { content, svgMap: new Map() };
   }
-  INLINE_SVG_RE.lastIndex = 0;
 
-  const ranges = getCodeProtectedRanges(content);
+  const ranges = getCodeProtectedRanges(content)
+    .slice()
+    .sort((a, b) => a[0] - b[0]);
   const svgMap = new Map<string, string>();
   let counter = 0;
 
-  const result = content.replace(INLINE_SVG_RE, (match, offset: number) => {
-    if (isProtected(offset, ranges)) {
-      // 코드블록 안의 svg 텍스트는 치환하지 않는다 — 그대로 두면 기존 fence 렌더링이
-      // html:false에 의해 이스케이프된 텍스트로 안전하게 표시한다.
-      return match;
-    }
-    const token = `${SVG_PLACEHOLDER_PREFIX}${counter}END`;
-    svgMap.set(token, match);
-    counter += 1;
-    return token;
-  });
+  const extractFromUnprotectedSegment = (segment: string): string => {
+    // String.replace()는 전역(g) 정규식이라도 매 호출 시작 시 lastIndex를 0으로 리셋하므로
+    // 모듈 상수 INLINE_SVG_RE를 세그먼트마다 재사용해도 상태가 오염되지 않는다.
+    return segment.replace(INLINE_SVG_RE, (match) => {
+      const token = `${SVG_PLACEHOLDER_PREFIX}${counter}END`;
+      svgMap.set(token, match);
+      counter += 1;
+      return token;
+    });
+  };
 
-  return { content: result, svgMap };
+  const parts: string[] = [];
+  let cursor = 0;
+
+  for (const [start, end] of ranges) {
+    if (start > cursor) {
+      parts.push(extractFromUnprotectedSegment(content.slice(cursor, start)));
+    }
+    // 보호구간(코드펜스/인라인코드)은 원문 그대로 유지한다 — html:false가 이스케이프해 안전하다.
+    const protectedStart = Math.max(cursor, start);
+    if (end > protectedStart) {
+      parts.push(content.slice(protectedStart, end));
+    }
+    cursor = Math.max(cursor, end);
+  }
+  if (cursor < content.length) {
+    parts.push(extractFromUnprotectedSegment(content.slice(cursor)));
+  }
+
+  return { content: parts.join(''), svgMap };
 }
 
 /**
