@@ -1,10 +1,13 @@
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import type { EditorView } from '@codemirror/view';
 import { useTheme } from '@/hooks/useTheme';
 import { useUIStore } from '@/store/uiStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useFileStore } from '@/store/fileStore';
-import { writeFile, saveFileAs as saveFileAsIpc } from '@/lib/tauri/ipc';
+import { writeFile, saveFileAs as saveFileAsIpc, aiDetectProviders } from '@/lib/tauri/ipc';
+import { useAiRelay } from '@/hooks/useAiRelay';
+import { SettingsModal } from '@/components/settings/SettingsModal';
+import { setAiLoggedIn, registerOnboardingOpener } from '@/components/editor/extensions/ai-suggestion-card';
 import { exportToHtml } from '@/lib/export/exportHtml';
 import { exportToPdf } from '@/lib/export/exportPdf';
 import { exportToDocx } from '@/lib/export/exportDocx';
@@ -27,6 +30,33 @@ import { PanelLeftIcon } from '@/components/icons';
 // Entry point for the entire application UI shell
 export function AppLayout(): JSX.Element {
   useTheme(); // Apply theme side effects
+
+  // SPEC-AI-001 (T-018): ai:// 스트리밍 이벤트를 aiStore 로 릴레이하는 단일 배선.
+  useAiRelay();
+
+  // 설정 모달(첫 섹션 AI). Header 톱니 / 카드 로그인 오류(온보딩)가 연다.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // 카드 로그인 만료 오류가 "연결 안내 보기"로 설정 온보딩을 열 수 있게 오프너를 등록한다(REQ-AI-037).
+  useEffect(() => {
+    registerOnboardingOpener(() => setSettingsOpen(true));
+    return () => registerOnboardingOpener(null);
+  }, []);
+
+  // 시작 시 로그인 상태를 1회 감지해 캐시한다 — ✨ "연결 필요" 게이팅의 소스(REQ-AI-012/015).
+  useEffect(() => {
+    let cancelled = false;
+    void aiDetectProviders()
+      .then((providers) => {
+        if (cancelled) return;
+        const claude = providers.find((p) => p.id === 'claude');
+        setAiLoggedIn(claude?.loggedIn ?? false);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const saveStatus = useUIStore((s) => s.saveStatus);
@@ -333,6 +363,7 @@ export function AppLayout(): JSX.Element {
         onExportPdf={handleExportPdf}
         onExportDocx={handleExportDocx}
         exportLoading={exportLoading}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar toggle button */}
@@ -359,6 +390,7 @@ export function AppLayout(): JSX.Element {
         scrollSyncEnabled={scrollSyncEnabled}
         onScrollSyncToggle={toggleScrollSync}
       />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

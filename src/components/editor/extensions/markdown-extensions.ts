@@ -13,6 +13,10 @@ import type { Extension } from '@codemirror/state';
 import { markdownSyntaxHighlighting } from './syntax-highlighting';
 import { markdownKeyboardShortcuts } from './keyboard-shortcuts';
 import { imageWidgetExtension } from './image-widget';
+import { createAiGhostText } from './ai-ghost-text';
+import { createAiSelectionToolbar } from './ai-selection-toolbar';
+import { createAiSuggestionCard, getAiLoggedIn, openOnboarding } from './ai-suggestion-card';
+import { useUIStore } from '@/store/uiStore';
 
 // @MX:ANCHOR: [AUTO] cursorCompartment - dynamic cursor theme swapped on dark/light mode change
 // @MX:REASON: [AUTO] CSS variable cascade is unreliable with CodeMirror scoped themes; Compartment is the canonical CM6 approach (fan_in >= 2)
@@ -103,6 +107,11 @@ export function createMarkdownExtensions(): Extension[] {
     // Custom Markdown keyboard shortcuts (Ctrl+B, Ctrl+I, Ctrl+/)
     markdownKeyboardShortcuts(),
 
+    // AI 섹션 채우기 고스트 (SPEC-AI-001): 내부적으로 Prec.high(keymap)을 써서 Mod-Enter/Esc가
+    // 아래의 indentWithTab·defaultKeymap보다 앞서도록 한다. Tab은 바인딩하지 않아 들여쓰기가 유지되고
+    // 고스트는 docChanged로 소멸한다(REQ-AI-031). 반드시 기본 keymap.of 앞에 위치시킨다.
+    createAiGhostText(),
+
     // History extension for undo/redo
     history(),
 
@@ -111,6 +120,19 @@ export function createMarkdownExtensions(): Extension[] {
 
     // Image widget decoration (data URI images → thumbnail widgets)
     imageWidgetExtension(),
+
+    // AI 선택 툴바 (SPEC-AI-001 T-012): 선택 시 선택 끝에 ✨ 버튼. 로그인/고급모델은 런타임 조회
+    // (getAiLoggedIn 캐시 + uiStore.aiAdvancedModel), 미로그인 클릭은 온보딩(설정)으로 유도.
+    createAiSelectionToolbar({
+      getUiState: () => ({
+        loggedIn: getAiLoggedIn(),
+        advancedModel: useUIStore.getState().aiAdvancedModel === true,
+      }),
+      onConnectNeeded: () => openOnboarding(),
+    }),
+
+    // AI 제안 카드 (SPEC-AI-001 T-013/016): 활성 카드 컨트롤러(싱글턴)를 원문 아래 block widget 으로.
+    createAiSuggestionCard(),
 
     // Base theme
     editorBaseTheme,

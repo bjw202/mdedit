@@ -4,6 +4,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { FileNode } from '@/types/file';
+import type { AiFeature } from '@/store/aiStore';
 
 /**
  * Reads a file and returns its content as a UTF-8 string.
@@ -180,4 +181,75 @@ export async function registerAssetScope(path: string): Promise<void> {
  */
 export async function openUrlInBrowser(url: string): Promise<void> {
   return invoke<void>('open_url_in_browser', { url });
+}
+
+// @MX:NOTE: [AUTO] AI IPC wrappers — SPEC-AI-001 (T-008). 프론트는 "기능 종류 + 텍스트 조각"만
+// 넘기고, 프롬프트 조립·컨텍스트 절단은 전부 Rust 쪽에서 수행한다(설계 §3). Tauri 가 camelCase
+// 키를 Rust snake_case 인자로 자동 매핑한다(기존 래퍼 관례와 동일).
+// @MX:SPEC: SPEC-AI-001
+
+/** AI 모델 선택 — 기본 haiku, "고급 모델" 토글 시 sonnet(설계 §8.2). */
+export type AiModel = 'haiku' | 'sonnet';
+
+/** ai_request 인자. feature 는 aiStore 와 단일 소스를 공유한다. */
+export interface AiRequestArgs {
+  requestId: string;
+  feature: AiFeature;
+  presetKind?: string;
+  model: AiModel;
+  selection?: string;
+  contextBefore?: string;
+  contextAfter?: string;
+  outline?: string;
+  customInstruction?: string;
+}
+
+/** ai_detect_providers 결과 항목 — 설치·버전 + 로그인 선제 판정(설계 §8.1, REQ-AI-012). */
+export interface AiProviderStatus {
+  id: 'claude';
+  installed: boolean;
+  version?: string;
+  loggedIn: boolean;
+}
+
+/** ai_policy_status 결과 — kill-switch 활성 여부와 출처(설계 §8.2, REQ-AI-017). */
+export interface AiPolicyStatus {
+  disabled: boolean;
+  source?: 'env' | 'policy-file';
+}
+
+/**
+ * AI 요청을 시작한다. 요청당 CLI 프로세스 1개가 스폰되고 stdout 이 ai:// 이벤트로 릴레이된다.
+ * 델타/완료/오류는 useAiRelay 훅이 수신한다(REQ-AI-004).
+ *
+ * Rust 커맨드 `fn ai_request(args: AiRequestArgs, ...)` 는 파라미터 이름 `args` 키로
+ * 역직렬화하므로 페이로드를 반드시 `{ args }` 로 감싼다 — 필드를 최상위로 펼치면 Tauri 가
+ * `args` 를 못 찾아 본문 실행 전에 거부한다(모든 요청 실패).
+ */
+export async function aiRequest(args: AiRequestArgs): Promise<void> {
+  return invoke<void>('ai_request', { args });
+}
+
+/** 진행 중(in-flight) 요청을 취소한다 — 프로세스 kill + 상태 취소 전환(REQ-AI-005). */
+export async function aiCancel(requestId: string): Promise<void> {
+  return invoke<void>('ai_cancel', { args: { requestId } });
+}
+
+/**
+ * invoke 거부 사유를 사용자 문구로 정규화한다(P7 조용한 실패 금지). Rust Err(String) 은 이미
+ * 분류된 한국어 메시지이므로 그대로 노출한다(REQ-AI-040 위반 아님). 사유가 비면 폴백 문구.
+ */
+export function ipcErrorMessage(reason: unknown, fallback = '요청을 시작할 수 없어요.'): string {
+  const raw = typeof reason === 'string' ? reason : reason instanceof Error ? reason.message : '';
+  return raw.trim() || fallback;
+}
+
+/** 설치·버전·로그인 상태를 감지한다(MVP claude 단독, 설계 §8.1). */
+export async function aiDetectProviders(): Promise<AiProviderStatus[]> {
+  return invoke<AiProviderStatus[]>('ai_detect_providers');
+}
+
+/** 조직 정책 kill-switch 상태를 조회한다(env / 정책 파일, 설계 §8.2). */
+export async function aiPolicyStatus(): Promise<AiPolicyStatus> {
+  return invoke<AiPolicyStatus>('ai_policy_status');
 }

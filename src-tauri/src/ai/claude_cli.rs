@@ -1,0 +1,482 @@
+// @MX:ANCHOR: [AUTO] claude CLI 스폰 인자 조립 + stdout 릴레이 스레드 - 스트리밍 인프라 핵심
+// @MX:REASON: [AUTO] AI 요청 실행 경로 진입점(fan_in >= 2: mod 커맨드 + ClaudeProvider), 스폰 인자 격리 계약
+// @MX:SPEC: SPEC-AI-001
+
+//! claude Code headless CLI(`claude -p`) 어댑터.
+//!
+//! 인자 조립·스크래치 경로·릴레이 판정은 순수 함수로 분리해 단위 테스트하고,
+//! 실제 프로세스 스폰과 Tauri emit은 얇은 계층으로 감싼다(watcher.rs 스레드+emit 패턴 재사용).
+
+use crate::ai::provider::{
+    AiModel, AiProvider, AiRequest, Capabilities, ProviderRegistry, ProviderStatus,
+};
+use crate::ai::stream::{classify_stderr, parse_final_result, parse_text_delta};
+use serde::Serialize;
+use std::io::{BufRead, BufReader, Read};
+use std::path::{Path, PathBuf};
+use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tauri::{AppHandle, Emitter};
+
+/// 스폰 cwd로 쓸 앱 전용 빈 스크래치 디렉토리 이름(문서·프로젝트 폴더 격리, 부록 A).
+pub const SCRATCH_DIR_NAME: &str = "ai-scratch";
+
+/// `ai://chunk` payload — 델타 텍스트. IPC 계약: `{ requestId, text }`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChunkPayload {
+    pub request_id: String,
+    pub text: String,
+}
+
+/// `ai://done` payload — 최종 결과 전문. IPC 계약: `{ requestId, result, truncated? }`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DonePayload {
+    pub request_id: String,
+    pub result: String,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub truncated: bool,
+}
+
+/// `ai://error` payload — 분류된 원인 + 사용자 안전 메시지(raw stderr 미노출, REQ-AI-040).
+/// IPC 계약: `{ requestId, kind: 'login'|'network'|'parse'|'other', message, cancelledBy? }`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorPayload {
+    pub request_id: String,
+    pub kind: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cancelled_by: Option<String>,
+}
+
+/// 릴레이 스레드가 스트림 종료 후 내릴 결론(순수 판정 결과).
+#[derive(Debug, PartialEq, Eq)]
+pub enum RelayOutcome {
+    /// 최종 결과 수신 → ai://done.
+    Done(String),
+    /// 실패 → ai://error(kind 문자열·안전 메시지).
+    Error(&'static str, String),
+    /// 사용자 취소·새 요청 교체 → 릴레이 무음(취소 통보는 커맨드가 담당, §3 P7).
+    Silent,
+}
+
+/// 모델·시스템·사용자 프롬프트로 claude 실행 인자를 조립한다(순수).
+///
+/// 격리 플래그: `--output-format stream-json --include-partial-messages --verbose --setting-sources ""`.
+/// (`MAX_THINKING_TOKENS=0` env는 `spawn_claude`에서 설정)
+pub fn build_claude_args(model: AiModel, system_prompt: &str, user_prompt: &str) -> Vec<String> {
+    vec![
+        "-p".to_string(),
+        user_prompt.to_string(),
+        "--system-prompt".to_string(),
+        system_prompt.to_string(),
+        "--model".to_string(),
+        model.as_arg().to_string(),
+        "--output-format".to_string(),
+        "stream-json".to_string(),
+        "--include-partial-messages".to_string(),
+        "--verbose".to_string(),
+        "--setting-sources".to_string(),
+        String::new(),
+    ]
+}
+
+/// 스크래치 디렉토리 경로(앱 데이터 디렉토리 하위).
+pub fn scratch_dir_path(app_data_dir: &Path) -> PathBuf {
+    app_data_dir.join(SCRATCH_DIR_NAME)
+}
+
+/// 빈 스크래치 디렉토리를 준비한다. 생성 실패(권한·디스크) 시 오류(§8.1 격리 규칙 1).
+pub fn ensure_scratch_dir(app_data_dir: &Path) -> Result<PathBuf, String> {
+    let dir = scratch_dir_path(app_data_dir);
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("AI 작업 폴더를 준비하지 못했어요: {}", e))?;
+    Ok(dir)
+}
+
+/// error kind 문자열에 대응하는 사용자 안전 메시지(raw stderr·JSON 미노출, §9).
+pub fn friendly_error_message(kind: &str) -> String {
+    match kind {
+        "login" => "로그인이 풀렸어요. 연결 안내를 확인해주세요.".to_string(),
+        "network" => {
+            "네트워크에 연결할 수 없어요. 사내 프록시 환경이라면 관리자에게 문의하세요.".to_string()
+        }
+        "parse" => "도구 업데이트로 문제가 생겼어요. 다시 시도해주세요.".to_string(),
+        _ => "잠시 문제가 있었어요. 다시 시도해주세요.".to_string(),
+    }
+}
+
+/// 스트림 종료 후 결론을 순수 판정한다.
+///
+/// 우선순위: 취소 → 최종 결과 → stderr 분류(login/network/other) → 파싱 실패(parse)/기타(other).
+/// `saw_stream_output`이 true인데 결과가 없고 stderr도 비면 'parse'(델타는 왔으나 result 미추출, §9).
+/// raw stderr는 메시지에 넣지 않는다.
+pub fn decide_outcome(
+    final_result: Option<String>,
+    stderr: &str,
+    cancelled: bool,
+    saw_stream_output: bool,
+) -> RelayOutcome {
+    if cancelled {
+        return RelayOutcome::Silent;
+    }
+    if let Some(result) = final_result {
+        return RelayOutcome::Done(result);
+    }
+    let kind = if !stderr.trim().is_empty() {
+        classify_stderr(stderr).as_key()
+    } else if saw_stream_output {
+        "parse"
+    } else {
+        "other"
+    };
+    RelayOutcome::Error(kind, friendly_error_message(kind))
+}
+
+/// claude 프로세스를 스폰한다. stdout/stderr piped, stdin null, 빈 cwd, 사고 토큰 0.
+// @MX:WARN: [AUTO] 외부 바이너리(claude)를 실행한다 - 임의 경로 실행 보안 표면
+// @MX:REASON: [AUTO] cwd를 빈 스크래치로 고정하고 --setting-sources ""로 사용자/프로젝트 설정·훅을 차단해 부작용을 최소화한다(부록 A)
+pub fn spawn_claude(args: &[String], cwd: &Path) -> Result<Child, String> {
+    // bare "claude"가 아니라 detect와 동일하게 해석된 절대경로로 스폰한다(GUI 최소 PATH 우회).
+    let binary = crate::ai::detect::claude_binary()
+        .ok_or_else(|| "claude 실행 파일을 찾지 못했어요.".to_string())?;
+    Command::new(&binary)
+        .args(args)
+        .current_dir(cwd)
+        .env("MAX_THINKING_TOKENS", "0")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("claude 실행에 실패했어요: {}", e))
+}
+
+/// stdout/stderr를 별도 스레드에서 읽어 `ai://chunk|done|error`로 릴레이한다.
+///
+/// watcher.rs의 스레드+emit 패턴을 따른다. 취소 플래그가 서면 종료 시 무음 처리하고
+/// 취소 통보는 커맨드가 담당한다(§3 P7). `truncated`는 프롬프트 컨텍스트가 잘렸는지로,
+/// 완료 payload에 그대로 실어 UI가 "일부만 참고" 안내를 띄우게 한다(§7).
+pub fn relay_process(
+    app_handle: AppHandle,
+    request_id: String,
+    stdout: ChildStdout,
+    stderr: ChildStderr,
+    cancel_flag: Arc<AtomicBool>,
+    truncated: bool,
+) {
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        let mut final_result: Option<String> = None;
+        let mut saw_stream_output = false;
+
+        for line in reader.lines() {
+            let line = match line {
+                Ok(l) => l,
+                Err(_) => break,
+            };
+            saw_stream_output = true;
+            if let Some(text) = parse_text_delta(&line) {
+                let _ = app_handle.emit(
+                    "ai://chunk",
+                    ChunkPayload {
+                        request_id: request_id.clone(),
+                        text,
+                    },
+                );
+            } else if let Some(result) = parse_final_result(&line) {
+                final_result = Some(result);
+            }
+        }
+
+        let mut err_buf = String::new();
+        let mut stderr = stderr;
+        let _ = stderr.read_to_string(&mut err_buf);
+
+        let cancelled = cancel_flag.load(Ordering::SeqCst);
+        match decide_outcome(final_result, &err_buf, cancelled, saw_stream_output) {
+            RelayOutcome::Done(result) => {
+                let _ = app_handle.emit(
+                    "ai://done",
+                    DonePayload {
+                        request_id,
+                        result,
+                        truncated,
+                    },
+                );
+            }
+            RelayOutcome::Error(kind, message) => {
+                let _ = app_handle.emit(
+                    "ai://error",
+                    ErrorPayload {
+                        request_id,
+                        kind: kind.to_string(),
+                        message,
+                        cancelled_by: None,
+                    },
+                );
+            }
+            RelayOutcome::Silent => {}
+        }
+    });
+}
+
+/// claude Code CLI 어댑터(MVP 단독 프로바이더).
+pub struct ClaudeProvider;
+
+impl ClaudeProvider {
+    pub fn new() -> Self {
+        ClaudeProvider
+    }
+}
+
+impl Default for ClaudeProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AiProvider for ClaudeProvider {
+    fn id(&self) -> &str {
+        "claude"
+    }
+
+    fn detect(&self) -> ProviderStatus {
+        crate::ai::detect::detect_claude()
+    }
+
+    fn spawn(&self, request: &AiRequest, cwd: &Path) -> Result<Child, String> {
+        let args = build_claude_args(request.model, &request.system_prompt, &request.user_prompt);
+        spawn_claude(&args, cwd)
+    }
+
+    fn capabilities(&self) -> Capabilities {
+        // 실측: 첫 텍스트 ~2.3초, 완료 ~2.7초(부록 A.1).
+        Capabilities {
+            supports_streaming: true,
+            typical_latency_ms: 2700,
+        }
+    }
+}
+
+/// MVP 레지스트리 — claude 어댑터 정확히 1개 등록(AC-AI-021, codex 미등록).
+pub fn claude_registry() -> ProviderRegistry {
+    ProviderRegistry::with_providers(vec![Box::new(ClaudeProvider::new())])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- build_claude_args ---
+
+    #[test]
+    fn args_include_isolation_flags() {
+        let args = build_claude_args(AiModel::Haiku, "sys", "user");
+        let joined = args.join("\u{1}");
+        assert!(args.contains(&"-p".to_string()));
+        assert!(args.contains(&"user".to_string()));
+        assert!(args.contains(&"--system-prompt".to_string()));
+        assert!(args.contains(&"sys".to_string()));
+        assert!(args.contains(&"--output-format".to_string()));
+        assert!(args.contains(&"stream-json".to_string()));
+        assert!(args.contains(&"--include-partial-messages".to_string()));
+        assert!(args.contains(&"--verbose".to_string()));
+        assert!(args.contains(&"--setting-sources".to_string()));
+        // --setting-sources 뒤에 빈 문자열이 온다.
+        let idx = args.iter().position(|a| a == "--setting-sources").unwrap();
+        assert_eq!(args[idx + 1], "");
+        let _ = joined;
+    }
+
+    #[test]
+    fn args_toggle_model_haiku_vs_sonnet() {
+        let haiku = build_claude_args(AiModel::Haiku, "s", "u");
+        let sonnet = build_claude_args(AiModel::Sonnet, "s", "u");
+        let hidx = haiku.iter().position(|a| a == "--model").unwrap();
+        let sidx = sonnet.iter().position(|a| a == "--model").unwrap();
+        assert_eq!(haiku[hidx + 1], "haiku");
+        assert_eq!(sonnet[sidx + 1], "sonnet");
+    }
+
+    // --- scratch dir ---
+
+    #[test]
+    fn scratch_path_is_under_app_data() {
+        let base = Path::new("/app/data");
+        assert_eq!(
+            scratch_dir_path(base),
+            PathBuf::from("/app/data/ai-scratch")
+        );
+    }
+
+    #[test]
+    fn ensure_scratch_dir_creates_directory() {
+        let base = std::env::temp_dir().join(format!("mdedit_scratch_ok_{}", std::process::id()));
+        let dir = ensure_scratch_dir(&base).expect("should create scratch dir");
+        assert!(dir.exists());
+        assert!(dir.ends_with("ai-scratch"));
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn ensure_scratch_dir_errors_when_base_is_a_file() {
+        // 베이스 경로가 파일이면 그 하위 디렉토리 생성이 실패해야 한다(§8.1 격리 규칙 1).
+        let file_path =
+            std::env::temp_dir().join(format!("mdedit_scratch_file_{}", std::process::id()));
+        std::fs::write(&file_path, "not a dir").unwrap();
+
+        let result = ensure_scratch_dir(&file_path);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("AI 작업 폴더"));
+
+        std::fs::remove_file(&file_path).ok();
+    }
+
+    // --- decide_outcome ---
+
+    #[test]
+    fn outcome_done_when_result_present() {
+        assert_eq!(
+            decide_outcome(Some("결과".to_string()), "", false, true),
+            RelayOutcome::Done("결과".to_string())
+        );
+    }
+
+    #[test]
+    fn outcome_silent_when_cancelled() {
+        // 취소되면 결과가 있어도 무음(취소는 커맨드가 별도 통보).
+        assert_eq!(
+            decide_outcome(Some("결과".to_string()), "", true, true),
+            RelayOutcome::Silent
+        );
+        assert_eq!(
+            decide_outcome(None, "boom", true, true),
+            RelayOutcome::Silent
+        );
+    }
+
+    #[test]
+    fn outcome_error_classifies_login() {
+        match decide_outcome(None, "401 unauthorized", false, true) {
+            RelayOutcome::Error(kind, msg) => {
+                assert_eq!(kind, "login");
+                assert!(msg.contains("로그인"));
+                // raw stderr는 메시지에 노출되지 않는다.
+                assert!(!msg.contains("401"));
+            }
+            other => panic!("expected error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn outcome_error_classifies_network() {
+        match decide_outcome(None, "connect ETIMEDOUT", false, true) {
+            RelayOutcome::Error(kind, _) => assert_eq!(kind, "network"),
+            other => panic!("expected error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn outcome_parse_when_stream_output_but_no_result() {
+        // 델타는 왔으나 result 라인이 없고 stderr도 비면 파싱/포맷 문제로 본다(§9).
+        match decide_outcome(None, "", false, true) {
+            RelayOutcome::Error(kind, _) => assert_eq!(kind, "parse"),
+            other => panic!("expected parse error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn outcome_other_when_no_output_and_no_stderr() {
+        // 출력도 stderr도 없이 종료 → 일반 오류.
+        match decide_outcome(None, "   ", false, false) {
+            RelayOutcome::Error(kind, _) => assert_eq!(kind, "other"),
+            other => panic!("expected other error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn friendly_messages_never_leak_raw() {
+        for kind in ["login", "network", "parse", "other"] {
+            let msg = friendly_error_message(kind);
+            assert!(!msg.is_empty());
+            assert!(!msg.contains("{"));
+            assert!(!msg.contains("Error:"));
+        }
+    }
+
+    #[test]
+    fn done_payload_serializes_camel_case() {
+        let json = serde_json::to_string(&DonePayload {
+            request_id: "r1".to_string(),
+            result: "결과".to_string(),
+            truncated: true,
+        })
+        .unwrap();
+        assert!(json.contains("\"requestId\":\"r1\""));
+        assert!(json.contains("\"truncated\":true"));
+    }
+
+    #[test]
+    fn done_payload_omits_false_truncated() {
+        let json = serde_json::to_string(&DonePayload {
+            request_id: "r1".to_string(),
+            result: "x".to_string(),
+            truncated: false,
+        })
+        .unwrap();
+        assert!(!json.contains("truncated"));
+    }
+
+    #[test]
+    fn error_payload_serializes_camel_case_with_cancelled_by() {
+        let json = serde_json::to_string(&ErrorPayload {
+            request_id: "r1".to_string(),
+            kind: "other".to_string(),
+            message: "취소".to_string(),
+            cancelled_by: Some("new-request".to_string()),
+        })
+        .unwrap();
+        assert!(json.contains("\"requestId\":\"r1\""));
+        assert!(json.contains("\"cancelledBy\":\"new-request\""));
+    }
+
+    #[test]
+    fn error_payload_omits_absent_cancelled_by() {
+        let json = serde_json::to_string(&ErrorPayload {
+            request_id: "r1".to_string(),
+            kind: "network".to_string(),
+            message: "x".to_string(),
+            cancelled_by: None,
+        })
+        .unwrap();
+        assert!(!json.contains("cancelledBy"));
+    }
+
+    // --- registry / adapter (AC-AI-021) ---
+
+    #[test]
+    fn registry_registers_exactly_one_claude_adapter() {
+        let registry = claude_registry();
+        assert_eq!(registry.len(), 1);
+        assert_eq!(registry.ids(), vec!["claude"]);
+        // codex는 등록되지 않는다.
+        assert!(registry.get("codex").is_none());
+    }
+
+    #[test]
+    fn claude_adapter_identity_and_capabilities() {
+        let provider = ClaudeProvider::new();
+        assert_eq!(provider.id(), "claude");
+        assert!(provider.capabilities().supports_streaming);
+    }
+
+    #[test]
+    fn routing_goes_through_trait() {
+        let registry = claude_registry();
+        let provider = registry.route(None).expect("default provider");
+        assert_eq!(provider.id(), "claude");
+    }
+}

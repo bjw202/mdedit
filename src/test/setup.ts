@@ -23,3 +23,11 @@ Object.defineProperty(navigator, 'clipboard', {
   },
   configurable: true,
 });
+
+// BUG-8: jsdom 은 Element.scrollIntoView 를 구현하지 않는다. 여러 확장(카드/고스트/뷰)이
+// 마운트/phase 전환 시 실제 requestAnimationFrame 콜백에서(테스트가 rAF 를 스텁하지 않는 파일
+// 포함) 이를 호출하므로, 전역 no-op 폴백을 깔아 "scrollIntoView is not a function" 런타임
+// 오류를 막는다. 호출 자체를 검증하려는 테스트는 이 값을 vi.fn() 으로 개별 교체해서 쓴다.
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}

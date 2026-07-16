@@ -45,6 +45,10 @@ interface UIState {
    * 복사 성공/실패 등 짧은 피드백 용도. 영속화 대상 아님 (partialize 제외).
    */
   statusMessage: string | null;
+  /** AI 데이터 전송 고지 배너를 한 번 확인했는지 (SPEC-AI-001 REQ-AI-013). 영속화 대상. */
+  aiNoticeAcknowledged: boolean;
+  /** AI "고급 모델" 토글 — true 면 sonnet, false 면 haiku (SPEC-AI-001 REQ-AI-016). 영속화 대상. */
+  aiAdvancedModel: boolean;
   // Actions
   setSidebarWidth: (width: number) => void;
   setPreviewWidth: (width: number) => void;
@@ -64,6 +68,10 @@ interface UIState {
    * null 호출 시 보류 타이머 취소 + 즉시 null.
    */
   setStatusMessage: (message: string | null) => void;
+  /** AI 고지 배너 확인 여부를 설정한다 (SPEC-AI-001 REQ-AI-013). */
+  setAiNoticeAcknowledged: (acknowledged: boolean) => void;
+  /** AI 고급 모델(sonnet) 사용 여부를 설정한다 (SPEC-AI-001 REQ-AI-016). */
+  setAiAdvancedModel: (enabled: boolean) => void;
 }
 
 // @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth clamped to [20, 80]% to prevent layout breakage
@@ -83,6 +91,8 @@ export const useUIStore = create<UIState>()(
       imageInsertMode: 'inline-blob',
       viewMode: 'split',
       statusMessage: null,
+      aiNoticeAcknowledged: false,
+      aiAdvancedModel: false,
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
       setPreviewWidth: (width: number) =>
@@ -116,6 +126,8 @@ export const useUIStore = create<UIState>()(
           }, 2000);
         }
       },
+      setAiNoticeAcknowledged: (acknowledged: boolean) => set({ aiNoticeAcknowledged: acknowledged }),
+      setAiAdvancedModel: (enabled: boolean) => set({ aiAdvancedModel: enabled }),
     }),
     {
       name: 'mdedit-ui-store',
