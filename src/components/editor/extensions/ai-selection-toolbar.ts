@@ -203,6 +203,32 @@ export function buildPresetMenuItems(selectionLength: number): PresetMenuItem[] 
   });
 }
 
+/** 프리셋 메뉴 상단 항상-보이는 안내 줄(REQ-AI7-004/005). null 이면 안내 줄 없음(메뉴 무변경). */
+export interface PresetMenuNotice {
+  tone: 'block' | 'partial';
+  text: string;
+}
+
+/** 삽입 전용 구간(2,001~4,000자) 안내 문구 — 가드는 이 구간에서 reason 을 반환하지 않으므로 툴바가 소유(D2). */
+const MENU_NOTICE_PARTIAL =
+  '선택이 길어요 — 다듬기·직접 입력은 비활성이고, 변환은 결과를 「아래에 삽입」만 할 수 있어요.';
+
+/**
+ * @MX:NOTE: 선택 길이 가드(ai-length-guard.ts)에서 안내 구간을 파생하는 단일 소스 헬퍼(REQ-AI7-004).
+ * 2,000/4,000 임계를 여기 복제하지 않고, 편집 대표(polish)·변환 대표(outline) 두 프리셋에 대한
+ * evaluateSelectionGuard 결과 조합으로만 구간을 판정한다. too-long 문구는 가드 reason 을 그대로
+ * 재사용해 문자열 드리프트를 차단한다(D1).
+ */
+export function evaluateMenuNotice(selectionLength: number): PresetMenuNotice | null {
+  const edit = evaluateSelectionGuard(selectionLength, 'polish');
+  const transform = evaluateSelectionGuard(selectionLength, 'outline');
+
+  if (edit.allowed) return null;
+  if (!transform.allowed) return { tone: 'block', text: transform.reason ?? '' };
+  if (transform.insertOnly) return { tone: 'partial', text: MENU_NOTICE_PARTIAL };
+  return null;
+}
+
 /** 요청 id 생성 — crypto.randomUUID 우선, 미지원 환경은 타임스탬프 폴백. */
 export function generateRequestId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -300,6 +326,18 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
 
   const renderPresets = (): void => {
     dom.replaceChildren();
+
+    // REQ-AI7-001/002/003/005: 가드가 현재 선택에 영향을 주는 구간에서만 항상-보이는 안내 줄을
+    // 목록 위에 마운트한다. per-item title/aria-disabled(아래)는 그대로 유지(추가 표면일 뿐).
+    const notice = evaluateMenuNotice(selectionLength);
+    if (notice) {
+      const noticeEl = document.createElement('div');
+      noticeEl.className = 'mdedit-ai-preset-notice';
+      noticeEl.dataset.tone = notice.tone;
+      noticeEl.textContent = notice.text;
+      dom.appendChild(noticeEl);
+    }
+
     const list = document.createElement('div');
     list.className = 'mdedit-ai-preset-list';
 
