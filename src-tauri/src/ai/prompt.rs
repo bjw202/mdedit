@@ -10,6 +10,8 @@
 const INLINE_SIDE_MAX: usize = 1000;
 /// 섹션 채우기 직전 본문 꼬리 상한(§7: 본문 1.5K자).
 const SECTION_TAIL_MAX: usize = 1500;
+/// 자유 위치 이어쓰기 뒤 문맥 상한(SPEC-AI-003 §7 신규) — 앞 문맥(SECTION_TAIL_MAX)과 별도 상한.
+const CONTINUE_HEAD_MAX: usize = 1500;
 
 /// 모든 기능 공통 출력 지시 — 결과만, 설명·펜스 금지(§7).
 const COMMON_INSTRUCTION: &str =
@@ -194,10 +196,18 @@ pub fn build_section_prompt(outline: &str, tail: &str) -> AssembledPrompt {
     }
 }
 
-/// 이어쓰기(문서 끝 분기, REQ-AI-028) 프롬프트를 조립한다. 구성은 섹션 채우기와 동일하되
-/// (개요 무제한 + 본문 꼬리 1.5K, §7) 시스템 프롬프트만 문체 상속-이어쓰기 템플릿을 쓴다.
-pub fn build_continue_prompt(outline: &str, tail: &str) -> AssembledPrompt {
-    let (tail_ctx, tail_cut) = truncate_tail_at_paragraph(tail, SECTION_TAIL_MAX);
+// @MX:ANCHOR: [AUTO] build_continue_prompt - 이어쓰기 3섹션 조립 계약(개요+앞 문맥+뒤 문맥)
+// @MX:REASON: [AUTO] mod.rs 의 유일 호출 지점이자 REQ-AI3-009/010 하위호환 계약의 단일 조립
+//   지점 — 빈 after 시 [뒤 문맥] 섹션·지시를 생략해 기존 문서 끝 프롬프트와 바이트 동일해야 한다.
+// @MX:SPEC: SPEC-AI-003
+/// 이어쓰기(REQ-AI-028 문서 끝 분기 + SPEC-AI-003 자유 위치 M2) 프롬프트를 조립한다.
+/// 개요 무제한 + 앞 문맥(`before`) 1.5K(§7, 기존 동작) + 뒤 문맥(`after`) 1.5K(신규, REQ-AI3-009).
+/// `after` 가 비어 있으면 [뒤 문맥] 섹션과 반복/선점 금지 지시를 생략해 기존 출력과 바이트
+/// 동일하게 유지한다(REQ-AI3-010, 하위호환).
+pub fn build_continue_prompt(outline: &str, before: &str, after: &str) -> AssembledPrompt {
+    let (tail_ctx, tail_cut) = truncate_tail_at_paragraph(before, SECTION_TAIL_MAX);
+    let (head_ctx, head_cut) = truncate_head_at_paragraph(after, CONTINUE_HEAD_MAX);
+    let has_after = !head_ctx.trim().is_empty();
 
     let mut user_prompt = String::new();
     user_prompt.push_str("[문서 개요]\n");
@@ -206,12 +216,30 @@ pub fn build_continue_prompt(outline: &str, tail: &str) -> AssembledPrompt {
         user_prompt.push_str("\n\n[직전 본문]\n");
         user_prompt.push_str(tail_ctx.trim());
     }
+    if has_after {
+        user_prompt.push_str("\n\n[뒤 문맥]\n");
+        user_prompt.push_str(head_ctx.trim());
+    }
 
     AssembledPrompt {
-        system_prompt: AiFeature::Continue.system_prompt(),
+        system_prompt: continue_system_prompt(has_after),
         user_prompt,
-        truncated: tail_cut,
+        truncated: tail_cut || head_cut,
     }
+}
+
+/// 이어쓰기 시스템 프롬프트 — 뒤 문맥이 있을 때만 "끊긴 문장 완성·뒤 문맥 연결·반복/선점 금지"
+/// 지시를 조건부로 덧붙인다(REQ-AI3-009). `AiFeature::Continue.system_prompt()` 자체는 문서 끝
+/// 분기 하위호환을 위해 그대로 둔다(기존 테스트 무개정).
+fn continue_system_prompt(has_after: bool) -> String {
+    let base = AiFeature::Continue.system_prompt();
+    if !has_after {
+        return base;
+    }
+    format!(
+        "{}\n\n끊긴 문장부터 이어서 완성하고, 뒤 문맥으로 자연스럽게 연결하라. 뒤 문맥의 내용을 반복하거나 선점하는 것은 금지한다.",
+        base
+    )
 }
 
 #[cfg(test)]
@@ -501,7 +529,7 @@ mod tests {
 
     #[test]
     fn continue_prompt_uses_continue_template() {
-        let prompt = build_continue_prompt("# 개요\n## 결론", "직전 본문입니다.");
+        let prompt = build_continue_prompt("# 개요\n## 결론", "직전 본문입니다.", "");
         assert!(prompt.system_prompt.contains("이어"));
         assert!(prompt.user_prompt.contains("[문서 개요]"));
         assert!(prompt.user_prompt.contains("[직전 본문]"));
@@ -511,14 +539,54 @@ mod tests {
     #[test]
     fn continue_prompt_flags_truncated_tail() {
         let long_tail = "긴 본문 ".repeat(1000);
-        let prompt = build_continue_prompt("# 개요", &long_tail);
+        let prompt = build_continue_prompt("# 개요", &long_tail, "");
         assert!(prompt.truncated);
     }
 
     #[test]
     fn continue_prompt_omits_empty_tail_section() {
-        let prompt = build_continue_prompt("# 개요", "");
+        let prompt = build_continue_prompt("# 개요", "", "");
         assert!(!prompt.user_prompt.contains("[직전 본문]"));
         assert!(prompt.user_prompt.contains("[문서 개요]"));
+    }
+
+    // --- 자유 위치 이어쓰기(M2, SPEC-AI-003) — [뒤 문맥] 조립 + truncate_head + 반복/선점 금지 지시 ---
+
+    #[test]
+    fn continue_prompt_includes_after_context_section() {
+        let prompt = build_continue_prompt("# 개요", "앞 문맥입니다.", "뒤 문맥입니다.");
+        assert!(prompt.user_prompt.contains("[뒤 문맥]"));
+        assert!(prompt.user_prompt.contains("뒤 문맥입니다."));
+    }
+
+    #[test]
+    fn continue_prompt_instructs_forbidding_after_context_repetition_when_present() {
+        let prompt = build_continue_prompt("# 개요", "앞", "뒤 문맥");
+        assert!(prompt.system_prompt.contains("뒤 문맥"));
+        assert!(prompt.system_prompt.contains("금지"));
+        assert!(prompt.system_prompt.contains("끊긴 문장"));
+    }
+
+    #[test]
+    fn continue_prompt_omits_after_instruction_when_after_empty() {
+        let prompt = build_continue_prompt("# 개요", "앞", "");
+        assert_eq!(prompt.system_prompt, AiFeature::Continue.system_prompt());
+        assert!(!prompt.system_prompt.contains("금지"));
+    }
+
+    #[test]
+    fn continue_prompt_head_truncation_uses_dedicated_cap_and_flags_truncated() {
+        let long_after = "긴 뒤 문맥 ".repeat(1000);
+        let prompt = build_continue_prompt("# 개요", "", &long_after);
+        assert!(prompt.truncated);
+        assert!(prompt.user_prompt.contains("[뒤 문맥]"));
+    }
+
+    #[test]
+    fn continue_prompt_backward_compat_when_after_empty_matches_legacy_shape() {
+        // AC-AI3-007: contextAfter 없음 → [뒤 문맥] 섹션 없이 기존 문서 끝 프롬프트와 동일 모양.
+        let prompt = build_continue_prompt("# 개요", "직전 본문", "");
+        assert!(!prompt.user_prompt.contains("[뒤 문맥]"));
+        assert_eq!(prompt.system_prompt, AiFeature::Continue.system_prompt());
     }
 }

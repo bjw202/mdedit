@@ -121,8 +121,9 @@ pub fn ai_request(
     let outline = args.outline.as_deref().unwrap_or("");
     let assembled = match feature {
         AiFeature::FillSection => build_section_prompt(outline, before),
-        // 이어쓰기(문서 끝 분기, REQ-AI-028): 섹션 채우기와 동일한 outline+tail 조립, 템플릿만 다르다.
-        AiFeature::Continue => build_continue_prompt(outline, before),
+        // 이어쓰기(문서 끝 분기, REQ-AI-028 + 자유 위치 M2, SPEC-AI-003): outline+before(+after)
+        // 조립, after 는 빈 문자열이면 [뒤 문맥] 섹션이 생략되어 기존 문서 끝 프롬프트와 동일하다.
+        AiFeature::Continue => build_continue_prompt(outline, before, after),
         _ => build_inline_prompt(&feature, selection, before, after),
     };
     let truncated = assembled.truncated;
@@ -343,6 +344,22 @@ mod tests {
         let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
         assert_eq!(args.feature, "section-fill");
         assert_eq!(args.preset_kind.as_deref(), Some("continue"));
+        assert_eq!(
+            AiFeature::resolve(&args.feature, args.preset_kind.as_deref(), None),
+            Ok(AiFeature::Continue)
+        );
+    }
+
+    #[test]
+    fn request_args_deserialize_continue_with_context_after() {
+        // SPEC-AI-003(M2): 자유 위치 이어쓰기는 기존 contextAfter 필드에 커서 뒤 원문을 실어
+        // 보낸다(신규 필드 아님, IPC 하위호환). continue presetKind 와 함께 파싱된다.
+        let json = r#"{
+            "requestId":"cw-2","feature":"section-fill","presetKind":"continue","model":"haiku",
+            "outline":"개요","contextBefore":"앞 문맥","contextAfter":"뒤 문맥"
+        }"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(args.context_after.as_deref(), Some("뒤 문맥"));
         assert_eq!(
             AiFeature::resolve(&args.feature, args.preset_kind.as_deref(), None),
             Ok(AiFeature::Continue)
