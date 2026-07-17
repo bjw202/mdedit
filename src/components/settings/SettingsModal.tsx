@@ -171,6 +171,7 @@ function AiSection({ state, provider, onStartOnboarding }: AiSectionProps): JSX.
           </p>
           <AiEnabledToggle disabled={false} />
           <AdvancedModelToggle disabled={false} />
+          <ContinueLengthToggle disabled={false} />
         </div>
       );
 
@@ -205,6 +206,7 @@ function AiSection({ state, provider, onStartOnboarding }: AiSectionProps): JSX.
           <p style={mutedRow}>조직 정책으로 AI 기능이 비활성화되어 있어요 (토글 잠금).</p>
           <AiEnabledToggle disabled />
           <AdvancedModelToggle disabled />
+          <ContinueLengthToggle disabled />
         </div>
       );
   }
@@ -301,6 +303,38 @@ function AdvancedModelToggle({ disabled }: { disabled: boolean }): JSX.Element {
         onChange={(e) => setAdvanced(e.target.checked)}
       />
       고급 모델 사용 (sonnet — 더 정확, 더 느림){disabled ? ' 🔒' : ''}
+    </label>
+  );
+}
+
+// @MX:SPEC: SPEC-AI-006 REQ-AI6-012
+// @MX:NOTE: 이어쓰기 길이 옵션 토글 — AdvancedModelToggle 과 동일한 disabled+🔒 정책 잠금 관례를
+// 따른다. onChange 는 setAiContinueLength 로만 반영한다(uiStore persist, 기본 'normal').
+/** 이어쓰기(continue) 길이 옵션 토글(짧게/보통). 정책 잠금 시 disabled + 자물쇠 표기. */
+function ContinueLengthToggle({ disabled }: { disabled: boolean }): JSX.Element {
+  const length = useUIStore((s) => s.aiContinueLength);
+  const setLength = useUIStore((s) => s.setAiContinueLength);
+
+  return (
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--md-space-2)',
+        fontSize: 13,
+        color: disabled ? 'var(--md-text-faint)' : 'var(--md-text-primary)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+      title="이어쓰기(✨ 이어쓰기) 응답 분량을 짧게 제한합니다."
+    >
+      <input
+        type="checkbox"
+        aria-label="이어쓰기 짧게 쓰기"
+        checked={length === 'short'}
+        disabled={disabled}
+        onChange={(e) => setLength(e.target.checked ? 'short' : 'normal')}
+      />
+      이어쓰기 짧게 쓰기 (한두 문장만){disabled ? ' 🔒' : ''}
     </label>
   );
 }

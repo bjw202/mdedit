@@ -105,8 +105,23 @@ pub fn friendly_error_message(kind: &str) -> String {
             "네트워크에 연결할 수 없어요. 사내 프록시 환경이라면 관리자에게 문의하세요.".to_string()
         }
         "parse" => "도구 업데이트로 문제가 생겼어요. 다시 시도해주세요.".to_string(),
+        // SPEC-AI-006 REQ-AI6-005: login/network/parse/other와 구별되는 timeout 종류.
+        "timeout" => "응답이 너무 오래 걸려 중단했어요. 다시 시도해주세요.".to_string(),
         _ => "잠시 문제가 있었어요. 다시 시도해주세요.".to_string(),
     }
+}
+
+// @MX:ANCHOR: [AUTO] claim_terminal - 요청 terminal(done/error) 단일 발행 선점 헬퍼
+// @MX:REASON: [AUTO] SPEC-AI-006 REQ-AI6-006 불변식 — 정확히 한 주체만 terminal 을 발행해야
+//   한다. 릴레이(모든 outcome)·워치독·ai_cancel(mod.rs)·신규 요청 교체(mod.rs) 네 지점이 발행
+//   직전 반드시 이 헬퍼를 통해 동일 `finished` 플래그를 claim 한다(fan_in >= 4). false→true swap
+//   에 최초로 성공한 호출자만 true 를 받아 발행하고, 나머지는 무발행으로 억제한다.
+// @MX:SPEC: SPEC-AI-006
+/// 요청별 공유 `finished` 플래그에 대한 단일 발행 선점(순수). false→true 로 최초 성공한
+/// 호출자만 true 를 반환한다 — 그 호출자만 terminal(`ai://done`|`ai://error`) 이벤트를
+/// 발행해야 한다. 재호출은 항상 false(이미 선점됨).
+pub fn claim_terminal(finished: &AtomicBool) -> bool {
+    !finished.swap(true, Ordering::SeqCst)
 }
 
 /// 스트림 종료 후 결론을 순수 판정한다.
@@ -166,6 +181,7 @@ pub fn relay_process(
     stderr: ChildStderr,
     cancel_flag: Arc<AtomicBool>,
     truncated: bool,
+    finished: Arc<AtomicBool>,
 ) {
     std::thread::spawn(move || {
         let reader = BufReader::new(stdout);
@@ -196,29 +212,38 @@ pub fn relay_process(
         let _ = stderr.read_to_string(&mut err_buf);
 
         let cancelled = cancel_flag.load(Ordering::SeqCst);
+        // SPEC-AI-006 D2/REQ-AI6-006: 모든 outcome(done·error·Silent 포함)이 발행 전 동일
+        // `finished`를 claim한다. 워치독·ai_cancel·신규 요청 교체가 이미 claim했다면 여기서는
+        // 무발행으로 억제된다(단일발행 보장).
         match decide_outcome(final_result, &err_buf, cancelled, saw_stream_output) {
             RelayOutcome::Done(result) => {
-                let _ = app_handle.emit(
-                    "ai://done",
-                    DonePayload {
-                        request_id,
-                        result,
-                        truncated,
-                    },
-                );
+                if claim_terminal(&finished) {
+                    let _ = app_handle.emit(
+                        "ai://done",
+                        DonePayload {
+                            request_id,
+                            result,
+                            truncated,
+                        },
+                    );
+                }
             }
             RelayOutcome::Error(kind, message) => {
-                let _ = app_handle.emit(
-                    "ai://error",
-                    ErrorPayload {
-                        request_id,
-                        kind: kind.to_string(),
-                        message,
-                        cancelled_by: None,
-                    },
-                );
+                if claim_terminal(&finished) {
+                    let _ = app_handle.emit(
+                        "ai://error",
+                        ErrorPayload {
+                            request_id,
+                            kind: kind.to_string(),
+                            message,
+                            cancelled_by: None,
+                        },
+                    );
+                }
             }
-            RelayOutcome::Silent => {}
+            RelayOutcome::Silent => {
+                let _ = claim_terminal(&finished);
+            }
         }
     });
 }
@@ -399,12 +424,51 @@ mod tests {
 
     #[test]
     fn friendly_messages_never_leak_raw() {
-        for kind in ["login", "network", "parse", "other"] {
+        for kind in ["login", "network", "parse", "timeout", "other"] {
             let msg = friendly_error_message(kind);
             assert!(!msg.is_empty());
             assert!(!msg.contains("{"));
             assert!(!msg.contains("Error:"));
         }
+    }
+
+    // --- SPEC-AI-006 항목 2: timeout 오류 종류 + 단일발행 선점 헬퍼 (REQ-AI6-004/005/006) ---
+
+    #[test]
+    fn friendly_message_for_timeout_is_safe_and_distinct_from_other_kinds() {
+        let msg = friendly_error_message("timeout");
+        assert!(!msg.is_empty());
+        assert_ne!(msg, friendly_error_message("network"));
+        assert_ne!(msg, friendly_error_message("login"));
+        assert_ne!(msg, friendly_error_message("parse"));
+    }
+
+    #[test]
+    fn claim_terminal_first_call_succeeds_second_call_fails() {
+        let finished = AtomicBool::new(false);
+        assert!(claim_terminal(&finished));
+        assert!(!claim_terminal(&finished));
+        assert!(!claim_terminal(&finished));
+    }
+
+    #[test]
+    fn claim_terminal_sequential_cancel_then_watchdog_prevents_late_timeout_emit() {
+        // AC-AI6-002 순차 시나리오: 5초 시점 취소가 먼저 claim하면, 60초 워치독은 claim에
+        // 실패해 뒤늦은 timeout 오류를 발행하지 않는다.
+        let finished = Arc::new(AtomicBool::new(false));
+        let cancel_claimed = claim_terminal(&finished); // 취소가 먼저 발화
+        let watchdog_claimed = claim_terminal(&finished); // 이후 워치독 발화
+        assert!(cancel_claimed);
+        assert!(!watchdog_claimed);
+    }
+
+    #[test]
+    fn claim_terminal_near_simultaneous_claims_exactly_one_succeeds() {
+        // AC-AI6-002 근접 경쟁: 취소와 워치독이 거의 동시에 발화해도 정확히 한쪽만 성공한다.
+        let finished = Arc::new(AtomicBool::new(false));
+        let a = claim_terminal(&finished);
+        let b = claim_terminal(&finished);
+        assert!(a ^ b, "exactly one of the two competing claims must succeed");
     }
 
     #[test]

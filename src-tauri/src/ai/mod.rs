@@ -8,15 +8,24 @@ pub mod provider;
 pub mod stream;
 
 use crate::state::app_state::{AppState, InFlightRequest};
-use claude_cli::ErrorPayload;
-use prompt::{build_continue_prompt, build_inline_prompt, build_section_prompt, AiFeature};
+use claude_cli::{claim_terminal, ErrorPayload};
+use prompt::{build_continue_prompt_with_length, build_inline_prompt, build_section_prompt, AiFeature, ContinueLength};
 use provider::{AiModel, AiRequest, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 pub const AI_MODULE_NAME: &str = "ai";
+
+// @MX:NOTE: [AUTO] WATCHDOG_TIMEOUT_SECS - 요청 하드 타임아웃 상수(SPEC-AI-006 REQ-AI6-004).
+// 실측 typical_latency ~2.7초(claude_cli.rs Capabilities) 대비 p99 훨씬 상회로 잡아, 정당한
+// 지연(사내 프록시 콜드스타트 등)은 죽이지 않으면서 무한 행(hang)만 차단한다. 대기 안내(항목 5,
+// 프론트 8초 상수)는 이 값의 소프트 절반 짝이다.
+// @MX:SPEC: SPEC-AI-006
+/// 요청당 워치독 하드 타임아웃(초). 기본 60초.
+pub const WATCHDOG_TIMEOUT_SECS: u64 = 60;
 
 /// 조직 정책 파일 이름(앱 설정 디렉토리 하위). 존재하면 AI 강제 비활성(REQ-AI-017).
 pub const POLICY_FILE_NAME: &str = "ai-policy-disabled";
@@ -91,6 +100,10 @@ pub struct AiRequestArgs {
     pub outline: Option<String>,
     #[serde(default)]
     pub custom_instruction: Option<String>,
+    /// SPEC-AI-006 REQ-AI6-012/013/014: 이어쓰기 길이 옵션('short'|'normal'). `Continue` 분기
+    /// 에서만 반영되고 그 외 분기(인라인·섹션 채우기)는 무영향이다.
+    #[serde(default)]
+    pub length: Option<String>,
 }
 
 /// AI 요청을 시작한다 — 정책 확인 → 프롬프트 조립 → in-flight 교체 → 스폰 → 릴레이(REQ-AI-002/004/006).
@@ -121,9 +134,16 @@ pub fn ai_request(
     let outline = args.outline.as_deref().unwrap_or("");
     let assembled = match feature {
         AiFeature::FillSection => build_section_prompt(outline, before),
-        // 이어쓰기(문서 끝 분기, REQ-AI-028 + 자유 위치 M2, SPEC-AI-003): outline+before(+after)
-        // 조립, after 는 빈 문자열이면 [뒤 문맥] 섹션이 생략되어 기존 문서 끝 프롬프트와 동일하다.
-        AiFeature::Continue => build_continue_prompt(outline, before, after),
+        // 이어쓰기(문서 끝 분기, REQ-AI-028 + 자유 위치 M2, SPEC-AI-003 + 길이 옵션 SPEC-AI-006):
+        // outline+before(+after) 조립, after 는 빈 문자열이면 [뒤 문맥] 섹션이 생략되어 기존
+        // 문서 끝 프롬프트와 동일하다. length 는 이 분기에서만 반영된다(REQ-AI6-014).
+        AiFeature::Continue => {
+            let length = match args.length.as_deref() {
+                Some("short") => ContinueLength::Short,
+                _ => ContinueLength::Normal,
+            };
+            build_continue_prompt_with_length(outline, before, after, length)
+        }
         _ => build_inline_prompt(&feature, selection, before, after),
     };
     let truncated = assembled.truncated;
@@ -151,17 +171,23 @@ pub fn ai_request(
         if let Some(prev) = slot.take() {
             if let Some(id) = in_flight_replacement_notice(Some(&prev.request_id)) {
                 prev.cancel_flag.store(true, Ordering::SeqCst);
+                // SPEC-AI-006 REQ-AI6-006/N1: kill 이전에 claim해야 한다 — kill이 유발하는
+                // 릴레이 EOF→Silent 경로가 먼저 claim을 가로채 터미널 0건(스켈레톤 영구 대기)이
+                // 되는 경합을 방지한다.
+                let claimed = claim_terminal(&prev.finished);
                 let mut child = prev.child;
                 let _ = child.kill();
-                let _ = app_handle.emit(
-                    "ai://error",
-                    ErrorPayload {
-                        request_id: id,
-                        kind: "other".to_string(),
-                        message: "새 요청으로 취소되었어요.".to_string(),
-                        cancelled_by: Some("new-request".to_string()),
-                    },
-                );
+                if claimed {
+                    let _ = app_handle.emit(
+                        "ai://error",
+                        ErrorPayload {
+                            request_id: id,
+                            kind: "other".to_string(),
+                            message: "새 요청으로 취소되었어요.".to_string(),
+                            cancelled_by: Some("new-request".to_string()),
+                        },
+                    );
+                }
             }
         }
     }
@@ -184,6 +210,9 @@ pub fn ai_request(
         .take()
         .ok_or_else(|| "오류 스트림을 열지 못했어요.".to_string())?;
     let cancel_flag = Arc::new(AtomicBool::new(false));
+    // SPEC-AI-006 REQ-AI6-004/006: 요청별 공유 단일발행 선점 플래그 — 릴레이·워치독·
+    // ai_cancel·신규 요청 교체 네 지점이 발행 전 이 플래그를 claim한다.
+    let finished = Arc::new(AtomicBool::new(false));
     claude_cli::relay_process(
         app_handle.clone(),
         args.request_id.clone(),
@@ -191,15 +220,52 @@ pub fn ai_request(
         stderr,
         cancel_flag.clone(),
         truncated,
+        finished.clone(),
     );
 
     // 10. in-flight 저장(동시 1개).
     {
         let mut slot = state.in_flight.lock().map_err(lock_err)?;
         *slot = Some(InFlightRequest {
-            request_id: args.request_id,
+            request_id: args.request_id.clone(),
             child,
             cancel_flag,
+            finished: finished.clone(),
+        });
+    }
+
+    // 11. 요청당 워치독 스레드(하드 타임아웃, REQ-AI6-004) — claim 성공 시에만 자식 kill +
+    // in-flight 정리 + `ai://error{kind:"timeout"}` 발행. 정상완료/취소/교체가 먼저 claim했으면
+    // 여기서는 조용히 무발행(REQ-AI6-006).
+    {
+        let watchdog_app_handle = app_handle.clone();
+        let watchdog_request_id = args.request_id;
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(WATCHDOG_TIMEOUT_SECS));
+            if !claim_terminal(&finished) {
+                return;
+            }
+            if let Some(app_state) = watchdog_app_handle.try_state::<AppState>() {
+                if let Ok(mut slot) = app_state.in_flight.lock() {
+                    let matches_this_request =
+                        slot.as_ref().is_some_and(|cur| cur.request_id == watchdog_request_id);
+                    if matches_this_request {
+                        if let Some(prev) = slot.take() {
+                            let mut child = prev.child;
+                            let _ = child.kill();
+                        }
+                    }
+                }
+            }
+            let _ = watchdog_app_handle.emit(
+                "ai://error",
+                ErrorPayload {
+                    request_id: watchdog_request_id,
+                    kind: "timeout".to_string(),
+                    message: claude_cli::friendly_error_message("timeout"),
+                    cancelled_by: None,
+                },
+            );
         });
     }
 
@@ -219,17 +285,22 @@ pub fn ai_cancel(
     if let Some(prev) = slot.take() {
         prev.cancel_flag.store(true, Ordering::SeqCst);
         let request_id = prev.request_id.clone();
+        // SPEC-AI-006 REQ-AI6-006/N1: kill 이전에 claim해야 한다 — kill이 유발하는 릴레이
+        // EOF→Silent 경로가 먼저 claim을 가로채 터미널 0건이 되는 경합을 방지한다.
+        let claimed = claim_terminal(&prev.finished);
         let mut child = prev.child;
         let _ = child.kill();
-        let _ = app_handle.emit(
-            "ai://error",
-            ErrorPayload {
-                request_id,
-                kind: "other".to_string(),
-                message: "요청을 취소했어요.".to_string(),
-                cancelled_by: Some("user".to_string()),
-            },
-        );
+        if claimed {
+            let _ = app_handle.emit(
+                "ai://error",
+                ErrorPayload {
+                    request_id,
+                    kind: "other".to_string(),
+                    message: "요청을 취소했어요.".to_string(),
+                    cancelled_by: Some("user".to_string()),
+                },
+            );
+        }
     }
     Ok(())
 }
@@ -315,6 +386,30 @@ mod tests {
         assert!(args.model.is_none());
         assert!(args.context_before.is_none());
         assert!(args.preset_kind.is_none());
+        assert!(args.length.is_none());
+    }
+
+    // --- SPEC-AI-006 항목 4: 이어쓰기 길이 옵션 IPC 필드 (REQ-AI6-012/013/014) ---
+
+    #[test]
+    fn request_args_deserialize_length_field_for_continue() {
+        let json = r#"{
+            "requestId":"cw-3","feature":"section-fill","presetKind":"continue","model":"haiku",
+            "outline":"개요","contextBefore":"본문","length":"short"
+        }"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(args.length.as_deref(), Some("short"));
+        assert_eq!(
+            AiFeature::resolve(&args.feature, args.preset_kind.as_deref(), None),
+            Ok(AiFeature::Continue)
+        );
+    }
+
+    #[test]
+    fn request_args_length_absent_defaults_to_none() {
+        let json = r#"{"requestId":"r1","feature":"polish","selection":"안녕"}"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert!(args.length.is_none());
     }
 
     #[test]

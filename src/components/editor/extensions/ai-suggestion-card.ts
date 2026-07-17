@@ -16,6 +16,7 @@ import { useAiStore } from '@/store/aiStore';
 import type { AiErrorKind } from '@/store/aiStore';
 import { buildFallbackDecision, validateMermaid, MERMAID_STRICT_CONFIG } from '@/lib/ai/mermaidValidate';
 import type { MermaidValidationResult } from '@/lib/ai/mermaidValidate';
+import { WAIT_NOTICE_DELAY_MS, WAIT_NOTICE_TEXT } from '@/lib/ai/waitNotice';
 
 // ============================================================
 // Card state machine (pure)
@@ -193,6 +194,8 @@ export interface RenderCardInput {
   presetKind: AiPresetKind;
   /** 스트리밍 중 표시할 실시간 버퍼(aiStore.streamBuffer). */
   streamBuffer: string;
+  /** SPEC-AI-006 REQ-AI6-007: 발행 후 대기 임계(기본 8초)를 넘겨도 첫 청크가 없으면 true. */
+  waitingLong?: boolean;
   /** 현재 카드 모델(직접/블라인드 재요청에 승계). 기본 haiku. */
   model?: AiModel;
   /** diagram-valid 카드 미니 렌더러(주입). 없으면 placeholder 만(테스트는 미주입). */
@@ -292,6 +295,13 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
         skeleton.appendChild(line);
       }
       card.appendChild(skeleton);
+    }
+    // SPEC-AI-006 REQ-AI6-007/008/009: 8초 무응답이면 보조 문구만 표시한다(진행률 바 금지).
+    if (input.waitingLong && input.streamBuffer.trim() === '') {
+      const notice = document.createElement('div');
+      notice.className = 'mdedit-ai-wait-notice';
+      notice.textContent = WAIT_NOTICE_TEXT;
+      card.appendChild(notice);
     }
     const cancel = makeButton('mdedit-ai-cancel', '✕ 취소');
     cancel.addEventListener('click', () => callbacks.onCancel());
@@ -546,7 +556,10 @@ function buildCardKey(model: SuggestionCardModel, render: RenderCardInput): stri
   // 위젯 key(재생성 여부)를 일치시킨다 — 그렇지 않으면 렌더는 스켈레톤을 유지하는데
   // key 는 'filled' 로 바뀌어 눈에 보이는 출력 없이 위젯이 재생성될 수 있다.
   const bufferState = render.streamBuffer.trim() === '' ? 'skeleton' : 'filled';
-  return `${model.requestId}:${phase}:${bufferState}`;
+  // SPEC-AI-006 REQ-AI6-007: waitingLong 전환도 key 에 반영해야 widget 이 재생성되어 대기
+  // 안내 문구가 실제로 DOM 에 반영된다(그렇지 않으면 eq() 가 true 라 toDOM 이 재호출되지 않는다).
+  const waitingSuffix = render.waitingLong ? ':waiting' : '';
+  return `${model.requestId}:${phase}:${bufferState}${waitingSuffix}`;
 }
 
 /** 활성 카드를 원문 아래 block widget 으로 감싸는 위젯. */
@@ -760,12 +773,45 @@ export class AiSuggestionCardController {
   // 응답이 목록(일반 텍스트)이지 다이어그램이 아니기 때문이다. model.presetKind 는 'diagram'
   // 으로 고정해 두고(적용 버튼 배치 등 기존 계약 유지), 완료 처리/펜스 삽입만 이 플래그로 우회한다.
   private listFallbackActive = false;
+  // SPEC-AI-006 REQ-AI6-007/008: 발행 후 대기 임계(기본 8초) 타이머 — 첫 청크/완료/오류/취소/
+  // 언마운트 시 즉시 clear한다(누수 없음).
+  private waitNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+  private waitingLong = false;
 
   constructor(
     public readonly model: SuggestionCardModel,
     private readonly callbacks: CardCallbacks,
     private readonly options: CardControllerOptions = {},
-  ) {}
+  ) {
+    this.armWaitNoticeTimer();
+  }
+
+  private armWaitNoticeTimer(): void {
+    this.clearWaitNoticeTimer();
+    this.waitNoticeTimer = setTimeout(() => {
+      this.waitNoticeTimer = null;
+      this.waitingLong = true;
+      if (cardRegistry.has(this.model.requestId)) notifyActiveCard();
+    }, WAIT_NOTICE_DELAY_MS);
+  }
+
+  /** 재요청(↻/직접지시/sonnet/목록폴백)이 새 스트림을 시작할 때 대기 타이머를 재무장한다. */
+  rearmWaitNotice(): void {
+    this.waitingLong = false;
+    this.armWaitNoticeTimer();
+  }
+
+  private clearWaitNoticeTimer(): void {
+    if (this.waitNoticeTimer !== null) {
+      clearTimeout(this.waitNoticeTimer);
+      this.waitNoticeTimer = null;
+    }
+  }
+
+  /** 카드가 레지스트리에서 제거될 때(적용/취소) 호출 — 대기 타이머 누수를 막는다. */
+  destroy(): void {
+    this.clearWaitNoticeTimer();
+  }
 
   private commit(event: CardEvent): void {
     this.state = reduceCard(this.state, event);
@@ -778,10 +824,16 @@ export class AiSuggestionCardController {
 
   onStream(buffer: string): void {
     this.streamBuffer = buffer;
+    if (buffer.trim() !== '') {
+      this.clearWaitNoticeTimer();
+      this.waitingLong = false;
+    }
     this.commit({ type: 'stream' });
   }
 
   onComplete(finalText: string, opts?: { truncated?: boolean }): void {
+    this.clearWaitNoticeTimer();
+    this.waitingLong = false;
     // 다이어그램은 삽입 전 strict 사전 검증(REQ-AI-023) 후 valid/자동재요청/목록폴백으로 분기.
     // BUG-6: 목록 폴백이 활성화된 뒤에는(재요청 응답이 목록 텍스트) 더 이상 이 분기를 타지
     // 않는다 — mermaid 검증에 넣으면 항상 실패해 diagram-fallback 으로 되돌아가 무한 루프가 된다.
@@ -816,6 +868,8 @@ export class AiSuggestionCardController {
   }
 
   onError(errorInfo: { kind: AiErrorKind; message: string }): void {
+    this.clearWaitNoticeTimer();
+    this.waitingLong = false;
     this.commit({ type: 'fail', kind: errorInfo.kind, message: errorInfo.message });
   }
 
@@ -826,6 +880,8 @@ export class AiSuggestionCardController {
 
   /** in-flight 가 새 요청으로 취소됨(REQ-AI-006, 검토 카드는 무영향). */
   cancelByNew(): void {
+    this.clearWaitNoticeTimer();
+    this.waitingLong = false;
     this.commit({ type: 'cancel-by-new' });
   }
 
@@ -860,6 +916,7 @@ export class AiSuggestionCardController {
       actions: deriveCardActions(this.model.presetKind, this.model.insertOnly),
       presetKind: this.model.presetKind,
       streamBuffer: this.streamBuffer,
+      waitingLong: this.waitingLong,
       model: this.model.model,
       renderMermaid: this.options.renderMermaid,
       callbacks: this.callbacks,
@@ -949,6 +1006,7 @@ function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode
     mode,
   });
   if (result.applied) {
+    controller.destroy(); // 대기 안내 타이머 정리(REQ-AI6-008)
     removeCardController(controller); // 적용 완료 → 이 카드만 닫기(다른 카드 유지)
   } else {
     controller.markStale(); // 원문 불일치 → "원문이 바뀌어 적용할 수 없어요"(문서 무손상)
@@ -1019,12 +1077,14 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
     onCancel: () => {
       void aiCancel(boundRequestId).catch(() => undefined);
       useAiStore.getState().cancelRequest();
+      controller.destroy(); // 대기 안내 타이머 정리(REQ-AI6-008)
       removeCardController(controller);
     },
     onReRequest: (instruction, useModel) => {
       // BUG-2: 원본 args(selection/contextBefore/contextAfter)를 그대로 승계하고 지시/모델만 덮어쓴다.
       boundRequestId = fireReRequest(request.args, { customInstruction: instruction, model: useModel });
       lastHandledTerminal = null;
+      controller.rearmWaitNotice();
     },
     onListFallback: () => {
       // BUG-6: 목록 폴백 모드로 전환 — 이후 onComplete/applyActiveCard 가 더 이상 이 응답을
@@ -1038,6 +1098,7 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
         model: model.model,
       });
       lastHandledTerminal = null;
+      controller.rearmWaitNotice();
     },
     onOpenOnboarding: () => openOnboarding(),
   };
