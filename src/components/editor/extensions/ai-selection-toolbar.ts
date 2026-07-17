@@ -15,6 +15,7 @@ import type { AiModel, AiRequestArgs } from '@/lib/tauri/ipc';
 import type { AiFeature } from '@/store/aiStore';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
+import { getEffectiveAiEnabled } from '@/store/aiPolicy';
 import { expandToSentenceBoundary, startSuggestionCard } from './ai-suggestion-card';
 
 export type { AiPresetKind } from './ai-length-guard';
@@ -29,6 +30,11 @@ export interface AiToolbarUiState {
   loggedIn: boolean;
   /** true 면 sonnet, false 면 haiku(REQ-AI-016). */
   advancedModel: boolean;
+  /**
+   * effectiveAiEnabled(SPEC-AI-005 REQ-AI5-013) — false 면 ✨ 데코레이션 자체를 렌더하지
+   * 않는다(REQ-AI5-007). 생략 시(undefined) 하위호환을 위해 true 로 취급한다.
+   */
+  enabled?: boolean;
 }
 
 /** UI 상태 주입 훅 — 테스트 스텁 및 후속 배선(T-018) 지점. */
@@ -540,6 +546,8 @@ const defaultGetUiState: GetUiState = () => {
     // 추가하는 aiAdvancedModel 토글을 읽는다.
     loggedIn: ui.aiLoggedIn !== false,
     advancedModel: ui.aiAdvancedModel === true,
+    // SPEC-AI-005: effectiveAiEnabled = !policyDisabled && userAiEnabled(REQ-AI5-013).
+    enabled: getEffectiveAiEnabled(),
   };
 };
 
@@ -568,6 +576,11 @@ export function buildToolbarDecorations(
   const { from, to } = view.state.selection.main;
   if (from === to) return Decoration.none;
 
+  const getUiState = config.getUiState ?? defaultGetUiState;
+  // SPEC-AI-005 REQ-AI5-007: effectiveAiEnabled 가 거짓이면 ✨ 데코레이션 자체를 렌더하지 않는다.
+  // enabled 가 생략(undefined)되면 하위호환을 위해 활성으로 취급한다(REQ-AI5-015).
+  if (getUiState().enabled === false) return Decoration.none;
+
   const ctx: ToolbarContext = {
     getSelection: () => {
       const sel = view.state.selection.main;
@@ -585,7 +598,7 @@ export function buildToolbarDecorations(
         originalText: doc.slice(expanded.from, expanded.to),
       };
     },
-    getUiState: config.getUiState ?? defaultGetUiState,
+    getUiState,
     onRequest: config.onRequest ?? defaultOnRequest,
     onConnectNeeded: config.onConnectNeeded ?? (() => undefined),
   };

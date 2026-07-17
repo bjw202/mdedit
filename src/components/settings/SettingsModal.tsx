@@ -169,6 +169,7 @@ function AiSection({ state, provider, onStartOnboarding }: AiSectionProps): JSX.
               ✅ 사용 가능{provider?.version ? ` (v${provider.version})` : ''}
             </span>
           </p>
+          <AiEnabledToggle disabled={false} />
           <AdvancedModelToggle disabled={false} />
         </div>
       );
@@ -202,6 +203,7 @@ function AiSection({ state, provider, onStartOnboarding }: AiSectionProps): JSX.
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--md-space-3)' }}>
           <p style={mutedRow}>조직 정책으로 AI 기능이 비활성화되어 있어요 (토글 잠금).</p>
+          <AiEnabledToggle disabled />
           <AdvancedModelToggle disabled />
         </div>
       );
@@ -239,6 +241,39 @@ function NoticeBanner(): JSX.Element | null {
         확인
       </button>
     </div>
+  );
+}
+
+// @MX:SPEC: SPEC-AI-005 REQ-AI5-004 REQ-AI5-005 REQ-AI5-006
+// @MX:NOTE: AI 기능 전체 켜기/끄기 토글(SPEC-AI-005) — AdvancedModelToggle 과 동일한 disabled+🔒
+// 정책 잠금 관례를 따른다. onChange 는 setAiEnabled 로만 반영하고, ON→OFF 전이의 취소·정리
+// 부수효과는 aiOffEffects.ts 의 store subscribe 가 별도로 담당한다(관심사 분리, D3).
+/** AI 기능 사용자 켜기/끄기 토글. 정책 잠금 시 disabled + 자물쇠 표기(REQ-AI5-005). */
+function AiEnabledToggle({ disabled }: { disabled: boolean }): JSX.Element {
+  const aiEnabled = useUIStore((s) => s.aiEnabled);
+  const setAiEnabled = useUIStore((s) => s.setAiEnabled);
+
+  return (
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--md-space-2)',
+        fontSize: 13,
+        color: disabled ? 'var(--md-text-faint)' : 'var(--md-text-primary)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+      title="AI 기능(✨ 편집·힌트·이어쓰기)을 전체 켜고 끕니다."
+    >
+      <input
+        type="checkbox"
+        aria-label="AI 기능 사용"
+        checked={aiEnabled}
+        disabled={disabled}
+        onChange={(e) => setAiEnabled(e.target.checked)}
+      />
+      AI 기능 사용{disabled ? ' 🔒' : ''}
+    </label>
   );
 }
 

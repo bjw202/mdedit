@@ -18,6 +18,7 @@ import { aiRequest, aiCancel, ipcErrorMessage } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
 import { resolveModel } from '@/components/settings/SettingsModal';
+import { getEffectiveAiEnabled } from '@/store/aiPolicy';
 
 // ============================================================
 // 순수 판정 — 힌트는 토큰 0 로컬 로직(설계 §5.2, REQ-AI-028/032)
@@ -477,11 +478,18 @@ export const startFreeContinueWritingCommand: Command = (view) => {
 // 이어쓰기 순으로 트리거하는 4중 동작(설계 §5.1, REQ-AI3-002 우선순위: section-fill > 문서 끝
 // continue > 자유 위치 continue). Tab은 여기 바인딩하지 않는다 — indentWithTab이 처리하고
 // docChanged로 고스트가 소멸한다(REQ-AI-031).
-const modEnterCommand: Command = (view) =>
-  confirmGhostCommand(view) ||
-  startSectionFillCommand(view) ||
-  startContinueWritingCommand(view) ||
-  startFreeContinueWritingCommand(view);
+// SPEC-AI-005 REQ-AI5-009: 이미 활성인 고스트의 확정(confirmGhostCommand)은 토글 OFF 와
+// 무관하게 항상 허용한다 — 정리는 OFF 부수효과(aiOffEffects)가 담당한다(D3). 신규 트리거
+// 3종만 effectiveAiEnabled 가 거짓이면 차단해 폴스루시키고, 어떤 AI 요청도 발생시키지 않는다.
+const modEnterCommand: Command = (view) => {
+  if (confirmGhostCommand(view)) return true;
+  if (!getEffectiveAiEnabled()) return false;
+  return (
+    startSectionFillCommand(view) ||
+    startContinueWritingCommand(view) ||
+    startFreeContinueWritingCommand(view)
+  );
+};
 
 /** AI 고스트 keymap. indentWithTab보다 앞서 등록해야 Mod-Enter/Esc가 선점된다. */
 export const aiGhostKeymap: KeyBinding[] = [
@@ -583,11 +591,15 @@ class AiHintPluginValue {
 
   private armTimer(): void {
     this.clearTimer();
+    // SPEC-AI-005 REQ-AI5-008: effectiveAiEnabled 가 거짓이면 힌트 타이머 자체를 재무장하지
+    // 않는다 — 매 재무장 시점에 다시 조회하므로 ON 복귀 시 다음 유휴 재무장에서 즉시 반영된다.
+    if (!getEffectiveAiEnabled()) return;
     if (this.view.state.field(aiGhostField, false)) return; // 고스트 활성 중엔 힌트 없음
     const pos = this.view.state.selection.main.head;
     if (!evaluateHintEligibility(this.view.state, pos)) return;
     this.timer = setTimeout(() => {
       this.timer = null;
+      if (!getEffectiveAiEnabled()) return; // 타이머 대기 중 토글 OFF 전환 방어(REQ-AI5-008)
       if (this.view.state.field(aiGhostField, false)) return;
       const curPos = this.view.state.selection.main.head;
       const eligibility = evaluateHintEligibility(this.view.state, curPos);
