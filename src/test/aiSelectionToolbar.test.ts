@@ -235,6 +235,54 @@ describe('buildPresetMenuItems: guard-driven disable states by selection length'
   });
 });
 
+describe('evaluateMenuNotice: guard-derived preset-menu notice bands (SPEC-AI-007)', () => {
+  it('len=2000 (boundary, no guard impact): returns null', async () => {
+    const { evaluateMenuNotice } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(evaluateMenuNotice(2000)).toBeNull();
+  });
+
+  it('len=2001 (edit disabled, transform insertOnly): returns partial tone with the mixed-effect copy', async () => {
+    const { evaluateMenuNotice } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    const notice = evaluateMenuNotice(2001);
+    expect(notice).toEqual({
+      tone: 'partial',
+      text: '선택이 길어요 — 다듬기·직접 입력은 비활성이고, 변환은 결과를 「아래에 삽입」만 할 수 있어요.',
+    });
+  });
+
+  it('len=4000 (boundary, still insertOnly): returns partial tone', async () => {
+    const { evaluateMenuNotice } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    const notice = evaluateMenuNotice(4000);
+    expect(notice?.tone).toBe('partial');
+  });
+
+  it('len=4001 (all presets disabled): returns block tone reusing the guard reason verbatim', async () => {
+    const { evaluateMenuNotice } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    const { evaluateSelectionGuard } = await import(
+      '@/components/editor/extensions/ai-length-guard'
+    );
+    const guardReason = evaluateSelectionGuard(4001, 'outline').reason;
+    const notice = evaluateMenuNotice(4001);
+    expect(notice).toEqual({ tone: 'block', text: guardReason });
+    expect(notice?.text).toBe('선택이 너무 길어요. 문단 단위로 나눠 선택해주세요.');
+  });
+
+  it('len=100 (well within edit limit): returns null', async () => {
+    const { evaluateMenuNotice } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(evaluateMenuNotice(100)).toBeNull();
+  });
+});
+
 describe('buildToolbarDecorations: ✨ widget appears only on a non-empty selection', () => {
   it('emits exactly one widget when text is selected', async () => {
     const { buildToolbarDecorations } = await import(
@@ -290,6 +338,43 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
     expect(polish.title).toBeTruthy();
     polish.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(callbacks.onSelectPreset).not.toHaveBeenCalled();
+    menu.destroy();
+  });
+
+  it('len=4001: shows the always-visible too-long notice line and still keeps per-item title/disabled (REQ-AI7-001, 005)', async () => {
+    const { menu } = await build(4001);
+    const notice = menu.dom.querySelector('.mdedit-ai-preset-notice');
+    expect(notice).toBeTruthy();
+    expect(notice?.textContent).toBe('선택이 너무 길어요. 문단 단위로 나눠 선택해주세요.');
+    const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
+    expect(polish.disabled).toBe(true);
+    expect(polish.title).toBeTruthy();
+    expect(polish.getAttribute('aria-disabled')).toBe('true');
+    menu.destroy();
+  });
+
+  it('len=3000: shows the partial (mixed-effect) notice line while transforms stay insertOnly (REQ-AI7-002)', async () => {
+    const { menu } = await build(3000);
+    const notice = menu.dom.querySelector('.mdedit-ai-preset-notice');
+    expect(notice).toBeTruthy();
+    expect(notice?.textContent).toBe(
+      '선택이 길어요 — 다듬기·직접 입력은 비활성이고, 변환은 결과를 「아래에 삽입」만 할 수 있어요.',
+    );
+    const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
+    expect(polish.disabled).toBe(true);
+    const outline = menu.dom.querySelector<HTMLButtonElement>('[data-preset="outline"]')!;
+    expect(outline.disabled).toBe(false);
+    menu.destroy();
+  });
+
+  it('len=100: renders no notice line and leaves the preset list/sep structure unchanged (REQ-AI7-003)', async () => {
+    const { menu } = await build(100);
+    const notice = menu.dom.querySelector('.mdedit-ai-preset-notice');
+    expect(notice).toBeFalsy();
+    const list = menu.dom.querySelector('.mdedit-ai-preset-list');
+    expect(list).toBeTruthy();
+    const sep = menu.dom.querySelector('.mdedit-ai-preset-sep');
+    expect(sep).toBeTruthy();
     menu.destroy();
   });
 
