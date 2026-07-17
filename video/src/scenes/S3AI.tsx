@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
-import { colors, font, layout, radius, shadow, space } from '../tokens';
+import { colors, font, fontSize, layout, lineHeight, radius, shadow, space } from '../tokens';
 import {
   AppFrame,
   HeaderBar,
@@ -867,6 +867,13 @@ const UC1_TRANSFORM = UC1_REPLACE_CLICK + 15; // 615
 function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
   if (frame < UC1.start - 20 || frame > UC1.end + 20) return null;
   const local = frame - UC1.start;
+  // BUGFIX (post-review): SubtitleBar / CursorPointer / TypingText all call
+  // useCurrentFrame() internally (there is no per-UC <Sequence> boundary in
+  // this scene), so it always returns the ABSOLUTE S3-scene frame — never
+  // the UC1-local `local` used for our own conditional rendering above.
+  // Every frame value handed to those three components must be converted
+  // back to absolute scale via `abs()`, or they silently never match.
+  const abs = (n: number): number => UC1.start + n;
 
   const showScreenshot = local >= UC1_SCREENSHOT_IN;
   const showSelection = local >= UC1_SELECT_START && local < UC1_PRESET_CLICK + 20;
@@ -950,7 +957,7 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
                       text={
                         '## 참석자\n- 지원, 민준, 서연\n## 논의 사항\n- 신규 기능 우선순위 · 일정 조정 · 예산 검토\n## 다음 액션\n- 지원: 기획서 · 민준: 디자인 시안 · 서연: 예산안'
                       }
-                      startFrame={UC1_CARD_APPEAR}
+                      startFrame={abs(UC1_CARD_APPEAR)}
                       charsPerSecond={40}
                       cursor={false}
                     />
@@ -967,61 +974,110 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
       </SegmentPanel>
       <CursorPointer
         positions={[
-          { frame: 0, x: 900, y: 470 },
-          { frame: UC1_SELECT_END - 20, x: 40 + selectionWidth, y: 140 },
-          { frame: UC1_SPARKLE_CLICK, x: 40 + selectionWidth + 24, y: 105 },
-          { frame: UC1_PRESET_CLICK - 15, x: 40 + selectionWidth + 60, y: 150 },
-          { frame: UC1_PRESET_CLICK, x: 40 + selectionWidth + 60, y: 150 },
-          { frame: UC1_REPLACE_CLICK - 15, x: 90, y: 380 },
-          { frame: UC1_REPLACE_CLICK, x: 90, y: 380 },
-          { frame: 840, x: 90, y: 380 },
+          { frame: abs(0), x: 900, y: 470 },
+          { frame: abs(UC1_SELECT_END - 20), x: 40 + selectionWidth, y: 140 },
+          { frame: abs(UC1_SPARKLE_CLICK), x: 40 + selectionWidth + 24, y: 105 },
+          { frame: abs(UC1_PRESET_CLICK - 15), x: 40 + selectionWidth + 60, y: 150 },
+          { frame: abs(UC1_PRESET_CLICK), x: 40 + selectionWidth + 60, y: 150 },
+          { frame: abs(UC1_REPLACE_CLICK - 15), x: 90, y: 380 },
+          { frame: abs(UC1_REPLACE_CLICK), x: 90, y: 380 },
+          { frame: abs(840), x: 90, y: 380 },
         ]}
-        clicks={[UC1_SPARKLE_CLICK, UC1_PRESET_CLICK, UC1_REPLACE_CLICK]}
+        clicks={[abs(UC1_SPARKLE_CLICK), abs(UC1_PRESET_CLICK), abs(UC1_REPLACE_CLICK)]}
       />
-      <SubtitleBar text="날 것 메모를 붙여넣고" startFrame={10} endFrame={UC1_PASTE_KEY - 10} />
-      <SubtitleBar text="📋 개요로 정리를 누르면" startFrame={UC1_MENU_OPEN + 10} endFrame={UC1_CARD_APPEAR + 10} />
-      <SubtitleBar text="깔끔한 문서가 됩니다" startFrame={UC1_TRANSFORM + 10} endFrame={800} />
+      {/* BUGFIX (post-review): UC1 previously had 240f + 185f silent subtitle
+          gaps (90-330, 440-625), AND all SubtitleBar start/end frames were
+          UC1-local numbers fed to a component that reads the ABSOLUTE scene
+          frame internally, so none of them ever matched during the real
+          UC1 window in the first place. Both issues fixed below: contiguous
+          coverage from 0 to 830, all frames converted via abs(). */}
+      <SubtitleBar text="날 것 메모를 붙여넣고" startFrame={abs(0)} endFrame={abs(90)} />
+      <SubtitleBar text="스크린샷도 ⌘V로 바로 붙여요" startFrame={abs(90)} endFrame={abs(180)} />
+      <SubtitleBar text="정리할 부분을 전체 선택하고" startFrame={abs(180)} endFrame={abs(UC1_MENU_OPEN + 10)} />
+      <SubtitleBar text="📋 개요로 정리를 누르면" startFrame={abs(UC1_MENU_OPEN + 10)} endFrame={abs(UC1_CARD_APPEAR + 10)} />
+      <SubtitleBar text="제안 카드가 스트리밍되며 만들어져요" startFrame={abs(UC1_CARD_APPEAR + 10)} endFrame={abs(UC1_REPLACE_CLICK)} />
+      <SubtitleBar text="✓ 바꾸기를 누르면" startFrame={abs(UC1_REPLACE_CLICK)} endFrame={abs(UC1_TRANSFORM + 10)} />
+      <SubtitleBar text="깔끔한 문서가 됩니다" startFrame={abs(UC1_TRANSFORM + 10)} endFrame={abs(830)} />
     </>
   );
 }
 
 // =====================================================================
 // S3c-UC2 — 블로그 이어쓰기 (1950-2850f), full AppFrame replay.
+//
+// BUGFIX (post-review): the previous version fed EditorPane two separate
+// line-array entries (paragraph + ghost-continuation-as-its-own-row). When
+// the ghost row's text was still empty, its own default TypingText cursor
+// rendered as a SECOND, visually detached caret sitting alone on the blank
+// row below the paragraph — while the real caret sat correctly at the end
+// of line 1. Fix: render the paragraph + continuation as sibling inline
+// <span>s inside ONE row (BlogEditorPane below) so there is exactly one
+// caret, always trailing the visible text. Subtitle coverage was also
+// gapped (only 2 of 5 beats had a subtitle, leaving ~500/900f silent) —
+// every beat below now has a subtitle spanning its full window.
 // =====================================================================
 
 const BLOG_INTRO = 'mdedit는 로컬 우선 마크다운 편집기입니다. 무거운 서버 없이도';
 const GHOST_V1 = ' 빠르고 안전하게 문서를 작성할 수 있습니다.';
 const GHOST_V2 = ' 개인 정보를 그대로 지키면서 편하게 글을 쓸 수 있습니다.';
 
-// UC2 sub-beats, relative to UC2.start (0..900f).
-const UC2_PAUSE_START = 90;
-const UC2_HINT_IN = 180;
-const UC2_CLICK = 250;
-const UC2_GHOST1_START = 280;
-const UC2_CONFIRM = 430;
-const UC2_REGEN_CLICK = 530;
-const UC2_GHOST2_START = 555;
+// UC2 sub-beats, relative to UC2.start (0..900f). Five legible windows,
+// touching edges (no gaps): [0,160) [160,280) [280,460) [460,560) [560,900].
+const UC2_PAUSE_START = 10;
+const UC2_PAUSE_END = 100; // 90f = 3s pause, per docs/USER_GUIDE.md §4.2
+const UC2_HINT_IN = 165;
+const UC2_CLICK = 265;
+const UC2_GHOST1_START = 285;
+const UC2_CONFIRM = 480;
+const UC2_REGEN_VISIBLE = 560;
+const UC2_REGEN_CLICK = 590;
+const UC2_GHOST2_START = 610;
 
-function BlogEditor({ local }: { local: number }): JSX.Element {
-  const showGhost1 = local >= UC2_GHOST1_START && local < UC2_REGEN_CLICK + 4;
+// Anchor point for all caret-adjacent overlays (hint pill / keycap / ↻),
+// placed just below the paragraph's single text row so they read as
+// "attached to the caret" without needing per-character pixel math.
+const UC2_ANCHOR_X = CONTENT_X + 40;
+const UC2_ANCHOR_Y = CONTENT_Y + 60;
+
+/** Single-row editor line: static paragraph + ghost continuation as inline siblings (one caret, always trailing text). */
+function BlogEditorPane({ local }: { local: number }): JSX.Element {
+  const showGhost1 = local >= UC2_GHOST1_START && local < UC2_GHOST2_START;
   const showGhost2 = local >= UC2_GHOST2_START;
   return (
-    <EditorPane
-      showLineNumbers={false}
-      lines={[
-        {
-          text: BLOG_INTRO,
-          startFrame: -1000,
-          staticText: true,
-          cursor: !showGhost1 && !showGhost2,
-        },
-        {
-          text: showGhost2 ? GHOST_V2 : showGhost1 ? GHOST_V1 : '',
-          startFrame: showGhost2 ? UC2_GHOST2_START : UC2_GHOST1_START,
-          charsPerSecond: 22,
-        },
-      ]}
-    />
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+        minHeight: 0,
+        overflow: 'hidden',
+        background: colors.surfaceRaised,
+        fontFamily: font.mono,
+        fontSize: fontSize.editor,
+        lineHeight: lineHeight.editor,
+        color: colors.textPrimary,
+        padding: `${space[3]}px ${space[4]}px`,
+      }}
+    >
+      <span style={{ whiteSpace: 'pre-wrap' }}>{BLOG_INTRO}</span>
+      {/* BUGFIX (post-review): GhostText forwards `startFrame` straight into
+          TypingText, which reads useCurrentFrame() internally (ABSOLUTE
+          S3-scene frame). `frame`/`confirmFrame` below are only used for
+          GhostText's own local color-switch check, so they may stay in
+          UC2-local scale — but `startFrame` must be UC2.start + local. */}
+      {showGhost2 ? (
+        <GhostText text={GHOST_V2} startFrame={UC2.start + UC2_GHOST2_START} frame={local} charsPerSecond={22} />
+      ) : showGhost1 ? (
+        <GhostText
+          text={GHOST_V1}
+          startFrame={UC2.start + UC2_GHOST1_START}
+          frame={local}
+          confirmFrame={UC2_CONFIRM}
+          charsPerSecond={22}
+        />
+      ) : (
+        <TypingText text="" startFrame={-1000} staticText cursor />
+      )}
+    </div>
   );
 }
 
@@ -1046,43 +1102,52 @@ function BlogPreview({ local }: { local: number }): JSX.Element {
 function UC2Segment({ frame }: { frame: number }): JSX.Element | null {
   if (frame < UC2.start - 20 || frame > UC2.end + 20) return null;
   const local = frame - UC2.start;
+  // BUGFIX (post-review): same absolute-vs-local mismatch as UC1Segment —
+  // SubtitleBar/CursorPointer read useCurrentFrame() (absolute S3 frame)
+  // internally, so every frame value handed to them must go through abs().
+  const abs = (n: number): number => UC2.start + n;
 
-  const pulsePhase = local >= UC2_PAUSE_START && local < UC2_HINT_IN ? Math.sin((local - UC2_PAUSE_START) / 6) * 0.5 + 0.5 : 0;
+  const pulsePhase =
+    local >= UC2_PAUSE_START && local < UC2_PAUSE_END ? Math.sin((local - UC2_PAUSE_START) / 6) * 0.5 + 0.5 : 0;
+  const pauseSecondsElapsed = Math.min(3, Math.max(0, Math.floor((local - UC2_PAUSE_START) / 30) + (local >= UC2_PAUSE_START ? 1 : 0)));
 
   return (
     <>
       <SegmentPanel frame={local} start={0} end={900} fade={20}>
         <AppFrameSlot header={<HeaderBar viewMode="split" filename="블로그-초안.md" />} sidebar={<FileExplorer selected="블로그-초안.md" />}>
-          <BlogEditor local={local} />
+          <BlogEditorPane local={local} />
           <BlogPreview local={local} />
         </AppFrameSlot>
       </SegmentPanel>
 
-      {/* cursor idle pulse during the 3s pause */}
+      {/* (a) idle caret pulse + "N초" micro-label during the 3s pause */}
       {local >= UC2_PAUSE_START && local < UC2_HINT_IN && (
         <div
           style={{
             position: 'absolute',
-            left: CONTENT_X + 380,
-            top: CONTENT_Y + 130,
-            width: 8,
-            height: 20,
-            background: colors.accent,
-            opacity: 0.4 + pulsePhase * 0.5,
-          }}
-        />
-      )}
-
-      {local >= UC2_HINT_IN && local < UC2_GHOST1_START + 10 && (
-        <div
-          style={{
-            position: 'absolute',
-            left: CONTENT_X + 40,
-            top: CONTENT_Y + 160,
+            left: UC2_ANCHOR_X,
+            top: UC2_ANCHOR_Y,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            opacity: interpolate(local, [UC2_PAUSE_START, UC2_PAUSE_START + 8, UC2_PAUSE_END + 20, UC2_HINT_IN], [0, 1, 1, 0], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+            }),
           }}
         >
+          <div style={{ width: 8, height: 20, background: colors.accent, opacity: 0.4 + pulsePhase * 0.5 }} />
+          {local < UC2_PAUSE_END && (
+            <span style={{ fontFamily: font.ui, fontSize: 13, color: colors.textFaint }}>{pauseSecondsElapsed}초</span>
+          )}
+        </div>
+      )}
+
+      {/* (b) hint pill, ≥2s dwell (100f @ 30fps) */}
+      {local >= UC2_HINT_IN && local < UC2_CLICK + 15 && (
+        <div style={{ position: 'absolute', left: UC2_ANCHOR_X, top: UC2_ANCHOR_Y }}>
           <HintPill
-            opacity={interpolate(local, [UC2_HINT_IN, UC2_HINT_IN + 10, UC2_GHOST1_START, UC2_GHOST1_START + 10], [0, 1, 1, 0], {
+            opacity={interpolate(local, [UC2_HINT_IN, UC2_HINT_IN + 10, UC2_CLICK, UC2_CLICK + 15], [0, 1, 1, 0], {
               extrapolateLeft: 'clamp',
               extrapolateRight: 'clamp',
             })}
@@ -1090,33 +1155,42 @@ function UC2Segment({ frame }: { frame: number }): JSX.Element | null {
         </div>
       )}
 
+      {/* (d) ⌘⏎ confirm keycap */}
       {local >= UC2_CONFIRM - 20 && local < UC2_CONFIRM + 20 && (
-        <div style={{ position: 'absolute', left: CONTENT_X + 40, top: CONTENT_Y + 200, opacity: 1 }}>
+        <div style={{ position: 'absolute', left: UC2_ANCHOR_X, top: UC2_ANCHOR_Y }}>
           <Keycap keys={['⌘', '⏎']} />
         </div>
       )}
 
-      {local >= UC2_REGEN_CLICK - 20 && local < UC2_GHOST2_START + 10 && (
-        <div style={{ position: 'absolute', left: CONTENT_X + 40, top: CONTENT_Y + 200 }}>
+      {/* (e) ↻ regenerate button */}
+      {local >= UC2_REGEN_VISIBLE && local < UC2_GHOST2_START + 10 && (
+        <div style={{ position: 'absolute', left: UC2_ANCHOR_X, top: UC2_ANCHOR_Y }}>
           <PillButton label="↻" />
         </div>
       )}
 
       <CursorPointer
         positions={[
-          { frame: 0, x: 900, y: 470 },
-          { frame: UC2_CLICK - 20, x: CONTENT_X + 90, y: CONTENT_Y + 175 },
-          { frame: UC2_CLICK, x: CONTENT_X + 90, y: CONTENT_Y + 175 },
-          { frame: UC2_CONFIRM - 10, x: CONTENT_X + 60, y: CONTENT_Y + 210 },
-          { frame: UC2_REGEN_CLICK - 10, x: CONTENT_X + 60, y: CONTENT_Y + 210 },
-          { frame: UC2_REGEN_CLICK, x: CONTENT_X + 60, y: CONTENT_Y + 210 },
-          { frame: 900, x: CONTENT_X + 60, y: CONTENT_Y + 210 },
+          { frame: abs(0), x: 900, y: 470 },
+          { frame: abs(UC2_CLICK - 25), x: UC2_ANCHOR_X + 40, y: UC2_ANCHOR_Y + 12 },
+          { frame: abs(UC2_CLICK), x: UC2_ANCHOR_X + 40, y: UC2_ANCHOR_Y + 12 },
+          { frame: abs(UC2_CONFIRM - 15), x: UC2_ANCHOR_X + 20, y: UC2_ANCHOR_Y + 12 },
+          { frame: abs(UC2_REGEN_VISIBLE + 10), x: UC2_ANCHOR_X + 20, y: UC2_ANCHOR_Y + 12 },
+          { frame: abs(UC2_REGEN_CLICK - 10), x: UC2_ANCHOR_X + 20, y: UC2_ANCHOR_Y + 12 },
+          { frame: abs(UC2_REGEN_CLICK), x: UC2_ANCHOR_X + 20, y: UC2_ANCHOR_Y + 12 },
+          { frame: abs(900), x: UC2_ANCHOR_X + 20, y: UC2_ANCHOR_Y + 12 },
         ]}
-        clicks={[UC2_CLICK, UC2_CONFIRM, UC2_REGEN_CLICK]}
+        clicks={[abs(UC2_CLICK), abs(UC2_CONFIRM), abs(UC2_REGEN_CLICK)]}
       />
 
-      <SubtitleBar text="이어쓰기 힌트가 3초 뒤 나타나요" startFrame={UC2_HINT_IN + 5} endFrame={UC2_GHOST1_START - 5} />
-      <SubtitleBar text="마음에 안 들면 ↻로 다시 받으세요" startFrame={UC2_REGEN_CLICK + 5} endFrame={860} />
+      {/* Five subtitles covering the full 0-900 range with no gaps (fade=10 gives
+          ~20f crossfade overlap at each boundary). All converted via abs() —
+          SubtitleBar reads the absolute S3-scene frame internally. */}
+      <SubtitleBar text="문장을 쓰다 잠깐 멈추면…" startFrame={abs(0)} endFrame={abs(UC2_HINT_IN)} />
+      <SubtitleBar text="힌트가 나타나요 — 클릭하거나 ⌘⏎" startFrame={abs(UC2_HINT_IN)} endFrame={abs(UC2_GHOST1_START)} />
+      <SubtitleBar text="AI가 문체를 이어받아 계속 써줘요" startFrame={abs(UC2_GHOST1_START)} endFrame={abs(UC2_CONFIRM)} />
+      <SubtitleBar text="⌘⏎로 확정" startFrame={abs(UC2_CONFIRM)} endFrame={abs(UC2_REGEN_VISIBLE)} />
+      <SubtitleBar text="마음에 안 들면 ↻로 다시 받으세요" startFrame={abs(UC2_REGEN_VISIBLE)} endFrame={abs(900)} />
     </>
   );
 }
