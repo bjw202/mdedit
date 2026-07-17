@@ -1,892 +1,120 @@
-# MdEdit
+# mdedit
 
-타우리(Tauri) v2 + React 18 기반 크로스 플랫폼 마크다운 에디터 데스크톱 앱
+Tauri v2 + React 18 + CodeMirror 6 기반 크로스 플랫폼 마크다운 에디터 데스크톱 앱.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)![Tauri](https://img.shields.io/badge/Tauri-v2-blue)![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)**상태**: MVP — 핵심 기능 구현 완료, 사용자 테스트 준비됨
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Tauri](https://img.shields.io/badge/Tauri-v2-blue) ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 
----
+로컬에서 빠르게 켜지는 데스크톱 마크다운 편집기입니다. 실시간 미리보기, 다양한 파일 뷰어, 그리고 로컬 Claude Code CLI로 동작하는 AI 편집 기능을 제공합니다.
 
-## 목차
-
-- [AI 에이전트 자동 빌드 가이드](#ai-%EC%97%90%EC%9D%B4%EC%A0%84%ED%8A%B8-%EC%9E%90%EB%8F%99-%EB%B9%8C%EB%93%9C-%EA%B0%80%EC%9D%B4%EB%93%9C) ← Claude Code로 자동화 시 시작점
-- [주요 기능](#%EC%A3%BC%EC%9A%94-%EA%B8%B0%EB%8A%A5)
-- [AI 기능](#ai-%EA%B8%B0%EB%8A%A5)
-- [다운로드](#%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C)
-- [빠른 시작 (개발 환경)](#%EB%B9%A0%EB%A5%B8-%EC%8B%9C%EC%9E%91)
-- [배포 파일 빌드 (플랫폼별 상세)](#%EB%B0%B0%ED%8F%AC-%ED%8C%8C%EC%9D%BC-%EB%B9%8C%EB%93%9C)
-  - [macOS](#macos%EC%97%90%EC%84%9C-%EB%B0%B0%ED%8F%AC-%ED%8C%8C%EC%9D%BC-%EB%B9%8C%EB%93%9C%ED%95%98%EA%B8%B0)
-  - [Windows](#windows%EC%97%90%EC%84%9C-%EB%B0%B0%ED%8F%AC-%ED%8C%8C%EC%9D%BC-%EB%B9%8C%EB%93%9C%ED%95%98%EA%B8%B0)
-  - [Linux](#linux%EC%97%90%EC%84%9C-%EB%B0%B0%ED%8F%AC-%ED%8C%8C%EC%9D%BC-%EB%B9%8C%EB%93%9C%ED%95%98%EA%B8%B0)
-- [GitHub Releases로 배포하기](#github-releases%EB%A1%9C-%EB%B0%B0%ED%8F%AC%ED%95%98%EA%B8%B0)
-- [프로젝트 구조](#%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-%EA%B5%AC%EC%A1%B0)
-- [아키텍처](#%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98)
-- [성능 목표](#%EC%84%B1%EB%8A%A5-%EB%AA%A9%ED%91%9C)
-- [라이선스](#%EB%9D%BC%EC%9D%B4%EC%84%A0%EC%8A%A4)
-
----
-
-## AI 에이전트 자동 빌드 가이드
-
-> **AI 에이전트(Claude Code 등)를 위한 섹션**입니다. 이 섹션의 명령어를 순서대로 실행하면 현재 시스템을 자동으로 감지하여 의존성을 설치하고 배포 파일을 빌드할 수 있습니다. 사람도 이 섹션만 따라도 빌드할 수 있습니다.
-
-### 프로젝트 메타데이터
-
-```yaml
-name: MdEdit
-version: 0.3.0
-type: desktop-app (Tauri v2 cross-platform)
-languages:
-  backend: Rust (>= 1.77.2)
-  frontend: TypeScript + React 18
-package_manager: npm
-commands:
-  install: npm install
-  dev: npm run dev
-  build: npm run build        # 배포 패키지 생성
-  test: npm run test          # 프론트엔드 테스트 (Vitest)
-  test_rust: cd src-tauri && cargo test
-build_output:
-  macOS: src-tauri/target/release/bundle/dmg/*.dmg
-  windows_nsis: src-tauri/target/release/bundle/nsis/*-setup.exe
-  windows_msi: src-tauri/target/release/bundle/msi/*.msi
-  linux_deb: src-tauri/target/release/bundle/deb/*.deb
-  linux_rpm: src-tauri/target/release/bundle/rpm/*.rpm
-  linux_appimage: src-tauri/target/release/bundle/appimage/*.AppImage
-first_build_time: 5-10 minutes (Rust dependency compilation)
-```
-
-### 단계 1: OS 감지
-
-```bash
-uname -s 2>/dev/null || echo "Windows"
-```
-
-| 출력값 | OS |
-| --- | --- |
-| `Darwin` | macOS |
-| `Linux` | Linux |
-| `Windows` 또는 명령 없음 | Windows |
-
-### 단계 2: 필수 도구 확인 및 설치
-
-각 도구를 확인하고 없으면 설치합니다.
-
-#### Node.js (버전 20 이상 필요)
-
-```bash
-# 버전 확인
-node --version
-# 기대 출력: v20.x.x 이상
-```
-
-버전이 낮거나 설치되지 않은 경우:
-
-```bash
-# macOS (Homebrew)
-brew install node
-
-# Linux (Ubuntu/Debian)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs
-
-# Linux (Fedora/RHEL)
-sudo dnf install -y nodejs
-
-# Windows: https://nodejs.org 에서 LTS 다운로드 ("Add to PATH" 옵션 체크 필수)
-```
-
-#### Rust (버전 1.77.2 이상 필요)
-
-```bash
-# 버전 확인
-rustc --version
-# 기대 출력: rustc 1.77.2 이상
-```
-
-설치되지 않은 경우:
-
-```bash
-# macOS / Linux
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-source ~/.cargo/env   # 또는 새 터미널 열기
-
-# Windows: https://rustup.rs 에서 rustup-init.exe 다운로드 후 실행
-```
-
-#### macOS 전용: Xcode Command Line Tools
-
-```bash
-# 설치 여부 확인
-xcode-select --print-path
-# 기대 출력: /Library/Developer/CommandLineTools (경로가 없으면 미설치)
-
-# 미설치 시
-xcode-select --install
-```
-
-#### Windows 전용: Visual Studio Build Tools
-
-```powershell
-# link.exe 존재 여부 확인 (설치되어 있으면 경로 출력)
-where.exe link.exe
-```
-
-없으면: Visual Studio 2022용 빌드 도구 설치 → "C++를 사용한 데스크톱 개발" 워크로드 선택 → 설치 후 재시작
-
-#### Linux 전용: 시스템 의존성
-
-```bash
-# Ubuntu/Debian
-sudo apt update && sudo apt install -y \
-  libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
-  patchelf build-essential libssl-dev libayatana-appindicator3-dev
-
-# Fedora/RHEL
-sudo dnf install -y \
-  webkit2gtk4.1-devel openssl-devel curl wget file \
-  libappindicator-gtk3-devel librsvg2-devel
-```
-
-### 단계 3: 의존성 설치
-
-```bash
-npm install
-# 완료 확인: node_modules/ 디렉토리 생성됨
-```
-
-### 단계 4: 배포 파일 빌드
-
-```bash
-npm run build
-# 최초 빌드: 5~10분 소요 (Rust 의존성 200여 개 컴파일)
-# 이후 빌드: 1~2분
-```
-
-### 단계 5: 빌드 결과물 확인
-
-```bash
-# macOS
-ls src-tauri/target/release/bundle/dmg/ 2>/dev/null || echo "빌드 결과물 없음"
-
-# Linux
-ls src-tauri/target/release/bundle/deb/ 2>/dev/null || echo "빌드 결과물 없음"
-ls src-tauri/target/release/bundle/appimage/ 2>/dev/null || echo "빌드 결과물 없음"
-```
-
-```powershell
-# Windows PowerShell
-Get-ChildItem src-tauri\target\release\bundle\nsis\
-Get-ChildItem src-tauri\target\release\bundle\msi\
-```
-
-### 오류 패턴 및 해결 방법
-
-AI 에이전트가 빌드 오류를 만났을 때 참조하는 테이블입니다.
-
-| 오류 메시지 (포함 여부로 판단) | 원인 | 해결 명령어 |
-| --- | --- | --- |
-| `linker 'cc' not found` | macOS: Xcode CLT 미설치 | `xcode-select --install` |
-| `linker 'link.exe' not found` | Windows: VS Build Tools 미설치 | VS Build Tools 2022 + C++ 워크로드 설치 |
-| `cannot find -lwebkit2gtk` | Linux: 시스템 의존성 누락 | 위 apt/dnf 명령 실행 |
-| `rustc: command not found` | Rust 미설치 | `curl ... rustup.rs | sh` |
-| `node: command not found` | Node.js 미설치 | Node.js 20+ 설치 |
-| `ERR! code EACCES` | npm 권한 오류 | `rm -rf node_modules && npm install` |
-| `error[E0...]: use of undeclared` | Rust 버전 낮음 | `rustup update stable` |
-| `Cannot find module` | node_modules 손상 | `rm -rf node_modules && npm install` |
+> 전체 사용법은 [사용자 가이드(docs/USER_GUIDE.md)](docs/USER_GUIDE.md)를 참고하세요.
 
 ---
 
 ## 주요 기능
 
-- **마크다운 에디터**: CodeMirror 6 기반 구문 강조
-- **실시간 미리보기**: markdown-it + 300ms 디바운스로 쾌적한 성능
-- **HTML 파일 보기**: 독립 `.html` 파일을 샌드박스 iframe에서 보기 전용 렌더링 (스크립트·자산 로드 지원)
-- **소스/설정 파일 보기**: `.py`, `.js`/`.mjs`/`.cjs`, `.ts`, `.json`, `.jsonl`, `.yaml`/`.yml`, `.toml`, `.sh`/`.bash`, `.css` 파일을 Shiki 구문 강조로 보기 전용 렌더링
-- **Mermaid 다이어그램 지원**: 순서도, 시퀀스 다이어그램, 클래스 다이어그램 등
-- **코드 블록 구문 강조**: Shiki 기반 200+ 언어 지원
-- **파일 탐색기**:
-  - 폴더 열기 및 파일 시스템 탐색
-  - 파일 생성/삭제/이름 변경
-  - 하위 폴더 클릭으로 탐색, 상위 폴더 이동(``..``) 지원
-  - 헤더의 위로 이동(↑) 버튼
-  - 디렉토리 내용 동기화 새로고침 버튼
-  - 파일 검색/필터링 기능
-- **뷰 모드 토글**: Editor 전체 / 분할 / Preview 전체 모드로 전환 (Header 세그먼티드 토글)
-- **크기 조절 가능한 패널**: 사이드바, 에디터, 미리보기 자유롭게 조정
-- **다크/라이트 테마**: 시스템 설정 자동 연동
-- **크로스 플랫폼**: macOS, Windows, Linux 지원
-- **헤더 파일 작업 버튼**:
-  - 새 파일 생성 (Ctrl+N)
-  - 저장 (Ctrl+S)
-  - 다른 이름으로 저장 (Ctrl+Shift+S)
-- **현재 파일명 표시**: 제목 표시줄에 파일명과 미저장 상태(● 표시)
-- **에디터-미리보기 스크롤 동기화**: 편집 시 미리보기 자동 스크롤
-- **저장 상태 표시**: 저장됨/저장 안 됨/저장 중 상태 시각화
-- **실시간 통계**: 단어 수 및 글자 수 실시간 표시
-- **이미지 지원**:
-  - 클립보드 붙여넣기(Cmd+V)로 이미지 삽입 — 기본값은 base64 inline 임베드 (헤더의 `Image` 드롭다운에서 File 모드로 변경 가능)
-  - 파일 다이얼로그(Cmd+Shift+I) 또는 드래그앤드롭으로 이미지 삽입
-  - **이미지 위젯 장식**: inline-blob 모드에서 base64 이미지가 컴팩트 위젯으로 표시 (썸네일 + alt 텍스트 + MIME 타입 + 파일 크기) — SPEC-IMG-WIDGET-001
-  - **설정 가능한 이미지 삽입 모드**: clipboard paste에서 inline-blob (base64 임베드) 또는 file-save 모드 선택 — SPEC-IMG-MODE-001
-  - 미리보기 패널 실시간 이미지 렌더링
-  - HTML 익스포트 시 base64 임베드, DOCX 익스포트 시 실제 이미지 포함
-- **에디터 툴바**:
-  - **B** (굵게), **I** (이탤릭), 제목(H1-H3) 삽입
-  - 코드, 링크, 목록, 인용문 빠른 삽입
-  - 이미지 삽입 버튼 (Cmd+Shift+I)
-  - 표 삽입 버튼: 8×8 그리드 피커 팝오버로 원하는 크기의 markdown 표 스켈레톤 삽입
-- **키보드 단축키**: Ctrl+S (저장), Ctrl+Shift+S (다른 이름으로 저장), Ctrl+N (새 파일), Ctrl+Shift+I (이미지 삽입)
-- **미저장 변경 사항 경고**: 미저장 데이터가 있을 때 파일 열기 전 경고 다이얼로그
-- **미리보기 링크 열기**: 미리보기 패널의 링크를 클릭하면 시스템 기본 브라우저에서 열림 (macOS: Safari, Windows: Edge/Chrome, Linux: xdg-open)
+- **마크다운 편집 + 실시간 미리보기**: CodeMirror 6 편집, markdown-it 렌더링(약 300ms 디바운스), KaTeX 수식, Mermaid 다이어그램(라이트/다크 테마 연동), Shiki 코드 강조
+- **AI 어시스턴트** (아래 [AI 기능](#ai-기능) 참고): ✨ 선택 툴바 6종 프리셋, 이어쓰기, 섹션 채우기 — 모두 로컬 Claude Code CLI 기반
+- **서식 툴바**: 굵게·이탤릭·제목·목록·코드·링크·인용, 8×8 그리드 표 삽입 피커, 이미지 삽입
+- **다양한 파일 뷰어**: 마크다운, HTML, 이미지, SVG, 코드/설정 파일, 평문 등 확장자별 자동 라우팅([지원 형식](#지원-파일-형식) 참고)
+- **뷰 모드 토글**: 편집 / 분할 / 미리보기 (상태 영속)
+- **파일 탐색기**: 폴더 열기, 생성·삭제·이름 변경, 상·하위 탐색, 검색
+- **내보내기**: HTML / PDF / DOCX
+- **테마·글꼴**: 라이트/다크 자동 연동, 글꼴 크기 조절
+- **크로스 플랫폼**: macOS, Windows, Linux
+- **크기 조절 패널**: 사이드바·에디터·미리보기 폭 자유 조정
 
 ---
 
 ## AI 기능
 
-MdEdit은 로컬에 설치된 **Claude Code CLI**(`claude`)를 통해 문서 편집을 돕는 AI 기능을 제공합니다. 앱 자체 서버는 없으며, 문서 내용은 로컬 CLI 프로세스를 거쳐서만 전송됩니다.
+mdedit의 AI는 로컬에 설치된 **Claude Code CLI(`claude`)** 를 통해 동작합니다. 앱 자체 서버는 없으며, 문서 내용은 로컬 CLI 프로세스를 거쳐서만 처리됩니다(요청당 CLI 프로세스 1개, 동시 1개 요청).
 
-### 기능 목록
+- **✨ 선택 툴바**: 텍스트를 선택하면 나타나는 ✨ 버튼으로 프리셋 실행 — 🖊 다듬기 · 📋 개요로 정리 · 📊 표로 만들기 · 🧜 다이어그램으로 · ✂️ 짧게 줄이기 · ✏️ 직접 입력. 결과는 실시간 스트리밍 제안 카드로 보여지고 **바꾸기 / 아래 삽입**, Cmd/Ctrl+Z 1회 복원, ↻ 재요청을 지원합니다.
+- **이어쓰기**: 문서 끝 또는 자유 위치에서 Cmd/Ctrl+Enter(또는 힌트)로 문체를 이어받아 계속 씁니다. 회색 고스트로 미리 보고 확정합니다.
+- **섹션 채우기**: 빈 헤딩 아래 빈 줄에서 Cmd/Ctrl+Enter로 섹션 내용을 생성합니다.
 
-- **✨ 선택 툴바**: 에디터에서 텍스트를 선택하면 나타나는 ✨ 버튼으로 아래 6가지 프리셋을 실행
-  - 🖊 다듬기, 📋 개요로 정리, 📊 표로 만들기, 🧜 다이어그램으로(mermaid — 사전 검증·자동 재요청·목록 폴백), ✂️ 짧게 줄이기, ✏️ 직접 입력
-  - 결과는 실시간 스트리밍되는 제안 카드로 표시되며, **바꾸기**/**아래 삽입** 선택, Cmd+Z 1회로 되돌리기, ↻ 다시 요청 또는 직접 지시로 재요청 가능
-  - 헤더의 고급 모델(sonnet) 토글 지원
-- **섹션 채우기**: 빈 헤딩 아래 빈 줄에서 Cmd+Enter(또는 3초 멈춤 시 나타나는 힌트 클릭) → 회색 고스트 텍스트로 스트리밍 → Cmd+Enter로 확정, Esc로 버리기 (또는 [✓ 넣기]/[✕ 지우기]/[■ 중지] 버튼 사용)
-- **문서 끝 이어쓰기**: 문서 맨 끝 빈 줄에서 Cmd+Enter 또는 "✨ 이어쓰기" 힌트 클릭 시 기존 문체를 이어받아 이어쓰기
-- **자유 위치 이어쓰기**: 문서 중간 임의 위치에서도 Cmd+Enter 또는 "✨ 이어쓰기" 힌트 클릭으로 앞뒤 문맥을 모두 인지해 끊긴 문장부터 완성, 뒤 문맥을 반복·선점하지 않고 매끄럽게 연결 (코드펜스·표 내부는 자동 제외, 리스트·인용 내부는 Cmd+Enter만 허용)
-- **작업 중 표시**: 제안 카드는 글로우 테두리 + 스켈레톤, 고스트 텍스트는 "✨ 작성 중…" 펄스로 진행 상태 표시 (시스템 모션 축소 설정 자동 대응)
+사전 조건: 로컬에 [Claude Code CLI](https://claude.com/product/claude-code)가 설치·로그인되어 있어야 합니다. 없으면 설정(헤더 톱니) 온보딩이 안내합니다. 조직 정책으로 끄려면 `MDEDIT_AI_DISABLED=1` 환경 변수 또는 정책 파일을 사용하세요.
 
-### 사용법 요약
-
-1. 헤더의 톱니(설정) 아이콘에서 Claude Code CLI 연결 상태 확인
-2. 에디터에서 텍스트를 드래그 선택 → ✨ 버튼 클릭 → 원하는 프리셋 선택
-3. 스트리밍되는 제안을 검토 후 **바꾸기** 또는 **아래 삽입**
-4. 빈 헤딩 아래나 문서 끝 빈 줄에서는 Cmd+Enter로 바로 AI 채우기 시작
-
-### 사전 조건
-
-- 로컬에 [Claude Code CLI](https://claude.com/product/claude-code)(`claude` 명령)가 설치되어 있고 로그인되어 있어야 합니다
-- CLI가 없거나 로그인되지 않은 경우, 앱이 온보딩 안내를 표시합니다
-- 조직 정책으로 AI 기능을 비활성화하려면 `MDEDIT_AI_DISABLED=1` 환경 변수 또는 정책 파일을 사용하세요
-- 요청당 CLI 프로세스는 1개만 실행되며 동시에 1개 요청만 처리됩니다
+각 기능의 단계별 사용법, 제안 카드 조작, 대기·타임아웃 동작, 유즈케이스는 [사용자 가이드](docs/USER_GUIDE.md#4-ai-어시스턴트)에 정리되어 있습니다.
 
 ---
 
-## 다운로드
+## 지원 파일 형식
 
-> **현재 상태**: 아직 공개 릴리즈가 없습니다. 지금은 아래 [빠른 시작](#%EB%B9%A0%EB%A5%B8-%EC%8B%9C%EC%9E%91) 섹션을 따라 직접 빌드해야 합니다.
-
-공개 릴리즈가 등록되면 [GitHub Releases](https://github.com/bjw202/mdedit/releases) 페이지에서 플랫폼별 설치 파일을 직접 다운로드할 수 있게 됩니다.
-
-릴리즈 시 제공 예정 파일:
-
-| 플랫폼 | 파일 | 설명 |
-| --- | --- | --- |
-| macOS | `mdedit_x.x.x_x64.dmg` | 인텔 맥용 디스크 이미지 |
-| macOS | `mdedit_x.x.x_aarch64.dmg` | Apple Silicon (M1/M2/M3) 맥용 디스크 이미지 |
-| Windows | `mdedit_x.x.x_x64-setup.exe` | Windows 10/11 64비트용 설치 프로그램 (권장) |
-| Windows | `mdedit_x.x.x_x64.msi` | Windows 10/11 64비트용 MSI 설치 파일 |
-| Linux | `mdedit_x.x.x_amd64.deb` | Ubuntu/Debian용 |
-| Linux | `mdedit_x.x.x_x86_64.rpm` | Fedora/RHEL용 |
-| Linux | `mdedit_x.x.x_x86_64.AppImage` | 다른 배포판용 |
-
-### macOS 설치 (Gatekeeper 보안)
-
-코드 서명이 없는 배포의 경우, macOS의 Gatekeeper가 앱 실행을 차단할 수 있습니다. 다음 방법 중 하나를 사용하세요.
-
-**방법 1: Finder에서 앱 열기 (권장)**
-
-1. Finder에서 다운로드한 `mdedit.app` 찾기
-2. 우클릭하여 **열기** 선택
-3. 보안 경고 대화상자에서 **열기** 버튼 클릭
-4. 이후 일반적으로 앱이 실행됨
-
-**방법 2: 터미널에서 격리 속성 제거**
-
-```bash
-xattr -d com.apple.quarantine /Applications/mdedit.app
-```
-
-### Windows 설치
-
-1. `mdedit_x.x.x_x64-setup.exe`를 다운로드
-2. 파일을 두 번 클릭하여 설치 프로그램 실행
-3. "Windows가 보호하는 PC" 경고가 나타나면 **자세한 정보** 클릭 후 **실행** 선택
-4. 설치 마법사 완료
+| 확장자 | 열리는 방식 |
+| --- | --- |
+| `.md`, `.markdown` | 마크다운 편집 + 실시간 미리보기 |
+| `.html` | 샌드박스 iframe 보기 전용 렌더링 |
+| `.png` `.jpg` `.jpeg` `.gif` `.webp` `.bmp` `.ico` `.avif` | 이미지 뷰어(zoom/pan, 메타 표시) |
+| `.svg` | SVG 뷰어(렌더 ↔ 소스 토글, DOMPurify 정화) |
+| `.py` `.js` `.mjs` `.cjs` `.ts` `.json` `.jsonl` `.yaml` `.yml` `.toml` `.sh` `.bash` `.css` | 코드 뷰어(Shiki 구문 강조) |
+| 기타 텍스트 파일 | 평문 표시 + 편집 가능 |
+| 바이너리·읽기 불가 / 5MB 초과 | "미리보기 불가" / "미리보기 건너뜀" 플레이스홀더 |
 
 ---
 
-## 빠른 시작
+## 빠른 시작 (개발 환경)
 
-개발 환경을 구성하고 로컬에서 MdEdit를 실행하려면 이 섹션을 따르세요.
-
-### 1단계: 저장소 클론
+필수 도구: **Node.js 20+**, **Rust 1.77.2+**, 플랫폼별 빌드 도구(macOS: Xcode CLT / Windows: VS Build Tools 2022 + C++ 워크로드 / Linux: webkit2gtk 등).
 
 ```bash
 git clone https://github.com/bjw202/mdedit.git
 cd markdown-editor-rust
-```
-
-### 2단계: 의존성 설치
-
-```bash
 npm install
+npm run dev          # 개발 실행 (최초 Rust 컴파일 5~10분)
 ```
 
-### 3단계: 개발 서버 실행
+### 배포 빌드
 
 ```bash
-npm run dev
+npm run build
 ```
 
-최초 실행 시 Rust 의존성 컴파일에 5\~10분이 소요됩니다.
+빌드 결과물:
 
-### 테스트 실행
+- macOS: `src-tauri/target/release/bundle/dmg/*.dmg`
+- Windows: `src-tauri/target/release/bundle/nsis/*-setup.exe`, `.../msi/*.msi`
+- Linux: `.../deb/*.deb`, `.../rpm/*.rpm`, `.../appimage/*.AppImage`
+
+### 테스트
 
 ```bash
-# 프론트엔드 테스트 (Vitest)
-npm run test
-
-# Rust 테스트
-cd src-tauri && cargo test
+npm run test          # 프론트엔드 단위 테스트 (Vitest)
+npm run typecheck     # 타입 체크 (tsc --noEmit)
+npm run test:e2e      # E2E (Playwright)
+cd src-tauri && cargo test   # Rust 테스트
 ```
 
-### 기술 스택
+> 플랫폼별 사전 요구사항 설치와 상세 빌드·배포 절차, 트러블슈팅·오류 패턴 표는 [docs/BUILD.md](docs/BUILD.md)를 참고하세요.
+
+---
+
+## 기술 스택
 
 | 레이어 | 기술 |
 | --- | --- |
-| 프론트엔드 | React 18, TypeScript 5, Vite |
+| 프론트엔드 | React 18, TypeScript 5, Vite 5 |
 | 에디터 | CodeMirror 6 |
-| 미리보기 | markdown-it 14, Shiki 3, Mermaid 11 |
+| 미리보기 | markdown-it 14, Shiki 3, Mermaid 11.12.3, KaTeX |
 | 상태 관리 | Zustand 5 |
 | 백엔드 | Rust (Tauri v2) |
-| 테스트 | Vitest + Testing Library |
+| 테스트 | Vitest, Testing Library, Playwright |
 
 ---
 
-## 배포 파일 빌드
+## 아키텍처 (요약)
 
-각 플랫폼에서 MdEdit의 배포 가능한 패키지를 빌드하려면 아래 섹션을 따르세요.
-
----
-
-## macOS에서 배포 파일 빌드하기
-
-### 사전 요구사항
-
-#### 1. Xcode Command Line Tools (필수)
-
-터미널을 열고 다음 명령어를 실행합니다:
-
-```bash
-xcode-select --install
-```
-
-이미 설치된 경우 건너뜁니다.
-
-#### 2. Node.js 20 이상
-
-**방법 1**: [nodejs.org](https://nodejs.org)에서 macOS용 LTS 버전 `.pkg` 파일 다운로드 후 설치
-
-**방법 2**: Homebrew 사용
-
-```bash
-brew install node
-```
-
-버전 확인:
-
-```bash
-node --version
-```
-
-#### 3. Rust (rustup)
-
-터미널에서 다음을 실행합니다:
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-완료 후 새 터미널 창을 열거나 다음을 실행합니다:
-
-```bash
-source ~/.cargo/env
-```
-
-버전 확인:
-
-```bash
-rustc --version
-```
-
-Rust 버전은 1.77.2 이상이어야 합니다.
-
-#### 4. Homebrew (선택 사항)
-
-Node.js를 Homebrew로 설치하려면 먼저 Homebrew를 설치합니다:
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-### 프로젝트 설정
-
-1. 저장소 클론:
-
-```bash
-git clone https://github.com/bjw202/mdedit.git
-cd markdown-editor-rust
-```
-
-2. 의존성 설치:
-
-```bash
-npm install
-```
-
-### 개발 서버 실행
-
-```bash
-npm run dev
-```
-
-최초 실행 시 Rust 의존성을 컴파일하므로 5\~10분이 소요됩니다.
-
-### 배포 파일 빌드
-
-```bash
-npm run build
-```
-
-빌드 완료 후:
-
-- **설치 파일 (.dmg)**: `src-tauri/target/release/bundle/dmg/`
-- **.app 번들**: `src-tauri/target/release/bundle/macos/`
-
-생성된 `.dmg` 파일을 열어 애플리케이션을 설치합니다.
-
-### Universal Binary (Apple Silicon + Intel) 빌드
-
-Apple Silicon (M1/M2/M3)과 Intel 맥에서 모두 실행되는 Universal Binary를 만들려면:
-
-```bash
-# 두 가지 아키텍처 타겟 설치
-rustup target add aarch64-apple-darwin x86_64-apple-darwin
-
-# Universal binary 빌드
-npm run build -- --target universal-apple-darwin
-```
-
-### 자주 발생하는 문제
-
-**문제**: `xcode-select: error: tool 'xcode-select' not found`
-
-**해결**: 다음을 다시 실행합니다:
-
-```bash
-xcode-select --install
-```
-
----
-
-**문제**: Rust 컴파일 오류 (`error: linker 'cc' not found` 등)
-
-**해결**: Rust를 최신 버전으로 업데이트합니다:
-
-```bash
-rustup update stable
-```
-
-그 후 빌드를 재시도합니다.
-
----
-
-**문제**: npm 오류 (`ERR! code EACCES` 등)
-
-**해결**: 모듈과 캐시를 초기화하고 재설치합니다:
-
-```bash
-rm -rf node_modules package-lock.json
-npm install
-```
-
----
-
-## Windows에서 배포 파일 빌드하기
-
-### 사전 요구사항
-
-#### 1. Node.js 20 이상
-
-1. [nodejs.org](https://nodejs.org)에서 Windows용 LTS 버전 다운로드
-2. 설치 중 **"Add to PATH" 옵션 반드시 체크**
-3. 설치 후 PowerShell 또는 CMD 재시작
-
-버전 확인:
-
-```powershell
-node --version
-```
-
-#### 2. Rust (rustup)
-
-1. [rustup.rs](https://rustup.rs)에서 `rustup-init.exe` 다운로드 및 실행
-2. 설치 중 Enter 키로 기본 설정 선택
-3. 설치 후 PowerShell 재시작
-
-버전 확인:
-
-```powershell
-rustc --version
-```
-
-Rust 버전은 1.77.2 이상이어야 합니다.
-
-#### 3. Visual Studio Build Tools 2022 (필수)
-
-이 도구는 Rust에서 C++ 네이티브 코드 컴파일에 필수입니다.
-
-1. [Visual Studio 다운로드](https://visualstudio.microsoft.com)에서 "Visual Studio 2022용 빌드 도구" 검색
-2. 설치 파일 다운로드 및 실행
-3. 설치 관리자에서 다음 항목 확인:
-   - **"C++를 사용한 데스크톱 개발"** 워크로드 선택
-   - MSVC v143 컴파일러 포함 (자동 선택)
-   - Windows SDK 최신 버전 포함 (자동 선택)
-4. 설치 완료 후 **컴퓨터 재시작**
-
-#### 4. WebView2 Runtime
-
-Windows 10/11에는 기본으로 포함되어 있습니다. 미설치 시:
-
-1. Microsoft 공식 사이트에서 "WebView2 Runtime" 검색
-2. "Evergreen Bootstrapper" 버전 다운로드 및 설치
-
-#### 5. Git (선택 사항)
-
-저장소 클론을 위해 필요합니다. [git-scm.com](https://git-scm.com)에서 다운로드
-
-### 프로젝트 설정
-
-1. 저장소 클론:
-
-```bash
-git clone https://github.com/bjw202/mdedit.git
-cd markdown-editor-rust
-```
-
-2. 의존성 설치:
-
-```bash
-npm install
-```
-
-### 개발 서버 실행
-
-PowerShell 또는 CMD를 열고:
-
-```powershell
-npm run dev
-```
-
-최초 실행 시 Rust 의존성을 컴파일하므로 5\~10분이 소요됩니다.
-
-### 배포 파일 빌드
-
-```powershell
-npm run build
-```
-
-빌드 완료 후 Tauri v2는 두 가지 설치 형식을 생성합니다:
-
-- **NSIS Installer (.exe)**: `src-tauri\target\release\bundle\nsis\` (권장 - 더 간단한 설치 경험)
-- **MSI Installer (.msi)**: `src-tauri\target\release\bundle\msi\` (엔터프라이즈 배포용)
-
-일반 사용자는 NSIS `.exe` 설치 파일을 사용하세요. MSI는 엔터프라이즈 환경이나 정책 배포가 필요할 때 사용합니다.
-
-### 자주 발생하는 문제
-
-**문제**: `error: linker 'link.exe' not found`
-
-**해결**: Visual Studio Build Tools 2022가 설치되지 않았거나 C++ 워크로드가 누락되었습니다. 설치 관리자를 다시 열고 "C++를 사용한 데스크톱 개발" 워크로드를 추가합니다. 설치 후 컴퓨터를 재시작합니다.
-
----
-
-**문제**: WebView2 관련 오류 (`error: no file named` 등)
-
-**해결**: WebView2 Runtime을 설치합니다:
-
-1. Microsoft 공식 사이트에서 "WebView2 Runtime" 다운로드
-2. Evergreen Bootstrapper 설치
-3. 앱 재실행
-
----
-
-**문제**: npm 또는 의존성 오류
-
-**해결**: 캐시를 초기화하고 재설치합니다:
-
-```powershell
-npm cache clean --force
-rm -r node_modules
-npm install
-```
-
----
-
-**문제**: Rust 컴파일 오류
-
-**해결**: Rust를 최신 버전으로 업데이트합니다:
-
-```powershell
-rustup update stable
-```
-
-그 후 빌드를 재시도합니다.
-
----
-
-**문제**: 경로에 공백 포함
-
-Windows 경로에 공백이 있으면 문제가 발생할 수 있습니다.
-
-**해결**: 공백 없는 경로에 프로젝트를 설치합니다. 예: `C:\Projects\mdedit`
-
----
-
-**문제**: 첫 빌드가 매우 느림
-
-이는 정상입니다. Rust는 최초 빌드 시 약 200개의 의존성을 컴파일합니다. 이후 빌드는 훨씬 빠릅니다.
-
----
-
-**문제**: `git pull` 후 빌드 시 이전 버전 캐시와 충돌
-
-기존에 빌드한 프로젝트에서 `git pull`로 최신 코드를 받은 뒤 `npm run build`를 실행하면, Rust의 이전 컴파일 캐시와 새 코드가 충돌하여 빌드가 실패하거나 이전 버전 바이너리가 생성될 수 있습니다.
-
-**해결**: Rust 컴파일 캐시를 초기화한 뒤 빌드합니다:
-
-```powershell
-cd src-tauri
-cargo clean
-cd ..
-npm run build
-```
-
-`cargo clean`은 `src-tauri/target/` 디렉토리를 삭제하여 Rust 의존성을 처음부터 다시 컴파일합니다. 이 때문에 빌드 시간이 최초 빌드와 동일하게 5\~10분 소요됩니다.
-
----
-
-## Linux에서 배포 파일 빌드하기
-
-### 사전 요구사항
-
-#### 1. Node.js 20 이상
-
-**Ubuntu/Debian**:
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-```
-
-**Fedora/RHEL**:
-
-```bash
-sudo dnf install -y nodejs
-```
-
-버전 확인:
-
-```bash
-node --version
-```
-
-#### 2. Rust (rustup)
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source $HOME/.cargo/env
-```
-
-버전 확인:
-
-```bash
-rustc --version
-```
-
-#### 3. 시스템 의존성
-
-**Ubuntu/Debian**:
-
-```bash
-sudo apt update && sudo apt install -y \
-  libwebkit2gtk-4.1-dev \
-  libappindicator3-dev \
-  librsvg2-dev \
-  patchelf \
-  build-essential \
-  curl \
-  wget \
-  file \
-  libssl-dev \
-  libayatana-appindicator3-dev
-```
-
-**Fedora/RHEL**:
-
-```bash
-sudo dnf install -y \
-  webkit2gtk4.1-devel \
-  openssl-devel \
-  curl \
-  wget \
-  file \
-  libappindicator-gtk3-devel \
-  librsvg2-devel
-```
-
-### 프로젝트 설정
-
-```bash
-git clone https://github.com/bjw202/mdedit.git
-cd markdown-editor-rust
-npm install
-```
-
-### 개발 서버 실행
-
-```bash
-npm run dev
-```
-
-### 배포 파일 빌드
-
-```bash
-npm run build
-```
-
-빌드 완료 후:
-
-- **Debian/Ubuntu**: `src-tauri/target/release/bundle/deb/*.deb`
-- **Fedora/RHEL**: `src-tauri/target/release/bundle/rpm/*.rpm`
-- **범용 AppImage**: `src-tauri/target/release/bundle/appimage/*.AppImage`
-
----
-
-## GitHub Releases로 배포하기
-
-빌드한 패키지를 GitHub Releases를 통해 배포하면 사용자가 GitHub에서 직접 다운로드할 수 있습니다.
-
-### 1단계: 릴리즈 파일 준비
-
-각 플랫폼에서 빌드 후 생성된 파일:
-
-| 플랫폼 | 파일 위치 | 설명 |
-| --- | --- | --- |
-| macOS | `src-tauri/target/release/bundle/dmg/*.dmg` | 디스크 이미지 (권장) |
-| Windows | `src-tauri\target\release\bundle\nsis\*.exe` | NSIS 설치 파일 (권장) |
-| Windows | `src-tauri\target\release\bundle\msi\*.msi` | MSI 설치 파일 |
-| Linux | `src-tauri/target/release/bundle/deb/*.deb` | Debian/Ubuntu |
-| Linux | `src-tauri/target/release/bundle/rpm/*.rpm` | Fedora/RHEL |
-
-### 2단계: GitHub Release 생성 (gh CLI 사용)
-
-gh CLI가 설치되어 있다면:
-
-```bash
-# 버전 태그 생성
-git tag v0.1.0
-git push origin v0.1.0
-
-# GitHub Release 생성 및 파일 업로드
-gh release create v0.1.0 \
-  "src-tauri/target/release/bundle/dmg/mdedit_0.1.0_x64.dmg" \
-  "src-tauri/target/release/bundle/nsis/mdedit_0.1.0_x64-setup.exe" \
-  --title "MdEdit v0.1.0" \
-  --notes "첫 번째 릴리즈"
-```
-
-### 3단계: GitHub Release 수동 생성
-
-1. GitHub 저장소 페이지에서 **Releases** 클릭
-2. **Create a new release** 클릭
-3. Tag: `v0.1.0` 입력 및 생성
-4. Title: `MdEdit v0.1.0` 입력
-5. 빌드된 파일을 드래그 앤 드롭으로 첨부
-6. **Publish release** 클릭
-
----
-
-## 프로젝트 구조
+Tauri v2 구조로, Rust 백엔드가 파일 시스템 작업·경로 검증·비동기 I/O를 담당하고 React 프론트엔드가 편집·미리보기·상태 관리를 담당합니다. 둘은 타입 안전 IPC 래퍼로 통신합니다. 미리보기는 `html: false`로 인라인 HTML을 비활성화해 XSS를 방지합니다.
 
 ```
 markdown-editor-rust/
-├── src/                     # React 프론트엔드
-│   ├── components/
-│   │   ├── editor/          # MarkdownEditor, EditorToolbar
-│   │   ├── layout/          # AppLayout, Header, Footer, ResizablePanels
-│   │   ├── preview/         # MarkdownPreview, PreviewRenderer
-│   │   └── sidebar/         # FileExplorer, FileTree, FileTreeNode, FileSearch
-│   ├── hooks/               # useFileSystem, useTheme, useScrollSync
-│   ├── lib/tauri/           # IPC 래퍼
-│   ├── store/               # fileStore, uiStore
-│   ├── test/                # 컴포넌트 및 통합 테스트
-│   └── types/               # TypeScript 타입 정의
-└── src-tauri/               # Rust 백엔드
-    └── src/
-        ├── commands/        # directory_ops, file_ops, watcher
-        └── models/          # file_node
+├── src/                 # React 프론트엔드
+│   ├── components/      # editor, layout, preview, sidebar, settings
+│   ├── hooks/           # useFileSystem, useTheme, useScrollSync ...
+│   ├── lib/             # tauri IPC, markdown, preview, ai
+│   └── store/           # fileStore, uiStore, aiStore
+└── src-tauri/           # Rust 백엔드 (commands, models)
 ```
-
----
-
-## 아키텍처
-
-MdEdit는 Tauri v2 아키텍처를 사용합니다.
-
-### 백엔드 (Rust)
-
-Rust 백엔드는 다음을 담당합니다:
-
-- **파일 시스템 작업**: 경로 순회 방지 및 적절한 오류 처리를 포함한 모든 파일 시스템 작업
-- **보안**: 사용자 입력 검증 및 경로 정규화
-- **성능**: 비동기 I/O 및 메모리 효율성
-
-### 프론트엔드 (React)
-
-React 프론트엔드는 다음을 담당합니다:
-
-- **UI 상태 관리**: Zustand를 사용한 중앙화된 상태 관리
-- **에디터 렌더링**: CodeMirror 6 기반 마크다운 편집
-- **미리보기 렌더링**: markdown-it로 Markdown을 HTML로 변환, Shiki로 코드 블록 강조, Mermaid로 다이어그램 렌더링
-- **파일 탐색**: 트리 구조 기반 파일 시스템 네비게이션
-
-### IPC 레이어
-
-타우리 IPC 레이어는 다음을 수행합니다:
-
-- 프론트엔드와 Rust 커맨드를 연결
-- 타입 안전 래퍼를 통해 통신
-- 비동기 처리 및 오류 처리
-
-### 주요 설계 결정
-
-**FileNode 직렬화**: `FileNode`는 TypeScript 인터페이스와 맞추기 위해 `camelCase`로 직렬화됩니다. Rust 구조체에 `#[serde(rename_all = "camelCase")]` 속성을 사용합니다.
-
-**파일 감시기**: `startWatch` 커맨드는 비차단 방식입니다. 감시기 실패가 파일 탐색을 방해하지 않으므로 사용자 경험에 영향을 주지 않습니다.
-
-**XSS 방지**: 미리보기 렌더링에서 `html: false` 설정을 사용하여 인라인 HTML을 비활성화하고 XSS 공격을 방지합니다.
-
----
-
-## 성능 목표
-
-| 지표 | 목표 |
-| --- | --- |
-| 시작 시간 | 500ms 미만 |
-| 유휴 메모리 사용량 | 80MB 미만 |
-| 바이너리 크기 | 15MB 미만 |
-| 미리보기 렌더링 | 300ms 디바운스 |
 
 ---
 

@@ -4,6 +4,8 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-17
+
 ### Added
 - **AI 인라인 편집·섹션 채우기 (SPEC-AI-001, 로컬 Claude Code CLI 기반)**:
   - ✨ 선택 툴바: 텍스트 선택 시 ✨ 버튼 → 프리셋 6종(🖊 다듬기, 📋 개요로 정리, 📊 표로 만들기, 🧜 다이어그램으로(mermaid — 사전 검증·자동 재요청·목록 폴백), ✂️ 짧게 줄이기, ✏️ 직접 입력)
