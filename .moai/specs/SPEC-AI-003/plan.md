@@ -114,3 +114,10 @@ SPEC-AI-001/002 인프라 위에 자유 위치 이어쓰기(M2)를 얹는다. �
 - `tsc --noEmit` 클린 / `vitest run` ≥913 통과(신규 포함 전량) / `cargo test` ≥221 통과 / `cargo clippy` 클린 / Playwright(webkit) 통과.
 - `npm run lint`는 게이트 아님(eslint config 부재 — main 포함 상시 실패, 회귀 오판 금지).
 - SPEC frontmatter 커밋 시 포맷터 손상 주의: 한 Bash 호출 내 checkout→edit→add(프로젝트 알려진 제약).
+
+## As-Implemented 주석
+
+> 본 섹션은 sync 단계에서 추가되었다. 원문(Task Decomposition, MX Tag Plan)은 그대로 보존하고, 실제 구현과의 편차만 병기한다.
+
+- **MX Tag Plan 편차**: 위 표는 "`@MX:ANCHOR` 2곳(T1 자격 판정/게이트 함수) + `build_continue_prompt`(T4) `@MX:ANCHOR`" = 총 3곳을 예상했다. 실제 구현에서는 `ai-ghost-text.ts` 파일당 `@MX:ANCHOR` 상한(3)에 걸려 `getFreeContinueContext`가 `@MX:NOTE`로 강등되었고, 최종 분포는 `@MX:ANCHOR` 2곳(`getContinueBlockGate`, `build_continue_prompt`) + `@MX:NOTE` 3곳(`getFreeContinueContext`, `ghostStoreBridge` feature 필터, 타이핑 소멸→취소 연동 지점)이 되었다. 상세는 spec.md "Implementation Notes" 참조.
+- **`ghostStoreBridge`(ai-ghost-text.ts:514-558) 편차**: T3/Risk Analysis에서 "무변경(brige·aiStore·ipc 동시 수정 회피)"로 서술했으나, 실제로는 동작 변경 없이 계약을 명시하는 `@MX:NOTE` 주석 1건만 추가되었다(comment-only, feature 필터 값·로직 무변경).

@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-003
-version: "0.1.1"
-status: draft
+version: "0.2.0"
+status: completed
 created: "2026-07-17"
 updated: "2026-07-17"
 author: "jw"
@@ -23,6 +23,7 @@ lifecycle: spec-anchored
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.2.0 | 2026-07-17 | jw | 구현 완료 — Implementation Notes 추가, status completed |
 | 0.1.1 | 2026-07-17 | jw | plan-audit 리뷰(SPEC-AI-003-review-1, FAIL 0.78) 반영. **D1** frontmatter에 프로젝트 스키마 필드 추가(`tags`, `dependencies: [SPEC-AI-001, SPEC-AI-002]`, `lifecycle: spec-anchored` — SPEC-AI-001/002 관례). **D2** `issue_number: 0` → `null`(전 문서 세트 동일 적용). **D3** 규범 REQ 본문에서 구현 메커니즘(`sliceDoc`/`resolveInner`/truncate 헬퍼명)을 제거하고 대괄호 추적 주석·설계 결정 섹션으로 이동(REQ-AI3-001/003/009/014 행동 서술화). **D4** "종결 부호" 문자 집합을 닫힌 목록으로 확정(REQ-AI3-005). **D5** REQ-AI3-014를 WHILE+사건 복합형에서 정규 WHEN 형태(Event-Driven)로 재구성. 요구사항 내용·AC 매핑·Exclusions 무변경. |
 | 0.1.0 | 2026-07-17 | jw | 최초 SPEC 작성 — M2 자유 위치 이어쓰기(시나리오 E). 설계서 `.moai/design/ai-features-mvp-design.md` §5.1의 "문서 끝" 판정을 임의 커서 위치로 일반화. research.md 기반 델타 4개 확정: (1) 자격 판정 자유 위치 확장 + syntaxTree 게이트, (2) `build_continue_prompt`에 [뒤 문맥](truncate_head) + 반복·선점 금지 지시, (3) 2단 힌트 자격(보수적 힌트 / 넓은 수동 트리거), (4) 타이핑 소멸 시 in-flight 취소(D1). 사전 합의 제약 5건 반영: 하위호환 IPC 경로(`feature:'section-fill'`+`presetKind:'continue'`+`contextAfter`), 파괴형 고스트 앵커 유지(mapPos 금지), 커서급 자동 트리거 금지(REQ-AI-032 승계), `syntaxTree.resolveInner` 신규 의존성 0, FencedCode/Table 내부 배제. 결정 D1~D4 확정(plan.md Decision Log). |
 
@@ -164,3 +165,34 @@ code_comments = ko (`language.yaml`). `@MX:SPEC: SPEC-AI-003` 공통 부착.
 - **상태바/거터 등 신규 힌트 UX** — 기존 커서 인라인 힌트 알약만 사용(선례 없는 신규 표면 비용, research.md §3.1).
 - **카드-고스트 공존 상호작용 개선** — 검토 중 제안 카드 + 이어쓰기 고스트 동시 시나리오의 UX 개선은 기존 동시 1개 계약(REQ-AI-008) 유지 확인만 하고 신규 설계는 범위 밖.
 - **신규 런타임 의존성** — `syntaxTree`는 설치된 `@codemirror/language` 재사용, npm/cargo 추가 없음.
+
+## Implementation Notes
+
+구현 커밋: `3351421` (feat), `ef16af5` (docs — plan/acceptance/research/수동 검증 기록).
+
+### 실제 변경 파일
+
+- `src/components/editor/extensions/ai-ghost-text.ts` — `getContinueBlockGate`/`getFreeContinueContext` 신설, `evaluateHintEligibility` 2단 확장, 타이핑 소멸 시 in-flight `ai_cancel` 연동(D1)
+- `src-tauri/src/ai/prompt.rs` — `build_continue_prompt(outline, before, after)` 3섹션 조립 + 반복·선점 금지 지시
+- `src-tauri/src/ai/mod.rs` — continue 분기 `contextAfter` 전달 + IPC 역직렬화 계약 테스트 추가
+- `src/test/aiFreeContinue.test.ts` (신규) — 자유 위치 자격 매트릭스 + contextAfter 페이로드 계약 + 타이핑 소멸 취소
+- `src/test/aiHint.test.ts` — 2단 힌트 자격(보수 조건) 케이스 추가
+- `e2e/ai-free-continue.spec.ts` (신규) — 문서 중간 이어쓰기 여정(success/hang 시나리오)
+
+### plan.md 대비 편차 (2건)
+
+1. **MX 태그 분포**: plan.md는 "`@MX:ANCHOR` 3곳 + `@MX:NOTE` 2곳"을 예상했으나, 실제는 `@MX:ANCHOR` 2곳(`getContinueBlockGate`, `build_continue_prompt`) + `@MX:NOTE` 3곳(`getFreeContinueContext` — `ai-ghost-text.ts` 파일당 ANCHOR 상한 3 초과로 강등, `ghostStoreBridge` feature 필터 계약 주석, `ghostTypingCancelListener` D1 근거 주석)로 조정되었다.
+2. **`ghostStoreBridge`(514-558) 무변경 여부**: plan.md는 "무변경"으로 예상했으나, 실제로는 동작 변경 없이 `@MX:NOTE` 주석 1건만 추가되었다(comment-only, 계약·동작 무변경).
+
+### 기타 편차
+
+- `e2e/fixtures/tauri-v2-ai-mock.ts`는 plan.md에서 [MODIFY] 예정이었으나, 기존 시나리오(`success`/`hang`)로 충분하여 실제 변경이 필요 없었다.
+
+### 테스트 결과
+
+- vitest: 936 통과 (베이스라인 913 + 신규 23)
+- cargo test: 227 통과 (베이스라인 221 + 신규 6)
+- e2e: 신규 2 + 회귀 8, 콘솔 에러 0
+- `tsc --noEmit` / `cargo clippy` 클린
+
+수동 CLI 검증 기록(실 Claude Code CLI, 12개 시나리오, 뒤 문맥 반복·선점 0건, 조건부 PASS): `.moai/specs/SPEC-AI-003/manual-verification.md` 참조.
