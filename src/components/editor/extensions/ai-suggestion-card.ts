@@ -867,9 +867,14 @@ export class AiSuggestionCardController {
   }
 }
 
-/** ```mermaid 펜스에서 원본 다이어그램 코드만 추출. 펜스가 없으면 트림된 원문(BUG-3a). */
+// @MX:NOTE: [AUTO] SPEC-AI-004 D-C — 무태그(```)·타 태그(```mmd) 펜스까지 매칭하도록 일반화.
+// 실 CLI 재현(s10): 프롬프트가 펜스 금지를 지시해도 haiku가 ```mermaid 외 다른 펜스로 감싸면
+// 기존 태그 고정 정규식이 매칭 실패해 validateMermaid가 항상 실패, 불필요한 자동 재요청을
+// 유발했다. 마커만 제거하고 내부 코드는 리라이팅하지 않는다(무손상). 호출은 handleDiagramComplete
+// (presetKind==='diagram') 전용이라 일반 코드블록(예: ```bash)을 잘못 벗길 표면이 없다.
+/** ``` 펜스(태그 유무 무관)에서 원본 다이어그램 코드만 추출. 펜스가 없으면 트림된 원문(BUG-3a). */
 export function stripMermaidFence(code: string): string {
-  const m = code.match(/```mermaid\s*\n([\s\S]*?)```/);
+  const m = code.match(/```[a-z]*\s*\n([\s\S]*?)```/i);
   return (m ? m[1] : code).trim();
 }
 

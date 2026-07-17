@@ -410,6 +410,22 @@ describe('stripMermaidFence: ```mermaid 펜스 제거 (BUG-3a 사전 검증 대�
     const withProse = '여기 다이어그램입니다:\n```mermaid\nflowchart LR\n A-->B\n```\n참고하세요.';
     expect(stripMermaidFence(withProse)).toBe('flowchart LR\n A-->B');
   });
+
+  // SPEC-AI-004 D-C: 무태그·타 태그·태그 뒤 공백 변형까지 매칭해 마커만 제거(리라이팅 없음).
+  it('태그 없는 펜스(```)에서도 본문만 추출한다', async () => {
+    const { stripMermaidFence } = await import('@/components/editor/extensions/ai-suggestion-card');
+    expect(stripMermaidFence('```\nflowchart LR\n A-->B\n```')).toBe('flowchart LR\n A-->B');
+  });
+
+  it('타 태그 펜스(```mmd)에서도 본문만 추출한다', async () => {
+    const { stripMermaidFence } = await import('@/components/editor/extensions/ai-suggestion-card');
+    expect(stripMermaidFence('```mmd\nflowchart LR\n A-->B\n```')).toBe('flowchart LR\n A-->B');
+  });
+
+  it('태그 뒤 공백이 붙어도 본문만 추출한다', async () => {
+    const { stripMermaidFence } = await import('@/components/editor/extensions/ai-suggestion-card');
+    expect(stripMermaidFence('```mermaid  \nflowchart LR\n A-->B\n```')).toBe('flowchart LR\n A-->B');
+  });
 });
 
 describe('createAiSuggestionCard: extension factory', () => {
