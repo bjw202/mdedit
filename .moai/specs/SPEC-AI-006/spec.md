@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-006
-version: "0.1.0"
-status: draft
+version: "0.1.1"
+status: completed
 created: "2026-07-17"
 updated: "2026-07-17"
 author: "jw"
@@ -25,6 +25,7 @@ lifecycle: spec-anchored
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2026-07-17 | jw | 최초 SPEC 작성 — AI 프롬프트 정밀도·지연 워치독·이어쓰기 보조 UX 5종. (1)인라인 변환 대상 스코핑 + Polish 언어 편향 제거, (2)요청 하드 타임아웃 워치독 + timeout 오류 종류, (3)고스트 재요청 ↻, (4)이어쓰기 길이 옵션(짧게/보통), (5)장시간 대기 안내 문구. research.md 확정 사실 반영, 설계 결정 D1~D5 확정(plan.md Decision Log). 항목 1은 미생성 유령 SPEC-AI-004의 프롬프트 핫픽스 미해결분(D-A 흡수·언어 편향) 계승. TDD RED-first. 항목 1·2·4는 Rust를 수정한다. |
+| 0.1.1 | 2026-07-17 | jw | 구현 완료(commit f120230, vitest 985/cargo 240/tsc·clippy 클린/e2e ai-006.spec.ts 통과). 동작 계약 무변경, as-implemented 세부만 기록: (a) N1 경합은 REQ-AI6-006의 옵션 ii(kill 전 claim)로 해소 — 워치독이 자식 kill보다 먼저 `finished` claim을 시도해 릴레이와의 경합에서도 단일발행 보장, (b) 카드 `buildCardKey`에 waiting suffix 추가 — 대기 문구 표시 전이 시 위젯 재렌더를 강제하기 위함(REQ-AI6-007), (c) 고스트 재요청(↻) 버튼은 기존 버튼 카운트 단언(테스트)을 보호하기 위해 별도 클래스 `cm-ai-ghost-redo-btn` 사용(REQ-AI6-010), (d) 고스트 대기 타이머는 신규 이벤트 구독 없이 CodeMirror `updateListener` 단일 관찰점에 배선(REQ-AI6-007/008). lifecycle: spec-anchored 유지(Level 2). |
 
 ## Summary
 
