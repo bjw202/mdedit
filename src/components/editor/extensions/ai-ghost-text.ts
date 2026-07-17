@@ -13,6 +13,7 @@ import {
 import type { DecorationSet, Command, KeyBinding, ViewUpdate } from '@codemirror/view';
 import { StateField, StateEffect, EditorSelection, Prec } from '@codemirror/state';
 import type { EditorState, Extension, Range } from '@codemirror/state';
+import { syntaxTree } from '@codemirror/language';
 import { aiRequest, aiCancel, ipcErrorMessage } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
@@ -89,6 +90,102 @@ export function getContinueContext(state: EditorState, pos: number): ContinueCon
   if (before.trim() === '') return null; // 문서에 내용이 전혀 없음
 
   return { outline: buildOutline(docText), contextBefore: before };
+}
+
+// ============================================================
+// 자유 위치 이어쓰기(M2, SPEC-AI-003) — syntaxTree 게이트 + 임의 커서 위치 자격 판정
+// ============================================================
+
+/** 구문 배제 게이트 판정 결과(D2) — blocked 는 트리거 자체를 막고, hintExcluded 는 힌트만 막는다. */
+export interface ContinueBlockGate {
+  /** FencedCode/CodeBlock/Table 조상이면 true — 힌트·트리거 전부 배제(REQ-AI3-003, 무손상 원칙). */
+  blocked: boolean;
+  /** ListItem/Blockquote 조상이면 true — 수동 Mod+Enter 는 허용하되 힌트만 배제(REQ-AI3-004, D2). */
+  hintExcluded: boolean;
+}
+
+// @MX:ANCHOR: [AUTO] getContinueBlockGate - 자유 위치 이어쓰기의 유일한 syntaxTree 배제 판정 지점
+// @MX:REASON: [AUTO] 힌트(evaluateHintEligibility)와 트리거(getFreeContinueContext)가 모두 이
+//   함수를 통해서만 코드펜스/표/리스트/인용 정책(D2)을 판정한다(fan_in >= 2) — 정책 변경 시 단일
+//   수정 지점을 보장한다.
+// @MX:SPEC: SPEC-AI-003
+/**
+ * 커서 위치의 조상 구문 노드를 훑어 배제 정책을 판정한다(순수, 토큰 0). `@codemirror/language`의
+ * `syntaxTree(state).resolveInner(pos, -1)`만 사용하며 신규 런타임 의존성이 없다(REQ-AI3-003, 004).
+ */
+export function getContinueBlockGate(state: EditorState, pos: number): ContinueBlockGate {
+  let node = syntaxTree(state).resolveInner(pos, -1);
+  let blocked = false;
+  let hintExcluded = false;
+  while (true) {
+    if (node.name === 'FencedCode' || node.name === 'CodeBlock' || node.name === 'Table') {
+      blocked = true;
+    }
+    if (node.name === 'ListItem' || node.name === 'Blockquote') {
+      hintExcluded = true;
+    }
+    if (!node.parent) break;
+    node = node.parent;
+  }
+  return { blocked, hintExcluded };
+}
+
+/** 자유 위치 이어쓰기 컨텍스트 — 앞뒤 원문 전체를 통째로 담는다(절단은 Rust, REQ-AI3-001). */
+export interface FreeContinueContext {
+  outline: string[];
+  contextBefore: string;
+  contextAfter: string;
+}
+
+// @MX:NOTE: [AUTO] getFreeContinueContext - 자유 위치 이어쓰기 트리거 자격의 단일 진입 지점.
+//   startFreeContinueWritingCommand 가 유일하게 호출하며, 우선순위(section-fill > 문서 끝
+//   continue > 자유 위치 continue, REQ-AI3-002)와 배제 정책(getContinueBlockGate)을 여기서만
+//   조합한다. ai-ghost-text.ts 는 파일당 ANCHOR 상한(3)에 걸려 있어 ANCHOR 대신 NOTE로 문서화
+//   한다 — getContinueBlockGate(ANCHOR, fan_in=2)가 실질 판정 단일 지점이다.
+// @MX:SPEC: SPEC-AI-003
+/**
+ * 임의 커서 위치의 이어쓰기 자격을 판정한다(순수, 토큰 0, REQ-AI3-001). 우선순위 유지를 위해
+ * section-fill·문서 끝 continue(getSectionFillContext/getContinueContext, D3 병행 전략)가 이미
+ * 자격을 갖는 위치에서는 null 을 반환한다(REQ-AI3-002). 배제 노드(FencedCode/CodeBlock/Table)
+ * 내부도 null(REQ-AI3-003) — 그 외 거의 모든 위치가 자격을 갖는다(리스트/인용 포함, D2).
+ */
+export function getFreeContinueContext(state: EditorState, pos: number): FreeContinueContext | null {
+  if (getSectionFillContext(state, pos) !== null) return null;
+  if (getContinueContext(state, pos) !== null) return null;
+  if (getContinueBlockGate(state, pos).blocked) return null;
+
+  const docText = state.doc.toString();
+  return {
+    outline: buildOutline(docText),
+    contextBefore: docText.slice(0, pos),
+    contextAfter: docText.slice(pos),
+  };
+}
+
+/** 문장 종결 부호 닫힌 집합(REQ-AI3-005) — 후행 공백·닫는 따옴표/괄호는 무시하고 판정한다. */
+const CONTINUE_SENTENCE_TERMINATORS = new Set(['.', '!', '?', '。', '…']);
+const TRAILING_CLOSERS_RE = /[)\]"'"'』」〉》）］]+$/;
+
+/** 줄 텍스트가 문장 종결 부호로 끝나는지(닫는 따옴표/괄호·후행 공백은 건너뛴다). */
+function endsWithSentenceTerminator(lineText: string): boolean {
+  const trimmed = lineText.replace(/\s+$/, '').replace(TRAILING_CLOSERS_RE, '');
+  if (trimmed === '') return false;
+  return CONTINUE_SENTENCE_TERMINATORS.has(trimmed.slice(-1));
+}
+
+/**
+ * 자유 위치 힌트의 보수 조건(2단 자격, REQ-AI3-005/006) — 비어있지 않은 줄의 줄 끝 + 문장
+ * 미종결 + 배제 노드 밖(힌트 배제 포함)일 때만 참. 트리거 자격(getFreeContinueContext)과는
+ * 독립 판정이다 — 이 함수가 false 여도 Mod+Enter 트리거는 별도로 동작할 수 있다.
+ */
+function isFreeContinueHintEligible(state: EditorState, pos: number): boolean {
+  const line = state.doc.lineAt(pos);
+  if (pos !== line.to) return false;
+  if (line.text.trim() === '') return false;
+  if (endsWithSentenceTerminator(line.text)) return false;
+  const gate = getContinueBlockGate(state, pos);
+  if (gate.blocked || gate.hintExcluded) return false;
+  return true;
 }
 
 // ============================================================
@@ -345,11 +442,46 @@ export const startContinueWritingCommand: Command = (view) => {
   return true;
 };
 
-// @MX:NOTE: Mod-Enter는 고스트 활성 시 확정, 아니면 섹션 채우기/이어쓰기 트리거로 삼중 동작
-// (설계 §5.1). Tab은 여기 바인딩하지 않는다 — indentWithTab이 처리하고 docChanged로 고스트가
-// 소멸한다(REQ-AI-031).
+/**
+ * 자유 위치 이어쓰기(M2, SPEC-AI-003)를 시작한다(힌트 클릭/Mod-Enter). 자격 없으면 false.
+ * `startContinueWritingCommand`와 동일한 뼈대(requestId `cw-` prefix, `startRequest` 선행,
+ * BUG-8 스크롤 1회)를 재사용하되 `contextAfter`를 추가로 실어 보낸다(REQ-AI3-008). feature/
+ * presetKind 는 문서 끝 분기와 동일 — 신규 feature 문자열을 도입하지 않는다(IPC 하위호환).
+ */
+export const startFreeContinueWritingCommand: Command = (view) => {
+  const head = view.state.selection.main.head;
+  const ctx = getFreeContinueContext(view.state, head);
+  if (!ctx) return false;
+
+  const requestId = `cw-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  useAiStore.getState().startRequest(requestId, 'section-fill');
+  // BUG-8: 문서 중간이라도 뷰포트 밖일 수 있다 — 시작 시 1회 앵커를 뷰포트에 보이게 스크롤한다.
+  view.dispatch({
+    effects: [startGhostEffect.of({ from: head }), EditorView.scrollIntoView(head, { y: 'nearest' })],
+  });
+
+  const model = resolveModel(useUIStore.getState().aiAdvancedModel);
+  void aiRequest({
+    requestId,
+    feature: 'section-fill',
+    presetKind: 'continue',
+    model,
+    outline: ctx.outline.join('\n'),
+    contextBefore: ctx.contextBefore,
+    contextAfter: ctx.contextAfter,
+  }).catch((e) => useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }));
+  return true;
+};
+
+// @MX:NOTE: Mod-Enter는 고스트 활성 시 확정, 아니면 섹션 채우기/문서 끝 이어쓰기/자유 위치
+// 이어쓰기 순으로 트리거하는 4중 동작(설계 §5.1, REQ-AI3-002 우선순위: section-fill > 문서 끝
+// continue > 자유 위치 continue). Tab은 여기 바인딩하지 않는다 — indentWithTab이 처리하고
+// docChanged로 고스트가 소멸한다(REQ-AI-031).
 const modEnterCommand: Command = (view) =>
-  confirmGhostCommand(view) || startSectionFillCommand(view) || startContinueWritingCommand(view);
+  confirmGhostCommand(view) ||
+  startSectionFillCommand(view) ||
+  startContinueWritingCommand(view) ||
+  startFreeContinueWritingCommand(view);
 
 /** AI 고스트 keymap. indentWithTab보다 앞서 등록해야 Mod-Enter/Esc가 선점된다. */
 export const aiGhostKeymap: KeyBinding[] = [
@@ -370,13 +502,15 @@ export interface HintEligibility {
 }
 
 /**
- * 힌트 노출 자격 판정(순수, 토큰 0) — getSectionFillContext/getContinueContext 외 어떤 부수효과도
- * 없다(REQ-AI-032). 커서 위치가 두 조건 모두를 만족할 수 없으므로(getContinueContext 가 이미
- * 섹션 채우기를 배제) 순서는 안전하다.
+ * 힌트 노출 자격 판정(순수, 토큰 0) — getSectionFillContext/getContinueContext/
+ * isFreeContinueHintEligible 외 어떤 부수효과도 없다(REQ-AI-032). 우선순위는
+ * section-fill > 문서 끝 continue > 자유 위치 continue(REQ-AI3-002) — 자유 위치는 최하위
+ * 우선순위로 보수 조건(REQ-AI3-005)을 만족할 때만 힌트를 노출한다(D2, 스팸 억제).
  */
 export function evaluateHintEligibility(state: EditorState, pos: number): HintEligibility | null {
   if (getSectionFillContext(state, pos) !== null) return { kind: 'section-fill' };
   if (getContinueContext(state, pos) !== null) return { kind: 'continue' };
+  if (isFreeContinueHintEligible(state, pos)) return { kind: 'continue' };
   return null;
 }
 
@@ -500,6 +634,34 @@ export function createAiHint(): Extension {
 }
 
 // ============================================================
+// 타이핑 소멸 → in-flight 취소(D1, SPEC-AI-003 REQ-AI3-013/014)
+// ============================================================
+
+// @MX:NOTE: [AUTO] REQ-AI-034(무통보 취소 금지)의 명시적 예외(D1) — 타이핑으로 고스트가
+// 파괴되는 것은 Esc 와 동급의 사용자 자발 종료이므로 토스트를 띄우지 않는다. aiGhostField.update
+// 는 StateField 라 부수효과(취소 호출)를 낼 수 없어, 파괴가 "관찰"되는 updateListener 에서
+// 확정 트랜잭션(clearGhostEffect 동승)과 구분해 취소를 호출한다.
+// @MX:SPEC: SPEC-AI-003
+/**
+ * 고스트가 있다가 사라졌고(docChanged), 그 트랜잭션들에 clearGhostEffect 가 없었다면(=확정이
+ * 아니라 타이핑/Tab 들여쓰기로 인한 파괴형 소멸) in-flight 요청을 취소한다. 확정 삽입은
+ * changes 와 clearGhostEffect 를 같은 트랜잭션에 실어 이 경로를 우회하므로 오취소가 없다.
+ */
+const ghostTypingCancelListener = EditorView.updateListener.of((update) => {
+  if (!update.docChanged) return;
+  const before = update.startState.field(aiGhostField, false);
+  const after = update.state.field(aiGhostField, false);
+  if (!before || after) return; // 파괴형 소멸(있었다가 없어짐)이 아니면 무시
+  const wasConfirm = update.transactions.some((tr) => tr.effects.some((e) => e.is(clearGhostEffect)));
+  if (wasConfirm) return; // 확정 트랜잭션은 파괴 경로가 아니다(오취소 금지)
+  const ai = useAiStore.getState();
+  if (ai.requestState === 'streaming' && ai.requestId) {
+    void aiCancel(ai.requestId);
+    ai.cancelRequest();
+  }
+});
+
+// ============================================================
 // aiStore → 고스트 브리지 (런타임 스트리밍 반영)
 // ============================================================
 
@@ -520,6 +682,10 @@ const ghostStoreBridge = ViewPlugin.fromClass(
 
     constructor(view: EditorView) {
       this.unsubscribe = useAiStore.subscribe((s) => {
+        // @MX:NOTE: [AUTO] 'section-fill' 하드코딩 = 섹션 채우기·문서 끝 이어쓰기·자유 위치
+        // 이어쓰기(M2) 전부가 공유하는 하위호환 IPC 계약이다(feature 는 그대로, presetKind로만
+        // 구분). 값을 바꾸려면 이 필터·aiStore AiFeature 유니온·ipc.ts를 동시에 수정해야 한다.
+        // @MX:SPEC: SPEC-AI-003
         if (s.feature !== 'section-fill') return;
         if (s.requestState === 'streaming' || s.requestState === 'done') {
           const ghost = view.state.field(aiGhostField, false);
@@ -562,5 +728,11 @@ const ghostStoreBridge = ViewPlugin.fromClass(
  * [HARD] Mod-Enter/Esc가 indentWithTab·defaultKeymap보다 앞서도록 Prec.high로 감싼다(REQ-AI-031).
  */
 export function createAiGhostText(): Extension {
-  return [aiGhostField, Prec.high(keymap.of(aiGhostKeymap)), ghostStoreBridge, createAiHint()];
+  return [
+    aiGhostField,
+    Prec.high(keymap.of(aiGhostKeymap)),
+    ghostStoreBridge,
+    createAiHint(),
+    ghostTypingCancelListener,
+  ];
 }

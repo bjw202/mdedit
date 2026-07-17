@@ -142,3 +142,90 @@ describe('idle hint: click triggers the same path as Mod+Enter', () => {
     }
   });
 });
+
+// SPEC-AI-003 (M2): 자유 위치 이어쓰기 2단 힌트 자격(REQ-AI3-005, 006, 007) — 보수 조건
+// 충족/미충족 매트릭스. 기존 케이스는 개정하지 않고 이 블록에서만 추가한다.
+describe('idle hint: free-position continue (REQ-AI3-005/006, 2단 자격)', () => {
+  it('shows a continue hint after 3s at the end of a non-empty, unterminated line mid-document', async () => {
+    const doc = '본문 문장이 끊겼음';
+    const { view, destroy } = await mount(doc, doc.length);
+    try {
+      vi.advanceTimersByTime(3000);
+      const hint = view.dom.querySelector('.cm-ai-hint');
+      expect(hint).not.toBeNull();
+      expect(hint?.textContent).toContain('이어쓰기');
+    } finally {
+      destroy();
+    }
+  });
+
+  it('does not show a hint when the line ends with a sentence terminator', async () => {
+    const doc = '완결된 문장이다.';
+    const { view, destroy } = await mount(doc, doc.length);
+    try {
+      vi.advanceTimersByTime(3000);
+      expect(view.dom.querySelector('.cm-ai-hint')).toBeNull();
+    } finally {
+      destroy();
+    }
+  });
+
+  it('does not show a hint when the cursor is mid-line (not at line end)', async () => {
+    const doc = '본문 중간에 커서가 있음';
+    const { view, destroy } = await mount(doc, 3);
+    try {
+      vi.advanceTimersByTime(3000);
+      expect(view.dom.querySelector('.cm-ai-hint')).toBeNull();
+    } finally {
+      destroy();
+    }
+  });
+
+  it('does not show a hint inside a list item, even though Mod+Enter trigger is still eligible (D2)', async () => {
+    const { createAiGhostText, startFreeContinueWritingCommand } = await import(
+      '@/components/editor/extensions/ai-ghost-text'
+    );
+    const { markdown, markdownLanguage } = await import('@codemirror/lang-markdown');
+    const doc = '- 리스트 항목이 끊겼음';
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const state = EditorState.create({
+      doc,
+      selection: EditorSelection.single(doc.length),
+      extensions: [markdown({ base: markdownLanguage }), createAiGhostText()],
+    });
+    const view = new EditorView({ state, parent });
+    try {
+      vi.advanceTimersByTime(3000);
+      expect(view.dom.querySelector('.cm-ai-hint')).toBeNull();
+      // 힌트는 배제되지만 수동 Mod+Enter 트리거는 여전히 동작한다(D2).
+      expect(startFreeContinueWritingCommand(view)).toBe(true);
+    } finally {
+      view.destroy();
+      document.body.removeChild(parent);
+    }
+  });
+
+  it('does not show a hint or fire aiRequest inside a fenced code block (REQ-AI3-003)', async () => {
+    const { createAiGhostText } = await import('@/components/editor/extensions/ai-ghost-text');
+    const { markdown, markdownLanguage } = await import('@codemirror/lang-markdown');
+    const doc = '```js\nconsole.log(1)\n```\n';
+    const pos = doc.indexOf('console.log(1)') + 5;
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const state = EditorState.create({
+      doc,
+      selection: EditorSelection.single(pos),
+      extensions: [markdown({ base: markdownLanguage }), createAiGhostText()],
+    });
+    const view = new EditorView({ state, parent });
+    try {
+      vi.advanceTimersByTime(3000);
+      expect(view.dom.querySelector('.cm-ai-hint')).toBeNull();
+      expect(aiRequestMock).not.toHaveBeenCalled();
+    } finally {
+      view.destroy();
+      document.body.removeChild(parent);
+    }
+  });
+});
