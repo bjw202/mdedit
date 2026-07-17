@@ -18,6 +18,9 @@ pub struct InFlightRequest {
     pub child: Child,
     /// 취소 신호. 릴레이 스레드가 종료 시 이 값을 보고 오류 대신 무음 처리한다(§3 P7).
     pub cancel_flag: Arc<AtomicBool>,
+    /// SPEC-AI-006 REQ-AI6-006: 단일발행 선점 공유 플래그. 릴레이·워치독·`ai_cancel`·신규
+    /// 요청 교체 네 지점이 발행 전 이 플래그를 claim한다(`claude_cli::claim_terminal`).
+    pub finished: Arc<AtomicBool>,
 }
 
 /// Tauri managed application state holding the filesystem watcher and metadata.

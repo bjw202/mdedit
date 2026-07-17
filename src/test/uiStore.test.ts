@@ -232,6 +232,40 @@ describe('uiStore: aiEnabled (SPEC-AI-005)', () => {
   });
 });
 
+describe('uiStore: aiContinueLength (SPEC-AI-006)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ aiContinueLength: 'normal' });
+    localStorage.removeItem('mdedit-ui-store');
+  });
+
+  it('defaults aiContinueLength to "normal" for an unset user (REQ-AI6-012)', () => {
+    expect(useUIStore.getState().aiContinueLength).toBe('normal');
+  });
+
+  it('sets aiContinueLength to "short" via setAiContinueLength', () => {
+    const { setAiContinueLength } = useUIStore.getState();
+    act(() => setAiContinueLength('short'));
+    expect(useUIStore.getState().aiContinueLength).toBe('short');
+  });
+
+  it('sets aiContinueLength back to "normal" via setAiContinueLength', () => {
+    useUIStore.setState({ aiContinueLength: 'short' });
+    const { setAiContinueLength } = useUIStore.getState();
+    act(() => setAiContinueLength('normal'));
+    expect(useUIStore.getState().aiContinueLength).toBe('normal');
+  });
+
+  it('persists aiContinueLength to localStorage (round-trip)', () => {
+    const { setAiContinueLength } = useUIStore.getState();
+    act(() => setAiContinueLength('short'));
+
+    const raw = localStorage.getItem('mdedit-ui-store');
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw as string);
+    expect(persisted.state.aiContinueLength).toBe('short');
+  });
+});
+
 describe('uiStore: statusMessage (SPEC-UI-005)', () => {
   afterEach(() => {
     // 보류 중인 auto-clear 타이머 정리 (module-level ref 누적 방지)

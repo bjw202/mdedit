@@ -50,6 +50,11 @@ interface UIState {
   /** AI "고급 모델" 토글 — true 면 sonnet, false 면 haiku (SPEC-AI-001 REQ-AI-016). 영속화 대상. */
   aiAdvancedModel: boolean;
   /**
+   * 이어쓰기(continue) 길이 옵션 — 'short'(한두 문장) | 'normal'(기본, 기존 분량 유지)
+   * (SPEC-AI-006 REQ-AI6-012). 최초값(미설정 사용자)은 'normal'. 영속화 대상.
+   */
+  aiContinueLength: 'short' | 'normal';
+  /**
    * AI 기능 사용자 켜기/끄기 토글 — 꺼지면 ✨ 툴바·힌트·Mod+Enter 신규 트리거가 전부 숨겨진다
    * (SPEC-AI-005 REQ-AI5-001). 최초값(미설정 사용자)은 켜짐(true). 영속화 대상.
    */
@@ -77,6 +82,8 @@ interface UIState {
   setAiNoticeAcknowledged: (acknowledged: boolean) => void;
   /** AI 고급 모델(sonnet) 사용 여부를 설정한다 (SPEC-AI-001 REQ-AI-016). */
   setAiAdvancedModel: (enabled: boolean) => void;
+  /** 이어쓰기 길이 옵션을 설정한다 (SPEC-AI-006 REQ-AI6-012). */
+  setAiContinueLength: (length: 'short' | 'normal') => void;
   /** AI 기능 사용자 켜기/끄기 토글을 설정한다 (SPEC-AI-005 REQ-AI5-001/006). */
   setAiEnabled: (enabled: boolean) => void;
 }
@@ -100,6 +107,7 @@ export const useUIStore = create<UIState>()(
       statusMessage: null,
       aiNoticeAcknowledged: false,
       aiAdvancedModel: false,
+      aiContinueLength: 'normal',
       aiEnabled: true,
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
@@ -136,6 +144,7 @@ export const useUIStore = create<UIState>()(
       },
       setAiNoticeAcknowledged: (acknowledged: boolean) => set({ aiNoticeAcknowledged: acknowledged }),
       setAiAdvancedModel: (enabled: boolean) => set({ aiAdvancedModel: enabled }),
+      setAiContinueLength: (length: 'short' | 'normal') => set({ aiContinueLength: length }),
       setAiEnabled: (enabled: boolean) => set({ aiEnabled: enabled }),
     }),
     {

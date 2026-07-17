@@ -234,6 +234,38 @@ describe('SettingsModal: notice banner + advanced toggle + policy lock (T-011)',
   });
 });
 
+describe('SettingsModal: continue length toggle (SPEC-AI-006 REQ-AI6-012)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ aiContinueLength: 'normal' });
+    localStorage.clear();
+  });
+
+  it('defaults unchecked (normal) and sets aiContinueLength to "short" on click', async () => {
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const toggle = await screen.findByRole('checkbox', { name: /이어쓰기 짧게/ });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(useUIStore.getState().aiContinueLength).toBe('short');
+  });
+
+  it('reflects a persisted "short" value as checked', async () => {
+    useUIStore.setState({ aiContinueLength: 'short' });
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const toggle = await screen.findByRole('checkbox', { name: /이어쓰기 짧게/ });
+    expect(toggle).toBeChecked();
+  });
+
+  it('policy-locked disables the continue-length toggle (lock indicator)', async () => {
+    policyMock.mockResolvedValue({ disabled: true, source: 'env' });
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const toggle = await screen.findByRole('checkbox', { name: /이어쓰기 짧게/ });
+    expect(toggle).toBeDisabled();
+  });
+});
+
 describe('SettingsModal: AI enabled toggle (SPEC-AI-005 T4)', () => {
   beforeEach(() => {
     useUIStore.setState({ aiNoticeAcknowledged: true, aiEnabled: true });

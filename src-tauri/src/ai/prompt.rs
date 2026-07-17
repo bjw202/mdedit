@@ -17,6 +17,15 @@ const CONTINUE_HEAD_MAX: usize = 1500;
 const COMMON_INSTRUCTION: &str =
     "결과 텍스트만 출력하라. 설명·인사·사족을 붙이지 말라. 마크다운 코드펜스는 요청받은 경우에만 사용하라.";
 
+// @MX:NOTE: [AUTO] INLINE_SCOPE - 인라인 6기능(polish/outline/table/diagram/shorten/custom) 균일
+// 대상-스코핑 + 입력-언어-유지 계약(SPEC-AI-006 REQ-AI6-001/002). build_inline_prompt 조립
+// 지점에서만 부착되며 COMMON_INSTRUCTION/AiFeature::Continue base 에는 절대 섞이지 않는다 —
+// 섞이면 이어쓰기 바이트 하위호환 테스트(prompt.rs 하단 continue_prompt_backward_compat_*)가
+// 깨진다(REQ-AI6-003).
+// @MX:SPEC: SPEC-AI-006
+/// 인라인 편집 대상 스코핑(흡수 방지) + 입력 언어 유지 절. `build_inline_prompt`가 유일 부착 지점.
+const INLINE_SCOPE: &str = "오직 [대상] 텍스트만 변환·정리하라. [앞 문맥]과 [뒤 문맥]은 이해를 돕는 읽기 전용 참고 자료일 뿐이니 결과에 포함하거나 이어 쓰지 말라. 결과는 입력 텍스트의 언어를 그대로 유지하라.";
+
 /// AI 편집 기능 종류. 프리셋 5종 + 직접 입력 + 섹션 채우기(§4.1, §5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AiFeature {
@@ -75,7 +84,9 @@ impl AiFeature {
     pub fn system_prompt(&self) -> String {
         let task = match self {
             AiFeature::Polish => {
-                "너는 한국어 문장 교정기다. 주어진 텍스트의 맞춤법과 문장을 자연스럽게 다듬되 의미와 정보는 그대로 유지하라."
+                // SPEC-AI-006 REQ-AI6-002: "한국어 문장 교정기" 하드코딩을 제거하고 언어 중립화
+                // 했다 — 언어 유지 지시 자체는 INLINE_SCOPE(build_inline_prompt 조립 지점)가 담당한다.
+                "주어진 텍스트의 맞춤법과 문장을 자연스럽게 다듬되 의미와 정보는 그대로 유지하라."
             }
             AiFeature::Outline => {
                 "주어진 텍스트를 개괄식 불레틴으로 정리하라. 핵심 항목을 들여쓰기 계층으로 나누고 명사형으로 종결하라. 이미 개조식이면 계층과 표현만 다듬어라."
@@ -171,7 +182,9 @@ pub fn build_inline_prompt(
     }
 
     AssembledPrompt {
-        system_prompt: feature.system_prompt(),
+        // SPEC-AI-006 D1: INLINE_SCOPE 는 이 조립 지점에서만 부착된다(6기능 균일 커버, Custom
+        // 포함 — Custom::system_prompt() 는 조기 return 하지만 여기서 뒤에 이어붙이므로 영향받는다).
+        system_prompt: format!("{}\n\n{}", feature.system_prompt(), INLINE_SCOPE),
         user_prompt,
         truncated: before_cut || after_cut,
     }
@@ -205,6 +218,32 @@ pub fn build_section_prompt(outline: &str, tail: &str) -> AssembledPrompt {
 /// `after` 가 비어 있으면 [뒤 문맥] 섹션과 반복/선점 금지 지시를 생략해 기존 출력과 바이트
 /// 동일하게 유지한다(REQ-AI3-010, 하위호환).
 pub fn build_continue_prompt(outline: &str, before: &str, after: &str) -> AssembledPrompt {
+    // SPEC-AI-006 D3: 기존 3인자 시그니처는 Normal 로 위임한다 — 바이트 동일(하위호환, REQ-AI6-015).
+    build_continue_prompt_with_length(outline, before, after, ContinueLength::Normal)
+}
+
+// @MX:SPEC: SPEC-AI-006
+/// 이어쓰기 길이 지시(항목 4, D3). `Normal` 은 추가 지시 없음(기존 바이트 유지),
+/// `Short` 는 "짧게, 한두 문장만" 지시를 덧붙인다. 이어쓰기(continue)에만 적용되며
+/// 인라인 변환·섹션 채우기 프롬프트에는 영향을 주지 않는다(REQ-AI6-014).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContinueLength {
+    /// 짧게 — "한두 문장만" 분량 지시를 추가한다.
+    Short,
+    /// 보통(기본값) — 추가 분량 지시 없음, 기존 동작과 바이트 동일.
+    Normal,
+}
+
+/// 이어쓰기(REQ-AI-028 문서 끝 분기 + SPEC-AI-003 자유 위치 M2 + SPEC-AI-006 길이 옵션)
+/// 프롬프트를 조립한다. 기존 `build_continue_prompt`(3인자)는 이 함수를 `Normal`로 위임한다
+/// (바이트 동일 하위호환, REQ-AI6-015). `after` 가 비어 있고 `length` 가 `Normal`이면 시스템
+/// 프롬프트는 `AiFeature::Continue.system_prompt()`와 완전히 동일하다(기존 계약 보존).
+pub fn build_continue_prompt_with_length(
+    outline: &str,
+    before: &str,
+    after: &str,
+    length: ContinueLength,
+) -> AssembledPrompt {
     let (tail_ctx, tail_cut) = truncate_tail_at_paragraph(before, SECTION_TAIL_MAX);
     let (head_ctx, head_cut) = truncate_head_at_paragraph(after, CONTINUE_HEAD_MAX);
     let has_after = !head_ctx.trim().is_empty();
@@ -222,24 +261,29 @@ pub fn build_continue_prompt(outline: &str, before: &str, after: &str) -> Assemb
     }
 
     AssembledPrompt {
-        system_prompt: continue_system_prompt(has_after),
+        system_prompt: continue_system_prompt(has_after, length),
         user_prompt,
         truncated: tail_cut || head_cut,
     }
 }
 
 /// 이어쓰기 시스템 프롬프트 — 뒤 문맥이 있을 때만 "끊긴 문장 완성·뒤 문맥 연결·반복/선점 금지"
-/// 지시를 조건부로 덧붙인다(REQ-AI3-009). `AiFeature::Continue.system_prompt()` 자체는 문서 끝
-/// 분기 하위호환을 위해 그대로 둔다(기존 테스트 무개정).
-fn continue_system_prompt(has_after: bool) -> String {
+/// 지시를 조건부로 덧붙이고(REQ-AI3-009), 길이가 `Short`일 때만 "짧게, 한두 문장만" 지시를
+/// 덧붙인다(REQ-AI6-013). `has_after=false` + `Normal`이면 `AiFeature::Continue.system_prompt()`
+/// 자체와 바이트 동일하다(기존 테스트 무개정).
+fn continue_system_prompt(has_after: bool, length: ContinueLength) -> String {
     let base = AiFeature::Continue.system_prompt();
-    if !has_after {
-        return base;
+    let mut sys = base;
+    if has_after {
+        sys = format!(
+            "{}\n\n끊긴 문장부터 이어서 완성하고, 뒤 문맥으로 자연스럽게 연결하라. 뒤 문맥의 내용을 반복하거나 선점하는 것은 금지한다.",
+            sys
+        );
     }
-    format!(
-        "{}\n\n끊긴 문장부터 이어서 완성하고, 뒤 문맥으로 자연스럽게 연결하라. 뒤 문맥의 내용을 반복하거나 선점하는 것은 금지한다.",
-        base
-    )
+    if matches!(length, ContinueLength::Short) {
+        sys = format!("{}\n\n짧게, 한두 문장만 작성하라.", sys);
+    }
+    sys
 }
 
 #[cfg(test)]
@@ -588,5 +632,84 @@ mod tests {
         let prompt = build_continue_prompt("# 개요", "직전 본문", "");
         assert!(!prompt.user_prompt.contains("[뒤 문맥]"));
         assert_eq!(prompt.system_prompt, AiFeature::Continue.system_prompt());
+    }
+
+    // --- SPEC-AI-006 항목 1: 인라인 대상 스코핑 + Polish 언어 중립 (REQ-AI6-001/002/003) ---
+
+    #[test]
+    fn inline_scope_clause_present_for_all_six_inline_features() {
+        let selection = "대상 문장";
+        for feature in [
+            AiFeature::Polish,
+            AiFeature::Outline,
+            AiFeature::Table,
+            AiFeature::Diagram,
+            AiFeature::Shorten,
+            AiFeature::Custom("영어로 번역".to_string()),
+        ] {
+            let prompt = build_inline_prompt(&feature, selection, "", "");
+            assert!(
+                prompt.system_prompt.contains("[대상]"),
+                "{:?} missing scoping clause: {}",
+                feature,
+                prompt.system_prompt
+            );
+            assert!(prompt.system_prompt.contains("읽기 전용"));
+            assert!(prompt.system_prompt.contains("참고"));
+            assert!(prompt.system_prompt.contains("언어"));
+        }
+    }
+
+    #[test]
+    fn polish_prompt_no_longer_hardcodes_korean_corrector_and_keeps_input_language() {
+        let prompt = build_inline_prompt(&AiFeature::Polish, "hello world", "", "");
+        assert!(!prompt.system_prompt.contains("한국어 문장 교정기"));
+        assert!(prompt.system_prompt.contains("언어"));
+    }
+
+    #[test]
+    fn scoping_clause_does_not_leak_into_section_or_continue_prompts() {
+        // REQ-AI6-003: 스코핑·언어절은 인라인 조립 지점 한정 — 이어쓰기/섹션 채우기엔 파급 금지.
+        let section = build_section_prompt("# 개요", "직전 본문");
+        assert!(!section.system_prompt.contains("읽기 전용"));
+        assert!(!section.system_prompt.contains("[대상]"));
+
+        let cont = build_continue_prompt("# 개요", "직전 본문", "");
+        assert!(!cont.system_prompt.contains("읽기 전용"));
+        assert!(!cont.system_prompt.contains("[대상]"));
+    }
+
+    // --- SPEC-AI-006 항목 4: 이어쓰기 길이 옵션 (REQ-AI6-012/013/014/015) ---
+
+    #[test]
+    fn build_continue_prompt_with_length_short_appends_brief_instruction() {
+        let prompt =
+            build_continue_prompt_with_length("# 개요", "직전 본문", "", ContinueLength::Short);
+        assert!(prompt.system_prompt.contains("짧게"));
+        assert!(prompt.system_prompt.contains("한두 문장"));
+    }
+
+    #[test]
+    fn build_continue_prompt_with_length_normal_matches_legacy_build_continue_prompt_byte_for_byte() {
+        let legacy = build_continue_prompt("# 개요", "직전 본문", "뒤 문맥");
+        let via_length =
+            build_continue_prompt_with_length("# 개요", "직전 본문", "뒤 문맥", ContinueLength::Normal);
+        assert_eq!(legacy, via_length);
+    }
+
+    #[test]
+    fn build_continue_prompt_with_length_normal_empty_after_matches_bare_continue_system_prompt() {
+        let prompt =
+            build_continue_prompt_with_length("# 개요", "직전 본문", "", ContinueLength::Normal);
+        assert_eq!(prompt.system_prompt, AiFeature::Continue.system_prompt());
+    }
+
+    #[test]
+    fn build_continue_prompt_with_length_short_still_forbids_after_context_repetition_when_present() {
+        // 길이 '짧게' + 뒤 문맥 있음(자유 위치) — 두 지시가 공존해야 한다(엣지케이스).
+        let prompt =
+            build_continue_prompt_with_length("# 개요", "앞", "뒤 문맥", ContinueLength::Short);
+        assert!(prompt.system_prompt.contains("금지"));
+        assert!(prompt.system_prompt.contains("짧게"));
     }
 }
