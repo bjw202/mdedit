@@ -233,3 +233,43 @@ describe('SettingsModal: notice banner + advanced toggle + policy lock (T-011)',
     expect(toggle).toBeDisabled();
   });
 });
+
+describe('SettingsModal: AI enabled toggle (SPEC-AI-005 T4)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ aiNoticeAcknowledged: true, aiEnabled: true });
+    localStorage.clear();
+  });
+
+  it('renders the AI enabled toggle reflecting the current aiEnabled value (REQ-AI5-004)', async () => {
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const toggle = await screen.findByRole('checkbox', { name: /AI 기능 사용/ });
+    expect(toggle).toBeChecked();
+  });
+
+  it('reflects aiEnabled=false as unchecked', async () => {
+    useUIStore.setState({ aiEnabled: false });
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const toggle = await screen.findByRole('checkbox', { name: /AI 기능 사용/ });
+    expect(toggle).not.toBeChecked();
+  });
+
+  it('clicking the toggle calls setAiEnabled and updates state (REQ-AI5-006)', async () => {
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const toggle = await screen.findByRole('checkbox', { name: /AI 기능 사용/ });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    expect(useUIStore.getState().aiEnabled).toBe(false);
+  });
+
+  it('policy-locked disables the AI enabled toggle with a lock indicator (REQ-AI5-005)', async () => {
+    policyMock.mockResolvedValue({ disabled: true, source: 'env' });
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const toggle = await screen.findByRole('checkbox', { name: /AI 기능 사용/ });
+    expect(toggle).toBeDisabled();
+    expect(screen.getByText(/AI 기능 사용 🔒/)).toBeInTheDocument();
+  });
+});

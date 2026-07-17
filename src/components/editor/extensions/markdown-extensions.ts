@@ -17,6 +17,7 @@ import { createAiGhostText } from './ai-ghost-text';
 import { createAiSelectionToolbar } from './ai-selection-toolbar';
 import { createAiSuggestionCard, getAiLoggedIn, openOnboarding } from './ai-suggestion-card';
 import { useUIStore } from '@/store/uiStore';
+import { getEffectiveAiEnabled } from '@/store/aiPolicy';
 
 // @MX:ANCHOR: [AUTO] cursorCompartment - dynamic cursor theme swapped on dark/light mode change
 // @MX:REASON: [AUTO] CSS variable cascade is unreliable with CodeMirror scoped themes; Compartment is the canonical CM6 approach (fan_in >= 2)
@@ -123,10 +124,12 @@ export function createMarkdownExtensions(): Extension[] {
 
     // AI 선택 툴바 (SPEC-AI-001 T-012): 선택 시 선택 끝에 ✨ 버튼. 로그인/고급모델은 런타임 조회
     // (getAiLoggedIn 캐시 + uiStore.aiAdvancedModel), 미로그인 클릭은 온보딩(설정)으로 유도.
+    // enabled(=effectiveAiEnabled)는 SPEC-AI-005 REQ-AI5-013 공통 게이트의 단일 배선 지점이다.
     createAiSelectionToolbar({
       getUiState: () => ({
         loggedIn: getAiLoggedIn(),
         advancedModel: useUIStore.getState().aiAdvancedModel === true,
+        enabled: getEffectiveAiEnabled(),
       }),
       onConnectNeeded: () => openOnboarding(),
     }),

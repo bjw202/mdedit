@@ -198,6 +198,40 @@ describe('uiStore: scrollSyncEnabled', () => {
   });
 });
 
+describe('uiStore: aiEnabled (SPEC-AI-005)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ aiEnabled: true });
+    localStorage.removeItem('mdedit-ui-store');
+  });
+
+  it('should default aiEnabled to true for an unset user (REQ-AI5-001)', () => {
+    expect(useUIStore.getState().aiEnabled).toBe(true);
+  });
+
+  it('should set aiEnabled to false via setAiEnabled', () => {
+    const { setAiEnabled } = useUIStore.getState();
+    act(() => setAiEnabled(false));
+    expect(useUIStore.getState().aiEnabled).toBe(false);
+  });
+
+  it('should set aiEnabled back to true via setAiEnabled', () => {
+    useUIStore.setState({ aiEnabled: false });
+    const { setAiEnabled } = useUIStore.getState();
+    act(() => setAiEnabled(true));
+    expect(useUIStore.getState().aiEnabled).toBe(true);
+  });
+
+  it('should persist aiEnabled to localStorage (round-trip, REQ-AI5-002)', () => {
+    const { setAiEnabled } = useUIStore.getState();
+    act(() => setAiEnabled(false));
+
+    const raw = localStorage.getItem('mdedit-ui-store');
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw as string);
+    expect(persisted.state.aiEnabled).toBe(false);
+  });
+});
+
 describe('uiStore: statusMessage (SPEC-UI-005)', () => {
   afterEach(() => {
     // 보류 중인 auto-clear 타이머 정리 (module-level ref 누적 방지)

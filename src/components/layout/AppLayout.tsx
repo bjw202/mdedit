@@ -4,10 +4,12 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUIStore } from '@/store/uiStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useFileStore } from '@/store/fileStore';
-import { writeFile, saveFileAs as saveFileAsIpc, aiDetectProviders } from '@/lib/tauri/ipc';
+import { writeFile, saveFileAs as saveFileAsIpc, aiDetectProviders, aiPolicyStatus } from '@/lib/tauri/ipc';
 import { useAiRelay } from '@/hooks/useAiRelay';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { setAiLoggedIn, registerOnboardingOpener } from '@/components/editor/extensions/ai-suggestion-card';
+import { setAiPolicyDisabled } from '@/store/aiPolicy';
+import { initAiToggleEffects } from '@/lib/ai/aiOffEffects';
 import { exportToHtml } from '@/lib/export/exportHtml';
 import { exportToPdf } from '@/lib/export/exportPdf';
 import { exportToDocx } from '@/lib/export/exportDocx';
@@ -43,19 +45,27 @@ export function AppLayout(): JSX.Element {
     return () => registerOnboardingOpener(null);
   }, []);
 
-  // 시작 시 로그인 상태를 1회 감지해 캐시한다 — ✨ "연결 필요" 게이팅의 소스(REQ-AI-012/015).
+  // 시작 시 로그인·정책 상태를 1회 감지해 캐시한다 — ✨ "연결 필요" 게이팅의 소스(REQ-AI-012/015)이자
+  // SPEC-AI-005 effectiveAiEnabled(REQ-AI5-013/014)의 정책 절반이다(getAiLoggedIn 세팅 지점 옆).
   useEffect(() => {
     let cancelled = false;
-    void aiDetectProviders()
-      .then((providers) => {
+    void Promise.all([aiDetectProviders(), aiPolicyStatus()])
+      .then(([providers, policy]) => {
         if (cancelled) return;
         const claude = providers.find((p) => p.id === 'claude');
         setAiLoggedIn(claude?.loggedIn ?? false);
+        setAiPolicyDisabled(policy.disabled);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // SPEC-AI-005 REQ-AI5-011: aiEnabled ON→OFF 전이를 앱 수명 동안 관찰해 in-flight 취소 +
+  // 고스트/카드 정리를 수행한다. 마운트 1회 등록, 언마운트 시 해제.
+  useEffect(() => {
+    return initAiToggleEffects();
   }, []);
 
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);

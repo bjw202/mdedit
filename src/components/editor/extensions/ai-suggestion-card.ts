@@ -909,6 +909,10 @@ let activeView: EditorView | null = null;
 export function setActiveEditorView(view: EditorView | null): void {
   activeView = view;
 }
+/** 현재 등록된 활성 EditorView(SPEC-AI-005 OFF 부수효과가 고스트 정리 dispatch 에 재사용). */
+export function getActiveEditorView(): EditorView | null {
+  return activeView;
+}
 
 /** startSuggestionCard 입력 — ✨ 툴바가 발행하는 AiSelectionRequest 와 구조적으로 호환. */
 export interface StartCardRequest {

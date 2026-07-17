@@ -49,6 +49,11 @@ interface UIState {
   aiNoticeAcknowledged: boolean;
   /** AI "고급 모델" 토글 — true 면 sonnet, false 면 haiku (SPEC-AI-001 REQ-AI-016). 영속화 대상. */
   aiAdvancedModel: boolean;
+  /**
+   * AI 기능 사용자 켜기/끄기 토글 — 꺼지면 ✨ 툴바·힌트·Mod+Enter 신규 트리거가 전부 숨겨진다
+   * (SPEC-AI-005 REQ-AI5-001). 최초값(미설정 사용자)은 켜짐(true). 영속화 대상.
+   */
+  aiEnabled: boolean;
   // Actions
   setSidebarWidth: (width: number) => void;
   setPreviewWidth: (width: number) => void;
@@ -72,6 +77,8 @@ interface UIState {
   setAiNoticeAcknowledged: (acknowledged: boolean) => void;
   /** AI 고급 모델(sonnet) 사용 여부를 설정한다 (SPEC-AI-001 REQ-AI-016). */
   setAiAdvancedModel: (enabled: boolean) => void;
+  /** AI 기능 사용자 켜기/끄기 토글을 설정한다 (SPEC-AI-005 REQ-AI5-001/006). */
+  setAiEnabled: (enabled: boolean) => void;
 }
 
 // @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth clamped to [20, 80]% to prevent layout breakage
@@ -93,6 +100,7 @@ export const useUIStore = create<UIState>()(
       statusMessage: null,
       aiNoticeAcknowledged: false,
       aiAdvancedModel: false,
+      aiEnabled: true,
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
       setPreviewWidth: (width: number) =>
@@ -128,6 +136,7 @@ export const useUIStore = create<UIState>()(
       },
       setAiNoticeAcknowledged: (acknowledged: boolean) => set({ aiNoticeAcknowledged: acknowledged }),
       setAiAdvancedModel: (enabled: boolean) => set({ aiAdvancedModel: enabled }),
+      setAiEnabled: (enabled: boolean) => set({ aiEnabled: enabled }),
     }),
     {
       name: 'mdedit-ui-store',
