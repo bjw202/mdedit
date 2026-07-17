@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-005
-version: "0.1.0"
-status: draft
+version: "0.1.1"
+status: completed
 created: "2026-07-17"
 updated: "2026-07-17"
 author: "jw"
@@ -24,6 +24,7 @@ lifecycle: spec-anchored
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2026-07-17 | jw | 최초 SPEC 작성 — AI 기능 사용자 켜기/끄기 토글. 사용자가 설정 모달에서 AI 표면 전체를 켜고 끌 수 있는 영속 토글. 꺼짐 = ✨·힌트·Mod+Enter 신규 트리거 전부 비활성 + 진행 중 요청 즉시 취소. 정책 잠금(REQ-AI-017)이 사용자 토글에 우선. research.md 확정 사실 6건 반영, 설계 결정 D1~D5 확정(plan.md Decision Log). TDD RED-first. |
+| 0.1.1 | 2026-07-17 | jw | as-implemented — REQ-AI5-001~015 전 요구사항 구현·전 게이트 그린(vitest 962, cargo pass, clippy/tsc clean, e2e webkit pass). 배선 편차 1건: 공유 설정 표면이 없어 `enabled`를 `AiToolbarUiState`의 선택 필드로 얹고, `ai-ghost-text.ts`는 `getUiState()` 단일 필드 대신 `getEffectiveAiEnabled()`를 직접 import — 동작 계약(REQ-AI5-013 effective 계산)은 무변경. |
 
 ## Summary
 
