@@ -39,7 +39,7 @@ SPEC-AI-003 완료 후 실 CLI 시뮬레이션에서 확정된 프롬프트 품�
 
 | 테스트(prompt.rs) | 현행 단언 | 개정 | REQ 대응 |
 |---|---|---|---|
-| `continue_prompt_omits_after_instruction_when_after_empty`(:570-575) | `assert_eq!(system_prompt, Continue.system_prompt())` + `!contains("금지")` | `assert_eq!`는 유지(양변 동시 변경). `!contains("금지")`는 D-D 분량 지시가 base에 "금지" 어휘를 넣으면 파손 → **뒤 문맥 관련 금지 부재**로 특정: `!contains("뒤 문맥")` (또는 `!contains("반복하거나 선점")`). 의도(빈 after 시 뒤 문맥 조건부 지시 부재)는 보존. | REQ-AI4-005, 006 |
+| `continue_prompt_omits_after_instruction_when_after_empty`(:570-575) | `assert_eq!(system_prompt, Continue.system_prompt())` + `!contains("금지")` | `assert_eq!`는 유지(양변 동시 변경). `!contains("금지")`는 지시문 어휘 선택("금지" vs "말라")에 결합된 취약 단언 → 테스트 의도인 **뒤 문맥 조건부 지시 부재**로 직접 특정: `!contains("뒤 문맥")`. (As-implemented: 최종 문구가 "말라"체라 구 단언도 통과했음 — 개정 목적은 파손 회피가 아니라 견고화. evaluator 지적 반영) | REQ-AI4-005, 006 |
 
 열거 밖 테스트는 무개정 통과가 계약이다. 특히:
 - `diagram_prompt_forbids_markdown_fence_output`(:410-426) — D-C 양성 예시가 `!contains("코드펜스로 감싸")`를 깨지 않도록 "백틱"·"키워드로 시작" 어휘 사용.
@@ -106,7 +106,7 @@ prompt.rs 기존 테스트는 대부분 `contains` 단언이라 무영향 예상
 |--------|------|
 | haiku 확률성(프롬프트 지시만으론 결정론 불가) | D2 이원 기준 + D-C 결정적 스트립 병행 |
 | `stripMermaidFence` 과일반화로 일반 코드블록 오벗김 | 호출이 `handleDiagramComplete`(presetKind==='diagram') 전용이라 대상이 다이어그램 응답뿐 — 오작동 표면 없음. @MX:NOTE로 스코프 명시 |
-| D-D "금지" 어휘가 `:570-575` 테스트 파손 | D6 개정 열거 — `!contains("뒤 문맥")`으로 특정 |
+| `:570-575` 단언이 지시문 어휘에 결합(취약) | D6 개정 열거 — `!contains("뒤 문맥")`으로 의도 특정(견고화) |
 | D-C 양성 예시가 `:410-426` 펜스 금지 단언과 충돌 | "백틱"·"키워드로 시작" 어휘로 `코드펜스로 감싸` 문자열 미도입 |
 | D-A 가드가 FillSection/Continue 오염 | `build_inline_prompt` 단일 지점 주입 — Continue/FillSection은 별도 함수라 무영향 |
 | 본문 리라이팅 유입(무손상 위반) | 스트립은 펜스 마커만, 내부 코드 무변경 — 기존 계약 유지 명시 |

@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-004
-version: "0.1.0"
-status: draft
+version: "0.2.0"
+status: completed
 created: "2026-07-17"
 updated: "2026-07-17"
 author: "jw"
@@ -25,6 +25,7 @@ lifecycle: spec-anchored
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2026-07-17 | jw | 최초 SPEC 작성 — 실 CLI 시뮬레이션(SPEC-AI-003 manual-verification.md)에서 확정된 프롬프트 품질 결함 4종 핫픽스. D-A 인라인 문맥 흡수(build_inline_prompt 가드), D-B 앞 꼬리 재복창(Continue base 재조준), D-C mermaid 펜스 재발(프롬프트 양성 예시 + stripMermaidFence 정규식 일반화), D-D 이어쓰기 과잉 생성(분량·형식 상한). 결정 D1~D6 확정(plan.md Decision Log), REQ-AI4-001~012, AC-AI4-001~010. TDD RED-first. |
+| 0.2.0 | 2026-07-17 | jw | 구현 완료 — Implementation Notes 추가, status completed |
 
 ## Summary
 
@@ -165,3 +166,33 @@ code_comments = ko (`language.yaml`). `@MX:SPEC: SPEC-AI-004` 공통 부착. 신
 - **s05형 사실 날조 대응** — 섹션 채우기의 세부 날조(manual-verification s05)는 별도 과제, 본 SPEC 범위 밖.
 - **신규 런타임 의존성** — npm/cargo 추가 없음.
 - **per-preset 문맥 가드 분산·COMMON_INSTRUCTION 전역 수정** — 단일 조립 지점 원칙(D4) 위반이라 금지.
+
+## Implementation Notes
+
+### 변경 파일 (3개)
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `src-tauri/src/ai/prompt.rs` | 지시문 3종 수정 — (1) `build_inline_prompt` user-prompt 선두 문맥 가드(D-A, 문맥 ≥1일 때만), (2) `AiFeature::Continue.system_prompt()` base에 재복창 금지(D-B) + 온건 분량·형식 상한(D-D), (3) `AiFeature::Diagram.system_prompt()` 출력 양성 예시 1줄(D-C). 신규 유닛 테스트 8개 추가 |
+| `src/components/editor/extensions/ai-suggestion-card.ts` | `stripMermaidFence` 정규식 일반화(D-C) — 무태그(` ``` `)·타 태그(` ```mmd ` 등) 펜스까지 매칭해 마커만 제거, 본문 리라이팅 없음 |
+| `src/test/aiSuggestionCard.test.ts` | `stripMermaidFence` describe에 무태그·타 태그·태그 뒤 공백 케이스 2건 추가(기존 3케이스 무개정) |
+
+### D6 테스트 개정 (1건)
+
+`prompt.rs:570-575` `continue_prompt_omits_after_instruction_when_after_empty` — 지시 의도 변경(D-B 조준이 뒤 문맥에서 직전 본문으로 확장)에 따라 개정. 사유는 견고화: evaluator 지적으로 개정 근거 서술이 정정됨(단순 문구 변경이 아니라 조준 확장의 논리적 귀결임을 명시).
+
+### 실 CLI 재검증 결과 (D2, manual-verification.md 참조)
+
+- 결함 5종(s07/s09/s10/s11/s02) × 3회 재실행 — **전부 0/3 재현**(치명 결함 결정론 기준·품질 결함 확률 기준 모두 충족)
+- 통과 5종(s01/s03/s04/s06/s08) × 1회 교차 오염 검사 — **5/5 퇴행 없음**
+- D2 최종 판정: **PASS**(AC-AI4-009, AC-AI4-010 PASS)
+
+### 잔존 관찰 (1건, 후속 후보)
+
+s10.r3에서 [뒤 문맥]의 StateField/StateEffect/vitest/Playwright가 점선 노드로 다이어그램에 흡수(1/3). D-C 고정 판정 기준(mermaid 키워드 시작·백틱 0·사족 0)에는 영향 없어 PASS 판정을 유지했으나, 인라인 diagram의 문맥 흡수(D-A 인접 현상)가 가드에도 확률적으로 잔존함을 기록. 판정 기준 외 항목이므로 본 SPEC 범위 밖 — 후속 SPEC 후보.
+
+### 게이트 수치
+
+- vitest 939 통과
+- cargo test 235 통과
+- 실 CLI D2 PASS (결함 5종 0/3 재현, 통과 5종 무퇴행)
