@@ -1,0 +1,4 @@
+node_modules/
+out/*
+!out/.gitkeep
+.DS_Store
