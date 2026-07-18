@@ -64,16 +64,35 @@ describe('uiStore', () => {
     expect(useUIStore.getState().fontSize).toBe(24);
   });
 
-  it('should enforce minimum preview width', () => {
+  // BUG-1: 퍼센트 [20,80] 벽을 걷어냈다. 최소 패널 폭은 px 기준으로 드래그 시점
+  // (ResizablePanels.clampPreviewPercent)에서 적용하고, store 는 방어적 절대 경계만 유지한다.
+  it('should accept preview widths below the former 20% floor', () => {
     const { setPreviewWidth } = useUIStore.getState();
     act(() => setPreviewWidth(10));
-    expect(useUIStore.getState().previewWidth).toBe(20);
+    expect(useUIStore.getState().previewWidth).toBe(10);
   });
 
-  it('should enforce maximum preview width', () => {
+  it('should accept preview widths above the former 80% ceiling', () => {
     const { setPreviewWidth } = useUIStore.getState();
     act(() => setPreviewWidth(90));
-    expect(useUIStore.getState().previewWidth).toBe(80);
+    expect(useUIStore.getState().previewWidth).toBe(90);
+  });
+
+  it('should clamp preview width to the absolute [0, 100] range', () => {
+    const { setPreviewWidth } = useUIStore.getState();
+    act(() => setPreviewWidth(-5));
+    expect(useUIStore.getState().previewWidth).toBe(0);
+    act(() => setPreviewWidth(120));
+    expect(useUIStore.getState().previewWidth).toBe(100);
+  });
+
+  it('should ignore non-finite preview widths', () => {
+    const { setPreviewWidth } = useUIStore.getState();
+    act(() => setPreviewWidth(42));
+    act(() => setPreviewWidth(Number.NaN));
+    expect(useUIStore.getState().previewWidth).toBe(42);
+    act(() => setPreviewWidth(Number.POSITIVE_INFINITY));
+    expect(useUIStore.getState().previewWidth).toBe(42);
   });
 });
 
