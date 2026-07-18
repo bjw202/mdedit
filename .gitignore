@@ -219,3 +219,13 @@ src-tauri/WixTools/
 src-tauri/gen/
 playwright-report/
 test-results/
+
+# MoAI 런타임 상태 (세션마다 생성/변경 — 공유 대상 아님)
+# state/ 는 통째로 무시하고 공유가 필요한 파일만 되살린다. 세션 중에도 새 런타임
+# 파일이 생기므로(harness/, lessons-inbox.jsonl 등) 개별 나열보다 안전하다.
+# 주의: 앞으로 .moai/state/ 에 공유해야 할 파일이 생기면 아래에 ! 로 명시해야 한다.
+.moai/state/*
+!.moai/state/.gitkeep
+!.moai/state/session-memo.md
+.moai/harness/
+.moai/lessons-inbox.jsonl
