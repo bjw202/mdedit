@@ -474,7 +474,7 @@
 .mdedit-ai-cancel:focus-visible, .mdedit-ai-advanced:focus-visible, .mdedit-ai-list-fallback:focus-visible {
   outline: 2px solid var(--md-accent); outline-offset: 1px;
 }
-/* primary apply ([바꾸기]) + 목록 폴백 = accent-filled call to action */
+/* primary apply(프리셋별로 [바꾸기] 또는 [아래에 삽입]) + 목록 폴백 = accent-filled call to action */
 .mdedit-ai-apply.is-primary, .mdedit-ai-list-fallback {
   color: var(--md-accent-contrast); background: var(--md-accent); border-color: var(--md-accent);
 }
