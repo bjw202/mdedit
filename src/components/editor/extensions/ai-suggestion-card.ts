@@ -121,28 +121,29 @@ export type ApplyMode = 'replace' | 'insert-below';
 export interface CardActions {
   /** 렌더할 적용 버튼 종류. */
   modes: ApplyMode[];
-  /** 기본 포커스 버튼. */
+  /** 강조(accent) 표시할 기본 동작. 실제 키보드 포커스나 Enter 단축키는 없다 — 시각 안내 전용. */
   primary: ApplyMode;
 }
 
-/** 변환 계열 중 항상 "아래에 삽입" 전용인 프리셋(원문 파괴 방지, 설계 §4.2 C). */
-const INSERT_ONLY_PRESETS: readonly AiPresetKind[] = ['table', 'diagram'];
+/** 변환 계열 중 "아래에 삽입"을 기본 동작으로 강조하는 프리셋(원문 보존이 기대값, 설계 §4.2 C). */
+const INSERT_FIRST_PRESETS: readonly AiPresetKind[] = ['table', 'diagram'];
 
 /**
  * 프리셋 + 길이 가드(insertOnly)로 카드 적용 버튼을 결정한다(설계 §4.2 C, §4.4).
  * - insertOnly(2K~4K 변환) → 아래에 삽입 전용, 바꾸기 숨김(REQ-AI-026).
- * - 표/다이어그램 → 항상 아래에 삽입(원문 파괴 방지).
- * - 개요로 정리 → 바꾸기 + 아래에 삽입 병행(기본 포커스 바꾸기).
- * - 다듬기/짧게/직접 입력 → 제자리 바꾸기.
+ *   긴 선택에서는 AI 가 원문 일부만 보고 답하므로, 바꾸기를 허용하면 보지 못한 나머지가
+ *   조용히 사라진다. 이 분기만은 선택권을 주지 않는다.
+ * - 그 외 전부 → 바꾸기 + 아래에 삽입 병행. 어느 쪽을 쓸지는 사용자가 고른다.
+ * - 기본 포커스만 계열별로 다르다: 표/다이어그램은 아래에 삽입, 나머지는 바꾸기.
  */
 export function deriveCardActions(presetKind: AiPresetKind, insertOnly: boolean): CardActions {
-  if (insertOnly || INSERT_ONLY_PRESETS.includes(presetKind)) {
+  if (insertOnly) {
     return { modes: ['insert-below'], primary: 'insert-below' };
   }
-  if (presetKind === 'outline') {
-    return { modes: ['replace', 'insert-below'], primary: 'replace' };
-  }
-  return { modes: ['replace'], primary: 'replace' };
+  return {
+    modes: ['replace', 'insert-below'],
+    primary: INSERT_FIRST_PRESETS.includes(presetKind) ? 'insert-below' : 'replace',
+  };
 }
 
 // ============================================================
@@ -216,7 +217,7 @@ function makeButton(className: string, label: string): HTMLButtonElement {
   return btn;
 }
 
-/** 적용 버튼 행(actions.modes 순서대로). primary 에 focus 클래스 부여. */
+/** 적용 버튼 행(actions.modes 순서대로). primary 에 .is-primary(accent 채움) 부여 — 포커스는 주지 않는다. */
 function renderApplyButtons(input: RenderCardInput): HTMLElement {
   const row = document.createElement('div');
   row.className = 'mdedit-ai-card-actions';
