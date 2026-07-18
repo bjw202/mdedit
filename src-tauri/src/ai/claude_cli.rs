@@ -66,8 +66,18 @@ pub enum RelayOutcome {
 
 /// 모델·시스템·사용자 프롬프트로 claude 실행 인자를 조립한다(순수).
 ///
-/// 격리 플래그: `--output-format stream-json --include-partial-messages --verbose --setting-sources ""`.
+/// 격리 플래그: `--output-format stream-json --include-partial-messages --verbose
+/// --setting-sources "" --tools ""`.
 /// (`MAX_THINKING_TOKENS=0` env는 `spawn_claude`에서 설정)
+//
+// @MX:ANCHOR: [AUTO] `--tools ""` — 내장 도구 전면 비활성화 계약
+// @MX:REASON: [AUTO] 이 앱의 AI 기능(인라인 편집·고스트 텍스트·다이어그램)은 전부 순수 텍스트
+//   변환이라 도구가 하나도 필요 없다. 이 플래그가 없으면 CLI 기본 도구 집합이 그대로 살아있고,
+//   격리는 오직 "빈 스크래치 cwd 라서 찾을 게 없다"는 정황에만 의존한다 — 실측으로 확인했다:
+//   플래그 없이 파일이 있는 디렉토리에서 돌리면 Read 도구가 실제로 동작해 내용을 반환하고,
+//   `--tools ""` 를 주면 차단된다. 따라서 cwd 를 바꾸는 기능(금고 조회 등)이 나중에 추가되면
+//   이 한 줄이 유일한 방어선이 된다. 도구가 필요한 기능을 만들 때도 여기를 비우지 말고
+//   필요한 도구만 명시적으로 나열할 것.
 pub fn build_claude_args(model: AiModel, system_prompt: &str, user_prompt: &str) -> Vec<String> {
     vec![
         "-p".to_string(),
@@ -81,6 +91,8 @@ pub fn build_claude_args(model: AiModel, system_prompt: &str, user_prompt: &str)
         "--include-partial-messages".to_string(),
         "--verbose".to_string(),
         "--setting-sources".to_string(),
+        String::new(),
+        "--tools".to_string(),
         String::new(),
     ]
 }
@@ -317,6 +329,18 @@ mod tests {
         let idx = args.iter().position(|a| a == "--setting-sources").unwrap();
         assert_eq!(args[idx + 1], "");
         let _ = joined;
+    }
+
+    #[test]
+    fn args_disable_all_builtin_tools() {
+        // 도구 전면 비활성화(`--tools ""`)는 격리 계약의 일부다. 이 단언이 깨지면 CLI 기본
+        // 도구 집합이 되살아나고, 격리가 "빈 cwd" 정황에만 의존하게 된다.
+        let args = build_claude_args(AiModel::Haiku, "sys", "user");
+        let idx = args
+            .iter()
+            .position(|a| a == "--tools")
+            .expect("--tools 플래그가 있어야 한다");
+        assert_eq!(args[idx + 1], "", "--tools 뒤에는 빈 문자열이 와야 한다");
     }
 
     #[test]
