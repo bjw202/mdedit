@@ -16,6 +16,7 @@ import { useAiStore } from '@/store/aiStore';
 import type { AiErrorKind } from '@/store/aiStore';
 import { buildFallbackDecision, validateMermaid, MERMAID_STRICT_CONFIG } from '@/lib/ai/mermaidValidate';
 import type { MermaidValidationResult } from '@/lib/ai/mermaidValidate';
+import { validateMarkdownTable } from '@/lib/ai/tableValidate';
 import { WAIT_NOTICE_DELAY_MS, WAIT_NOTICE_TEXT } from '@/lib/ai/waitNotice';
 
 // ============================================================
@@ -149,6 +150,12 @@ export function deriveCardActions(presetKind: AiPresetKind, insertOnly: boolean)
 // ============================================================
 // Diagram outcome (pure) — REQ-AI-023/024
 // ============================================================
+
+/**
+ * 표 검증 경로에 들어갈 수 있는 최대 onComplete 횟수(1회차 검증 + 재요청 응답 1회차 검증).
+ * 이 상한을 넘으면 검증 없이 일반 complete 로 통과시킨다 — 재요청 무한 루프(BUG-6) 차단.
+ */
+export const TABLE_MAX_VALIDATION_ATTEMPTS = 2;
 
 export type DiagramOutcome =
   | { kind: 'valid'; code: string }
@@ -770,6 +777,7 @@ export class AiSuggestionCardController {
   private state: CardState = { phase: 'streaming', suggestion: '', retryCount: 0 };
   private streamBuffer = '';
   private diagramAttempts = 0;
+  private tableAttempts = 0;
   // BUG-6: '✓ 목록으로'가 눌리면 이 카드는 더 이상 mermaid 검증 경로를 타면 안 된다 — 재요청
   // 응답이 목록(일반 텍스트)이지 다이어그램이 아니기 때문이다. model.presetKind 는 'diagram'
   // 으로 고정해 두고(적용 버튼 배치 등 기존 계약 유지), 완료 처리/펜스 삽입만 이 플래그로 우회한다.
@@ -842,12 +850,37 @@ export class AiSuggestionCardController {
       void this.handleDiagramComplete(finalText);
       return;
     }
+    // 표도 삽입 전 구조 검증 후 자동 1회 재요청으로 분기(다이어그램과 대칭, 단 목록 폴백은 없다).
+    if (this.model.presetKind === 'table' && this.tableAttempts < TABLE_MAX_VALIDATION_ATTEMPTS) {
+      if (this.handleTableComplete(finalText)) return;
+    }
     this.commit({
       type: 'complete',
       finalText,
       original: this.model.originalText,
       truncated: opts?.truncated,
     });
+  }
+
+  // @MX:ANCHOR: [AUTO] handleTableComplete — 표 검증 경로의 상한(BUG-6 재발 방지)
+  // @MX:REASON: [AUTO] 다이어그램에서 실기기 무한 루프(BUG-6)가 났던 이유는 재요청 응답이
+  //   다시 같은 검증 분기로 되돌아올 길이 있었기 때문이다. 표 경로는 두 겹으로 잠근다:
+  //   (1) onComplete 의 tableAttempts < TABLE_MAX_VALIDATION_ATTEMPTS 게이트,
+  //   (2) 아래 attempts <= 1 조건. 상한에 닿으면 false 를 돌려 일반 complete 로 떨어지며,
+  //   tableAttempts 는 감소하지 않으므로 검증으로 되돌아갈 경로가 존재하지 않는다.
+  /**
+   * 표 검증 1회 수행. 재요청을 발행했으면 true(호출부는 즉시 return), 아니면 false 를 돌려
+   * 일반 complete 경로로 넘긴다 — 재시도 상한을 넘긴 무효 표는 사용자가 직접 보고 판단한다.
+   */
+  private handleTableComplete(text: string): boolean {
+    this.tableAttempts += 1;
+    const validation = validateMarkdownTable(text);
+    if (validation.valid) return false;
+    if (this.tableAttempts > 1) return false;
+    // 1회차 실패만 오류를 동봉해 자동 재요청. 발행은 wiring 콜백이 담당(다이어그램과 동일 채널).
+    this.commit({ type: 'stream' });
+    this.callbacks.onReRequest(`이전 오류: ${validation.error}`, this.model.model);
+    return true;
   }
 
   private async handleDiagramComplete(code: string): Promise<void> {
