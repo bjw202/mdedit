@@ -5,18 +5,15 @@ import { colors, font } from '../tokens';
 export const S0_DURATION_IN_FRAMES = 240; // ~8s @ 30fps
 
 // F3: the AI appendix is a surprise (revealed in S3a's hero reveal) — the
-// opening must NOT name it. Two real chapter chips + one "mystery" chip.
+// opening must NOT name or hint at it. Two real chapter chips only.
 const CHAPTERS = ['마크다운 기초', '화면 사용법'];
-const MYSTERY_CHIP = '？';
 
 function ChapterChip({
   label,
   appearFrame,
-  mystery = false,
 }: {
   label: string;
   appearFrame: number;
-  mystery?: boolean;
 }): JSX.Element {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -36,12 +33,11 @@ function ChapterChip({
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: mystery ? '14px 24px' : '14px 28px',
-        minWidth: mystery ? 60 : undefined,
+        padding: '14px 28px',
         borderRadius: 999,
-        background: mystery ? 'transparent' : colors.accentSoft,
-        border: mystery ? `1px dashed ${colors.textFaint}` : `1px solid ${colors.accent}`,
-        color: mystery ? colors.textFaint : colors.accentActive,
+        background: colors.accentSoft,
+        border: `1px solid ${colors.accent}`,
+        color: colors.accentActive,
         fontFamily: font.ui,
         fontWeight: 600,
         fontSize: 22,
@@ -122,12 +118,6 @@ export function S0Intro(): JSX.Element {
           {CHAPTERS.map((label, i) => (
             <ChapterChip key={label} label={label} appearFrame={chipStart + i * chipStagger} />
           ))}
-          <ChapterChip
-            key="mystery"
-            label={MYSTERY_CHIP}
-            appearFrame={chipStart + CHAPTERS.length * chipStagger}
-            mystery
-          />
         </div>
       </div>
     </AbsoluteFill>
