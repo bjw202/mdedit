@@ -17,6 +17,10 @@ const CONTINUE_HEAD_MAX: usize = 1500;
 const COMMON_INSTRUCTION: &str =
     "결과 텍스트만 출력하라. 설명·인사·사족을 붙이지 말라. 마크다운 코드펜스는 요청받은 경우에만 사용하라.";
 
+// @MX:NOTE: [AUTO] SPEC-AI-004 D-A(문맥 흡수)는 SPEC-AI-006 의 INLINE_SCOPE 가 대체했다. D-A 가
+// 쓰던 INLINE_CONTEXT_GUARD(문맥이 있을 때만 user_prompt 에 조건부 삽입)는 이 상수의 부분집합이며,
+// INLINE_SCOPE 는 6기능에 상시 부착되고 입력 언어 유지까지 담당한다. 가드를 되살리지 말 것 —
+// 같은 지시가 두 번 실리면 프롬프트만 길어진다.
 // @MX:NOTE: [AUTO] INLINE_SCOPE - 인라인 6기능(polish/outline/table/diagram/shorten/custom) 균일
 // 대상-스코핑 + 입력-언어-유지 계약(SPEC-AI-006 REQ-AI6-001/002). build_inline_prompt 조립
 // 지점에서만 부착되며 COMMON_INSTRUCTION/AiFeature::Continue base 에는 절대 섞이지 않는다 —
@@ -98,7 +102,7 @@ impl AiFeature {
                 // BUG-3(b): 코드펜스로 감싸라고 지시하면 모델이 실제로 펜스를 씌워 응답하고,
                 // 프런트 사전 검증(mermaid.parse)이 펜스를 무효 문법으로 판정해 불필요한 자동
                 // 재요청을 유발한다. 순수 mermaid 문법만, 펜스·설명 없이 출력하도록 명시한다.
-                "주어진 절차·관계 설명을 mermaid 다이어그램으로 변환하라. 순수 mermaid 문법 코드만 출력하고, ```mermaid 코드펜스나 다른 설명 문구 없이 다이어그램 코드만 그대로 출력하라."
+                "주어진 절차·관계 설명을 mermaid 다이어그램으로 변환하라. 순수 mermaid 문법 코드만 출력하고, ```mermaid 코드펜스나 다른 설명 문구 없이 다이어그램 코드만 그대로 출력하라. 출력은 graph·flowchart·sequenceDiagram 등 mermaid 키워드로 시작해야 하며, 백틱 문자는 한 글자도 포함하지 말라."
             }
             AiFeature::Shorten => {
                 "주어진 텍스트에서 핵심만 남겨 짧게 줄여라. 중요한 정보는 잃지 말라."
@@ -109,8 +113,13 @@ impl AiFeature {
             AiFeature::FillSection => {
                 "너는 문서 작성 보조자다. 문서의 어조와 종결어미를 그대로 이어받아 지정된 섹션의 초안을 작성하라. 문서 개요와 직전 본문의 맥락에 맞는 내용을 채워라."
             }
+            // @MX:NOTE: [AUTO] SPEC-AI-004 D-B/D-D — base 재조준(재복창 금지) + 온건 분량 상한
+            // 실 CLI 재현(s11 리스트 이어쓰기): SPEC-AI-003 조건부 지시(:234-243 아래, 뒤 문맥
+            // 반복·선점 금지)는 뒤 문맥만 조준해, 커서 "앞" 직전 본문 꼬리의 재출력은 막지 못했다.
+            // base 한 곳에 재복창 금지(D-B)와 온건형 분량·형식 상한(D-D)을 함께 넣어 doc-end·
+            // 자유 위치 양쪽에 자동 상속시킨다(REQ-AI4-004~007).
             AiFeature::Continue => {
-                "너는 문서 작성 보조자다. 문서의 어조와 종결어미를 그대로 이어받아 직전 본문에 자연스럽게 이어지는 다음 내용을 작성하라. 문서 개요와 직전 본문의 맥락에서 벗어나지 말라."
+                "너는 문서 작성 보조자다. 문서의 어조와 종결어미를 그대로 이어받아 직전 본문에 자연스럽게 이어지는 다음 내용을 작성하라. 문서 개요와 직전 본문의 맥락에서 벗어나지 말라. 이미 작성된 직전 본문을 다시 출력하거나 반복하지 말고, 끊긴 지점 바로 다음부터 새 텍스트만 이어서 작성하라. 분량은 한두 문단 이내로 하고, 직전 본문에 없던 코드 블록·표·목차 같은 새로운 형식을 임의로 도입하지 말라."
             }
         };
         format!("{}\n\n{}", task, COMMON_INSTRUCTION)
@@ -469,6 +478,16 @@ mod tests {
         );
     }
 
+    // --- SPEC-AI-004: Diagram 양성 예시(D-C) ---
+
+    #[test]
+    fn diagram_prompt_has_positive_output_example() {
+        // D-C: 양성 예시("mermaid 키워드로 시작·백틱 미포함") — 기존 :410-426 부정 지시와 무충돌.
+        let sys = AiFeature::Diagram.system_prompt();
+        assert!(sys.contains("키워드로 시작") && sys.contains("백틱"));
+        assert!(!sys.contains("코드펜스로 감싸"));
+    }
+
     // --- truncation boundaries ---
 
     #[test]
@@ -551,6 +570,22 @@ mod tests {
         assert!(prompt.truncated);
     }
 
+    // --- SPEC-AI-004 D-A 는 SPEC-AI-006 INLINE_SCOPE 로 대체됨 ---
+    // 가드 존재를 단언하던 두 테스트(문맥 있을 때 삽입 / Custom 커버)는 제거했다. 대상 스코핑은
+    // 이제 system_prompt 의 INLINE_SCOPE 가 담당하며, 6기능 커버는
+    // inline_scope_clause_present_for_all_six_inline_features 가 검증한다.
+
+    #[test]
+    fn inline_prompt_without_context_is_target_only() {
+        // 문맥 0개면 user_prompt 는 [대상] 구획뿐 — 조립 결과 바이트 동일 회귀 방어.
+        let prompt = build_inline_prompt(&AiFeature::Polish, "대상", "", "");
+        assert_eq!(prompt.user_prompt, "[대상]\n대상");
+    }
+
+    // 프리셋 6종 커버리지와 이어쓰기·섹션 채우기 격리는 SPEC-AI-006 의
+    // inline_scope_clause_present_for_all_six_inline_features 가 동일하게 검증하므로,
+    // D-A 가드용 중복 루프 테스트는 제거했다.
+
     // --- section prompt assembly ---
 
     #[test]
@@ -613,9 +648,47 @@ mod tests {
 
     #[test]
     fn continue_prompt_omits_after_instruction_when_after_empty() {
+        // D6 개정(SPEC-AI-004): 구 단언 `!contains("금지")`는 지시문 어휘 선택("금지" vs "말라")에
+        // 결합돼 있어, 향후 base 문구 변경 시 오탐 위험이 있었다(실제 최종 문구는 "말라"체라 구 단언도
+        // 통과함 — 파손 회피가 아니라 견고화 목적). 단언을 테스트 의도인 "빈 after 시 뒤 문맥 조건부
+        // 지시 부재"에 직접 특정한다(뒤 문맥 지시는 has_after=true 전용).
         let prompt = build_continue_prompt("# 개요", "앞", "");
         assert_eq!(prompt.system_prompt, AiFeature::Continue.system_prompt());
-        assert!(!prompt.system_prompt.contains("금지"));
+        assert!(!prompt.system_prompt.contains("뒤 문맥"));
+    }
+
+    // --- SPEC-AI-004: Continue base 재조준(D-B 재복창 금지) + 분량 상한(D-D) ---
+
+    #[test]
+    fn continue_prompt_forbids_restating_existing_text() {
+        // D-B: 커서 앞 직전 본문 꼬리의 재출력을 금지하는 지시가 base에 있어야 한다.
+        let sys = AiFeature::Continue.system_prompt();
+        assert!(
+            sys.contains("다시 출력") || sys.contains("직전 본문을"),
+            "continue base must forbid restating the existing tail text: {}",
+            sys
+        );
+    }
+
+    #[test]
+    fn continue_prompt_bounds_generation_volume() {
+        // D-D: 온건형 분량·형식 상한 — "문단" 단위 상한 + 새 형식 임의 도입 금지.
+        let sys = AiFeature::Continue.system_prompt();
+        assert!(sys.contains("문단"), "continue base must bound paragraph volume: {}", sys);
+        assert!(
+            sys.contains("임의로"),
+            "continue base must forbid introducing new format arbitrarily: {}",
+            sys
+        );
+    }
+
+    #[test]
+    fn fill_section_prompt_has_no_continue_only_guards() {
+        // 격리: 이어쓰기 전용 재복창 금지·분량 상한 지시가 FillSection으로 새면 안 된다.
+        let sys = AiFeature::FillSection.system_prompt();
+        assert!(!sys.contains("다시 출력"));
+        assert!(!sys.contains("문단"));
+        assert!(!sys.contains("임의로"));
     }
 
     #[test]
