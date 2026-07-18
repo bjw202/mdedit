@@ -16,10 +16,31 @@ export interface SelectionGuardResult {
   reason?: string;
 }
 
-const EDIT_LIMIT = 2000;
-const TRANSFORM_LIMIT = 4000;
+export const EDIT_LIMIT = 2000;
+export const TRANSFORM_LIMIT = 4000;
 const EDIT_PRESETS: readonly AiPresetKind[] = ['polish', 'custom'];
-const TOO_LONG_REASON = '선택이 너무 길어요. 문단 단위로 나눠 선택해주세요.';
+
+/** 계열별 프리셋 이름 — 조사까지 포함한다(받침 유무가 달라 템플릿으로 못 붙인다). */
+const EDIT_PRESET_NAMES = '다듬기·직접 입력은';
+const TRANSFORM_PRESET_NAMES = '개요·표·다이어그램·짧게는';
+
+/** 1000 단위 쉼표. 5170 → "5,170" — 한도와 나란히 놓았을 때 자릿수 비교가 쉬워진다. */
+export function formatCharCount(n: number): string {
+  return n.toLocaleString('ko-KR');
+}
+
+/**
+ * 길이 초과 안내 문구를 만든다. 현재 글자 수와 해당 계열의 한도를 함께 보여주고,
+ * 왜 잘라서라도 처리하지 않는지까지 설명한다 — 숫자가 없으면 사용자는 무엇에 걸렸는지,
+ * 얼마나 줄여야 하는지 알 수 없다.
+ */
+function buildTooLongReason(selectionLength: number, limit: number, presetNames: string): string {
+  return (
+    `지금 ${formatCharCount(selectionLength)}자예요 — ${presetNames} ${formatCharCount(limit)}자까지만 돼요. ` +
+    '더 길면 AI가 일부만 읽고 답하게 되는데, 그 결과로 선택한 곳 전체를 바꾸면 못 읽은 부분이 조용히 사라져요. ' +
+    '그래서 잘라서 진행하지 않고 막아둡니다. 문단 단위로 나눠 선택해주세요.'
+  );
+}
 
 /**
  * 선택 길이와 프리셋 종류로 가드 결과를 판정한다(설계 §4.4).
@@ -38,12 +59,20 @@ export function evaluateSelectionGuard(
   }
 
   if (EDIT_PRESETS.includes(presetKind)) {
-    return { allowed: false, insertOnly: false, reason: TOO_LONG_REASON };
+    return {
+      allowed: false,
+      insertOnly: false,
+      reason: buildTooLongReason(selectionLength, EDIT_LIMIT, EDIT_PRESET_NAMES),
+    };
   }
 
   if (selectionLength <= TRANSFORM_LIMIT) {
     return { allowed: true, insertOnly: true };
   }
 
-  return { allowed: false, insertOnly: false, reason: TOO_LONG_REASON };
+  return {
+    allowed: false,
+    insertOnly: false,
+    reason: buildTooLongReason(selectionLength, TRANSFORM_LIMIT, TRANSFORM_PRESET_NAMES),
+  };
 }

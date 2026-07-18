@@ -248,10 +248,11 @@ describe('evaluateMenuNotice: guard-derived preset-menu notice bands (SPEC-AI-00
       '@/components/editor/extensions/ai-selection-toolbar'
     );
     const notice = evaluateMenuNotice(2001);
-    expect(notice).toEqual({
-      tone: 'partial',
-      text: '선택이 길어요 — 다듬기·직접 입력은 비활성이고, 변환은 결과를 「아래에 삽입」만 할 수 있어요.',
-    });
+    expect(notice?.tone).toBe('partial');
+    // 현재 글자 수와 편집 한도가 숫자로 보여야 한다(사용자가 얼마나 줄여야 할지 알 수 있게).
+    expect(notice?.text).toContain('2,001자');
+    expect(notice?.text).toContain('2,000자');
+    expect(notice?.text).toContain('아래에 삽입');
   });
 
   it('len=4000 (boundary, still insertOnly): returns partial tone', async () => {
@@ -272,7 +273,10 @@ describe('evaluateMenuNotice: guard-derived preset-menu notice bands (SPEC-AI-00
     const guardReason = evaluateSelectionGuard(4001, 'outline').reason;
     const notice = evaluateMenuNotice(4001);
     expect(notice).toEqual({ tone: 'block', text: guardReason });
-    expect(notice?.text).toBe('선택이 너무 길어요. 문단 단위로 나눠 선택해주세요.');
+    // 변환 계열이 걸린 것이므로 한도는 4,000자로 안내되어야 한다(편집 한도 2,000자가 아니라).
+    expect(notice?.text).toContain('4,001자');
+    expect(notice?.text).toContain('4,000자');
+    expect(notice?.text).not.toContain('2,000자');
   });
 
   it('len=100 (well within edit limit): returns null', async () => {
@@ -345,10 +349,12 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
     const { menu } = await build(4001);
     const notice = menu.dom.querySelector('.mdedit-ai-preset-notice');
     expect(notice).toBeTruthy();
-    expect(notice?.textContent).toBe('선택이 너무 길어요. 문단 단위로 나눠 선택해주세요.');
+    expect(notice?.textContent).toContain('4,001자');
+    expect(notice?.textContent).toContain('4,000자까지');
     const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
     expect(polish.disabled).toBe(true);
-    expect(polish.title).toBeTruthy();
+    // 비활성 항목의 툴팁은 그 계열의 한도(편집 2,000자)를 안내해야 한다 — 메뉴 안내줄과 다른 숫자다.
+    expect(polish.title).toContain('2,000자까지');
     expect(polish.getAttribute('aria-disabled')).toBe('true');
     menu.destroy();
   });
@@ -357,9 +363,8 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
     const { menu } = await build(3000);
     const notice = menu.dom.querySelector('.mdedit-ai-preset-notice');
     expect(notice).toBeTruthy();
-    expect(notice?.textContent).toBe(
-      '선택이 길어요 — 다듬기·직접 입력은 비활성이고, 변환은 결과를 「아래에 삽입」만 할 수 있어요.',
-    );
+    expect(notice?.textContent).toContain('3,000자');
+    expect(notice?.textContent).toContain('아래에 삽입');
     const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
     expect(polish.disabled).toBe(true);
     const outline = menu.dom.querySelector<HTMLButtonElement>('[data-preset="outline"]')!;
