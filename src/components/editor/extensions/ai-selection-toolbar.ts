@@ -8,7 +8,7 @@
 import { WidgetType, ViewPlugin, Decoration, EditorView } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
-import { evaluateSelectionGuard } from './ai-length-guard';
+import { evaluateSelectionGuard, formatCharCount, EDIT_LIMIT } from './ai-length-guard';
 import type { AiPresetKind } from './ai-length-guard';
 import { aiRequest, ipcErrorMessage } from '@/lib/tauri/ipc';
 import type { AiModel, AiRequestArgs } from '@/lib/tauri/ipc';
@@ -209,9 +209,16 @@ export interface PresetMenuNotice {
   text: string;
 }
 
-/** 삽입 전용 구간(2,001~4,000자) 안내 문구 — 가드는 이 구간에서 reason 을 반환하지 않으므로 툴바가 소유(D2). */
-const MENU_NOTICE_PARTIAL =
-  '선택이 길어요 — 다듬기·직접 입력은 비활성이고, 변환은 결과를 「아래에 삽입」만 할 수 있어요.';
+/**
+ * 삽입 전용 구간(2,001~4,000자) 안내 문구 — 가드는 이 구간에서 reason 을 반환하지 않으므로
+ * 툴바가 소유(D2). 차단 구간과 마찬가지로 현재 글자 수와 한도를 함께 보여준다.
+ */
+function buildMenuNoticePartial(selectionLength: number): string {
+  return (
+    `지금 ${formatCharCount(selectionLength)}자예요 — ${formatCharCount(EDIT_LIMIT)}자가 넘어서 다듬기·직접 입력은 쓸 수 없어요. ` +
+    '개요·표·다이어그램·짧게는 되지만, 원문이 지워지지 않도록 결과를 「아래에 삽입」만 할 수 있어요.'
+  );
+}
 
 /**
  * @MX:NOTE: 선택 길이 가드(ai-length-guard.ts)에서 안내 구간을 파생하는 단일 소스 헬퍼(REQ-AI7-004).
@@ -225,7 +232,9 @@ export function evaluateMenuNotice(selectionLength: number): PresetMenuNotice | 
 
   if (edit.allowed) return null;
   if (!transform.allowed) return { tone: 'block', text: transform.reason ?? '' };
-  if (transform.insertOnly) return { tone: 'partial', text: MENU_NOTICE_PARTIAL };
+  if (transform.insertOnly) {
+    return { tone: 'partial', text: buildMenuNoticePartial(selectionLength) };
+  }
   return null;
 }
 

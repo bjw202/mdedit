@@ -77,3 +77,28 @@ describe('evaluateSelectionGuard: short selections are always fine', () => {
     }
   });
 });
+
+describe('evaluateSelectionGuard: reason states the count and the right limit', () => {
+  it('edit preset over limit: shows the current count and the 2,000 edit limit', async () => {
+    const { evaluateSelectionGuard } = await import('@/components/editor/extensions/ai-length-guard');
+    const r = evaluateSelectionGuard(5170, 'polish');
+    expect(r.reason).toContain('5,170자');
+    expect(r.reason).toContain('2,000자까지');
+    // 왜 잘라서라도 처리하지 않는지 설명이 함께 있어야 한다(숫자만 있으면 납득이 안 된다).
+    expect(r.reason).toContain('사라져요');
+  });
+
+  it('transform preset over limit: shows the 4,000 limit, not the edit limit', async () => {
+    const { evaluateSelectionGuard } = await import('@/components/editor/extensions/ai-length-guard');
+    const r = evaluateSelectionGuard(5170, 'outline');
+    expect(r.reason).toContain('5,170자');
+    expect(r.reason).toContain('4,000자까지');
+    expect(r.reason).not.toContain('2,000자');
+  });
+
+  it('the two families name different presets so the user knows which is blocked', async () => {
+    const { evaluateSelectionGuard } = await import('@/components/editor/extensions/ai-length-guard');
+    expect(evaluateSelectionGuard(5170, 'custom').reason).toContain('다듬기·직접 입력');
+    expect(evaluateSelectionGuard(5170, 'table').reason).toContain('개요·표·다이어그램·짧게');
+  });
+});
