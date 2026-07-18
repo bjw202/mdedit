@@ -5,8 +5,9 @@ import {
   AppFrame,
   HeaderBar,
   FileExplorer,
-  type ExplorerNode,
+  type FileExplorerRow,
   type ViewMode,
+  modeToggleButtonCenters,
   EditorPane,
   PreviewPane,
   PreviewH1,
@@ -22,18 +23,19 @@ import {
 } from '../kit';
 
 /**
- * S2 — UI 투어 (~75s / 2250f). STORYBOARD.md §S2.
+ * S2 — UI 투어 (~80s / 2400f). STORYBOARD.md §S2.
  * Four sub-parts, all driven off one absolute frame counter (same convention
- * as S1Markdown.tsx): S2a region anatomy, S2b file explorer, S2c view-mode
+ * as S1Markdown.tsx): S2a region anatomy, S2b file explorer (navigation
+ * model — see FileExplorerRow doc in kit/AppFrame.tsx), S2c view-mode
  * toggle, S2d table insert + screenshot paste.
  */
-export const S2_DURATION_IN_FRAMES = 2250;
+export const S2_DURATION_IN_FRAMES = 2400;
 
 // ---- sub-part boundaries (absolute scene frames) --------------------------
 const S2A = { start: 0, end: 450 };
-const S2B = { start: 450, end: 1050 };
-const S2C = { start: 1050, end: 1800 };
-const S2D = { start: 1800, end: 2250 };
+const S2B = { start: 450, end: 1200 }; // +150f vs. v1 — room for the images-folder nav + "↑" go-up beat (F1)
+const S2C = { start: 1200, end: 1950 };
+const S2D = { start: 1950, end: 2400 };
 
 // ---- shared layout math (mirrors kit/AppFrame.tsx's real geometry) --------
 // AppFrame is 1600x900. Header is layout.headerHeight tall; everything below
@@ -46,10 +48,24 @@ const CONTENT_W = FRAME_W - layout.sidebarWidth; // 1350
 const CONTENT_Y = layout.headerHeight; // 44
 const CONTENT_H = FRAME_H - layout.headerHeight; // 856
 
-/** Row center Y for the Nth (0-indexed) row in FileExplorer's tree (see kit/AppFrame.tsx ExplorerRows). */
-function treeRowY(index: number): number {
-  return layout.headerHeight + space[2] + index * layout.treeRowHeight + layout.treeRowHeight / 2;
+/**
+ * Row center Y for the Nth (0-indexed) row in FileExplorer's listing (see
+ * kit/AppFrame.tsx FileExplorer — sidebar head, then padded row list). When
+ * `canGoUp` is true, the ".." row occupies index 0 and real content rows
+ * start at index 1.
+ */
+function explorerRowY(index: number): number {
+  return (
+    layout.headerHeight +
+    layout.sidebarHeadHeight +
+    space[2] +
+    index * layout.treeRowHeight +
+    layout.treeRowHeight / 2
+  );
 }
+
+/** X of a representative click point inside a row (icon + gap + into the label — real rows are full-width clickable). */
+const EXPLORER_ROW_CLICK_X = 60;
 
 // ---- small local helpers (S2-only, no shared kit edits) -------------------
 
@@ -315,6 +331,26 @@ function ImageViewerPane(): JSX.Element {
   );
 }
 
+// ---- S2b navigation-model listings (shared with S2a/S2c/S2d static sidebars) ----
+// Root: what the user sees before navigating into anything. 프로젝트/ contains
+// the files referenced across S2/S3 (회의록.md, 아이디어.md, images/capture.png).
+// See kit/AppFrame.tsx FileExplorerRow doc — real app replaces the whole
+// listing on folder click, it does not expand a tree in place.
+const ROOT_FOLDER_NAME = 'mdedit-demo';
+const ROOT_ROWS: FileExplorerRow[] = [
+  { name: '프로젝트', type: 'folder' },
+  { name: 'README.md', type: 'file' },
+];
+const PROJECT_FOLDER_NAME = '프로젝트';
+const PROJECT_ROWS: FileExplorerRow[] = [
+  { name: '회의록.md', type: 'file' },
+  { name: '블로그-초안.md', type: 'file' },
+  { name: '아이디어.md', type: 'file' },
+  { name: 'images', type: 'folder' },
+];
+const IMAGES_FOLDER_NAME = 'images';
+const IMAGES_ROWS: FileExplorerRow[] = [{ name: 'capture.png', type: 'file' }];
+
 // ---- S2a: 첫 화면 해부 ------------------------------------------------------
 
 function S2aAnatomy({ frame }: { frame: number }): JSX.Element | null {
@@ -327,7 +363,9 @@ function S2aAnatomy({ frame }: { frame: number }): JSX.Element | null {
   return (
     <>
       <Panel frame={frame} start={S2A.start} end={S2A.end} fade={20}>
-        <AppFrameSlot sidebar={<FileExplorer tree={s2bTree(true)} selected="아이디어.md" />}>
+        <AppFrameSlot
+          sidebar={<FileExplorer folderName={PROJECT_FOLDER_NAME} rows={PROJECT_ROWS} selected="아이디어.md" />}
+        >
           <IdeaDocEditor />
           <IdeaDocPreview />
         </AppFrameSlot>
@@ -367,47 +405,57 @@ function S2aAnatomy({ frame }: { frame: number }): JSX.Element | null {
   );
 }
 
-// ---- S2b: 파일 탐색기 -------------------------------------------------------
+// ---- S2b: 파일 탐색기 (navigation model — F1) --------------------------------
+// Beats: root listing -> click 프로젝트/ (listing swaps to its contents) ->
+// click 회의록.md (opens in editor) -> click images/ (listing swaps again) ->
+// click capture.png (opens image viewer) -> click ".." (listing swaps back
+// up to 프로젝트/, demonstrating the real app's only "go up" affordance).
+const PROJECT_CLICK = S2B.start + 60; // 510 — click 프로젝트/ folder row in root listing
+const PROJECT_APPLIED = PROJECT_CLICK + 5;
+const MEETING_CLICK = S2B.start + 130; // 580 — click 회의록.md
+const MEETING_APPLIED = MEETING_CLICK + 5;
+const IMAGES_CLICK = S2B.start + 260; // 710 — click images/ folder row
+const IMAGES_APPLIED = IMAGES_CLICK + 5;
+const CAPTURE_CLICK = S2B.start + 340; // 790 — click capture.png
+const CAPTURE_APPLIED = CAPTURE_CLICK + 5;
+const GOUP_CLICK = S2B.start + 620; // 1070 — click ".." row (images/ -> 프로젝트/)
+const GOUP_APPLIED = GOUP_CLICK + 5;
 
-function s2bTree(projectOpen: boolean): ExplorerNode[] {
-  return [
-    {
-      name: '프로젝트',
-      type: 'folder',
-      open: projectOpen,
-      children: [
-        { name: '회의록.md', type: 'file' },
-        { name: '아이디어.md', type: 'file' },
-        {
-          name: 'images',
-          type: 'folder',
-          open: true,
-          children: [{ name: 'capture.png', type: 'file' }],
-        },
-      ],
-    },
-  ];
-}
-
-// Explorer row target coordinates (see treeRowY + kit/AppFrame.tsx ExplorerRows padding math).
-const CHEVRON_PROJECT = { x: 16.5, y: treeRowY(0) };
-const ROW_MEETING = { x: 46.5, y: treeRowY(1) };
-const ROW_CAPTURE = { x: 62.5, y: treeRowY(4) };
+// Row target coordinates per listing state (see explorerRowY + kit/AppFrame.tsx FileExplorer padding math).
+// Root listing (canGoUp=false): row0=프로젝트/, row1=README.md.
+const ROW_PROJECT = { x: EXPLORER_ROW_CLICK_X, y: explorerRowY(0) };
+// 프로젝트/ listing (canGoUp=true, ".." at row0): row1=회의록.md, row4=images/.
+const ROW_MEETING = { x: EXPLORER_ROW_CLICK_X, y: explorerRowY(1) };
+const ROW_IMAGES = { x: EXPLORER_ROW_CLICK_X, y: explorerRowY(4) };
+// images/ listing (canGoUp=true, ".." at row0): row1=capture.png. The go-up
+// click targets that same ".." row (row0).
+const ROW_CAPTURE = { x: EXPLORER_ROW_CLICK_X, y: explorerRowY(1) };
+const ROW_GOUP = { x: EXPLORER_ROW_CLICK_X, y: explorerRowY(0) };
 
 function S2bExplorer({ frame }: { frame: number }): JSX.Element | null {
   if (frame < S2B.start - 20 || frame > S2B.end + 20) return null;
 
-  const OPEN_CLICK = S2B.start + 60; // 510
-  const OPEN_APPLIED = OPEN_CLICK + 5;
-  const MEETING_CLICK = S2B.start + 130; // 580
-  const MEETING_APPLIED = MEETING_CLICK + 5;
-  const CAPTURE_CLICK = S2B.start + 270; // 720
-  const CAPTURE_APPLIED = CAPTURE_CLICK + 5;
+  const inProject = frame >= PROJECT_APPLIED && frame < IMAGES_APPLIED;
+  const inImages = frame >= IMAGES_APPLIED && frame < GOUP_APPLIED;
+  const backInProject = frame >= GOUP_APPLIED;
+  // Real app: the sidebar only highlights a row when the currently-open file
+  // is IN the currently-shown listing. After going back up to 프로젝트/, the
+  // open file (capture.png, inside images/) is no longer in this listing —
+  // so no row should be highlighted, matching real navigation semantics.
+  const selected = backInProject
+    ? undefined
+    : frame >= CAPTURE_APPLIED
+      ? 'capture.png'
+      : frame >= MEETING_APPLIED
+        ? '회의록.md'
+        : undefined;
 
-  const projectOpen = frame >= OPEN_APPLIED;
-  const selected = frame >= CAPTURE_APPLIED ? 'capture.png' : frame >= MEETING_APPLIED ? '회의록.md' : undefined;
-
-  const sidebar = <FileExplorer tree={s2bTree(projectOpen)} selected={selected} />;
+  const sidebar =
+    inImages
+      ? <FileExplorer folderName={IMAGES_FOLDER_NAME} rows={IMAGES_ROWS} canGoUp selected={selected} />
+      : inProject || backInProject
+        ? <FileExplorer folderName={PROJECT_FOLDER_NAME} rows={PROJECT_ROWS} canGoUp selected={selected} />
+        : <FileExplorer folderName={ROOT_FOLDER_NAME} rows={ROOT_ROWS} canGoUp={false} />;
 
   return (
     <>
@@ -439,36 +487,45 @@ function S2bExplorer({ frame }: { frame: number }): JSX.Element | null {
       <CursorPointer
         positions={[
           { frame: S2B.start, x: 700, y: 470 },
-          { frame: S2B.start + 40, x: CHEVRON_PROJECT.x, y: CHEVRON_PROJECT.y },
-          { frame: OPEN_CLICK, x: CHEVRON_PROJECT.x, y: CHEVRON_PROJECT.y },
+          { frame: S2B.start + 40, x: ROW_PROJECT.x, y: ROW_PROJECT.y },
+          { frame: PROJECT_CLICK, x: ROW_PROJECT.x, y: ROW_PROJECT.y },
           { frame: MEETING_CLICK - 30, x: ROW_MEETING.x, y: ROW_MEETING.y },
           { frame: MEETING_CLICK, x: ROW_MEETING.x, y: ROW_MEETING.y },
-          { frame: CAPTURE_CLICK - 40, x: ROW_CAPTURE.x, y: ROW_CAPTURE.y },
+          { frame: IMAGES_CLICK - 30, x: ROW_IMAGES.x, y: ROW_IMAGES.y },
+          { frame: IMAGES_CLICK, x: ROW_IMAGES.x, y: ROW_IMAGES.y },
+          { frame: CAPTURE_CLICK - 30, x: ROW_CAPTURE.x, y: ROW_CAPTURE.y },
           { frame: CAPTURE_CLICK, x: ROW_CAPTURE.x, y: ROW_CAPTURE.y },
-          { frame: S2B.end, x: ROW_CAPTURE.x, y: ROW_CAPTURE.y },
+          { frame: GOUP_CLICK - 30, x: ROW_GOUP.x, y: ROW_GOUP.y },
+          { frame: GOUP_CLICK, x: ROW_GOUP.x, y: ROW_GOUP.y },
+          { frame: S2B.end, x: ROW_GOUP.x, y: ROW_GOUP.y },
         ]}
-        clicks={[OPEN_CLICK, MEETING_CLICK, CAPTURE_CLICK]}
+        clicks={[PROJECT_CLICK, MEETING_CLICK, IMAGES_CLICK, CAPTURE_CLICK, GOUP_CLICK]}
       />
-      <SubtitleBar text="파일 클릭으로 열기" startFrame={MEETING_APPLIED + 5} endFrame={CAPTURE_CLICK - 10} />
+      <SubtitleBar text="폴더를 클릭하면 그 안으로 들어가요" startFrame={S2B.start + 10} endFrame={PROJECT_CLICK + 20} />
+      <SubtitleBar text="파일 클릭으로 열기" startFrame={MEETING_APPLIED + 5} endFrame={IMAGES_CLICK - 10} />
       <SubtitleBar
         text="md가 아닌 파일은 뷰어로 열립니다"
         startFrame={CAPTURE_APPLIED + 10}
-        endFrame={S2B.end - 20}
+        endFrame={GOUP_CLICK - 20}
       />
+      <SubtitleBar text="맨 위 「..」 을 누르면 상위 폴더로 돌아가요" startFrame={GOUP_CLICK - 15} endFrame={S2B.end - 10} />
     </>
   );
 }
 
 // ---- S2c: 보기 모드 3종 -----------------------------------------------------
 
-const EDIT_CLICK = S2C.start + 45; // 1095
-const SPLIT_CLICK = S2C.start + 295; // 1345
-const PREVIEW_CLICK = S2C.start + 545; // 1595
+const EDIT_CLICK = S2C.start + 45;
+const SPLIT_CLICK = S2C.start + 295;
+const PREVIEW_CLICK = S2C.start + 545;
 
-// Approximate centers of the header's segmented mode-toggle buttons (right-aligned group).
-const TOGGLE_EDIT_BTN = { x: 1320, y: layout.headerHeight / 2 };
-const TOGGLE_SPLIT_BTN = { x: 1390, y: layout.headerHeight / 2 };
-const TOGGLE_PREVIEW_BTN = { x: 1465, y: layout.headerHeight / 2 };
+// F2 fix: exact centers of the header's segmented mode-toggle buttons,
+// computed from the header's real layout constants (see
+// kit/AppFrame.tsx modeToggleButtonCenters) instead of guessed coordinates.
+const TOGGLE_CENTERS = modeToggleButtonCenters(FRAME_W);
+const TOGGLE_EDIT_BTN = TOGGLE_CENTERS.edit;
+const TOGGLE_SPLIT_BTN = TOGGLE_CENTERS.split;
+const TOGGLE_PREVIEW_BTN = TOGGLE_CENTERS.preview;
 
 function S2cViewModes({ frame }: { frame: number }): JSX.Element | null {
   if (frame < S2C.start - 20 || frame > S2C.end + 20) return null;
@@ -490,7 +547,7 @@ function S2cViewModes({ frame }: { frame: number }): JSX.Element | null {
       <Panel frame={frame} start={S2C.start} end={S2C.end} fade={20}>
         <AppFrameSlot
           header={<HeaderBar viewMode={viewMode} />}
-          sidebar={<FileExplorer tree={s2bTree(true)} selected="회의록.md" />}
+          sidebar={<FileExplorer folderName={PROJECT_FOLDER_NAME} rows={PROJECT_ROWS} selected="회의록.md" />}
         >
           <div style={{ display: 'flex', width: editorW, minWidth: 0, overflow: 'hidden' }}>
             <MeetingDocEditor showTable={false} showScreenshot={false} />
@@ -530,12 +587,29 @@ function S2cViewModes({ frame }: { frame: number }): JSX.Element | null {
 
 // ---- S2d: 표 삽입 + 스크린샷 붙여넣기 ---------------------------------------
 
+// F2 fix: fixed per-button widths (rather than auto content-width) so the
+// table button's on-screen center is exact arithmetic, not a guess at
+// rendered Korean-text width. TOOLBAR_BTN_GAP/PADDING_X mirror the container
+// style below and are reused by TABLE_BTN's derivation.
+const TOOLBAR_BTN_WIDTHS: Record<string, number> = {
+  B: 30,
+  I: 30,
+  H1: 34,
+  목록: 44,
+  코드: 44,
+  링크: 44,
+  인용: 44,
+  표: 56,
+  이미지: 56,
+};
+const TOOLBAR_BTN_ORDER = ['B', 'I', 'H1', '목록', '코드', '링크', '인용', '표', '이미지'];
+const TOOLBAR_BTN_GAP = 2;
+const TOOLBAR_PADDING_X = space[2];
+
 /** Minimal local toolbar (real app: src/components/editor/EditorToolbar.tsx, above the editor pane). */
 function MiniToolbar({ tableActive }: { tableActive: boolean }): JSX.Element {
-  const labels = ['B', 'I', 'H1', '목록', '코드', '링크', '인용'];
   const btnStyle: React.CSSProperties = {
     height: layout.toolbarHeight - 6,
-    padding: '0 8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -552,20 +626,22 @@ function MiniToolbar({ tableActive }: { tableActive: boolean }): JSX.Element {
         height: layout.toolbarHeight,
         display: 'flex',
         alignItems: 'center',
-        gap: 2,
-        padding: `0 ${space[2]}px`,
+        gap: TOOLBAR_BTN_GAP,
+        padding: `0 ${TOOLBAR_PADDING_X}px`,
         background: colors.surface,
         borderBottom: `1px solid ${colors.border}`,
       }}
     >
-      {labels.map((l) => (
-        <span key={l} style={btnStyle}>
+      {TOOLBAR_BTN_ORDER.slice(0, 7).map((l) => (
+        <span key={l} style={{ ...btnStyle, width: TOOLBAR_BTN_WIDTHS[l] }}>
           {l}
         </span>
       ))}
       <span
         style={{
           ...btnStyle,
+          width: TOOLBAR_BTN_WIDTHS['표'],
+          gap: 4,
           color: tableActive ? colors.accent : colors.textMuted,
           background: tableActive ? colors.accentSoft : 'transparent',
         }}
@@ -574,16 +650,21 @@ function MiniToolbar({ tableActive }: { tableActive: boolean }): JSX.Element {
           <rect x="3" y="4" width="18" height="16" rx="1.5" />
           <path d="M3 9h18M3 14h18M9 4v16M15 4v16" />
         </svg>
-        &nbsp;표
+        표
       </span>
-      <span style={btnStyle}>이미지</span>
+      <span style={{ ...btnStyle, width: TOOLBAR_BTN_WIDTHS['이미지'] }}>이미지</span>
     </div>
   );
 }
 
-// Toolbar sits at (CONTENT_X, CONTENT_Y) inside the editor column; the table button
-// is the 8th control (after B/I/H1/목록/코드/링크/인용) — approximate center below.
-const TABLE_BTN = { x: CONTENT_X + 218, y: CONTENT_Y + layout.toolbarHeight / 2 };
+// F2 fix: exact center of the toolbar's 표(table) button, derived from the
+// fixed widths above instead of an approximate pixel guess.
+const TABLE_BTN_X_OFFSET = (() => {
+  const precedingWidths = TOOLBAR_BTN_ORDER.slice(0, 7).reduce((sum, k) => sum + TOOLBAR_BTN_WIDTHS[k], 0);
+  const precedingGaps = 7 * TOOLBAR_BTN_GAP;
+  return TOOLBAR_PADDING_X + precedingWidths + precedingGaps + TOOLBAR_BTN_WIDTHS['표'] / 2;
+})();
+const TABLE_BTN = { x: CONTENT_X + TABLE_BTN_X_OFFSET, y: CONTENT_Y + layout.toolbarHeight / 2 };
 const GRID_POPOVER = { x: TABLE_BTN.x - 90, y: TABLE_BTN.y + 20 };
 // 8x8 grid cells, 18px + 2px gap stride, per USER_GUIDE §2.3.
 const GRID_CELL = (row: number, col: number): { x: number; y: number } => ({
@@ -683,7 +764,7 @@ function S2dTableAndPaste({ frame }: { frame: number }): JSX.Element | null {
       <Panel frame={frame} start={S2D.start} end={S2D.end} fade={20}>
         <AppFrameSlot
           header={<HeaderBar viewMode="split" />}
-          sidebar={<FileExplorer tree={s2bTree(true)} selected="회의록.md" />}
+          sidebar={<FileExplorer folderName={PROJECT_FOLDER_NAME} rows={PROJECT_ROWS} selected="회의록.md" />}
         >
           <div style={{ display: 'flex', flexDirection: 'column', width: editorW, minWidth: 0, overflow: 'hidden' }}>
             <MiniToolbar tableActive={tableActive} />
@@ -704,7 +785,7 @@ function S2dTableAndPaste({ frame }: { frame: number }): JSX.Element | null {
                     ),
                   }}
                 >
-                  <Keycap keys={['⌘', 'V']} />
+                  <Keycap keys={['Ctrl', 'V']} />
                 </div>
               )}
             </div>

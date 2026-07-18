@@ -13,32 +13,48 @@ export interface HeaderBarProps {
   imageModeOn?: boolean;
 }
 
+/**
+ * Fixed per-button width for the mode-toggle segment. The real app's segment
+ * widths auto-size to their (Korean) label text, which cannot be measured
+ * from plain interpolation math without a live DOM — so this reproduction
+ * fixes each segment to one deterministic width (comfortably fitting the
+ * longest label, "미리보기") instead. This turns "click lands on the real
+ * button" from a guessed-pixel problem into exact arithmetic — see
+ * `modeToggleButtonCenters()` below, used by scenes for CursorPointer targets.
+ */
+export const MODE_TOGGLE_BTN_WIDTH = 78;
+const MODE_TOGGLE_BTN_HEIGHT = 26;
+const MODE_TOGGLE_BTN_GAP = 2;
+const MODE_TOGGLE_PADDING = 2;
+
+const MODE_TOGGLE_OPTIONS: Array<{ key: ViewMode; label: string }> = [
+  { key: 'edit', label: '편집' },
+  { key: 'split', label: '분할' },
+  { key: 'preview', label: '미리보기' },
+];
+
 function SegmentedModeToggle({ viewMode = 'split' }: { viewMode?: ViewMode }): JSX.Element {
-  const options: Array<{ key: ViewMode; label: string }> = [
-    { key: 'edit', label: '편집' },
-    { key: 'split', label: '분할' },
-    { key: 'preview', label: '미리보기' },
-  ];
   return (
     <div
       style={{
         display: 'flex',
         background: colors.surface,
         borderRadius: radius.sm,
-        padding: 2,
-        gap: 2,
+        padding: MODE_TOGGLE_PADDING,
+        gap: MODE_TOGGLE_BTN_GAP,
       }}
     >
-      {options.map((o) => {
+      {MODE_TOGGLE_OPTIONS.map((o) => {
         const active = o.key === viewMode;
         return (
           <div
             key={o.key}
             style={{
-              height: 26,
-              padding: `0 ${space[3]}px`,
+              width: MODE_TOGGLE_BTN_WIDTH,
+              height: MODE_TOGGLE_BTN_HEIGHT,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               borderRadius: radius.sm,
               fontSize: fontSize.toolbar,
               color: active ? colors.accentContrast : colors.textMuted,
@@ -51,6 +67,38 @@ function SegmentedModeToggle({ viewMode = 'split' }: { viewMode?: ViewMode }): J
       })}
     </div>
   );
+}
+
+/**
+ * Screen-space centers of the header's three mode-toggle buttons, computed
+ * from the header's real layout constants (padding, gaps, icon sizes) rather
+ * than guessed from rendered text width. `frameWidth` is the AppFrame's own
+ * width (default 1600, matching every scene's AppFrame usage) — the toggle
+ * group is right-aligned via the header's `justify-content: space-between`.
+ */
+export function modeToggleButtonCenters(
+  frameWidth: number = 1600,
+): Record<ViewMode, { x: number; y: number }> {
+  const headerPaddingX = space[4]; // HeaderBar `padding: 0 ${space[4]}px`
+  const groupGap = space[3]; // HeaderBar right-group `gap: space[3]`
+  const dividerWidth = 1;
+  const iconWidth = 16; // ImageModeIcon / GearIcon are 16x16
+  const toggleWidth = MODE_TOGGLE_OPTIONS.length * MODE_TOGGLE_BTN_WIDTH +
+    (MODE_TOGGLE_OPTIONS.length - 1) * MODE_TOGGLE_BTN_GAP +
+    2 * MODE_TOGGLE_PADDING;
+  // Right group: [toggle, divider, imageIcon, gearIcon] — 3 gaps between 4 items.
+  const rightGroupWidth = toggleWidth + dividerWidth + iconWidth + iconWidth + 3 * groupGap;
+  const groupLeft = frameWidth - headerPaddingX - rightGroupWidth;
+  const toggleLeft = groupLeft + MODE_TOGGLE_PADDING;
+  const y = layout.headerHeight / 2;
+
+  const centers = {} as Record<ViewMode, { x: number; y: number }>;
+  let cursor = toggleLeft;
+  for (const o of MODE_TOGGLE_OPTIONS) {
+    centers[o.key] = { x: cursor + MODE_TOGGLE_BTN_WIDTH / 2, y };
+    cursor += MODE_TOGGLE_BTN_WIDTH + MODE_TOGGLE_BTN_GAP;
+  }
+  return centers;
 }
 
 function GearIcon(): JSX.Element {
@@ -136,50 +184,164 @@ export function HeaderBar({
   );
 }
 
-export interface ExplorerNode {
+/**
+ * A single listing entry (one directory level). NOTE on the real navigation
+ * model (verified against src/components/sidebar/FileExplorer.tsx +
+ * FileTreeNode.tsx and docs/USER_GUIDE.md §2.5): clicking a folder row does
+ * NOT expand it inline — it calls `openFolderPath()`, which replaces the
+ * *entire* listing with that folder's contents (like a native file-open
+ * dialog / Explorer/Finder single-pane view). There is no nesting/depth or
+ * expand chevron in the rendered tree; each listing is always one flat level.
+ */
+export interface FileExplorerRow {
   name: string;
   type: 'folder' | 'file';
-  children?: ExplorerNode[];
-  open?: boolean;
 }
 
-/** A reasonable default sample tree, matching artifacts referenced across the storyboard. */
-export const defaultExplorerTree: ExplorerNode[] = [
-  {
-    name: 'docs',
-    type: 'folder',
-    open: true,
-    children: [
-      { name: '회의록.md', type: 'file' },
-      { name: '블로그-초안.md', type: 'file' },
-      { name: '스크린샷.png', type: 'file' },
-    ],
-  },
-  { name: 'README.md', type: 'file' },
+/** Default listing shown when no scene explicitly wires up a navigation flow (S2b owns that). */
+export const defaultFolderName = '프로젝트';
+export const defaultExplorerRows: FileExplorerRow[] = [
+  { name: '회의록.md', type: 'file' },
+  { name: '블로그-초안.md', type: 'file' },
+  { name: '아이디어.md', type: 'file' },
+  { name: 'images', type: 'folder' },
 ];
 
-function ExplorerRows({
-  nodes,
-  depth,
-  selected,
-}: {
-  nodes: ExplorerNode[];
-  depth: number;
-  selected?: string;
-}): JSX.Element {
+function FolderIcon({ color }: { color: string }): JSX.Element {
   return (
-    <>
-      {nodes.map((node) => {
-        const isSelected = selected === node.name;
-        return (
-          <React.Fragment key={node.name}>
+    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.5} style={{ flex: 'none' }}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+    </svg>
+  );
+}
+
+function FileIcon(): JSX.Element {
+  return (
+    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth={1.5} style={{ flex: 'none' }}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+    </svg>
+  );
+}
+
+/** Small icon-button pair reproduction (Change Folder / Refresh, real: `.md-icon-btn` in FileExplorer.tsx head). */
+function ChangeFolderIcon(): JSX.Element {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth={2}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+      <path d="M12 11v4m0 0l-2-2m2 2l2-2" />
+    </svg>
+  );
+}
+
+function RefreshIcon(): JSX.Element {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth={2}>
+      <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15" />
+    </svg>
+  );
+}
+
+export interface FileExplorerProps {
+  /** Current directory's display name, shown in the sidebar head (real: `.md-sidebar-head` folder name). */
+  folderName?: string;
+  /** Flat listing of the current directory's contents (one level — see FileExplorerRow doc). */
+  rows?: FileExplorerRow[];
+  /** Shows the ".." parent-directory row at the top of the listing (real: canGoUp / handleGoUp). */
+  canGoUp?: boolean;
+  /** Currently-open file's name, highlighted in the listing. */
+  selected?: string;
+}
+
+/**
+ * File explorer reproduction — navigation model (real component:
+ * src/components/sidebar/FileExplorer.tsx, .md-sidebar / .md-sidebar-head / .md-tree).
+ * Folder rows navigate (the whole listing swaps to that folder's contents);
+ * a ".." row at the top navigates back up. See FileExplorerRow doc above.
+ */
+export function FileExplorer({
+  folderName = defaultFolderName,
+  rows = defaultExplorerRows,
+  canGoUp = true,
+  selected,
+}: FileExplorerProps): JSX.Element {
+  return (
+    <div
+      style={{
+        width: layout.sidebarWidth,
+        flex: 'none',
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        background: colors.surface,
+        borderRight: `1px solid ${colors.border}`,
+        fontFamily: font.ui,
+      }}
+    >
+      {/* Folder head: name + Change Folder + Refresh (real: .md-sidebar-head) */}
+      <div
+        style={{
+          flex: 'none',
+          height: layout.sidebarHeadHeight,
+          display: 'flex',
+          alignItems: 'center',
+          gap: space[2],
+          padding: `0 ${space[2]}px`,
+          borderBottom: `1px solid ${colors.border}`,
+        }}
+      >
+        <FolderIcon color={colors.accent} />
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            fontSize: fontSize.tree,
+            color: colors.textPrimary,
+          }}
+        >
+          {folderName}
+        </span>
+        <span style={{ flex: 'none', display: 'flex' }}>
+          <ChangeFolderIcon />
+        </span>
+        <span style={{ flex: 'none', display: 'flex' }}>
+          <RefreshIcon />
+        </span>
+      </div>
+      {/* Listing: optional ".." parent row, then this directory's rows (real: .md-tree) */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: space[2] }}>
+        {canGoUp && (
+          <div
+            style={{
+              height: layout.treeRowHeight,
+              display: 'flex',
+              alignItems: 'center',
+              gap: space[2],
+              paddingLeft: space[3],
+              paddingRight: space[2],
+              borderRadius: radius.sm,
+              fontSize: fontSize.tree,
+              color: colors.textPrimary,
+            }}
+          >
+            <FolderIcon color={colors.accent} />
+            <span>..</span>
+          </div>
+        )}
+        {rows.map((row) => {
+          const isSelected = selected === row.name;
+          return (
             <div
+              key={row.name}
               style={{
                 height: layout.treeRowHeight,
                 display: 'flex',
                 alignItems: 'center',
                 gap: space[2],
-                paddingLeft: space[3] + depth * 16,
+                paddingLeft: space[3],
                 paddingRight: space[2],
                 borderRadius: radius.sm,
                 fontSize: fontSize.tree,
@@ -187,62 +349,12 @@ function ExplorerRows({
                 background: isSelected ? colors.accentSoft : 'transparent',
               }}
             >
-              {node.type === 'folder' ? (
-                <>
-                  <svg
-                    width={13}
-                    height={13}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={colors.textFaint}
-                    strokeWidth={2}
-                    style={{ transform: node.open ? 'rotate(90deg)' : 'none', flex: 'none' }}
-                  >
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
-                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth={1.5} style={{ flex: 'none' }}>
-                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-                  </svg>
-                </>
-              ) : (
-                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth={1.5} style={{ marginLeft: 13, flex: 'none' }}>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                </svg>
-              )}
-              <span>{node.name}</span>
+              {row.type === 'folder' ? <FolderIcon color={colors.textMuted} /> : <FileIcon />}
+              <span>{row.name}</span>
             </div>
-            {node.type === 'folder' && node.open && node.children && (
-              <ExplorerRows nodes={node.children} depth={depth + 1} selected={selected} />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </>
-  );
-}
-
-export interface FileExplorerProps {
-  tree?: ExplorerNode[];
-  selected?: string;
-}
-
-/** File tree reproduction (real component: src/components/sidebar/FileExplorer.tsx, .md-sidebar). */
-export function FileExplorer({ tree = defaultExplorerTree, selected }: FileExplorerProps): JSX.Element {
-  return (
-    <div
-      style={{
-        width: layout.sidebarWidth,
-        flex: 'none',
-        minHeight: 0,
-        overflow: 'auto',
-        background: colors.surface,
-        borderRight: `1px solid ${colors.border}`,
-        padding: space[2],
-        fontFamily: font.ui,
-      }}
-    >
-      <ExplorerRows nodes={tree} depth={0} selected={selected} />
+          );
+        })}
+      </div>
     </div>
   );
 }

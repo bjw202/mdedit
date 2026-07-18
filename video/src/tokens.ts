@@ -155,6 +155,13 @@ export const layout = {
   headerHeight: 44,
   sidebarWidth: 250,
   treeRowHeight: 26,
+  /**
+   * Sidebar folder-header row (real component: src/components/sidebar/FileExplorer.tsx
+   * `.md-sidebar-head` — folder icon + name + Change Folder + Refresh buttons).
+   * Not a literal CSS variable in the app (row auto-sizes to content), but a
+   * reasonable fixed height for this video's reproduction.
+   */
+  sidebarHeadHeight: 32,
   toolbarHeight: 30,
   statusBarHeight: 26,
   windowRadius: 10, // video-only chrome polish, not an app token

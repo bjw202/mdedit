@@ -355,7 +355,7 @@ function GhostText({
   );
 }
 
-/** "✨ 이어쓰기 ⌘⏎" idle hint pill, appears after a 3s cursor pause (docs/USER_GUIDE.md §4.2). */
+/** "✨ 이어쓰기 Ctrl+Enter" idle hint pill, appears after a 3s cursor pause (docs/USER_GUIDE.md §4.2). */
 function HintPill({ opacity }: { opacity: number }): JSX.Element {
   return (
     <div
@@ -375,7 +375,7 @@ function HintPill({ opacity }: { opacity: number }): JSX.Element {
       }}
     >
       <span>✨ 이어쓰기</span>
-      <Keycap keys={['⌘', '⏎']} />
+      <Keycap keys={['Ctrl', 'Enter']} />
     </div>
   );
 }
@@ -705,11 +705,11 @@ function ContinueWritingCard({ frame }: { frame: number }): JSX.Element | null {
   const local = frame - CARD2.start;
   const confirmFrame = 150;
   return (
-    <FeatureCardShell frame={frame} start={CARD2.start} end={CARD2.end} icon="⌘⏎" title="이어쓰기">
+    <FeatureCardShell frame={frame} start={CARD2.start} end={CARD2.end} icon="⌨️" title="이어쓰기">
       <div style={{ padding: `${space[5]}px ${space[4]}px`, fontFamily: font.ui, fontSize: 20, lineHeight: 1.7, color: colors.textPrimary }}>
         <div>mdedit는 로컬 우선으로 동작하는 편집기입니다.</div>
         <div style={{ marginTop: space[3], opacity: interpolate(local, [4, 14], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) }}>
-          <Keycap keys={['⌘', '⏎']} />
+          <Keycap keys={['Ctrl', 'Enter']} />
         </div>
         <div style={{ marginTop: space[3] }}>
           {local >= 24 && (
@@ -887,6 +887,57 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
     extrapolateRight: 'clamp',
   });
 
+  // F4 fix: the "전체 선택" (select-all) highlight must cover the ACTUAL
+  // rendered text block. RawNotesEditor shows RAW_NOTES (5 lines) plus, once
+  // the screenshot is pasted (true by UC1_SELECT_START — UC1_SCREENSHOT_IN=155
+  // < 200), a blank line + the screenshot markdown line = 7 lines total.
+  // EditorPane pads its content by space[3] (top) before the first line, and
+  // each line is lineHeight.editor * fontSize.editor tall — see
+  // kit/EditorPane.tsx. The previous {top:96, height:96} rect only covered
+  // roughly line 4's tail plus empty space below the document (reported
+  // mismatch at ~3:13 / S3 UC1 mid).
+  const SELECTION_LINES = 7;
+  const SELECTION_LINE_H = lineHeight.editor * fontSize.editor; // 24.75
+  const SELECTION_TOP = space[3]; // EditorPane's top padding
+  const SELECTION_HEIGHT = SELECTION_LINES * SELECTION_LINE_H; // 173.25
+  const SPARKLE_SIZE = 34; // SparkleButton's fixed width/height
+  const sparkleX = 40 + selectionWidth + 8;
+  const sparkleY = SELECTION_TOP + SELECTION_HEIGHT - SPARKLE_SIZE - 6; // hugs the selection's bottom-right corner
+  const menuX = sparkleX;
+  const menuY = sparkleY + SPARKLE_SIZE + 8;
+
+  // F4 fix: the 바꾸기(replace)/↻ button click target was a stale hardcoded
+  // (90, 380) left over from before the suggestion card's position/size was
+  // finalized — it landed far from the actual rendered buttons. Recomputed
+  // from the card's real geometry: positioned at (left:40, top:260) inside
+  // the content area, padded by space[4], with a ~22px title row, 6 lines of
+  // TypingText content at lineHeight 1.6 * 15px, then the footer button row.
+  const CARD_LEFT = 40;
+  const CARD_TOP = 260;
+  const CARD_PADDING = space[4];
+  const CARD_TITLE_ROW_H = 22;
+  const CARD_CONTENT_LINES = 6;
+  const CARD_CONTENT_LINE_H = 1.6 * 15;
+  const CARD_FOOTER_MARGIN = space[3];
+  const CARD_FOOTER_BTN_H = 28;
+  // NOTE: CursorPointer is a SIBLING of AppFrameSlot (not a child), so its
+  // coordinate space is the outer FRAME_W x FRAME_H box — but the selection
+  // overlay / SparkleButton / PresetMenu / SuggestionCard above are all
+  // rendered INSIDE AppFrameSlot's content-relative wrapper, whose origin is
+  // offset by (CONTENT_X, CONTENT_Y) from that same outer box. Every
+  // CursorPointer target below must add that offset, or (as originally
+  // written) it silently lands ~(CONTENT_X, CONTENT_Y) short — this was the
+  // root cause of the F4-reported cursor/click misalignment throughout UC1.
+  const replaceBtnX = CONTENT_X + CARD_LEFT + CARD_PADDING + 50; // ~half of "✓ 바꾸기" pill's width
+  const replaceBtnY =
+    CONTENT_Y +
+    CARD_TOP +
+    CARD_PADDING +
+    CARD_TITLE_ROW_H +
+    CARD_CONTENT_LINES * CARD_CONTENT_LINE_H +
+    CARD_FOOTER_MARGIN +
+    CARD_FOOTER_BTN_H / 2;
+
   return (
     <>
       <SegmentPanel frame={local} start={0} end={840} fade={20}>
@@ -905,9 +956,9 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
                   style={{
                     position: 'absolute',
                     left: 40,
-                    top: 96,
+                    top: SELECTION_TOP,
                     width: selectionWidth,
-                    height: 96,
+                    height: SELECTION_HEIGHT,
                     background: colors.selection,
                     borderRadius: 3,
                     zIndex: 20,
@@ -927,13 +978,13 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
                     }),
                   }}
                 >
-                  <Keycap keys={['⌘', 'V']} />
+                  <Keycap keys={['Ctrl', 'V']} />
                 </div>
               )}
               {showSparkle && (
                 <SparkleButton
-                  x={40 + selectionWidth + 8}
-                  y={90}
+                  x={sparkleX}
+                  y={sparkleY}
                   opacity={interpolate(local, [UC1_SELECT_END, UC1_SELECT_END + 8], [0, 1], {
                     extrapolateLeft: 'clamp',
                     extrapolateRight: 'clamp',
@@ -942,8 +993,8 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
               )}
               {showMenu && (
                 <PresetMenu
-                  x={40 + selectionWidth + 8}
-                  y={132}
+                  x={menuX}
+                  y={menuY}
                   local={local}
                   openFrame={UC1_MENU_OPEN}
                   activeIndex={1}
@@ -975,13 +1026,21 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
       <CursorPointer
         positions={[
           { frame: abs(0), x: 900, y: 470 },
-          { frame: abs(UC1_SELECT_END - 20), x: 40 + selectionWidth, y: 140 },
-          { frame: abs(UC1_SPARKLE_CLICK), x: 40 + selectionWidth + 24, y: 105 },
-          { frame: abs(UC1_PRESET_CLICK - 15), x: 40 + selectionWidth + 60, y: 150 },
-          { frame: abs(UC1_PRESET_CLICK), x: 40 + selectionWidth + 60, y: 150 },
-          { frame: abs(UC1_REPLACE_CLICK - 15), x: 90, y: 380 },
-          { frame: abs(UC1_REPLACE_CLICK), x: 90, y: 380 },
-          { frame: abs(840), x: 90, y: 380 },
+          {
+            frame: abs(UC1_SELECT_END - 20),
+            x: CONTENT_X + 40 + selectionWidth,
+            y: CONTENT_Y + SELECTION_TOP + SELECTION_HEIGHT,
+          },
+          {
+            frame: abs(UC1_SPARKLE_CLICK),
+            x: CONTENT_X + sparkleX + SPARKLE_SIZE / 2,
+            y: CONTENT_Y + sparkleY + SPARKLE_SIZE / 2,
+          },
+          { frame: abs(UC1_PRESET_CLICK - 15), x: CONTENT_X + menuX + 90, y: CONTENT_Y + menuY + 53 },
+          { frame: abs(UC1_PRESET_CLICK), x: CONTENT_X + menuX + 90, y: CONTENT_Y + menuY + 53 },
+          { frame: abs(UC1_REPLACE_CLICK - 15), x: replaceBtnX, y: replaceBtnY },
+          { frame: abs(UC1_REPLACE_CLICK), x: replaceBtnX, y: replaceBtnY },
+          { frame: abs(840), x: replaceBtnX, y: replaceBtnY },
         ]}
         clicks={[abs(UC1_SPARKLE_CLICK), abs(UC1_PRESET_CLICK), abs(UC1_REPLACE_CLICK)]}
       />
@@ -992,7 +1051,7 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
           UC1 window in the first place. Both issues fixed below: contiguous
           coverage from 0 to 830, all frames converted via abs(). */}
       <SubtitleBar text="날 것 메모를 붙여넣고" startFrame={abs(0)} endFrame={abs(90)} />
-      <SubtitleBar text="스크린샷도 ⌘V로 바로 붙여요" startFrame={abs(90)} endFrame={abs(180)} />
+      <SubtitleBar text="스크린샷도 Ctrl+V로 바로 붙여요" startFrame={abs(90)} endFrame={abs(180)} />
       <SubtitleBar text="정리할 부분을 전체 선택하고" startFrame={abs(180)} endFrame={abs(UC1_MENU_OPEN + 10)} />
       <SubtitleBar text="📋 개요로 정리를 누르면" startFrame={abs(UC1_MENU_OPEN + 10)} endFrame={abs(UC1_CARD_APPEAR + 10)} />
       <SubtitleBar text="제안 카드가 스트리밍되며 만들어져요" startFrame={abs(UC1_CARD_APPEAR + 10)} endFrame={abs(UC1_REPLACE_CLICK)} />
@@ -1155,10 +1214,10 @@ function UC2Segment({ frame }: { frame: number }): JSX.Element | null {
         </div>
       )}
 
-      {/* (d) ⌘⏎ confirm keycap */}
+      {/* (d) Ctrl+Enter confirm keycap */}
       {local >= UC2_CONFIRM - 20 && local < UC2_CONFIRM + 20 && (
         <div style={{ position: 'absolute', left: UC2_ANCHOR_X, top: UC2_ANCHOR_Y }}>
-          <Keycap keys={['⌘', '⏎']} />
+          <Keycap keys={['Ctrl', 'Enter']} />
         </div>
       )}
 
@@ -1187,9 +1246,9 @@ function UC2Segment({ frame }: { frame: number }): JSX.Element | null {
           ~20f crossfade overlap at each boundary). All converted via abs() —
           SubtitleBar reads the absolute S3-scene frame internally. */}
       <SubtitleBar text="문장을 쓰다 잠깐 멈추면…" startFrame={abs(0)} endFrame={abs(UC2_HINT_IN)} />
-      <SubtitleBar text="힌트가 나타나요 — 클릭하거나 ⌘⏎" startFrame={abs(UC2_HINT_IN)} endFrame={abs(UC2_GHOST1_START)} />
+      <SubtitleBar text="힌트가 나타나요 — 클릭하거나 Ctrl+Enter" startFrame={abs(UC2_HINT_IN)} endFrame={abs(UC2_GHOST1_START)} />
       <SubtitleBar text="AI가 문체를 이어받아 계속 써줘요" startFrame={abs(UC2_GHOST1_START)} endFrame={abs(UC2_CONFIRM)} />
-      <SubtitleBar text="⌘⏎로 확정" startFrame={abs(UC2_CONFIRM)} endFrame={abs(UC2_REGEN_VISIBLE)} />
+      <SubtitleBar text="Ctrl+Enter로 확정" startFrame={abs(UC2_CONFIRM)} endFrame={abs(UC2_REGEN_VISIBLE)} />
       <SubtitleBar text="마음에 안 들면 ↻로 다시 받으세요" startFrame={abs(UC2_REGEN_VISIBLE)} endFrame={abs(900)} />
     </>
   );

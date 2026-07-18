@@ -57,7 +57,7 @@ export function S4Outro(): JSX.Element {
   const chipStart = 40;
   const chipStagger = 20;
 
-  const manualOpacity = interpolate(frame, [160, 190], [0, 1], {
+  const taglineOpacity = interpolate(frame, [160, 190], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -89,13 +89,13 @@ export function S4Outro(): JSX.Element {
         </div>
         <div
           style={{
-            opacity: manualOpacity,
+            opacity: taglineOpacity,
             fontFamily: font.ui,
             fontSize: 22,
             color: colors.textMuted,
           }}
         >
-          전체 매뉴얼: docs/USER_GUIDE.md
+          가볍고 빠른 마크다운 편집기
         </div>
         <div
           style={{
