@@ -64,16 +64,35 @@ describe('uiStore', () => {
     expect(useUIStore.getState().fontSize).toBe(24);
   });
 
-  it('should enforce minimum preview width', () => {
+  // BUG-1: 퍼센트 [20,80] 벽을 걷어냈다. 최소 패널 폭은 px 기준으로 드래그 시점
+  // (ResizablePanels.clampPreviewPercent)에서 적용하고, store 는 방어적 절대 경계만 유지한다.
+  it('should accept preview widths below the former 20% floor', () => {
     const { setPreviewWidth } = useUIStore.getState();
     act(() => setPreviewWidth(10));
-    expect(useUIStore.getState().previewWidth).toBe(20);
+    expect(useUIStore.getState().previewWidth).toBe(10);
   });
 
-  it('should enforce maximum preview width', () => {
+  it('should accept preview widths above the former 80% ceiling', () => {
     const { setPreviewWidth } = useUIStore.getState();
     act(() => setPreviewWidth(90));
-    expect(useUIStore.getState().previewWidth).toBe(80);
+    expect(useUIStore.getState().previewWidth).toBe(90);
+  });
+
+  it('should clamp preview width to the absolute [0, 100] range', () => {
+    const { setPreviewWidth } = useUIStore.getState();
+    act(() => setPreviewWidth(-5));
+    expect(useUIStore.getState().previewWidth).toBe(0);
+    act(() => setPreviewWidth(120));
+    expect(useUIStore.getState().previewWidth).toBe(100);
+  });
+
+  it('should ignore non-finite preview widths', () => {
+    const { setPreviewWidth } = useUIStore.getState();
+    act(() => setPreviewWidth(42));
+    act(() => setPreviewWidth(Number.NaN));
+    expect(useUIStore.getState().previewWidth).toBe(42);
+    act(() => setPreviewWidth(Number.POSITIVE_INFINITY));
+    expect(useUIStore.getState().previewWidth).toBe(42);
   });
 });
 
@@ -195,6 +214,74 @@ describe('uiStore: scrollSyncEnabled', () => {
     const { setScrollSyncEnabled } = useUIStore.getState();
     act(() => setScrollSyncEnabled(false));
     expect(useUIStore.getState().scrollSyncEnabled).toBe(false);
+  });
+});
+
+describe('uiStore: aiEnabled (SPEC-AI-005)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ aiEnabled: true });
+    localStorage.removeItem('mdedit-ui-store');
+  });
+
+  it('should default aiEnabled to true for an unset user (REQ-AI5-001)', () => {
+    expect(useUIStore.getState().aiEnabled).toBe(true);
+  });
+
+  it('should set aiEnabled to false via setAiEnabled', () => {
+    const { setAiEnabled } = useUIStore.getState();
+    act(() => setAiEnabled(false));
+    expect(useUIStore.getState().aiEnabled).toBe(false);
+  });
+
+  it('should set aiEnabled back to true via setAiEnabled', () => {
+    useUIStore.setState({ aiEnabled: false });
+    const { setAiEnabled } = useUIStore.getState();
+    act(() => setAiEnabled(true));
+    expect(useUIStore.getState().aiEnabled).toBe(true);
+  });
+
+  it('should persist aiEnabled to localStorage (round-trip, REQ-AI5-002)', () => {
+    const { setAiEnabled } = useUIStore.getState();
+    act(() => setAiEnabled(false));
+
+    const raw = localStorage.getItem('mdedit-ui-store');
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw as string);
+    expect(persisted.state.aiEnabled).toBe(false);
+  });
+});
+
+describe('uiStore: aiContinueLength (SPEC-AI-006)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ aiContinueLength: 'normal' });
+    localStorage.removeItem('mdedit-ui-store');
+  });
+
+  it('defaults aiContinueLength to "normal" for an unset user (REQ-AI6-012)', () => {
+    expect(useUIStore.getState().aiContinueLength).toBe('normal');
+  });
+
+  it('sets aiContinueLength to "short" via setAiContinueLength', () => {
+    const { setAiContinueLength } = useUIStore.getState();
+    act(() => setAiContinueLength('short'));
+    expect(useUIStore.getState().aiContinueLength).toBe('short');
+  });
+
+  it('sets aiContinueLength back to "normal" via setAiContinueLength', () => {
+    useUIStore.setState({ aiContinueLength: 'short' });
+    const { setAiContinueLength } = useUIStore.getState();
+    act(() => setAiContinueLength('normal'));
+    expect(useUIStore.getState().aiContinueLength).toBe('normal');
+  });
+
+  it('persists aiContinueLength to localStorage (round-trip)', () => {
+    const { setAiContinueLength } = useUIStore.getState();
+    act(() => setAiContinueLength('short'));
+
+    const raw = localStorage.getItem('mdedit-ui-store');
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw as string);
+    expect(persisted.state.aiContinueLength).toBe('short');
   });
 });
 

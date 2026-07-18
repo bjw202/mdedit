@@ -21,6 +21,26 @@ interface ResizeDividerProps {
   onMouseDown: () => void;
 }
 
+/** 에디터·프리뷰 각 패널이 유지해야 할 최소 폭(px). 퍼센트가 아니라 px 이라는 점이 BUG-1 의 핵심. */
+export const MIN_PANE_PX = 240;
+
+/**
+ * @MX:NOTE: 드래그로 얻은 프리뷰 퍼센트를 "양쪽 패널 최소 240px" 제약으로 자른다(BUG-1).
+ * 최소 폭을 퍼센트로 고정하면(구 [20,80]%) 그 하한이 곧 반대쪽 패널의 상한이 되어, 창이 아무리
+ * 넓어도 에디터가 80% 에서 멈춘다. 컨테이너 폭을 아는 이 지점에서 px → % 로 환산해야
+ * 넓은 창에서는 에디터가 80% 를 넘길 수 있고, 좁은 창에서는 프리뷰가 접히지 않는다.
+ * 컨테이너가 최소 두 개를 담지 못하면(< 480px) 어느 쪽도 만족시킬 수 없으므로 50:50 으로 수렴한다.
+ */
+export function clampPreviewPercent(rawPercent: number, remainingWidth: number): number {
+  if (!Number.isFinite(rawPercent) || !Number.isFinite(remainingWidth) || remainingWidth <= 0) {
+    return 50;
+  }
+  const minPercent = (MIN_PANE_PX / remainingWidth) * 100;
+  const maxPercent = 100 - minPercent;
+  if (minPercent >= maxPercent) return 50;
+  return Math.max(minPercent, Math.min(maxPercent, rawPercent));
+}
+
 function ResizeDivider({ onMouseDown }: ResizeDividerProps): JSX.Element {
   return <div className={DIVIDER_CLASS} onMouseDown={onMouseDown} />;
 }
@@ -28,7 +48,10 @@ function ResizeDivider({ onMouseDown }: ResizeDividerProps): JSX.Element {
 // @MX:ANCHOR: [AUTO] 3-pane layout container with drag-to-resize dividers, 3-mode view switching
 // @MX:REASON: [AUTO] Core layout component — AppLayout 유일 사용처. 패널 너비 불변식: split=ratio 기반, editor/preview=전체 폭(ratio 무시 but 보존). SPEC-UI-004 viewMode 분기 추가.
 // @MX:SPEC: SPEC-UI-004
-// @MX:NOTE: [AUTO] previewWidth는 퍼센트(20-80)로 저장. split 모드에서는 calc()로 비율 적용. 단일 패널 모드에서는 ratio를 무시하고 calc(100% - fixedPx) 전체 폭 부여(store 값 보존).
+// @MX:NOTE: [AUTO] previewWidth는 퍼센트(0-100)로 저장하되, 실질 하한/상한은 드래그 시점에
+//   clampPreviewPercent 가 "양쪽 패널 최소 240px" 로 계산한다(BUG-1). store 는 방어적 절대 경계만
+//   가진다. split 모드에서는 calc()로 비율 적용. 단일 패널 모드에서는 ratio를 무시하고
+//   calc(100% - fixedPx) 전체 폭 부여(store 값 보존).
 // @MX:NOTE: [AUTO] effectiveViewMode 파생: viewMode === 'editor' && 현재 파일이 .html이면 'preview'로 강등 (렌더링 한정, store 보존).
 //   setViewMode 미호출 — SPEC-UI-004 REQ-UI-004-004. 비-html 파일로 전환 시 editor 복귀는 자연스럽게 일어남.
 export function ResizablePanels({ sidebar, editor, preview }: ResizablePanelsProps): JSX.Element {
@@ -72,7 +95,7 @@ export function ResizablePanels({ sidebar, editor, preview }: ResizablePanelsPro
         const remainingWidth = totalWidth - currentSidebarWidth;
         const previewStartX = e.clientX - rect.left - currentSidebarWidth;
         const newPreviewPercent = (1 - previewStartX / remainingWidth) * 100;
-        setPreviewWidth(newPreviewPercent);
+        setPreviewWidth(clampPreviewPercent(newPreviewPercent, remainingWidth));
       }
     },
     [sidebarWidth, sidebarCollapsed, setSidebarWidth, setPreviewWidth]

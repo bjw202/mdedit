@@ -129,43 +129,57 @@ describe('buildRetryInstruction: blind ↻ vs directed re-request', () => {
 });
 
 describe('deriveCardActions: apply-button derivation per preset + insertOnly', () => {
-  it('insertOnly forces insert-below only, hiding 바꾸기 (REQ-AI-026)', async () => {
-    const { deriveCardActions } = await import(
-      '@/components/editor/extensions/ai-suggestion-card'
-    );
-    const actions = deriveCardActions('shorten', true);
-    expect(actions.modes).toEqual(['insert-below']);
-    expect(actions.primary).toBe('insert-below');
-  });
+  const ALL_PRESETS = ['polish', 'outline', 'table', 'diagram', 'shorten', 'custom'] as const;
 
-  it('polish/shorten/custom replace in place', async () => {
+  it('every preset offers BOTH 바꾸기 and 아래에 삽입 when the length guard is off', async () => {
     const { deriveCardActions } = await import(
       '@/components/editor/extensions/ai-suggestion-card'
     );
-    for (const kind of ['polish', 'shorten', 'custom'] as const) {
+    for (const kind of ALL_PRESETS) {
       const actions = deriveCardActions(kind, false);
-      expect(actions.modes).toEqual(['replace']);
-      expect(actions.primary).toBe('replace');
+      expect(actions.modes, kind).toEqual(['replace', 'insert-below']);
     }
   });
 
-  it('outline offers both, focus on 바꾸기 (설계 §4.2 C)', async () => {
+  it('직접 입력(custom) exposes 아래에 삽입 too — the originally missing mode', async () => {
     const { deriveCardActions } = await import(
       '@/components/editor/extensions/ai-suggestion-card'
     );
-    const actions = deriveCardActions('outline', false);
-    expect(actions.modes).toEqual(['replace', 'insert-below']);
+    const actions = deriveCardActions('custom', false);
+    expect(actions.modes).toContain('insert-below');
+    expect(actions.modes).toContain('replace');
     expect(actions.primary).toBe('replace');
   });
 
-  it('table and diagram insert below (원문 파괴 방지)', async () => {
+  it('edit family (polish/shorten/custom) + outline focus 바꾸기 by default', async () => {
+    const { deriveCardActions } = await import(
+      '@/components/editor/extensions/ai-suggestion-card'
+    );
+    for (const kind of ['polish', 'shorten', 'custom', 'outline'] as const) {
+      expect(deriveCardActions(kind, false).primary, kind).toBe('replace');
+    }
+  });
+
+  it('transform family (table/diagram) focuses 아래에 삽입 but still offers 바꾸기', async () => {
     const { deriveCardActions } = await import(
       '@/components/editor/extensions/ai-suggestion-card'
     );
     for (const kind of ['table', 'diagram'] as const) {
       const actions = deriveCardActions(kind, false);
-      expect(actions.modes).toEqual(['insert-below']);
-      expect(actions.primary).toBe('insert-below');
+      expect(actions.primary, kind).toBe('insert-below');
+      expect(actions.modes, kind).toContain('replace');
+    }
+  });
+
+  it('insertOnly still forces insert-below only, hiding 바꾸기 (REQ-AI-026 length guard)', async () => {
+    const { deriveCardActions } = await import(
+      '@/components/editor/extensions/ai-suggestion-card'
+    );
+    // 변환 계열(table)과 편집 계열(shorten) 모두 길이 가드 앞에서는 예외가 없다.
+    for (const kind of ['table', 'shorten'] as const) {
+      const actions = deriveCardActions(kind, true);
+      expect(actions.modes, kind).toEqual(['insert-below']);
+      expect(actions.primary, kind).toBe('insert-below');
     }
   });
 });

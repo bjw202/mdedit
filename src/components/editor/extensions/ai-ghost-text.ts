@@ -15,9 +15,12 @@ import { StateField, StateEffect, EditorSelection, Prec } from '@codemirror/stat
 import type { EditorState, Extension, Range } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { aiRequest, aiCancel, ipcErrorMessage } from '@/lib/tauri/ipc';
+import type { AiRequestArgs } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
 import { resolveModel } from '@/components/settings/SettingsModal';
+import { getEffectiveAiEnabled } from '@/store/aiPolicy';
+import { WAIT_NOTICE_DELAY_MS, WAIT_NOTICE_TEXT } from '@/lib/ai/waitNotice';
 
 // ============================================================
 // 순수 판정 — 힌트는 토큰 0 로컬 로직(설계 §5.2, REQ-AI-028/032)
@@ -198,6 +201,8 @@ export interface GhostValue {
   text: string;
   /** streaming/done 판정 — 컨트롤 버튼([■ 중지] 대 [✓ 넣기]/[✕ 지우기]) 렌더에 사용(REQ-AI-029/030). */
   status?: 'streaming' | 'done';
+  /** SPEC-AI-006 REQ-AI6-007: 발행 후 대기 임계(기본 8초)를 넘겨도 첫 청크가 없으면 true. */
+  waitingLong?: boolean;
 }
 
 /** 고스트 시작(앵커 고정, 텍스트 비움). */
@@ -206,6 +211,8 @@ export const startGhostEffect = StateEffect.define<{ from: number }>();
 export const setGhostTextEffect = StateEffect.define<string>();
 /** 요청 상태 갱신(streaming/done) — 고스트 컨트롤 버튼 렌더 판정에만 쓰인다. */
 export const setGhostStatusEffect = StateEffect.define<'streaming' | 'done'>();
+/** SPEC-AI-006 REQ-AI6-007/008: 대기 안내 표시 여부 갱신(플레이스홀더 전용). */
+export const setGhostWaitingEffect = StateEffect.define<boolean>();
 /** 고스트 제거. */
 export const clearGhostEffect = StateEffect.define<null>();
 
@@ -225,6 +232,9 @@ export const aiGhostField = StateField.define<GhostValue | null>({
         hadGhostEffect = true;
       } else if (e.is(setGhostStatusEffect)) {
         if (next) next = { ...next, status: e.value };
+        hadGhostEffect = true;
+      } else if (e.is(setGhostWaitingEffect)) {
+        if (next) next = { ...next, waitingLong: e.value };
         hadGhostEffect = true;
       } else if (e.is(clearGhostEffect)) {
         next = null;
@@ -249,7 +259,10 @@ function ghostDecorations(value: GhostValue | null): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   if (value.text === '') {
     ranges.push(
-      Decoration.widget({ widget: new GhostPlaceholderWidget(), side: 1 }).range(value.from),
+      Decoration.widget({
+        widget: new GhostPlaceholderWidget(value.waitingLong ?? false),
+        side: 1,
+      }).range(value.from),
     );
   } else {
     ranges.push(
@@ -273,13 +286,23 @@ function ghostDecorations(value: GhostValue | null): DecorationSet {
  * (REQ-AI2-011) — 이 위젯은 뷰 레이어 전용이며 문서 텍스트를 절대 변경하지 않는다.
  */
 class GhostPlaceholderWidget extends WidgetType {
+  constructor(readonly waitingLong: boolean = false) {
+    super();
+  }
   eq(other: WidgetType): boolean {
-    return other instanceof GhostPlaceholderWidget;
+    return other instanceof GhostPlaceholderWidget && other.waitingLong === this.waitingLong;
   }
   toDOM(): HTMLElement {
     const span = document.createElement('span');
     span.className = 'mdedit-ai-ghost-placeholder';
     span.textContent = '✨ 작성 중…';
+    // SPEC-AI-006 REQ-AI6-007/008/009: 8초 무응답이면 보조 문구만 덧붙인다(진행률 바 금지).
+    if (this.waitingLong) {
+      const notice = document.createElement('span');
+      notice.className = 'mdedit-ai-wait-notice';
+      notice.textContent = ` ${WAIT_NOTICE_TEXT}`;
+      span.appendChild(notice);
+    }
     return span;
   }
   ignoreEvent(): boolean {
@@ -319,6 +342,20 @@ function makeGhostControlButton(label: string): HTMLButtonElement {
 }
 
 /**
+ * ↻ 재요청 버튼(SPEC-AI-006 REQ-AI6-010/011). `cm-ai-ghost-btn` 이 아닌 별도 클래스를 쓴다 —
+ * 기존 테스트(`aiGhostControls.test.ts`)가 `.cm-ai-ghost-btn` 개수를 done 상태에서 정확히
+ * 2개(넣기/지우기)로 단언하므로, 이를 무개정 통과시키기 위해 재요청 버튼은 별도 클래스로 둔다.
+ */
+function makeGhostRedoButton(): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'cm-ai-ghost-redo-btn';
+  btn.textContent = '↻';
+  btn.addEventListener('mousedown', (event) => event.preventDefault());
+  return btn;
+}
+
+/**
  * 고스트 컨트롤 버튼 위젯(REQ-AI-029/030) — 스트리밍 중엔 [■ 중지], 완료(done)면
  * [✓ 넣기]·[✕ 지우기]를 렌더한다. 기존 confirmGhostCommand/dismissGhostCommand 를 그대로
  * 재사용해 확정·소멸 경로를 Mod-Enter/Esc 와 단일화한다(view 레이어 전용, 문서 직접 조작 없음).
@@ -344,12 +381,80 @@ class GhostControlsWidget extends WidgetType {
       dismiss.addEventListener('click', () => dismissGhostCommand(view));
       wrap.appendChild(confirm);
       wrap.appendChild(dismiss);
+      // SPEC-AI-006 REQ-AI6-010/011: done 상태에만 재요청(↻) 노출 — streaming 중엔 [■ 중지]만.
+      const redo = makeGhostRedoButton();
+      redo.addEventListener('click', () => reRequestGhost(view));
+      wrap.appendChild(redo);
     }
     return wrap;
   }
   ignoreEvent(): boolean {
     return false;
   }
+}
+
+// ============================================================
+// 대기 안내 타이머 (SPEC-AI-006 항목 5, REQ-AI6-007/008) — module-level single-flight ref
+// (uiStore.ts statusMessageTimer 선례 재사용). 발행 3종 커맨드가 시작 시 무장하고,
+// ghostStoreBridge 가 첫 청크/완료/오류/idle 전이 시 해제한다(clearGhostWaitNotice).
+// ============================================================
+
+let ghostWaitNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 대기 안내 타이머를 해제한다(첫 청크·완료·오류·취소·언마운트 시 호출, REQ-AI6-008). */
+function clearGhostWaitNotice(): void {
+  if (ghostWaitNoticeTimer !== null) {
+    clearTimeout(ghostWaitNoticeTimer);
+    ghostWaitNoticeTimer = null;
+  }
+}
+
+/** 발행 직후 대기 안내 타이머를 무장한다 — 지연 경과 시 고스트가 여전히 빈 채면 표시한다. */
+function armGhostWaitNotice(view: EditorView): void {
+  clearGhostWaitNotice();
+  ghostWaitNoticeTimer = setTimeout(() => {
+    ghostWaitNoticeTimer = null;
+    const ghost = view.state.field(aiGhostField, false);
+    if (ghost && ghost.text.trim() === '') {
+      view.dispatch({ effects: setGhostWaitingEffect.of(true) });
+    }
+  }, WAIT_NOTICE_DELAY_MS);
+}
+
+// ============================================================
+// 고스트 재요청(↻) — 마지막 트리거 인자 보관 (SPEC-AI-006 항목 3, REQ-AI6-010/011)
+// ============================================================
+
+// @MX:NOTE: [AUTO] lastGhostTrigger - 고스트 ↻ 재요청을 위한 마지막 발행 인자 보관(D5).
+// 발행 커맨드 3종(section-fill/continue/free-continue)이 시작 시점에 저장하고,
+// reRequestGhost 가 동일 인자(재파생 아님)로 새 requestId 발행에 재사용한다.
+// @MX:SPEC: SPEC-AI-006
+let lastGhostTrigger: Omit<AiRequestArgs, 'requestId'> | null = null;
+
+/**
+ * 완료(done) 상태의 고스트에서 ↻를 실행 — 마지막 트리거 인자를 재사용해 새 requestId 로
+ * 동일 종류의 요청을 다시 발행한다(D5, 카드 fireReRequest 와 동일 의미론). streaming 중이거나
+ * 보관된 인자가 없으면 false.
+ */
+export function reRequestGhost(view: EditorView): boolean {
+  const ghost = view.state.field(aiGhostField, false);
+  if (!ghost || ghost.status !== 'done' || !lastGhostTrigger) return false;
+
+  const requestId = `gr-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  useAiStore.getState().startRequest(requestId, 'section-fill');
+  view.dispatch({
+    effects: [
+      setGhostTextEffect.of(''),
+      setGhostStatusEffect.of('streaming'),
+      setGhostWaitingEffect.of(false),
+    ],
+  });
+  armGhostWaitNotice(view);
+
+  void aiRequest({ requestId, ...lastGhostTrigger }).catch((e) =>
+    useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
+  );
+  return true;
 }
 
 // ============================================================
@@ -363,6 +468,7 @@ class GhostControlsWidget extends WidgetType {
 export const confirmGhostCommand: Command = (view) => {
   const ghost = view.state.field(aiGhostField, false);
   if (!ghost || !ghost.text) return false;
+  clearGhostWaitNotice();
   view.dispatch({
     changes: { from: ghost.from, insert: ghost.text },
     effects: clearGhostEffect.of(null),
@@ -376,6 +482,7 @@ export const confirmGhostCommand: Command = (view) => {
 export const dismissGhostCommand: Command = (view) => {
   const ghost = view.state.field(aiGhostField, false);
   if (!ghost) return false;
+  clearGhostWaitNotice();
   view.dispatch({ effects: clearGhostEffect.of(null) });
   const ai = useAiStore.getState();
   if (ai.requestState === 'streaming' && ai.requestId) {
@@ -398,17 +505,22 @@ export const startSectionFillCommand: Command = (view) => {
   view.dispatch({
     effects: [startGhostEffect.of({ from: head }), EditorView.scrollIntoView(head, { y: 'nearest' })],
   });
+  armGhostWaitNotice(view);
 
   // 백엔드 계약(team-lead 확정): outline = 전체 헤딩 아웃라인, contextBefore = 커서 앞 본문 꼬리.
   // 1.5K자 상한 절단은 백엔드가 수행하므로 프론트는 커서 앞 원문을 그대로 넘긴다(설계 §7). presetKind·selection 없음.
+  // 섹션 채우기는 continue 가 아니므로 length 를 싣지 않는다(REQ-AI6-014).
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
-  void aiRequest({
-    requestId,
+  const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     model,
     outline: ctx.outline.join('\n'),
     contextBefore: view.state.sliceDoc(0, head),
-  }).catch((e) => useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }));
+  };
+  lastGhostTrigger = requestArgs;
+  void aiRequest({ requestId, ...requestArgs }).catch((e) =>
+    useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
+  );
   return true;
 };
 
@@ -429,16 +541,22 @@ export const startContinueWritingCommand: Command = (view) => {
   view.dispatch({
     effects: [startGhostEffect.of({ from: head }), EditorView.scrollIntoView(head, { y: 'nearest' })],
   });
+  armGhostWaitNotice(view);
 
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
-  void aiRequest({
-    requestId,
+  // SPEC-AI-006 REQ-AI6-013: 이어쓰기(continue) 발행부 — 지속 설정 길이를 실어 보낸다.
+  const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     presetKind: 'continue',
     model,
     outline: ctx.outline.join('\n'),
     contextBefore: ctx.contextBefore,
-  }).catch((e) => useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }));
+    length: useUIStore.getState().aiContinueLength,
+  };
+  lastGhostTrigger = requestArgs;
+  void aiRequest({ requestId, ...requestArgs }).catch((e) =>
+    useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
+  );
   return true;
 };
 
@@ -459,17 +577,23 @@ export const startFreeContinueWritingCommand: Command = (view) => {
   view.dispatch({
     effects: [startGhostEffect.of({ from: head }), EditorView.scrollIntoView(head, { y: 'nearest' })],
   });
+  armGhostWaitNotice(view);
 
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
-  void aiRequest({
-    requestId,
+  // SPEC-AI-006 REQ-AI6-013: 이어쓰기(continue) 발행부 — 지속 설정 길이를 실어 보낸다.
+  const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     presetKind: 'continue',
     model,
     outline: ctx.outline.join('\n'),
     contextBefore: ctx.contextBefore,
     contextAfter: ctx.contextAfter,
-  }).catch((e) => useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }));
+    length: useUIStore.getState().aiContinueLength,
+  };
+  lastGhostTrigger = requestArgs;
+  void aiRequest({ requestId, ...requestArgs }).catch((e) =>
+    useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
+  );
   return true;
 };
 
@@ -477,11 +601,18 @@ export const startFreeContinueWritingCommand: Command = (view) => {
 // 이어쓰기 순으로 트리거하는 4중 동작(설계 §5.1, REQ-AI3-002 우선순위: section-fill > 문서 끝
 // continue > 자유 위치 continue). Tab은 여기 바인딩하지 않는다 — indentWithTab이 처리하고
 // docChanged로 고스트가 소멸한다(REQ-AI-031).
-const modEnterCommand: Command = (view) =>
-  confirmGhostCommand(view) ||
-  startSectionFillCommand(view) ||
-  startContinueWritingCommand(view) ||
-  startFreeContinueWritingCommand(view);
+// SPEC-AI-005 REQ-AI5-009: 이미 활성인 고스트의 확정(confirmGhostCommand)은 토글 OFF 와
+// 무관하게 항상 허용한다 — 정리는 OFF 부수효과(aiOffEffects)가 담당한다(D3). 신규 트리거
+// 3종만 effectiveAiEnabled 가 거짓이면 차단해 폴스루시키고, 어떤 AI 요청도 발생시키지 않는다.
+const modEnterCommand: Command = (view) => {
+  if (confirmGhostCommand(view)) return true;
+  if (!getEffectiveAiEnabled()) return false;
+  return (
+    startSectionFillCommand(view) ||
+    startContinueWritingCommand(view) ||
+    startFreeContinueWritingCommand(view)
+  );
+};
 
 /** AI 고스트 keymap. indentWithTab보다 앞서 등록해야 Mod-Enter/Esc가 선점된다. */
 export const aiGhostKeymap: KeyBinding[] = [
@@ -583,11 +714,15 @@ class AiHintPluginValue {
 
   private armTimer(): void {
     this.clearTimer();
+    // SPEC-AI-005 REQ-AI5-008: effectiveAiEnabled 가 거짓이면 힌트 타이머 자체를 재무장하지
+    // 않는다 — 매 재무장 시점에 다시 조회하므로 ON 복귀 시 다음 유휴 재무장에서 즉시 반영된다.
+    if (!getEffectiveAiEnabled()) return;
     if (this.view.state.field(aiGhostField, false)) return; // 고스트 활성 중엔 힌트 없음
     const pos = this.view.state.selection.main.head;
     if (!evaluateHintEligibility(this.view.state, pos)) return;
     this.timer = setTimeout(() => {
       this.timer = null;
+      if (!getEffectiveAiEnabled()) return; // 타이머 대기 중 토글 OFF 전환 방어(REQ-AI5-008)
       if (this.view.state.field(aiGhostField, false)) return;
       const curPos = this.view.state.selection.main.head;
       const eligibility = evaluateHintEligibility(this.view.state, curPos);
@@ -661,6 +796,16 @@ const ghostTypingCancelListener = EditorView.updateListener.of((update) => {
   }
 });
 
+// @MX:NOTE: [AUTO] startGhostEffect 발행을 관찰해 대기 안내 타이머를 무장한다(SPEC-AI-006
+// REQ-AI6-007). 발행 커맨드 3종이 직접 armGhostWaitNotice 를 호출하는 것과 별개로, 이 리스너가
+// 단일 관찰 지점을 제공해 startGhostEffect 를 싣는 모든 트랜잭션(테스트 포함)에서 균일 동작한다.
+export const ghostWaitNoticeArmListener = EditorView.updateListener.of((update) => {
+  const created = update.transactions.some((tr) => tr.effects.some((e) => e.is(startGhostEffect)));
+  if (created) {
+    armGhostWaitNotice(update.view);
+  }
+});
+
 // ============================================================
 // aiStore → 고스트 브리지 (런타임 스트리밍 반영)
 // ============================================================
@@ -690,12 +835,18 @@ const ghostStoreBridge = ViewPlugin.fromClass(
         if (s.requestState === 'streaming' || s.requestState === 'done') {
           const ghost = view.state.field(aiGhostField, false);
           if (ghost) {
-            // 여러 StateEffect 타입(text/status/scroll)을 한 배열에 담으므로 공통 타입으로 넓힌다.
+            // 여러 StateEffect 타입(text/status/waiting/scroll)을 한 배열에 담으므로 공통
+            // 타입으로 넓힌다.
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const effects: StateEffect<any>[] = [
               setGhostTextEffect.of(s.streamBuffer),
               setGhostStatusEffect.of(s.requestState),
             ];
+            // SPEC-AI-006 REQ-AI6-008: 첫 청크 도착·완료 시 대기 안내를 즉시 제거한다.
+            if (s.streamBuffer.trim() !== '' || s.requestState === 'done') {
+              clearGhostWaitNotice();
+              effects.push(setGhostWaitingEffect.of(false));
+            }
             // BUG-8: 스트리밍 완료(done) 전환 시에만 고스트 앵커를 뷰포트에 보이게 스크롤한다
             // — 컨트롤 버튼([✓ 넣기]/[✕ 지우기])이 뷰포트 밖에 떠 있지 않도록.
             if (s.requestState === 'done' && this.lastStatus !== 'done') {
@@ -706,6 +857,7 @@ const ghostStoreBridge = ViewPlugin.fromClass(
           }
         } else if (s.requestState === 'idle' || s.requestState === 'error') {
           this.lastStatus = null;
+          clearGhostWaitNotice();
           if (view.state.field(aiGhostField, false)) {
             view.dispatch({ effects: clearGhostEffect.of(null) });
           }
@@ -719,6 +871,8 @@ const ghostStoreBridge = ViewPlugin.fromClass(
 
     destroy(): void {
       this.unsubscribe();
+      // SPEC-AI-006 REQ-AI6-008: 언마운트 시 대기 안내 타이머 누수 방지.
+      clearGhostWaitNotice();
     }
   },
 );
@@ -734,5 +888,6 @@ export function createAiGhostText(): Extension {
     ghostStoreBridge,
     createAiHint(),
     ghostTypingCancelListener,
+    ghostWaitNoticeArmListener,
   ];
 }

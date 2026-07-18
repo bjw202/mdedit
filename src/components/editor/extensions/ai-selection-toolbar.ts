@@ -15,6 +15,7 @@ import type { AiModel, AiRequestArgs } from '@/lib/tauri/ipc';
 import type { AiFeature } from '@/store/aiStore';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
+import { getEffectiveAiEnabled } from '@/store/aiPolicy';
 import { expandToSentenceBoundary, startSuggestionCard } from './ai-suggestion-card';
 
 export type { AiPresetKind } from './ai-length-guard';
@@ -29,6 +30,11 @@ export interface AiToolbarUiState {
   loggedIn: boolean;
   /** true 면 sonnet, false 면 haiku(REQ-AI-016). */
   advancedModel: boolean;
+  /**
+   * effectiveAiEnabled(SPEC-AI-005 REQ-AI5-013) — false 면 ✨ 데코레이션 자체를 렌더하지
+   * 않는다(REQ-AI5-007). 생략 시(undefined) 하위호환을 위해 true 로 취급한다.
+   */
+  enabled?: boolean;
 }
 
 /** UI 상태 주입 훅 — 테스트 스텁 및 후속 배선(T-018) 지점. */
@@ -197,6 +203,32 @@ export function buildPresetMenuItems(selectionLength: number): PresetMenuItem[] 
   });
 }
 
+/** 프리셋 메뉴 상단 항상-보이는 안내 줄(REQ-AI7-004/005). null 이면 안내 줄 없음(메뉴 무변경). */
+export interface PresetMenuNotice {
+  tone: 'block' | 'partial';
+  text: string;
+}
+
+/** 삽입 전용 구간(2,001~4,000자) 안내 문구 — 가드는 이 구간에서 reason 을 반환하지 않으므로 툴바가 소유(D2). */
+const MENU_NOTICE_PARTIAL =
+  '선택이 길어요 — 다듬기·직접 입력은 비활성이고, 변환은 결과를 「아래에 삽입」만 할 수 있어요.';
+
+/**
+ * @MX:NOTE: 선택 길이 가드(ai-length-guard.ts)에서 안내 구간을 파생하는 단일 소스 헬퍼(REQ-AI7-004).
+ * 2,000/4,000 임계를 여기 복제하지 않고, 편집 대표(polish)·변환 대표(outline) 두 프리셋에 대한
+ * evaluateSelectionGuard 결과 조합으로만 구간을 판정한다. too-long 문구는 가드 reason 을 그대로
+ * 재사용해 문자열 드리프트를 차단한다(D1).
+ */
+export function evaluateMenuNotice(selectionLength: number): PresetMenuNotice | null {
+  const edit = evaluateSelectionGuard(selectionLength, 'polish');
+  const transform = evaluateSelectionGuard(selectionLength, 'outline');
+
+  if (edit.allowed) return null;
+  if (!transform.allowed) return { tone: 'block', text: transform.reason ?? '' };
+  if (transform.insertOnly) return { tone: 'partial', text: MENU_NOTICE_PARTIAL };
+  return null;
+}
+
 /** 요청 id 생성 — crypto.randomUUID 우선, 미지원 환경은 타임스탬프 폴백. */
 export function generateRequestId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -257,24 +289,87 @@ export function decideMenuFlipDirection({
   return spaceAbove > spaceBelow ? 'above' : 'below';
 }
 
+export type MenuHorizontalDirection = 'start' | 'end';
+
+export interface MenuHorizontalInput {
+  /** 메뉴 왼쪽 모서리(=앵커 left)부터 클리핑 경계 오른쪽까지의 여유 공간(px). */
+  spaceRight: number;
+  /** 클리핑 경계 왼쪽부터 메뉴 오른쪽 모서리(=앵커 right)까지의 여유 공간(px). */
+  spaceLeft: number;
+  /** 메뉴 전체 너비(px). */
+  menuWidth: number;
+}
+
+/**
+ * 가로 flip 판정(순수) — decideMenuFlipDirection 의 가로 대칭판(BUG-2). 오른쪽 공간이 메뉴 너비
+ * 이상이면 기본값인 좌측 정렬을 유지하고, 부족하면 왼쪽 공간이 더 넓을 때만 우측 정렬로 뒤집는다.
+ * 양쪽 다 부족하면 기본값(좌측 정렬)을 유지한다.
+ */
+export function decideMenuHorizontalDirection({
+  spaceRight,
+  spaceLeft,
+  menuWidth,
+}: MenuHorizontalInput): MenuHorizontalDirection {
+  if (spaceRight >= menuWidth) return 'start';
+  return spaceLeft > spaceRight ? 'end' : 'start';
+}
+
 /** flip 판정에 쓰이는 CSS 클래스 — 아래 열림(기본)과 대칭 배치를 담당(mdedit-components.css). */
 const MENU_ABOVE_CLASS = 'mdedit-ai-preset-menu--above';
 
+/** 가로 flip 클래스 — 좌측 정렬(기본)과 대칭으로 우측 정렬시킨다. */
+const MENU_END_CLASS = 'mdedit-ai-preset-menu--end';
+
+const CLIPPING_OVERFLOW = new Set(['auto', 'scroll', 'hidden', 'clip']);
+
 /**
- * anchorEl 기준으로 메뉴가 열릴 방향을 측정해 flip 클래스를 토글한다(BUG-9). 레이아웃이 커밋된
- * 다음 프레임에 측정해야 정확한 rect 를 얻을 수 있어 requestAnimationFrame 으로 미룬다. 에디터
- * 스크롤러가 스크롤 컨테이너여도 getBoundingClientRect 는 항상 뷰포트 기준이라 그대로 동작한다.
+ * 메뉴를 가로로 잘라내는 가장 가까운 조상을 찾는다(BUG-2). 세로와 달리 가로 잘림의 경계는
+ * 뷰포트가 아니다 — 에디터 패널 래퍼(overflow-hidden)와 CodeMirror 스크롤러(overflow:auto)가
+ * 스플리터 위치에서 메뉴를 자르며, 그 오른쪽 모서리는 뷰포트 오른쪽보다 한참 왼쪽에 있다.
+ * 없으면 null 을 돌려 호출자가 뷰포트로 폴백한다.
+ */
+function findClippingAncestor(el: HTMLElement): HTMLElement | null {
+  let node = el.parentElement;
+  while (node) {
+    const style = getComputedStyle(node);
+    if (CLIPPING_OVERFLOW.has(style.overflowX) || CLIPPING_OVERFLOW.has(style.overflow)) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+/**
+ * anchorEl 기준으로 메뉴가 열릴 방향을 세로·가로 모두 측정해 flip 클래스를 토글한다(BUG-9, BUG-2).
+ * 레이아웃이 커밋된 다음 프레임에 측정해야 정확한 rect 를 얻을 수 있어 requestAnimationFrame 으로
+ * 미룬다. 두 방향을 같은 rAF 패스에서 처리해 강제 리플로우를 한 번으로 유지한다.
+ *
+ * 경계 선택이 방향마다 다르다: 세로는 뷰포트(window.innerHeight)로 충분하지만, 가로는 메뉴를 실제로
+ * 자르는 것이 뷰포트가 아니라 에디터 패널이므로 클리핑 조상의 rect 를 써야 한다(BUG-2). 조상이
+ * 없으면 뷰포트로 폴백한다.
  */
 function scheduleMenuFlipMeasurement(dom: HTMLElement, anchorEl: HTMLElement): void {
   requestAnimationFrame(() => {
     const anchorRect = anchorEl.getBoundingClientRect();
     const menuRect = dom.getBoundingClientRect();
+
     const direction = decideMenuFlipDirection({
       spaceBelow: window.innerHeight - anchorRect.bottom,
       spaceAbove: anchorRect.top,
       menuHeight: menuRect.height,
     });
     dom.classList.toggle(MENU_ABOVE_CLASS, direction === 'above');
+
+    // 메뉴는 래퍼(.mdedit-ai-toolbar, position:relative)에 left:0 으로 붙으므로 왼쪽 모서리는
+    // 앵커 left 와, 뒤집힌 뒤(right:0) 오른쪽 모서리는 앵커 right 와 사실상 일치한다.
+    const clipRect = findClippingAncestor(dom)?.getBoundingClientRect();
+    const horizontal = decideMenuHorizontalDirection({
+      spaceRight: (clipRect ? clipRect.right : window.innerWidth) - anchorRect.left,
+      spaceLeft: anchorRect.right - (clipRect ? clipRect.left : 0),
+      menuWidth: menuRect.width,
+    });
+    dom.classList.toggle(MENU_END_CLASS, horizontal === 'end');
   });
 }
 
@@ -294,6 +389,18 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
 
   const renderPresets = (): void => {
     dom.replaceChildren();
+
+    // REQ-AI7-001/002/003/005: 가드가 현재 선택에 영향을 주는 구간에서만 항상-보이는 안내 줄을
+    // 목록 위에 마운트한다. per-item title/aria-disabled(아래)는 그대로 유지(추가 표면일 뿐).
+    const notice = evaluateMenuNotice(selectionLength);
+    if (notice) {
+      const noticeEl = document.createElement('div');
+      noticeEl.className = 'mdedit-ai-preset-notice';
+      noticeEl.dataset.tone = notice.tone;
+      noticeEl.textContent = notice.text;
+      dom.appendChild(noticeEl);
+    }
+
     const list = document.createElement('div');
     list.className = 'mdedit-ai-preset-list';
 
@@ -540,6 +647,8 @@ const defaultGetUiState: GetUiState = () => {
     // 추가하는 aiAdvancedModel 토글을 읽는다.
     loggedIn: ui.aiLoggedIn !== false,
     advancedModel: ui.aiAdvancedModel === true,
+    // SPEC-AI-005: effectiveAiEnabled = !policyDisabled && userAiEnabled(REQ-AI5-013).
+    enabled: getEffectiveAiEnabled(),
   };
 };
 
@@ -568,6 +677,11 @@ export function buildToolbarDecorations(
   const { from, to } = view.state.selection.main;
   if (from === to) return Decoration.none;
 
+  const getUiState = config.getUiState ?? defaultGetUiState;
+  // SPEC-AI-005 REQ-AI5-007: effectiveAiEnabled 가 거짓이면 ✨ 데코레이션 자체를 렌더하지 않는다.
+  // enabled 가 생략(undefined)되면 하위호환을 위해 활성으로 취급한다(REQ-AI5-015).
+  if (getUiState().enabled === false) return Decoration.none;
+
   const ctx: ToolbarContext = {
     getSelection: () => {
       const sel = view.state.selection.main;
@@ -585,7 +699,7 @@ export function buildToolbarDecorations(
         originalText: doc.slice(expanded.from, expanded.to),
       };
     },
-    getUiState: config.getUiState ?? defaultGetUiState,
+    getUiState,
     onRequest: config.onRequest ?? defaultOnRequest,
     onConnectNeeded: config.onConnectNeeded ?? (() => undefined),
   };

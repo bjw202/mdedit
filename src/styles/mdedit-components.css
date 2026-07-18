@@ -386,6 +386,18 @@
 .mdedit-ai-preset-menu--above {
   top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px;
 }
+/* BUG-2: 에디터 패널 오른쪽 경계(스플리터)에 잘릴 때 우측 정렬로 뒤집는다(가로 대칭). */
+.mdedit-ai-preset-menu--end {
+  left: auto; right: 0;
+}
+/* SPEC-AI-007: 길이 가드 상시 안내 줄 — .mdedit-ai-connect-hint 톤 선례, 메뉴 내부 정적 흐름(absolute 아님). */
+.mdedit-ai-preset-notice {
+  padding: 6px var(--md-space-3); margin-bottom: var(--md-space-1);
+  font-size: 11.5px; line-height: 1.4; color: var(--md-text-muted);
+  background: var(--md-surface-sunken, var(--md-accent-soft));
+  border-radius: var(--md-radius-sm);
+}
+.mdedit-ai-preset-notice[data-tone='block'] { color: var(--md-accent-contrast); background: var(--md-dirty); }
 .mdedit-ai-preset-list { display: flex; flex-direction: column; }
 .mdedit-ai-preset-item {
   display: flex; align-items: center; gap: var(--md-space-3); width: 100%;
@@ -462,7 +474,7 @@
 .mdedit-ai-cancel:focus-visible, .mdedit-ai-advanced:focus-visible, .mdedit-ai-list-fallback:focus-visible {
   outline: 2px solid var(--md-accent); outline-offset: 1px;
 }
-/* primary apply ([바꾸기]) + 목록 폴백 = accent-filled call to action */
+/* primary apply(프리셋별로 [바꾸기] 또는 [아래에 삽입]) + 목록 폴백 = accent-filled call to action */
 .mdedit-ai-apply.is-primary, .mdedit-ai-list-fallback {
   color: var(--md-accent-contrast); background: var(--md-accent); border-color: var(--md-accent);
 }

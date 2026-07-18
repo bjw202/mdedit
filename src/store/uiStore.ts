@@ -49,6 +49,16 @@ interface UIState {
   aiNoticeAcknowledged: boolean;
   /** AI "고급 모델" 토글 — true 면 sonnet, false 면 haiku (SPEC-AI-001 REQ-AI-016). 영속화 대상. */
   aiAdvancedModel: boolean;
+  /**
+   * 이어쓰기(continue) 길이 옵션 — 'short'(한두 문장) | 'normal'(기본, 기존 분량 유지)
+   * (SPEC-AI-006 REQ-AI6-012). 최초값(미설정 사용자)은 'normal'. 영속화 대상.
+   */
+  aiContinueLength: 'short' | 'normal';
+  /**
+   * AI 기능 사용자 켜기/끄기 토글 — 꺼지면 ✨ 툴바·힌트·Mod+Enter 신규 트리거가 전부 숨겨진다
+   * (SPEC-AI-005 REQ-AI5-001). 최초값(미설정 사용자)은 켜짐(true). 영속화 대상.
+   */
+  aiEnabled: boolean;
   // Actions
   setSidebarWidth: (width: number) => void;
   setPreviewWidth: (width: number) => void;
@@ -72,9 +82,16 @@ interface UIState {
   setAiNoticeAcknowledged: (acknowledged: boolean) => void;
   /** AI 고급 모델(sonnet) 사용 여부를 설정한다 (SPEC-AI-001 REQ-AI-016). */
   setAiAdvancedModel: (enabled: boolean) => void;
+  /** 이어쓰기 길이 옵션을 설정한다 (SPEC-AI-006 REQ-AI6-012). */
+  setAiContinueLength: (length: 'short' | 'normal') => void;
+  /** AI 기능 사용자 켜기/끄기 토글을 설정한다 (SPEC-AI-005 REQ-AI5-001/006). */
+  setAiEnabled: (enabled: boolean) => void;
 }
 
-// @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth clamped to [20, 80]% to prevent layout breakage
+// @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth 는 퍼센트로 저장하되 방어적
+// 절대 경계 [0, 100]% 만 강제한다(BUG-1). 실질 최소 패널 폭은 px 기준(MIN_PANE_PX)이며,
+// 컨테이너 폭을 아는 드래그 지점(ResizablePanels.clampPreviewPercent)에서 적용한다 —
+// 여기에 퍼센트 하한을 두면 그 값이 곧 반대쪽 패널의 상한이 되어 넓은 창에서 스플리터가 멈춘다.
 // @MX:ANCHOR: [AUTO] Central UI state store - persisted to localStorage via zustand persist middleware
 // @MX:REASON: [AUTO] Public API boundary - used by AppLayout, Header, ResizablePanels, useTheme, Footer (fan_in >= 5)
 export const useUIStore = create<UIState>()(
@@ -93,10 +110,17 @@ export const useUIStore = create<UIState>()(
       statusMessage: null,
       aiNoticeAcknowledged: false,
       aiAdvancedModel: false,
+      aiContinueLength: 'normal',
+      aiEnabled: true,
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
+      // 비정상 입력(NaN/Infinity)은 상태를 오염시키지 않도록 무시한다.
       setPreviewWidth: (width: number) =>
-        set({ previewWidth: Math.max(20, Math.min(80, width)) }),
+        set((state) =>
+          Number.isFinite(width)
+            ? { previewWidth: Math.max(0, Math.min(100, width)) }
+            : state
+        ),
       setTheme: (theme: Theme) => set({ theme }),
       setFontSize: (size: number) =>
         set({ fontSize: Math.max(10, Math.min(24, size)) }),
@@ -128,6 +152,8 @@ export const useUIStore = create<UIState>()(
       },
       setAiNoticeAcknowledged: (acknowledged: boolean) => set({ aiNoticeAcknowledged: acknowledged }),
       setAiAdvancedModel: (enabled: boolean) => set({ aiAdvancedModel: enabled }),
+      setAiContinueLength: (length: 'short' | 'normal') => set({ aiContinueLength: length }),
+      setAiEnabled: (enabled: boolean) => set({ aiEnabled: enabled }),
     }),
     {
       name: 'mdedit-ui-store',

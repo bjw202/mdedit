@@ -202,6 +202,12 @@ export interface AiRequestArgs {
   contextAfter?: string;
   outline?: string;
   customInstruction?: string;
+  /**
+   * SPEC-AI-006 REQ-AI6-012/013/014: 이어쓰기(continue) 길이 옵션('short'|'normal').
+   * continue 발행 2곳(startContinueWritingCommand/startFreeContinueWritingCommand)에서만
+   * 실어 보낸다 — 섹션 채우기·인라인 변환에는 영향을 주지 않는다.
+   */
+  length?: 'short' | 'normal';
 }
 
 /** ai_detect_providers 결과 항목 — 설치·버전 + 로그인 선제 판정(설계 §8.1, REQ-AI-012). */
