@@ -2,6 +2,7 @@
 // @MX:REASON: Public API boundary for browser operations (fan_in >= 1)
 // @MX:SPEC: SPEC-PREVIEW-001
 
+use crate::process_util::no_window;
 use std::process::Command;
 
 /// Opens a URL in the system's default browser using shell commands.
@@ -17,7 +18,9 @@ pub async fn open_url_in_browser(url: String) -> Result<(), String> {
         ("xdg-open", vec![url.as_str()])
     };
 
-    Command::new(shell)
+    let mut cmd = Command::new(shell);
+    // Windows에서 `cmd /C start` 실행 시 콘솔 창이 깜빡이는 것을 막는다.
+    no_window(&mut cmd)
         .args(&command)
         .spawn()
         .map_err(|e| format!("Failed to open URL: {}", e))?;

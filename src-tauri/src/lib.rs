@@ -5,6 +5,7 @@
 pub mod ai;
 pub mod commands;
 pub mod models;
+pub mod process_util;
 pub mod state;
 
 use commands::{browser_ops, directory_ops, file_ops, image_ops, watcher};

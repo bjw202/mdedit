@@ -10,6 +10,7 @@
 //! 미로그인이면 프론트는 ✨를 "연결 필요"로 표시하므로(REQ-AI-015), 첫 클릭 실패를 예방한다.
 
 use crate::ai::provider::ProviderStatus;
+use crate::process_util::no_window;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -261,7 +262,9 @@ pub fn claude_binary() -> Option<PathBuf> {
 pub fn detect_claude() -> ProviderStatus {
     // bare "claude"가 아니라 해석된 절대경로로 실행한다(GUI 최소 PATH 우회).
     let version = claude_binary().and_then(|bin| {
-        Command::new(&bin)
+        let mut cmd = Command::new(&bin);
+        // Windows에서 버전 프로브 때 콘솔 창이 깜빡이는 것을 막는다.
+        no_window(&mut cmd)
             .args(claude_version_args())
             .output()
             .ok()
