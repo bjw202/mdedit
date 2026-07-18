@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ResizablePanels } from '@/components/layout/ResizablePanels';
+import {
+  ResizablePanels,
+  clampPreviewPercent,
+  MIN_PANE_PX,
+} from '@/components/layout/ResizablePanels';
 import { useUIStore } from '@/store/uiStore';
 import { useFileStore } from '@/store/fileStore';
 
@@ -264,5 +268,51 @@ describe('ResizablePanels: edge cases (SPEC-UI-004)', () => {
     );
     expect(screen.getByText('Preview Content')).toBeInTheDocument();
     expect(screen.queryByText('Editor Content')).not.toBeInTheDocument();
+  });
+});
+
+// BUG-1 재현: 스플리터를 오른쪽으로 끌면 에디터가 80% 에서 멈춘다 — 퍼센트 하한(20%)이
+// 실질적으로 에디터 상한(80%)이 되기 때문. 최소 폭을 px(240px)로 바꾸면 넓은 창에서는
+// 에디터가 80% 를 훨씬 넘길 수 있고, 좁은 창에서도 프리뷰가 완전히 접히지 않는다.
+describe('clampPreviewPercent: px-based minimum pane width (BUG-1, pure)', () => {
+  it('exposes a 240px minimum pane width', () => {
+    expect(MIN_PANE_PX).toBe(240);
+  });
+
+  it('wide container: editor may exceed the former 80% ceiling', () => {
+    // 2000px 기준 240px = 12% → 프리뷰 12%~88%, 즉 에디터는 최대 88%.
+    expect(clampPreviewPercent(5, 2000)).toBeCloseTo(12);
+    expect(clampPreviewPercent(95, 2000)).toBeCloseTo(88);
+    expect(clampPreviewPercent(50, 2000)).toBe(50);
+  });
+
+  it('wide container: a value inside the bounds passes through untouched', () => {
+    expect(clampPreviewPercent(15, 2000)).toBe(15);
+    expect(clampPreviewPercent(85, 2000)).toBe(85);
+  });
+
+  it('narrow container: preview never fully collapses', () => {
+    // 800px 기준 240px = 30% → 프리뷰는 30% 미만으로 내려가지 않는다.
+    expect(clampPreviewPercent(2, 800)).toBeCloseTo(30);
+    expect(clampPreviewPercent(98, 800)).toBeCloseTo(70);
+  });
+
+  it('container too small for two minimum panes: falls back to an even split', () => {
+    // 400px < 240*2 → 양쪽 최소를 동시에 만족할 수 없으므로 50:50 으로 수렴.
+    expect(clampPreviewPercent(5, 400)).toBe(50);
+    expect(clampPreviewPercent(95, 400)).toBe(50);
+    // 정확히 480px 이면 min == max == 50.
+    expect(clampPreviewPercent(10, 480)).toBe(50);
+  });
+
+  it('degenerate container width falls back to an even split', () => {
+    expect(clampPreviewPercent(70, 0)).toBe(50);
+    expect(clampPreviewPercent(70, -100)).toBe(50);
+    expect(clampPreviewPercent(70, Number.NaN)).toBe(50);
+  });
+
+  it('non-finite raw percent falls back to an even split', () => {
+    expect(clampPreviewPercent(Number.NaN, 2000)).toBe(50);
+    expect(clampPreviewPercent(Number.POSITIVE_INFINITY, 2000)).toBe(50);
   });
 });

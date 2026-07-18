@@ -88,7 +88,10 @@ interface UIState {
   setAiEnabled: (enabled: boolean) => void;
 }
 
-// @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth clamped to [20, 80]% to prevent layout breakage
+// @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth 는 퍼센트로 저장하되 방어적
+// 절대 경계 [0, 100]% 만 강제한다(BUG-1). 실질 최소 패널 폭은 px 기준(MIN_PANE_PX)이며,
+// 컨테이너 폭을 아는 드래그 지점(ResizablePanels.clampPreviewPercent)에서 적용한다 —
+// 여기에 퍼센트 하한을 두면 그 값이 곧 반대쪽 패널의 상한이 되어 넓은 창에서 스플리터가 멈춘다.
 // @MX:ANCHOR: [AUTO] Central UI state store - persisted to localStorage via zustand persist middleware
 // @MX:REASON: [AUTO] Public API boundary - used by AppLayout, Header, ResizablePanels, useTheme, Footer (fan_in >= 5)
 export const useUIStore = create<UIState>()(
@@ -111,8 +114,13 @@ export const useUIStore = create<UIState>()(
       aiEnabled: true,
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
+      // 비정상 입력(NaN/Infinity)은 상태를 오염시키지 않도록 무시한다.
       setPreviewWidth: (width: number) =>
-        set({ previewWidth: Math.max(20, Math.min(80, width)) }),
+        set((state) =>
+          Number.isFinite(width)
+            ? { previewWidth: Math.max(0, Math.min(100, width)) }
+            : state
+        ),
       setTheme: (theme: Theme) => set({ theme }),
       setFontSize: (size: number) =>
         set({ fontSize: Math.max(10, Math.min(24, size)) }),

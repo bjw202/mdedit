@@ -576,6 +576,153 @@ describe('createPresetMenu: flips above the anchor when there is no room below (
   });
 });
 
+// BUG-2 실기기 재현: 선택이 에디터 창 오른쪽(스플리터 근처)에 있으면 좌측 정렬(left:0)된
+// 프리셋 메뉴가 에디터 패널 오른쪽 경계 밖으로 나가 잘린다 — 세로 flip 과 대칭으로 가로 flip 한다.
+describe('decideMenuHorizontalDirection: popover horizontal flip decision (BUG-2, pure)', () => {
+  it('stays left-aligned when there is enough space to the right', async () => {
+    const { decideMenuHorizontalDirection } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      decideMenuHorizontalDirection({ spaceRight: 300, spaceLeft: 100, menuWidth: 190 }),
+    ).toBe('start');
+  });
+
+  it('flips right-aligned when space to the right is insufficient but the left is larger', async () => {
+    const { decideMenuHorizontalDirection } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      decideMenuHorizontalDirection({ spaceRight: 50, spaceLeft: 400, menuWidth: 190 }),
+    ).toBe('end');
+  });
+
+  it('stays left-aligned when neither side fits but the right still has more room', async () => {
+    const { decideMenuHorizontalDirection } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      decideMenuHorizontalDirection({ spaceRight: 60, spaceLeft: 40, menuWidth: 190 }),
+    ).toBe('start');
+  });
+
+  it('boundary: exactly enough space to the right stays left-aligned', async () => {
+    const { decideMenuHorizontalDirection } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      decideMenuHorizontalDirection({ spaceRight: 190, spaceLeft: 500, menuWidth: 190 }),
+    ).toBe('start');
+  });
+});
+
+describe('createPresetMenu: flips right-aligned against the clipping pane edge (BUG-2)', () => {
+  const rafCallbacks: FrameRequestCallback[] = [];
+
+  beforeEach(() => {
+    rafCallbacks.length = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+    // 뷰포트는 넉넉하다 — 잘림의 원인은 뷰포트가 아니라 에디터 패널 경계임을 분명히 한다.
+    Object.defineProperty(window, 'innerWidth', { value: 1600, configurable: true });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.replaceChildren();
+  });
+
+  function flushRaf(): void {
+    const cbs = rafCallbacks.splice(0, rafCallbacks.length);
+    cbs.forEach((cb) => cb(0));
+  }
+
+  function mockRect(el: Element, rect: Partial<DOMRect>): void {
+    vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({
+      top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0,
+      toJSON: () => ({}),
+      ...rect,
+    } as DOMRect);
+  }
+
+  /**
+   * 실제 DOM 형태를 모사한다: overflow:hidden 인 에디터 패널 안에 ✨ 래퍼(position:relative)와
+   * 그 아래 메뉴가 붙는다. 패널 오른쪽 경계(=스플리터)가 클리핑 경계다.
+   */
+  async function buildInPane(anchorLeft: number, anchorRight: number) {
+    const mod = await import('@/components/editor/extensions/ai-selection-toolbar');
+    const pane = document.createElement('div');
+    pane.style.overflow = 'hidden';
+    document.body.appendChild(pane);
+    mockRect(pane, { left: 0, right: 600, width: 600, top: 0, bottom: 800, height: 800 });
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'mdedit-ai-toolbar';
+    pane.appendChild(wrapper);
+
+    const anchorEl = document.createElement('button');
+    wrapper.appendChild(anchorEl);
+    mockRect(anchorEl, {
+      left: anchorLeft, right: anchorRight, width: anchorRight - anchorLeft,
+      top: 100, bottom: 124, height: 24,
+    });
+
+    const callbacks = { onSelectPreset: vi.fn(), onSubmitCustom: vi.fn(), onClose: vi.fn() };
+    const menu = mod.createPresetMenu({ selectionLength: 100, callbacks, anchorEl });
+    wrapper.appendChild(menu.dom);
+    mockRect(menu.dom, { width: 190, height: 220 });
+    return { menu, pane };
+  }
+
+  it('adds the --end class when the anchor sits near the pane right edge', async () => {
+    // 앵커 left=500 → 오른쪽 여유 100px < 메뉴 190px, 왼쪽 여유 524px → 우측 정렬로 뒤집는다.
+    const { menu } = await buildInPane(500, 524);
+    flushRaf();
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--end')).toBe(true);
+    menu.destroy();
+  });
+
+  it('keeps the default (left-aligned) class when the pane has room to the right', async () => {
+    // 앵커 left=100 → 오른쪽 여유 500px >= 메뉴 190px → 기본 좌측 정렬 유지.
+    const { menu } = await buildInPane(100, 124);
+    flushRaf();
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--end')).toBe(false);
+    menu.destroy();
+  });
+
+  it('measures against the pane, not the viewport (the regression BUG-2 describes)', async () => {
+    // 뷰포트(1600px) 기준이라면 오른쪽 여유가 1100px 이라 절대 뒤집지 않는다.
+    // 패널(600px) 기준으로 측정해야만 뒤집힌다 — 이 테스트가 그 차이를 고정한다.
+    const { menu } = await buildInPane(500, 524);
+    flushRaf();
+    expect(window.innerWidth - 500).toBeGreaterThan(190);
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--end')).toBe(true);
+    menu.destroy();
+  });
+
+  it('falls back to the viewport when no clipping ancestor exists', async () => {
+    const mod = await import('@/components/editor/extensions/ai-selection-toolbar');
+    const anchorEl = document.createElement('button');
+    document.body.appendChild(anchorEl);
+    mockRect(anchorEl, {
+      left: 1550, right: 1574, width: 24, top: 100, bottom: 124, height: 24,
+    });
+    const callbacks = { onSelectPreset: vi.fn(), onSubmitCustom: vi.fn(), onClose: vi.fn() };
+    const menu = mod.createPresetMenu({ selectionLength: 100, callbacks, anchorEl });
+    document.body.appendChild(menu.dom);
+    mockRect(menu.dom, { width: 190, height: 220 });
+
+    flushRaf();
+
+    // 뷰포트 오른쪽 여유 50px < 190px, 왼쪽 여유 1574px → 뒤집는다.
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--end')).toBe(true);
+    menu.destroy();
+  });
+});
+
 describe('AiSparkleWidget: login gate and request firing (jsdom)', () => {
   function makeCtx(overrides: Record<string, unknown> = {}) {
     return {

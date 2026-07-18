@@ -11,6 +11,7 @@ use crate::ai::provider::{
     AiModel, AiProvider, AiRequest, Capabilities, ProviderRegistry, ProviderStatus,
 };
 use crate::ai::stream::{classify_stderr, parse_final_result, parse_text_delta};
+use crate::process_util::no_window;
 use serde::Serialize;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -158,7 +159,9 @@ pub fn spawn_claude(args: &[String], cwd: &Path) -> Result<Child, String> {
     // bare "claude"가 아니라 detect와 동일하게 해석된 절대경로로 스폰한다(GUI 최소 PATH 우회).
     let binary = crate::ai::detect::claude_binary()
         .ok_or_else(|| "claude 실행 파일을 찾지 못했어요.".to_string())?;
-    Command::new(&binary)
+    let mut cmd = Command::new(&binary);
+    // Windows에서 콘솔 창이 깜빡이며 뜨는 것을 막는다(GUI 앱 전면 탈취 방지).
+    no_window(&mut cmd)
         .args(args)
         .current_dir(cwd)
         .env("MAX_THINKING_TOKENS", "0")
