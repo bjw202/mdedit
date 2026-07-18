@@ -1023,6 +1023,13 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
           )}
         </AppFrameSlot>
       </SegmentPanel>
+      {/* F5 cursor-speed fix (owner feedback pass #3): each of the three
+          segments below previously sprung across its ENTIRE gap (up to 185f)
+          even though the on-screen distance between consecutive targets is
+          small — reading as a slow drag while the selection/menu/card content
+          the user actually needs to read is on screen. Now the cursor holds
+          at the previous target through that reading window and only hops
+          (<=12f) right before each click. */}
       <CursorPointer
         positions={[
           { frame: abs(0), x: 900, y: 470 },
@@ -1032,12 +1039,23 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
             y: CONTENT_Y + SELECTION_TOP + SELECTION_HEIGHT,
           },
           {
+            frame: abs(UC1_SPARKLE_CLICK - 12),
+            x: CONTENT_X + 40 + selectionWidth,
+            y: CONTENT_Y + SELECTION_TOP + SELECTION_HEIGHT,
+          },
+          {
             frame: abs(UC1_SPARKLE_CLICK),
+            x: CONTENT_X + sparkleX + SPARKLE_SIZE / 2,
+            y: CONTENT_Y + sparkleY + SPARKLE_SIZE / 2,
+          },
+          {
+            frame: abs(UC1_PRESET_CLICK - 27),
             x: CONTENT_X + sparkleX + SPARKLE_SIZE / 2,
             y: CONTENT_Y + sparkleY + SPARKLE_SIZE / 2,
           },
           { frame: abs(UC1_PRESET_CLICK - 15), x: CONTENT_X + menuX + 90, y: CONTENT_Y + menuY + 53 },
           { frame: abs(UC1_PRESET_CLICK), x: CONTENT_X + menuX + 90, y: CONTENT_Y + menuY + 53 },
+          { frame: abs(UC1_REPLACE_CLICK - 27), x: CONTENT_X + menuX + 90, y: CONTENT_Y + menuY + 53 },
           { frame: abs(UC1_REPLACE_CLICK - 15), x: replaceBtnX, y: replaceBtnY },
           { frame: abs(UC1_REPLACE_CLICK), x: replaceBtnX, y: replaceBtnY },
           { frame: abs(840), x: replaceBtnX, y: replaceBtnY },
@@ -1228,11 +1246,17 @@ function UC2Segment({ frame }: { frame: number }): JSX.Element | null {
         </div>
       )}
 
+      {/* F5 cursor-speed fix: the entry move previously took 240f to cross the
+          frame (now <=20f, then dwells through the 3s pause/hint-pill read);
+          the post-click -> Ctrl+Enter-confirm travel previously took 200f for
+          a ~20px distance (now dwells, then a single <=12f hop). */}
       <CursorPointer
         positions={[
           { frame: abs(0), x: 900, y: 470 },
+          { frame: abs(20), x: UC2_ANCHOR_X + 40, y: UC2_ANCHOR_Y + 12 },
           { frame: abs(UC2_CLICK - 25), x: UC2_ANCHOR_X + 40, y: UC2_ANCHOR_Y + 12 },
           { frame: abs(UC2_CLICK), x: UC2_ANCHOR_X + 40, y: UC2_ANCHOR_Y + 12 },
+          { frame: abs(UC2_CONFIRM - 27), x: UC2_ANCHOR_X + 40, y: UC2_ANCHOR_Y + 12 },
           { frame: abs(UC2_CONFIRM - 15), x: UC2_ANCHOR_X + 20, y: UC2_ANCHOR_Y + 12 },
           { frame: abs(UC2_REGEN_VISIBLE + 10), x: UC2_ANCHOR_X + 20, y: UC2_ANCHOR_Y + 12 },
           { frame: abs(UC2_REGEN_CLICK - 10), x: UC2_ANCHOR_X + 20, y: UC2_ANCHOR_Y + 12 },

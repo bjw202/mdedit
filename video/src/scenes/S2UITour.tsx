@@ -23,19 +23,28 @@ import {
 } from '../kit';
 
 /**
- * S2 — UI 투어 (~80s / 2400f). STORYBOARD.md §S2.
+ * S2 — UI 투어 (~77s / 2300f, was 2400f — see F5 duration-reclaim note below).
+ * STORYBOARD.md §S2.
  * Four sub-parts, all driven off one absolute frame counter (same convention
  * as S1Markdown.tsx): S2a region anatomy, S2b file explorer (navigation
  * model — see FileExplorerRow doc in kit/AppFrame.tsx), S2c view-mode
  * toggle, S2d table insert + screenshot paste.
  */
-export const S2_DURATION_IN_FRAMES = 2400;
+export const S2_DURATION_IN_FRAMES = 2300;
 
 // ---- sub-part boundaries (absolute scene frames) --------------------------
 const S2A = { start: 0, end: 450 };
-const S2B = { start: 450, end: 1200 }; // +150f vs. v1 — room for the images-folder nav + "↑" go-up beat (F1)
-const S2C = { start: 1200, end: 1950 };
-const S2D = { start: 1950, end: 2400 };
+// F5 duration reclaim (owner feedback pass #3, cursor-speed audit): S2B's
+// image-viewer dwell (CAPTURE_CLICK -> GOUP_CLICK) was 280f (~9.3s) — far more
+// than the "rendered-result on-screen >=2s" floor plus its subtitle's actual
+// read time. Trimmed by 100f (still ~6s dwell, subtitle unaffected since its
+// end frame is GOUP_CLICK-relative and shifts with it). Every downstream
+// sub-part boundary below shifts left by the same 100f; S2C/S2D's OWN internal
+// beat timings are unaffected because they're all expressed as offsets from
+// S2C.start/S2D.start (see EDIT_CLICK = S2C.start + 45 etc. below).
+const S2B = { start: 450, end: 1100 };
+const S2C = { start: 1100, end: 1850 };
+const S2D = { start: 1850, end: 2300 };
 
 // ---- shared layout math (mirrors kit/AppFrame.tsx's real geometry) --------
 // AppFrame is 1600x900. Header is layout.headerHeight tall; everything below
@@ -418,7 +427,11 @@ const IMAGES_CLICK = S2B.start + 260; // 710 — click images/ folder row
 const IMAGES_APPLIED = IMAGES_CLICK + 5;
 const CAPTURE_CLICK = S2B.start + 340; // 790 — click capture.png
 const CAPTURE_APPLIED = CAPTURE_CLICK + 5;
-const GOUP_CLICK = S2B.start + 620; // 1070 — click ".." row (images/ -> 프로젝트/)
+// F5 duration reclaim: offset trimmed 620 -> 520 (100f) alongside S2B.end's
+// matching -100f shift above, so the post-click tail dwell length (S2B.end -
+// GOUP_CLICK) is unchanged (130f) — only the (over-generous) image-viewer
+// dwell before it is shortened.
+const GOUP_CLICK = S2B.start + 520; // 970 — click ".." row (images/ -> 프로젝트/)
 const GOUP_APPLIED = GOUP_CLICK + 5;
 
 // Row target coordinates per listing state (see explorerRowY + kit/AppFrame.tsx FileExplorer padding math).
@@ -484,18 +497,25 @@ function S2bExplorer({ frame }: { frame: number }): JSX.Element | null {
           )}
         </AppFrameSlot>
       </Panel>
+      {/* F5 cursor-speed fix (owner feedback pass #3): every travel segment
+          below now holds at the PREVIOUS target (dwelling through the
+          subtitle/listing-read window) and only springs during a short final
+          hop (<=12f, well under the "long cross-screen move" 20f cap) that
+          lands exactly on the next click. Previously each segment sprung
+          across its ENTIRE gap (up to 250f) end-to-end, reading as a slow
+          drag across the sidebar even for a one-row (~26px) distance. */}
       <CursorPointer
         positions={[
           { frame: S2B.start, x: 700, y: 470 },
-          { frame: S2B.start + 40, x: ROW_PROJECT.x, y: ROW_PROJECT.y },
+          { frame: S2B.start + 20, x: ROW_PROJECT.x, y: ROW_PROJECT.y },
           { frame: PROJECT_CLICK, x: ROW_PROJECT.x, y: ROW_PROJECT.y },
-          { frame: MEETING_CLICK - 30, x: ROW_MEETING.x, y: ROW_MEETING.y },
+          { frame: MEETING_CLICK - 12, x: ROW_PROJECT.x, y: ROW_PROJECT.y },
           { frame: MEETING_CLICK, x: ROW_MEETING.x, y: ROW_MEETING.y },
-          { frame: IMAGES_CLICK - 30, x: ROW_IMAGES.x, y: ROW_IMAGES.y },
+          { frame: IMAGES_CLICK - 12, x: ROW_MEETING.x, y: ROW_MEETING.y },
           { frame: IMAGES_CLICK, x: ROW_IMAGES.x, y: ROW_IMAGES.y },
-          { frame: CAPTURE_CLICK - 30, x: ROW_CAPTURE.x, y: ROW_CAPTURE.y },
+          { frame: CAPTURE_CLICK - 12, x: ROW_IMAGES.x, y: ROW_IMAGES.y },
           { frame: CAPTURE_CLICK, x: ROW_CAPTURE.x, y: ROW_CAPTURE.y },
-          { frame: GOUP_CLICK - 30, x: ROW_GOUP.x, y: ROW_GOUP.y },
+          { frame: GOUP_CLICK - 12, x: ROW_CAPTURE.x, y: ROW_CAPTURE.y },
           { frame: GOUP_CLICK, x: ROW_GOUP.x, y: ROW_GOUP.y },
           { frame: S2B.end, x: ROW_GOUP.x, y: ROW_GOUP.y },
         ]}
@@ -563,14 +583,21 @@ function S2cViewModes({ frame }: { frame: number }): JSX.Element | null {
           </div>
         </AppFrameSlot>
       </Panel>
+      {/* F5 cursor-speed fix: EDIT_CLICK -> SPLIT_CLICK and SPLIT_CLICK ->
+          PREVIEW_CLICK are adjacent toggle buttons (~80px apart) but the gap
+          between those clicks is ~220f (the user needs that long to actually
+          SEE each layout mode) — previously the cursor sprung across the full
+          220f, i.e. crept ~80px over 7+ seconds. Now it holds at the button
+          just clicked (dwelling through the mode-viewing window) and only
+          hops in the final 12f before the next click. */}
       <CursorPointer
         positions={[
           { frame: S2C.start, x: 900, y: 470 },
-          { frame: EDIT_CLICK - 30, x: TOGGLE_EDIT_BTN.x, y: TOGGLE_EDIT_BTN.y },
+          { frame: EDIT_CLICK - 15, x: TOGGLE_EDIT_BTN.x, y: TOGGLE_EDIT_BTN.y },
           { frame: EDIT_CLICK, x: TOGGLE_EDIT_BTN.x, y: TOGGLE_EDIT_BTN.y },
-          { frame: SPLIT_CLICK - 30, x: TOGGLE_SPLIT_BTN.x, y: TOGGLE_SPLIT_BTN.y },
+          { frame: SPLIT_CLICK - 12, x: TOGGLE_EDIT_BTN.x, y: TOGGLE_EDIT_BTN.y },
           { frame: SPLIT_CLICK, x: TOGGLE_SPLIT_BTN.x, y: TOGGLE_SPLIT_BTN.y },
-          { frame: PREVIEW_CLICK - 30, x: TOGGLE_PREVIEW_BTN.x, y: TOGGLE_PREVIEW_BTN.y },
+          { frame: PREVIEW_CLICK - 12, x: TOGGLE_SPLIT_BTN.x, y: TOGGLE_SPLIT_BTN.y },
           { frame: PREVIEW_CLICK, x: TOGGLE_PREVIEW_BTN.x, y: TOGGLE_PREVIEW_BTN.y },
           { frame: S2C.end, x: TOGGLE_PREVIEW_BTN.x, y: TOGGLE_PREVIEW_BTN.y },
         ]}
@@ -665,12 +692,30 @@ const TABLE_BTN_X_OFFSET = (() => {
   return TOOLBAR_PADDING_X + precedingWidths + precedingGaps + TOOLBAR_BTN_WIDTHS['표'] / 2;
 })();
 const TABLE_BTN = { x: CONTENT_X + TABLE_BTN_X_OFFSET, y: CONTENT_Y + layout.toolbarHeight / 2 };
+// GRID_POPOVER is in OUTER-FRAME absolute space (same convention as TABLE_BTN
+// above and modeToggleButtonCenters() in kit/AppFrame.tsx) — this is the space
+// CursorPointer and GRID_CELL (below) operate in, since CursorPointer is a
+// sibling of AppFrameSlot, not a descendant (see S3AI.tsx UC1Segment's `abs()`
+// doc comment for the same pitfall class).
 const GRID_POPOVER = { x: TABLE_BTN.x - 90, y: TABLE_BTN.y + 20 };
 // 8x8 grid cells, 18px + 2px gap stride, per USER_GUIDE §2.3.
 const GRID_CELL = (row: number, col: number): { x: number; y: number } => ({
   x: GRID_POPOVER.x + 8 + col * 20 + 9,
   y: GRID_POPOVER.y + 8 + row * 20 + 9,
 });
+// F3 fix (S2d cursor mismatch): GridPickerPopover itself, however, is rendered
+// INSIDE the editor column's content-relative wrapper div (see S2dTableAndPaste
+// below — the div wrapping MeetingDocEditor/GridPickerPopover/Ctrl+V keycap),
+// whose own local (0,0) origin is already offset from the outer frame by
+// (CONTENT_X, CONTENT_Y + toolbarHeight). Using GRID_POPOVER (outer-space)
+// directly as that div's `left`/`top` double-counts the offset and renders the
+// popover ~(CONTENT_X, CONTENT_Y + toolbarHeight) past where the cursor
+// (correctly targeting GRID_CELL in outer space) actually points. Subtract the
+// same offset back out for the popover's own local render position.
+const GRID_POPOVER_LOCAL = {
+  x: GRID_POPOVER.x - CONTENT_X,
+  y: GRID_POPOVER.y - (CONTENT_Y + layout.toolbarHeight),
+};
 
 function GridPickerPopover({
   frame,
@@ -716,8 +761,8 @@ function GridPickerPopover({
     <div
       style={{
         position: 'absolute',
-        left: GRID_POPOVER.x,
-        top: GRID_POPOVER.y,
+        left: GRID_POPOVER_LOCAL.x,
+        top: GRID_POPOVER_LOCAL.y,
         opacity,
         background: colors.surfaceRaised,
         border: `1px solid ${colors.borderStrong}`,
@@ -748,6 +793,18 @@ const TABLE_SELECT = S2D.start + 100; // 1900
 const TABLE_INSERTED = TABLE_SELECT + 10;
 const PASTE_KEYCAP = S2D.start + 170; // 1970
 const SCREENSHOT_INSERTED = PASTE_KEYCAP + 55; // 2025
+
+// F3 fix (S2d cursor mismatch): the editor column's content-relative div (see
+// S2dTableAndPaste below) shares the same local origin as GRID_POPOVER_LOCAL's
+// wrapper — outer-space offset (CONTENT_X, CONTENT_Y + toolbarHeight). The
+// Ctrl+V keycap renders at `right: space[4], top: space[3]` within that div
+// (editor column width = 0.5*CONTENT_W); convert its approximate on-screen
+// center to outer/absolute space for the CursorPointer target below.
+const S2D_EDITOR_W = 0.5 * CONTENT_W;
+const PASTE_TARGET = {
+  x: CONTENT_X + S2D_EDITOR_W - space[4] - 35,
+  y: CONTENT_Y + layout.toolbarHeight + space[3] + 12,
+};
 
 function S2dTableAndPaste({ frame }: { frame: number }): JSX.Element | null {
   if (frame < S2D.start - 20 || frame > S2D.end + 20) return null;
@@ -801,15 +858,26 @@ function S2dTableAndPaste({ frame }: { frame: number }): JSX.Element | null {
           </div>
         </AppFrameSlot>
       </Panel>
+      {/* F5 cursor-speed fix: the grid "sweep" (1x1 -> 3x4, shown by the
+          popover's own internal hover-highlight animation) previously had the
+          cursor sprite visibly crawl the whole 50f window; it now holds at the
+          first cell and only hops (<=12f) right at the selection click. Same
+          pattern for the post-select -> Ctrl+V travel (previously a 58f glide
+          across the editor; now a dwell + a single <=20f "long move" hop). */}
       <CursorPointer
         positions={[
           { frame: S2D.start, x: 900, y: 470 },
-          { frame: TABLE_OPEN - 20, x: TABLE_BTN.x, y: TABLE_BTN.y },
+          { frame: TABLE_OPEN - 15, x: TABLE_BTN.x, y: TABLE_BTN.y },
           { frame: TABLE_OPEN, x: TABLE_BTN.x, y: TABLE_BTN.y },
-          { frame: TABLE_OPEN + 10, x: GRID_CELL(0, 0).x, y: GRID_CELL(0, 0).y },
-          { frame: TABLE_SELECT - 20, x: GRID_CELL(1, 2).x, y: GRID_CELL(1, 2).y },
+          { frame: TABLE_OPEN + 8, x: GRID_CELL(0, 0).x, y: GRID_CELL(0, 0).y },
+          { frame: TABLE_SELECT - 12, x: GRID_CELL(0, 0).x, y: GRID_CELL(0, 0).y },
           { frame: TABLE_SELECT, x: GRID_CELL(2, 3).x, y: GRID_CELL(2, 3).y },
-          { frame: S2D.end, x: GRID_CELL(2, 3).x, y: GRID_CELL(2, 3).y },
+          // F3 fix: cursor previously stayed parked on the (mismatched) grid
+          // cell for the rest of the beat, through the Ctrl+V paste — it now
+          // travels to the paste keycap's actual on-screen position instead.
+          { frame: PASTE_KEYCAP - 20, x: GRID_CELL(2, 3).x, y: GRID_CELL(2, 3).y },
+          { frame: PASTE_KEYCAP, x: PASTE_TARGET.x, y: PASTE_TARGET.y },
+          { frame: S2D.end, x: PASTE_TARGET.x, y: PASTE_TARGET.y },
         ]}
         clicks={[TABLE_OPEN, TABLE_SELECT]}
       />
