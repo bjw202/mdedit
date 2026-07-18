@@ -289,24 +289,87 @@ export function decideMenuFlipDirection({
   return spaceAbove > spaceBelow ? 'above' : 'below';
 }
 
+export type MenuHorizontalDirection = 'start' | 'end';
+
+export interface MenuHorizontalInput {
+  /** 메뉴 왼쪽 모서리(=앵커 left)부터 클리핑 경계 오른쪽까지의 여유 공간(px). */
+  spaceRight: number;
+  /** 클리핑 경계 왼쪽부터 메뉴 오른쪽 모서리(=앵커 right)까지의 여유 공간(px). */
+  spaceLeft: number;
+  /** 메뉴 전체 너비(px). */
+  menuWidth: number;
+}
+
+/**
+ * 가로 flip 판정(순수) — decideMenuFlipDirection 의 가로 대칭판(BUG-2). 오른쪽 공간이 메뉴 너비
+ * 이상이면 기본값인 좌측 정렬을 유지하고, 부족하면 왼쪽 공간이 더 넓을 때만 우측 정렬로 뒤집는다.
+ * 양쪽 다 부족하면 기본값(좌측 정렬)을 유지한다.
+ */
+export function decideMenuHorizontalDirection({
+  spaceRight,
+  spaceLeft,
+  menuWidth,
+}: MenuHorizontalInput): MenuHorizontalDirection {
+  if (spaceRight >= menuWidth) return 'start';
+  return spaceLeft > spaceRight ? 'end' : 'start';
+}
+
 /** flip 판정에 쓰이는 CSS 클래스 — 아래 열림(기본)과 대칭 배치를 담당(mdedit-components.css). */
 const MENU_ABOVE_CLASS = 'mdedit-ai-preset-menu--above';
 
+/** 가로 flip 클래스 — 좌측 정렬(기본)과 대칭으로 우측 정렬시킨다. */
+const MENU_END_CLASS = 'mdedit-ai-preset-menu--end';
+
+const CLIPPING_OVERFLOW = new Set(['auto', 'scroll', 'hidden', 'clip']);
+
 /**
- * anchorEl 기준으로 메뉴가 열릴 방향을 측정해 flip 클래스를 토글한다(BUG-9). 레이아웃이 커밋된
- * 다음 프레임에 측정해야 정확한 rect 를 얻을 수 있어 requestAnimationFrame 으로 미룬다. 에디터
- * 스크롤러가 스크롤 컨테이너여도 getBoundingClientRect 는 항상 뷰포트 기준이라 그대로 동작한다.
+ * 메뉴를 가로로 잘라내는 가장 가까운 조상을 찾는다(BUG-2). 세로와 달리 가로 잘림의 경계는
+ * 뷰포트가 아니다 — 에디터 패널 래퍼(overflow-hidden)와 CodeMirror 스크롤러(overflow:auto)가
+ * 스플리터 위치에서 메뉴를 자르며, 그 오른쪽 모서리는 뷰포트 오른쪽보다 한참 왼쪽에 있다.
+ * 없으면 null 을 돌려 호출자가 뷰포트로 폴백한다.
+ */
+function findClippingAncestor(el: HTMLElement): HTMLElement | null {
+  let node = el.parentElement;
+  while (node) {
+    const style = getComputedStyle(node);
+    if (CLIPPING_OVERFLOW.has(style.overflowX) || CLIPPING_OVERFLOW.has(style.overflow)) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+/**
+ * anchorEl 기준으로 메뉴가 열릴 방향을 세로·가로 모두 측정해 flip 클래스를 토글한다(BUG-9, BUG-2).
+ * 레이아웃이 커밋된 다음 프레임에 측정해야 정확한 rect 를 얻을 수 있어 requestAnimationFrame 으로
+ * 미룬다. 두 방향을 같은 rAF 패스에서 처리해 강제 리플로우를 한 번으로 유지한다.
+ *
+ * 경계 선택이 방향마다 다르다: 세로는 뷰포트(window.innerHeight)로 충분하지만, 가로는 메뉴를 실제로
+ * 자르는 것이 뷰포트가 아니라 에디터 패널이므로 클리핑 조상의 rect 를 써야 한다(BUG-2). 조상이
+ * 없으면 뷰포트로 폴백한다.
  */
 function scheduleMenuFlipMeasurement(dom: HTMLElement, anchorEl: HTMLElement): void {
   requestAnimationFrame(() => {
     const anchorRect = anchorEl.getBoundingClientRect();
     const menuRect = dom.getBoundingClientRect();
+
     const direction = decideMenuFlipDirection({
       spaceBelow: window.innerHeight - anchorRect.bottom,
       spaceAbove: anchorRect.top,
       menuHeight: menuRect.height,
     });
     dom.classList.toggle(MENU_ABOVE_CLASS, direction === 'above');
+
+    // 메뉴는 래퍼(.mdedit-ai-toolbar, position:relative)에 left:0 으로 붙으므로 왼쪽 모서리는
+    // 앵커 left 와, 뒤집힌 뒤(right:0) 오른쪽 모서리는 앵커 right 와 사실상 일치한다.
+    const clipRect = findClippingAncestor(dom)?.getBoundingClientRect();
+    const horizontal = decideMenuHorizontalDirection({
+      spaceRight: (clipRect ? clipRect.right : window.innerWidth) - anchorRect.left,
+      spaceLeft: anchorRect.right - (clipRect ? clipRect.left : 0),
+      menuWidth: menuRect.width,
+    });
+    dom.classList.toggle(MENU_END_CLASS, horizontal === 'end');
   });
 }
 

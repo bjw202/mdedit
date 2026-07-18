@@ -386,6 +386,10 @@
 .mdedit-ai-preset-menu--above {
   top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px;
 }
+/* BUG-2: 에디터 패널 오른쪽 경계(스플리터)에 잘릴 때 우측 정렬로 뒤집는다(가로 대칭). */
+.mdedit-ai-preset-menu--end {
+  left: auto; right: 0;
+}
 /* SPEC-AI-007: 길이 가드 상시 안내 줄 — .mdedit-ai-connect-hint 톤 선례, 메뉴 내부 정적 흐름(absolute 아님). */
 .mdedit-ai-preset-notice {
   padding: 6px var(--md-space-3); margin-bottom: var(--md-space-1);
