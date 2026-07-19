@@ -553,17 +553,22 @@ export interface AiSuggestionCardConfig {
   getActiveCards?: () => Array<{ model: SuggestionCardModel; render: RenderCardInput }>;
 }
 
-// @MX:NOTE: 카드 key 는 버퍼 "빈/찬" 불리언만 반영하고 버퍼 길이는 반영하지 않는다 — 청크마다
-// key 가 바뀌면 위젯이 재생성되어 글로우 애니메이션이 매 청크 재시작된다(REQ-AI2-013). 스켈레톤→
-// 텍스트 전환(빈→찬) 순간에만 1회 재생성되고, 그 이후 청크는 key 가 안정적이라 DOM 이 유지된다.
+// @MX:NOTE: 버퍼가 "찬" 뒤에는 카드 key 에 버퍼 길이를 실어 청크마다 key 가 바뀌게 한다 — key 가
+// 고정이면 eq() 가 계속 true 라 CodeMirror 가 DOM 을 건드리지 않아 카드가 첫 청크에서 얼어붙는다.
+// 청크마다 key 가 바뀌어도 위젯이 재생성되지는 않는다: updateDOM() 이 스트리밍 텍스트만 제자리
+// 패치하고 true 를 돌려주므로 toDOM() 재호출이 없고, 따라서 글로우 애니메이션도 재시작되지
+// 않는다(REQ-AI2-013). 즉 "재생성 방지" 책임은 key 안정성이 아니라 updateDOM 이 진다.
 /** 카드 key — requestId:phase(:버퍼상태). 스트리밍이 아니면 버퍼 상태를 생략한다. */
-function buildCardKey(model: SuggestionCardModel, render: RenderCardInput): string {
+export function buildCardKey(model: SuggestionCardModel, render: RenderCardInput): string {
   const { phase } = render.state;
   if (phase !== 'streaming') return `${model.requestId}:${phase}`;
   // BUG-7: 공백/개행만 있는 버퍼도 "빈" 것으로 취급해 스켈레톤 → 텍스트 전환 판정과
   // 위젯 key(재생성 여부)를 일치시킨다 — 그렇지 않으면 렌더는 스켈레톤을 유지하는데
   // key 는 'filled' 로 바뀌어 눈에 보이는 출력 없이 위젯이 재생성될 수 있다.
-  const bufferState = render.streamBuffer.trim() === '' ? 'skeleton' : 'filled';
+  // 길이는 "찬" 뒤에만 붙인다: 스켈레톤 구간에서 공백만 쌓이는 동안은 key 가 고정이어야
+  // 보이는 변화 없이 카드가 재생성되는 일이 없다.
+  const bufferState =
+    render.streamBuffer.trim() === '' ? 'skeleton' : `filled:${render.streamBuffer.length}`;
   // SPEC-AI-006 REQ-AI6-007: waitingLong 전환도 key 에 반영해야 widget 이 재생성되어 대기
   // 안내 문구가 실제로 DOM 에 반영된다(그렇지 않으면 eq() 가 true 라 toDOM 이 재호출되지 않는다).
   const waitingSuffix = render.waitingLong ? ':waiting' : '';
@@ -583,18 +588,49 @@ export class SuggestionCardWidget extends WidgetType {
     return other instanceof SuggestionCardWidget && other.key === this.key;
   }
 
-  // BUG-8: 문서 아래쪽에서 카드가 뷰포트 밖에 뜨면 사용자가 수동으로 스크롤해야 한다. key 가
-  // 바뀔 때만(=마운트/phase 전환) toDOM() 이 다시 호출된다 — 버퍼만 채워지는 스트리밍 청크는
-  // eq() 가 true 라 위젯이 재사용되어 toDOM() 이 재호출되지 않으므로, 여기 두면 자연히 "청크마다
-  // 스크롤하지 않는다"는 anti-scroll-jacking 규칙을 만족한다. 카드는 range.to 아래에 놓이므로
-  // range.to 로 스크롤하는 대신 카드 DOM 자체를 스크롤해야 카드 전체(스켈레톤/버튼)가 보인다.
-  // 아직 문서에 붙지 않은 상태로 반환되므로, CodeMirror 가 실제로 삽입한 다음 프레임에 수행한다.
+  // BUG-8: 문서 아래쪽에서 카드가 뷰포트 밖에 뜨면 사용자가 수동으로 스크롤해야 한다. 버퍼만
+  // 채워지는 스트리밍 청크는 key 가 바뀌어 eq() 가 false 지만, updateDOM() 이 텍스트를 제자리
+  // 패치하고 true 를 돌려주므로 toDOM() 은 재호출되지 않는다 — "청크마다 스크롤하지 않는다"는
+  // anti-scroll-jacking 규칙은 그 경로가 지킨다. 여기(마운트/phase 전환)에만 scrollIntoView 를
+  // 두면 된다. 카드는 range.to 아래에 놓이므로 range.to 로 스크롤하는 대신 카드 DOM 자체를
+  // 스크롤해야 카드 전체(스켈레톤/버튼)가 보인다. 아직 문서에 붙지 않은 상태로 반환되므로,
+  // CodeMirror 가 실제로 삽입한 다음 프레임에 수행한다.
   toDOM(): HTMLElement {
     const dom = renderSuggestionCard(this.input);
+    // updateDOM 이 "이 DOM 이 어느 카드/단계의 것인지" 판정할 수 있도록 key 를 새겨 둔다.
+    dom.dataset.aiCardKey = this.key;
     requestAnimationFrame(() => {
       dom.scrollIntoView({ block: 'nearest' });
     });
     return dom;
+  }
+
+  /**
+   * 스트리밍 텍스트가 자란 경우에만 기존 DOM 을 제자리 패치한다(카드 얼어붙음 수정의 핵심).
+   * true 를 돌려주면 CodeMirror 는 위젯을 재생성하지 않으므로 글로우 애니메이션(REQ-AI2-013)
+   * 과 스크롤(BUG-8)이 청크마다 재시작되지 않는다. 그 외 모든 변화(스켈레톤→텍스트 전환, 8초
+   * 대기 안내 등장/소멸, phase 전환, 다른 카드로의 교체)는 false 를 돌려 기존과 똑같이 재렌더한다.
+   *
+   * 판정은 넘겨받은 dom 을 구조적으로 뜯어서 한다 — updateDOM 은 이전 위젯을 받지 않으므로
+   * "직전 상태가 무엇이었는지" 추측해서는 안 된다.
+   */
+  updateDOM(dom: HTMLElement): boolean {
+    if (this.input.state.phase !== 'streaming') return false;
+    if (this.input.streamBuffer.trim() === '') return false;
+    // 스켈레톤/대기 안내가 남아 있는 DOM 은 이번 갱신에서 그것들을 걷어내야 하므로 재렌더에 맡긴다.
+    if (dom.querySelector('.mdedit-ai-skeleton') !== null) return false;
+    if (dom.querySelector('.mdedit-ai-wait-notice') !== null) return false;
+    if (!dom.classList.contains('mdedit-ai-card-streaming')) return false;
+    // 같은 위치에서 다른 카드(다른 requestId)의 DOM 을 물려받았다면 패치하면 안 된다 — 텍스트는
+    // 맞아도 [✕ 취소] 버튼이 이전 카드의 콜백을 붙든 채 남아 엉뚱한 요청을 취소하게 된다.
+    const [prevRequestId, prevPhase] = (dom.dataset.aiCardKey ?? '').split(':');
+    const [requestId, phase] = this.key.split(':');
+    if (prevRequestId !== requestId || prevPhase !== phase) return false;
+    const body = dom.querySelector('.mdedit-ai-stream');
+    if (body === null) return false;
+    body.textContent = this.input.streamBuffer;
+    dom.dataset.aiCardKey = this.key;
+    return true;
   }
 
   ignoreEvent(): boolean {
