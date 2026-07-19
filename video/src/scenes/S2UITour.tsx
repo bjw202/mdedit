@@ -296,8 +296,53 @@ function MeetingDocPreview({
   );
 }
 
-/** Minimal local image viewer look (filename bar + centered checkerboard + meta), per USER_GUIDE §3. */
+/**
+ * Read-only placeholder shown in the EDITOR pane when a non-markdown file is
+ * open (real: src/components/layout/AppLayout.tsx `isViewOnly` branch,
+ * `data-testid="html-view-only-placeholder"`). Strings copied verbatim from
+ * that component so the video never invents copy the app doesn't show.
+ */
+function ImageEditorPlaceholderPane(): JSX.Element {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: space[2],
+        padding: space[4],
+        textAlign: 'center',
+        background: colors.surfaceRaised,
+        fontFamily: font.ui,
+      }}
+    >
+      <div style={{ fontSize: fontSize.editor, color: colors.textMuted }}>이 형식은 편집할 수 없습니다</div>
+      <div style={{ fontSize: fontSize.status, color: colors.textFaint }}>
+        이 파일은 편집기에서 열 수 없습니다. 프리뷰 패널의 안내를 확인하세요.
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Minimal local image viewer look (toolbar + centered checkerboard + meta),
+ * per src/components/preview/ImageFileViewer.tsx:140-168. Toolbar is
+ * Fit | 100% | + | - with the meta line (dimensions · size, NO filename —
+ * the filename only appears in the app's title bar) right-aligned.
+ */
 function ImageViewerPane(): JSX.Element {
+  const toolBtnStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 4px',
+    fontFamily: font.ui,
+    fontSize: fontSize.status,
+    color: colors.textMuted,
+  };
   return (
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', background: colors.bg }}>
       <div
@@ -306,14 +351,19 @@ function ImageViewerPane(): JSX.Element {
           height: layout.statusBarHeight,
           display: 'flex',
           alignItems: 'center',
-          padding: `0 ${space[4]}px`,
+          gap: space[2],
+          padding: `0 ${space[3]}px`,
           borderBottom: `1px solid ${colors.border}`,
           fontFamily: font.ui,
           fontSize: fontSize.status,
           color: colors.textMuted,
         }}
       >
-        capture.png · 420 × 230 · 12KB
+        <span style={toolBtnStyle}>Fit</span>
+        <span style={toolBtnStyle}>100%</span>
+        <span style={toolBtnStyle}>+</span>
+        <span style={toolBtnStyle}>-</span>
+        <span style={{ marginLeft: 'auto' }}>420 × 230 · 12KB</span>
       </div>
       <div
         style={{
@@ -492,6 +542,7 @@ function S2bExplorer({ frame }: { frame: number }): JSX.Element | null {
             </RevealLayer>
           ) : (
             <RevealLayer frame={frame} appearFrame={CAPTURE_APPLIED}>
+              <ImageEditorPlaceholderPane />
               <ImageViewerPane />
             </RevealLayer>
           )}
@@ -618,18 +669,24 @@ function S2cViewModes({ frame }: { frame: number }): JSX.Element | null {
 // table button's on-screen center is exact arithmetic, not a guess at
 // rendered Korean-text width. TOOLBAR_BTN_GAP/PADDING_X mirror the container
 // style below and are reused by TABLE_BTN's derivation.
+// EditorToolbar.tsx TOOLBAR_BUTTONS_BEFORE_TABLE order: Bold, Italic, H1, H2,
+// H3, UL, OL, Code, Link, Quote — then Table + Image rendered separately
+// after Quote (see EditorToolbar.tsx comment "Quote-Image 사이 배치"). 12 total.
 const TOOLBAR_BTN_WIDTHS: Record<string, number> = {
   B: 30,
   I: 30,
   H1: 34,
+  H2: 34,
+  H3: 34,
   목록: 44,
+  번호: 44,
   코드: 44,
   링크: 44,
   인용: 44,
   표: 56,
   이미지: 56,
 };
-const TOOLBAR_BTN_ORDER = ['B', 'I', 'H1', '목록', '코드', '링크', '인용', '표', '이미지'];
+const TOOLBAR_BTN_ORDER = ['B', 'I', 'H1', 'H2', 'H3', '목록', '번호', '코드', '링크', '인용', '표', '이미지'];
 const TOOLBAR_BTN_GAP = 2;
 const TOOLBAR_PADDING_X = space[2];
 
@@ -659,7 +716,7 @@ function MiniToolbar({ tableActive }: { tableActive: boolean }): JSX.Element {
         borderBottom: `1px solid ${colors.border}`,
       }}
     >
-      {TOOLBAR_BTN_ORDER.slice(0, 7).map((l) => (
+      {TOOLBAR_BTN_ORDER.slice(0, 10).map((l) => (
         <span key={l} style={{ ...btnStyle, width: TOOLBAR_BTN_WIDTHS[l] }}>
           {l}
         </span>
@@ -685,10 +742,12 @@ function MiniToolbar({ tableActive }: { tableActive: boolean }): JSX.Element {
 }
 
 // F2 fix: exact center of the toolbar's 표(table) button, derived from the
-// fixed widths above instead of an approximate pixel guess.
+// fixed widths above instead of an approximate pixel guess. Recomputed off
+// TOOLBAR_BTN_ORDER/WIDTHS (10 buttons now precede 표, up from 7), so adding
+// H2/H3/번호 above keeps this click target correct automatically.
 const TABLE_BTN_X_OFFSET = (() => {
-  const precedingWidths = TOOLBAR_BTN_ORDER.slice(0, 7).reduce((sum, k) => sum + TOOLBAR_BTN_WIDTHS[k], 0);
-  const precedingGaps = 7 * TOOLBAR_BTN_GAP;
+  const precedingWidths = TOOLBAR_BTN_ORDER.slice(0, 10).reduce((sum, k) => sum + TOOLBAR_BTN_WIDTHS[k], 0);
+  const precedingGaps = 10 * TOOLBAR_BTN_GAP;
   return TOOLBAR_PADDING_X + precedingWidths + precedingGaps + TOOLBAR_BTN_WIDTHS['표'] / 2;
 })();
 const TABLE_BTN = { x: CONTENT_X + TABLE_BTN_X_OFFSET, y: CONTENT_Y + layout.toolbarHeight / 2 };

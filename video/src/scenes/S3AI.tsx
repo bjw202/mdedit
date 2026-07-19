@@ -928,6 +928,10 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
   // CursorPointer target below must add that offset, or (as originally
   // written) it silently lands ~(CONTENT_X, CONTENT_Y) short — this was the
   // root cause of the F4-reported cursor/click misalignment throughout UC1.
+  // Verified still correct after adding the "⤵ 아래에 삽입" pill (fix for the
+  // missing insert-below button): this targets the FIRST (leftmost) pill in
+  // the footer row, whose x/y only depend on the card's own left/top/padding
+  // and content height above it — unaffected by pills added to its right.
   const replaceBtnX = CONTENT_X + CARD_LEFT + CARD_PADDING + 50; // ~half of "✓ 바꾸기" pill's width
   const replaceBtnY =
     CONTENT_Y +
@@ -1013,7 +1017,12 @@ function UC1Segment({ frame }: { frame: number }): JSX.Element | null {
                       cursor={false}
                     />
                     <div style={{ marginTop: space[3], display: 'flex', gap: space[2] }}>
+                      {/* deriveCardActions('outline', false) (ai-suggestion-card.ts)
+                          yields modes: ['replace', 'insert-below'], primary: 'replace' —
+                          the real card renders BOTH apply buttons (replace accented),
+                          in that order, followed by the ↻ retry button. */}
                       <PillButton label="✓ 바꾸기" variant="accent" visible={local >= UC1_REPLACE_CLICK - 30} />
+                      <PillButton label="⤵ 아래에 삽입" visible={local >= UC1_REPLACE_CLICK - 30} />
                       <PillButton label="↻" visible={local >= UC1_REPLACE_CLICK - 30} />
                     </div>
                   </SuggestionCard>
