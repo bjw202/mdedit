@@ -229,3 +229,6 @@ test-results/
 !.moai/state/session-memo.md
 .moai/harness/
 .moai/lessons-inbox.jsonl
+
+# settings.local.json 은 위(Claude Code 구간)에서 이미 무시된다. 동반 생성되는 잠금 파일도 함께.
+.claude/settings.local.json.lock
