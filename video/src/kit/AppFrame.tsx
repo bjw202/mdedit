@@ -82,12 +82,12 @@ export function modeToggleButtonCenters(
   const headerPaddingX = space[4]; // HeaderBar `padding: 0 ${space[4]}px`
   const groupGap = space[3]; // HeaderBar right-group `gap: space[3]`
   const dividerWidth = 1;
-  const iconWidth = 16; // ImageModeIcon / GearIcon are 16x16
+  const gearIconWidth = 16; // GearIcon is 16x16
   const toggleWidth = MODE_TOGGLE_OPTIONS.length * MODE_TOGGLE_BTN_WIDTH +
     (MODE_TOGGLE_OPTIONS.length - 1) * MODE_TOGGLE_BTN_GAP +
     2 * MODE_TOGGLE_PADDING;
-  // Right group: [toggle, divider, imageIcon, gearIcon] — 3 gaps between 4 items.
-  const rightGroupWidth = toggleWidth + dividerWidth + iconWidth + iconWidth + 3 * groupGap;
+  // Right group: [toggle, divider, imageModeControl, gearIcon] — 3 gaps between 4 items.
+  const rightGroupWidth = toggleWidth + dividerWidth + IMAGE_MODE_CONTROL_WIDTH + gearIconWidth + 3 * groupGap;
   const groupLeft = frameWidth - headerPaddingX - rightGroupWidth;
   const toggleLeft = groupLeft + MODE_TOGGLE_PADDING;
   const y = layout.headerHeight / 2;
@@ -110,13 +110,39 @@ function GearIcon(): JSX.Element {
   );
 }
 
-function ImageModeIcon(): JSX.Element {
+/**
+ * Fixed width for the image-mode dropdown reproduction — same rationale as
+ * `MODE_TOGGLE_BTN_WIDTH` above (label text width can't be measured without a
+ * live DOM), used by `modeToggleButtonCenters()` to keep the mode-toggle click
+ * targets accurate once this control's width changed from the old 16px icon.
+ */
+const IMAGE_MODE_CONTROL_WIDTH = 92;
+
+/**
+ * Labeled dropdown reproduction of the real control (src/components/settings/
+ * ImageModeToggle.tsx: a `<label>Image: <select>...</select></label>` choosing
+ * inline-blob vs. file-save image insertion) — not a binary icon toggle.
+ */
+function ImageModeControl({ on }: { on: boolean }): JSX.Element {
   return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <circle cx="9" cy="10" r="1.5" />
-      <path d="M21 16l-5.5-5.5L9 17" />
-    </svg>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        height: 20,
+        padding: '0 6px',
+        borderRadius: radius.sm,
+        border: `1px solid ${colors.border}`,
+        fontFamily: font.ui,
+        fontSize: fontSize.toolbar,
+        color: colors.textMuted,
+      }}
+    >
+      <span>Image:</span>
+      <span style={{ color: on ? colors.accent : colors.textPrimary }}>{on ? 'File' : 'Inline'}</span>
+      <span style={{ fontSize: 9 }}>▾</span>
+    </div>
   );
 }
 
@@ -173,9 +199,7 @@ export function HeaderBar({
       <div style={{ display: 'flex', alignItems: 'center', gap: space[3] }}>
         {modeToggleSlot ?? <SegmentedModeToggle viewMode={viewMode} />}
         <span style={{ width: 1, height: 20, background: colors.border }} />
-        <span style={{ color: imageModeOn ? colors.accent : colors.textMuted }}>
-          <ImageModeIcon />
-        </span>
+        <ImageModeControl on={imageModeOn} />
         <span style={{ color: colors.textMuted }}>
           <GearIcon />
         </span>

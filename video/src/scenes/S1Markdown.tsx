@@ -375,18 +375,30 @@ function ImageLinkSegment({ frame, fps }: { frame: number; fps: number }): JSX.E
 }
 
 function MermaidBonusSegment({ frame, fps }: { frame: number; fps: number }): JSX.Element | null {
+  // mermaid.parse() (src/components/preview/PreviewRenderer.tsx) requires a
+  // diagram-type declaration as the first token — a bare "A --> B --> C" is
+  // invalid and would render "⚠ Diagram syntax error" in the real app, not
+  // the flowchart below. `flowchart LR` matches the app's own mermaid tests
+  // (src/test/mermaidValidate.test.ts) and the AI diagram feature's output.
+  // The extra line makes this bonus beat's typed source longer, so it types
+  // at a faster cps (20 vs. the file's default 14) to still finish comfortably
+  // before the preview-reveal beat — the MERMAID segment's own frame budget
+  // (120f, unchanged) and S1_DURATION_IN_FRAMES stay untouched.
+  const MERMAID_CPS = 20;
   const items = chainTyping(fps, MERMAID.start + 5, [
-    { text: '```mermaid', gapAfter: 6 },
-    { text: 'A --> B --> C', gapAfter: 6 },
-    { text: '```', gapAfter: 0 },
+    { text: '```mermaid', gapAfter: 6, cps: MERMAID_CPS },
+    { text: 'flowchart LR', gapAfter: 6, cps: MERMAID_CPS },
+    { text: '  A --> B --> C', gapAfter: 6, cps: MERMAID_CPS },
+    { text: '```', gapAfter: 0, cps: MERMAID_CPS },
   ]);
-  const [fenceOpen, graph, fenceClose] = items;
+  const [fenceOpen, decl, graph, fenceClose] = items;
   return (
     <SegmentShell frame={frame} start={MERMAID.start} end={MERMAID.end}>
       <EditorPane
         showLineNumbers={false}
         lines={[
           { text: fenceOpen.text, startFrame: fenceOpen.start },
+          { text: decl.text, startFrame: decl.start },
           { text: graph.text, startFrame: graph.start },
           { text: fenceClose.text, startFrame: fenceClose.start },
         ]}
