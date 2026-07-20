@@ -79,34 +79,60 @@ export async function handleImagePaste(
   event: ClipboardEvent,
   mdFilePath: string,
 ): Promise<boolean> {
+  const file = extractImageFile(event);
+  if (!file) return false;
+
+  event.preventDefault();
+  return insertImageFile(view, file, mdFilePath);
+}
+
+// @MX:ANCHOR: 클립보드 이미지는 반드시 이벤트 디스패치 중에 꺼내야 한다.
+// @MX:REASON: 이벤트가 끝나면 clipboardData 가 무효화되어 getAsFile() 이 null 을 돌려준다.
+/**
+ * 클립보드 이벤트에서 첫 번째 이미지 파일을 **동기적으로** 꺼낸다.
+ *
+ * 브라우저는 paste 이벤트 디스패치가 끝나면 `clipboardData` 를 무효화한다.
+ * 저장 대화상자처럼 사용자를 기다리는 비동기 작업이 끼어드는 경로에서는,
+ * 기다리기 **전에** 이 함수로 파일을 먼저 확보해 두어야 이미지를 잃지 않는다.
+ * File 객체는 이벤트와 수명이 분리되어 있어 이후에도 안전하게 쓸 수 있다.
+ */
+export function extractImageFile(event: ClipboardEvent): File | null {
   const items = event.clipboardData?.items;
-  if (!items) return false;
+  if (!items) return null;
 
   for (const item of items) {
     if (item.type.startsWith('image/')) {
-      event.preventDefault();
-
       const file = item.getAsFile();
-      if (!file) continue;
-
-      const { imageInsertMode } = useUIStore.getState();
-      const base64 = await fileToBase64(file);
-
-      if (imageInsertMode === 'inline-blob') {
-        // REQ-2: Embed image as data URI directly in markdown, no Tauri IPC call
-        const dataUri = `data:${file.type};base64,${base64}`;
-        insertImageMarkdown(view, dataUri);
-      } else {
-        // REQ-3: Save to ./images/ folder via Tauri IPC (existing behavior)
-        const relativePath = await saveImageFromClipboard(mdFilePath, base64);
-        insertImageMarkdown(view, relativePath);
-      }
-
-      return true;
+      if (file) return file;
     }
   }
 
-  return false;
+  return null;
+}
+
+/**
+ * 이미 확보해 둔 이미지 파일을 현재 모드에 맞게 문서에 삽입한다.
+ *
+ * `mdFilePath` 는 `file-save` 모드에서만 쓰인다.
+ */
+export async function insertImageFile(
+  view: EditorView,
+  file: File,
+  mdFilePath: string,
+): Promise<boolean> {
+  const { imageInsertMode } = useUIStore.getState();
+  const base64 = await fileToBase64(file);
+
+  if (imageInsertMode === 'inline-blob') {
+    // REQ-2: Embed image as data URI directly in markdown, no Tauri IPC call
+    insertImageMarkdown(view, `data:${file.type};base64,${base64}`);
+  } else {
+    // REQ-3: Save to ./images/ folder via Tauri IPC (existing behavior)
+    const relativePath = await saveImageFromClipboard(mdFilePath, base64);
+    insertImageMarkdown(view, relativePath);
+  }
+
+  return true;
 }
 
 /**

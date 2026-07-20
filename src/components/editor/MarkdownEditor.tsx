@@ -13,7 +13,7 @@ import { useFileStore } from '@/store/fileStore';
 import { useUIStore } from '@/store/uiStore';
 import { writeFile, saveFileAs } from '@/lib/tauri/ipc';
 import { createMarkdownExtensions, cursorCompartment, createCursorTheme, fontSizeCompartment, createFontSizeTheme } from './extensions/markdown-extensions';
-import { handleImagePaste, handleImageDrop, insertImageFromDialog, decideImageInsert } from '@/lib/image/imageHandler';
+import { handleImagePaste, handleImageDrop, insertImageFromDialog, decideImageInsert, extractImageFile, insertImageFile } from '@/lib/image/imageHandler';
 
 interface MarkdownEditorProps {
   /** Callback invoked with the EditorView instance after initialization */
@@ -265,6 +265,10 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
         }
 
         // require-file-path: file-save 모드 + 미저장 문서 — 저장 위치를 먼저 받는다.
+        //
+        // 대화상자를 띄우면 이 핸들러는 즉시 반환되고 브라우저가 clipboardData 를
+        // 무효화한다. 따라서 기다리기 전에 이미지를 지금 꺼내 둔다.
+        const pendingImage = extractImageFile(event);
         const docContent = view.state.doc.toString();
         saveFileAs(docContent).then((savedPath) => {
           if (savedPath) {
@@ -272,7 +276,9 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
             useFileStore.getState().setCurrentFile(savedPath);
             setDirtyRef.current(false);
             useUIStore.getState().setSaveStatus('saved');
-            handleImagePaste(view, event, savedPath);
+            if (pendingImage) {
+              insertImageFile(view, pendingImage, savedPath);
+            }
           }
         });
         return true;

@@ -19,10 +19,11 @@ import { render, cleanup } from '@testing-library/react';
 import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
 
-const { mockSaveFileAs, mockWriteFile, mockHandleImagePaste } = vi.hoisted(() => ({
+const { mockSaveFileAs, mockWriteFile, mockHandleImagePaste, mockInsertImageFile } = vi.hoisted(() => ({
   mockSaveFileAs: vi.fn().mockResolvedValue('/home/user/untitled.md'),
   mockWriteFile: vi.fn().mockResolvedValue(undefined),
   mockHandleImagePaste: vi.fn().mockResolvedValue(true),
+  mockInsertImageFile: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -37,13 +38,14 @@ vi.mock('@/lib/tauri/ipc', () => ({
   openImageDialog: vi.fn(),
 }));
 
-// decideImageInsert 는 실제 구현을 그대로 쓴다 — 검증 대상 로직이다.
-// 부수효과가 있는 핸들러만 스텁으로 바꾼다.
+// decideImageInsert / extractImageFile 은 실제 구현을 그대로 쓴다 — 검증 대상 로직이다.
+// 부수효과(IPC·문서 삽입)가 있는 함수만 스텁으로 바꾼다.
 vi.mock('@/lib/image/imageHandler', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/image/imageHandler')>();
   return {
     ...actual,
     handleImagePaste: mockHandleImagePaste,
+    insertImageFile: mockInsertImageFile,
     handleImageDrop: vi.fn(),
     insertImageFromDialog: vi.fn(),
   };
@@ -230,5 +232,61 @@ describe('붙여넣기 가드: file-save 모드는 기존 동작을 유지한다
     const event = makeClipboardEvent(['text/plain', 'image/png'], '복사한 텍스트');
     expect(paste(event, fakeView)).toBe(false);
     expect(mockSaveFileAs).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 브라우저는 paste 이벤트 디스패치가 끝나면 clipboardData 를 무효화한다
+ * (getAsFile() 이 null 을 돌려주기 시작한다).
+ *
+ * file-save 모드 + 미저장 문서 경로는 saveFileAs() 대화상자를 먼저 띄우고
+ * 사용자가 위치를 고른 뒤에야 이미지를 꺼내려 했다. 그 사이 이벤트는 이미
+ * 끝나 있으므로 이미지가 삽입되지 않는다.
+ *
+ * 따라서 대화상자를 띄우기 전에 이미지를 동기적으로 꺼내 두어야 한다.
+ */
+describe('붙여넣기 가드: 저장 대화상자 동안 클립보드가 만료돼도 이미지를 잃지 않는다', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useEditorStore.setState({ content: '', cursorLine: 1, cursorCol: 1, dirty: false, currentFilePath: null });
+    useUIStore.setState({ imageInsertMode: 'file-save' });
+  });
+
+  afterEach(cleanup);
+
+  it('저장 위치를 고른 뒤에도 이미지가 삽입된다', async () => {
+    await renderEditor();
+    const paste = getPasteHandler();
+
+    // 이벤트 종료 시점에 만료되는 클립보드 — 실제 브라우저 동작을 흉내낸다.
+    let expired = false;
+    const event = {
+      clipboardData: {
+        items: [
+          {
+            type: 'image/png',
+            getAsFile: () => (expired ? null : new File(['x'], 'shot.png', { type: 'image/png' })),
+          },
+        ],
+        getData: () => '',
+      },
+      preventDefault: vi.fn(),
+    } as unknown as ClipboardEvent;
+
+    const handled = paste(event, fakeView);
+    expect(handled).toBe(true);
+    expect(mockSaveFileAs).toHaveBeenCalled();
+
+    // 핸들러가 반환된 직후 브라우저가 clipboardData 를 무효화한다.
+    expired = true;
+
+    // saveFileAs 프라미스가 풀린 뒤 이미지가 삽입되어야 한다.
+    await vi.waitFor(() => {
+      expect(mockInsertImageFile).toHaveBeenCalled();
+    });
+
+    const [, passedFile, passedPath] = mockInsertImageFile.mock.calls[0];
+    expect(passedFile).toBeInstanceOf(File);
+    expect(passedPath).toBe('/home/user/untitled.md');
   });
 });
