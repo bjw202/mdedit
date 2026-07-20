@@ -1145,7 +1145,10 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
   // 같은 requestId 의 done/error 를 두 번 처리하지 않기 위한 가드(구독을 더 이상 끊지 않으므로 필요).
   let lastHandledTerminal: string | null = null;
 
-  // eslint 없이도 안전한 전방 참조 — 콜백은 controller 할당 이후에만 호출된다.
+  // 전방 참조 — 콜백은 controller 할당 이후에만 호출된다.
+  // 아래 callbacks 가 controller 를 참조하므로 선언과 초기화를 붙일 수 없다.
+  // prefer-const 는 "한 번만 대입" 만 보고 이 순서 제약을 알지 못한다.
+  // eslint-disable-next-line prefer-const
   let controller: AiSuggestionCardController;
   const callbacks: CardCallbacks = {
     onApply: (mode) => applyActiveCard(controller, mode),

@@ -97,7 +97,10 @@ export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.E
   const safeHtml = useMemo(() => restoreInlineSvgMarkers(html), [html]);
 
   useEffect(() => {
-    if (!containerRef.current) {
+    // cleanup 시점의 containerRef.current 는 리스너를 붙인 그 노드가 아닐 수 있다
+    // (리렌더로 교체되었을 수 있음). 노드를 지금 붙잡아 두고 cleanup 에서 그대로 쓴다.
+    const container = containerRef.current;
+    if (!container) {
       return;
     }
 
@@ -107,7 +110,7 @@ export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.E
     mermaid.initialize({ ...MERMAID_BASE_CONFIG, theme: isDark ? 'dark' : 'default' });
 
     // Mermaid diagram rendering
-    const containers = containerRef.current.querySelectorAll('.mermaid-container');
+    const containers = container.querySelectorAll('.mermaid-container');
     containers.forEach(async (el) => {
       const diagram = el.getAttribute('data-diagram') ?? '';
       try {
@@ -155,13 +158,11 @@ export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.E
       }
     };
 
-    containerRef.current.addEventListener('click', handleLinkClick);
+    container.addEventListener('click', handleLinkClick);
 
     // Cleanup: 이벤트 리스너 제거
     return () => {
-      if (containerRef.current) {
-        containerRef.current.removeEventListener('click', handleLinkClick);
-      }
+      container.removeEventListener('click', handleLinkClick);
     };
   }, [safeHtml, isDark]);
 

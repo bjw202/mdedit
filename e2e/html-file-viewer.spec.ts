@@ -57,7 +57,6 @@ const test = base.extend<{ tauriPage: Page }>({
 });
 
 // tauriInternalsConvertFileSrc는 브라우저 context 외부이므로 직접 사용하지 않음.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 void tauriInternalsConvertFileSrc;
 
 test.describe('HtmlFileViewer E2E', () => {
