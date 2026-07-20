@@ -182,6 +182,10 @@ secret-*.*
 .moai/memory/
 .moai/worktrees/
 
+# 세션별 자동 생성 리포트는 휘발성 로그이므로 추적하지 않는다.
+# plan-audit/, sync-report-*, 연구 리포트 등 산출물 문서는 계속 추적한다.
+.moai/reports/session-*.md
+
 # ===========================================
 # Evolution Telemetry (local-only usage data)
 # Learnings and new-skills are git-tracked for team sharing.
