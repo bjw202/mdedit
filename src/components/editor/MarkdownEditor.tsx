@@ -13,7 +13,7 @@ import { useFileStore } from '@/store/fileStore';
 import { useUIStore } from '@/store/uiStore';
 import { writeFile, saveFileAs } from '@/lib/tauri/ipc';
 import { createMarkdownExtensions, cursorCompartment, createCursorTheme, fontSizeCompartment, createFontSizeTheme } from './extensions/markdown-extensions';
-import { handleImagePaste, handleImageDrop, insertImageFromDialog } from '@/lib/image/imageHandler';
+import { handleImagePaste, handleImageDrop, insertImageFromDialog, decideImageInsert, extractImageFile, insertImageFile } from '@/lib/image/imageHandler';
 
 interface MarkdownEditorProps {
   /** Callback invoked with the EditorView instance after initialization */
@@ -244,30 +244,50 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
       paste(event: ClipboardEvent, view: EditorView) {
         const items = event.clipboardData?.items;
         if (!items) return false;
-        const hasImage = Array.from(items).some((item) => item.type.startsWith('image/'));
-        if (!hasImage) return false;
 
         const filePath = currentFilePathRef.current;
-        if (!filePath) {
-          // Unsaved file - prompt Save As first
-          event.preventDefault();
-          const docContent = view.state.doc.toString();
-          saveFileAs(docContent).then((savedPath) => {
-            if (savedPath) {
-              setCurrentFilePathRef.current(savedPath);
-              useFileStore.getState().setCurrentFile(savedPath);
-              setDirtyRef.current(false);
-              useUIStore.getState().setSaveStatus('saved');
-              handleImagePaste(view, event, savedPath);
-            }
-          });
+        const decision = decideImageInsert({
+          hasImage: Array.from(items).some((item) => item.type.startsWith('image/')),
+          hasPlainText: (event.clipboardData?.getData('text/plain') ?? '') !== '',
+          mode: useUIStore.getState().imageInsertMode,
+          hasFilePath: filePath !== null,
+        });
+
+        // 텍스트 붙여넣기 등 — CodeMirror 기본 동작에 맡긴다.
+        if (decision === 'ignore') return false;
+
+        event.preventDefault();
+
+        if (decision === 'insert') {
+          // inline-blob 은 경로를 쓰지 않고, file-save 는 여기서 filePath 가 반드시 있다.
+          handleImagePaste(view, event, filePath ?? '');
           return true;
         }
 
-        event.preventDefault();
-        handleImagePaste(view, event, filePath);
+        // require-file-path: file-save 모드 + 미저장 문서 — 저장 위치를 먼저 받는다.
+        //
+        // 대화상자를 띄우면 이 핸들러는 즉시 반환되고 브라우저가 clipboardData 를
+        // 무효화한다. 따라서 기다리기 전에 이미지를 지금 꺼내 둔다.
+        const pendingImage = extractImageFile(event);
+        const docContent = view.state.doc.toString();
+        saveFileAs(docContent).then((savedPath) => {
+          if (savedPath) {
+            setCurrentFilePathRef.current(savedPath);
+            useFileStore.getState().setCurrentFile(savedPath);
+            setDirtyRef.current(false);
+            useUIStore.getState().setSaveStatus('saved');
+            if (pendingImage) {
+              insertImageFile(view, pendingImage, savedPath);
+            }
+          }
+        });
         return true;
       },
+      // @MX:NOTE: drop 은 paste 와 달리 decideImageInsert 를 쓰지 않는다.
+      // handleImageDrop 은 imageInsertMode 와 무관하게 항상 copyImageToFolder /
+      // saveImageFromClipboard 로 기준 경로를 요구하므로, inline-blob 이라고 경로 없이
+      // 진행시키면 빈 경로가 넘어가 깨진다. 또 드롭은 dataTransfer.files 만 보므로
+      // 텍스트/이미지 flavor 혼동 문제도 없다.
       drop(event: DragEvent, view: EditorView) {
         const files = event.dataTransfer?.files;
         if (!files || files.length === 0) return false;
