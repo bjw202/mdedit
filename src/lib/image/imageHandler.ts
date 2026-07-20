@@ -9,6 +9,7 @@ import {
   openImageDialog,
 } from '@/lib/tauri/ipc';
 import { useUIStore } from '@/store/uiStore';
+import type { ImageInsertMode } from '@/store/uiStore';
 
 /**
  * Inserts a markdown image link at the given position (or cursor position).
@@ -24,6 +25,46 @@ export function insertImageMarkdown(
   view.dispatch({
     changes: { from: insertPos, to: insertPos, insert: markdown },
   });
+}
+
+/** 붙여넣기를 이미지로 처리할지에 대한 판정 결과. */
+export type ImageInsertDecision =
+  /** 이미지가 아니다 — CodeMirror 기본 붙여넣기에 맡긴다. */
+  | 'ignore'
+  /** 이미지로 삽입한다. */
+  | 'insert'
+  /** 이미지지만 기준 파일 경로가 없다 — 먼저 저장이 필요하다. */
+  | 'require-file-path';
+
+// @MX:ANCHOR: 붙여넣기 가로채기 판정 — 오판하면 일반 텍스트 붙여넣기가 막힌다.
+// @MX:REASON: paste 핸들러의 단일 분기점이며 회귀 시 사용자가 붙여넣기를 전혀 못 쓴다.
+/**
+ * 클립보드 붙여넣기를 이미지로 처리할지 결정한다.
+ *
+ * 두 가지 함정을 피한다.
+ *
+ * 1. Windows 클립보드는 브라우저·Word·Excel·탐색기에서 **텍스트**를 복사해도
+ *    `text/plain` 과 함께 `image/png` flavor 를 같이 싣는 경우가 흔하다.
+ *    이미지 flavor 만 보고 판단하면 평범한 텍스트 붙여넣기가 가로채인다.
+ *    따라서 쓸 만한 텍스트가 있으면 텍스트를 우선한다.
+ *
+ * 2. `inline-blob` 모드(기본값)는 이미지를 data URI 로 문서에 직접 박아 넣으므로
+ *    기준 파일 경로가 필요 없다. 이 모드에서까지 저장을 요구하면 새 문서에
+ *    이미지를 붙여넣을 때 불필요하게 저장 대화상자가 뜬다.
+ *    경로가 실제로 필요한 것은 `file-save` 모드뿐이다.
+ */
+export function decideImageInsert(params: {
+  hasImage: boolean;
+  hasPlainText: boolean;
+  mode: ImageInsertMode;
+  hasFilePath: boolean;
+}): ImageInsertDecision {
+  const { hasImage, hasPlainText, mode, hasFilePath } = params;
+
+  if (!hasImage) return 'ignore';
+  if (hasPlainText) return 'ignore';
+  if (mode === 'inline-blob') return 'insert';
+  return hasFilePath ? 'insert' : 'require-file-path';
 }
 
 /**
