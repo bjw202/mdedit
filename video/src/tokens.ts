@@ -94,9 +94,10 @@ export const shadow = {
 
 export const font = {
   // src/styles/mdedit-fonts.css — vendored woff2, no CDN dependency in the app.
-  // The video renders through Remotion/Chrome headless; system-ui fallbacks keep
-  // it rendering correctly even without the woff2 files loaded, but we still
-  // declare the same family stacks so a later unit can vendor the fonts here too.
+  // The same woff2 files are vendored here under `video/public/fonts/` and loaded
+  // by `src/fonts.ts` (FontFace API + delayRender), so the video renders with the
+  // app's real typography fully offline. The system-ui fallbacks stay as a safety
+  // net in case a face fails to load.
   ui: '"Barlow", system-ui, sans-serif',
   display: '"Barlow Condensed", system-ui, sans-serif', // wordmark, headings
   mono: '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace',

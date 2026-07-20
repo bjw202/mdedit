@@ -29,6 +29,32 @@ npm run render -- S0 out/s0.mp4      # single scene
 npm run render -- Full out/full.mp4  # entire video
 ```
 
+### 오프라인 렌더 (사내망 등 네트워크 차단 환경)
+
+렌더 경로에서 외부 네트워크를 전혀 타지 않도록 구성돼 있습니다.
+
+- **브라우저**: Remotion 은 기본적으로 렌더 시 Chrome Headless Shell 을 CDN 에서
+  내려받으며, 차단된 환경에서는 `ECONNRESET` 으로 실패합니다. `remotion.config.ts`
+  가 로컬에 설치된 Chrome/Edge 를 자동 탐색해 지정하므로 다운로드가 발생하지
+  않습니다. 자동 탐색이 실패하면 경로를 직접 지정하세요.
+
+  ```bash
+  # Windows (PowerShell)
+  $env:REMOTION_BROWSER_EXECUTABLE="C:\Program Files\Google\Chrome\Application\chrome.exe"
+  # macOS / Linux
+  export REMOTION_BROWSER_EXECUTABLE="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  ```
+
+- **폰트**: Barlow / Barlow Condensed / IBM Plex Mono 를 `public/fonts/` 에 woff2 로
+  벤더링했습니다(앱의 `../public/fonts/` 와 동일 파일). `src/fonts.ts` 가 이 파일들을
+  `@font-face` CSS 로 선언하므로 Google Fonts 등 CDN 호출이 전혀 없습니다.
+  한글은 Barlow 에 글리프가 없어 시스템 한글 폰트로 폴백합니다(앱과 동일 동작).
+
+  폰트 로딩을 `delayRender()` 로 기다리지 않는 이유는 `src/fonts.ts` 상단 주석에
+  적어 두었습니다 — 요약하면 Remotion 이 렌더 도중 페이지를 재활용하는데, 그때
+  새로 뜬 페이지에서 JS 로딩 프라미스가 끝나지 않아 렌더가 죽었습니다. CSS 선언만으로
+  폰트는 정상 적용되며, 게이트가 없으니 렌더가 멈추지도 않습니다.
+
 ## Type check
 
 ```bash
