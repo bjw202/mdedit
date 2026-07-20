@@ -15,15 +15,19 @@ if command -v moai &> /dev/null; then
 	exec moai statusline < "$temp_file"
 fi
 
-# Try detected Go bin path from initialization
-if [ -f "/Users/byunjungwon/go/bin/moai" ]; then
-	exec "/Users/byunjungwon/go/bin/moai" statusline < "$temp_file"
-fi
-
-# Try user local bin directory
-if [ -f "/Users/byunjungwon/.local/bin/moai" ]; then
-	exec "/Users/byunjungwon/.local/bin/moai" statusline < "$temp_file"
-fi
+# Fall back to well-known install locations, relative to the current $HOME.
+# Both bare and .exe names are probed so the same script works on
+# macOS/Linux and on Windows (Git Bash).
+for candidate in \
+	"$HOME/go/bin/moai" \
+	"$HOME/go/bin/moai.exe" \
+	"$HOME/.local/bin/moai" \
+	"$HOME/.local/bin/moai.exe"
+do
+	if [ -f "$candidate" ]; then
+		exec "$candidate" statusline < "$temp_file"
+	fi
+done
 
 # Not found - exit silently (Claude Code handles missing statusline gracefully)
 exit 0
