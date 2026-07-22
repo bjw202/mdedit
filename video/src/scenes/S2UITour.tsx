@@ -23,14 +23,14 @@ import {
 } from '../kit';
 
 /**
- * S2 — UI 투어 (~77s / 2300f, was 2400f — see F5 duration-reclaim note below).
- * STORYBOARD.md §S2.
- * Four sub-parts, all driven off one absolute frame counter (same convention
+ * S2 — UI 투어 (~97s / 2900f). STORYBOARD.md §S2.
+ * Five sub-parts, all driven off one absolute frame counter (same convention
  * as S1Markdown.tsx): S2a region anatomy, S2b file explorer (navigation
  * model — see FileExplorerRow doc in kit/AppFrame.tsx), S2c view-mode
- * toggle, S2d table insert + screenshot paste.
+ * toggle, S2d table insert + screenshot paste, S2e export (PDF·HTML) — the
+ * export beat appends 600f; earlier sub-parts are unchanged.
  */
-export const S2_DURATION_IN_FRAMES = 2300;
+export const S2_DURATION_IN_FRAMES = 2900;
 
 // ---- sub-part boundaries (absolute scene frames) --------------------------
 const S2A = { start: 0, end: 450 };
@@ -45,6 +45,7 @@ const S2A = { start: 0, end: 450 };
 const S2B = { start: 450, end: 1100 };
 const S2C = { start: 1100, end: 1850 };
 const S2D = { start: 1850, end: 2300 };
+const S2E = { start: 2300, end: 2900 };
 
 // ---- shared layout math (mirrors kit/AppFrame.tsx's real geometry) --------
 // AppFrame is 1600x900. Header is layout.headerHeight tall; everything below
@@ -950,6 +951,466 @@ function S2dTableAndPaste({ frame }: { frame: number }): JSX.Element | null {
   );
 }
 
+// ---- S2e: 내보내기 (PDF · HTML) --------------------------------------------
+// 실제 앱 헤더(src/components/layout/Header.tsx:152-189)의 Export ▾ 드롭다운을 재현한다.
+// 공용 HeaderBar(kit/AppFrame.tsx)에는 Export 버튼이 없고, 거기에 넣으면 S1/S3 헤더까지
+// 바뀌므로 — 이 씬 전용 오버레이로 헤더 위에 얹는다(공용 kit 무수정). 메뉴 3항목/순서/영문
+// 라벨은 앱과 동일: "Export as HTML" / "Export as PDF" / "Export as DOCX".
+// 시연은 PDF·HTML 두 경로만(DOCX 는 드롭다운에 노출만). 문서 소재는 S2b 의 회의록.md 재사용.
+
+// 헤더 위 Export 버튼 위치(외곽 프레임 1600x900 좌표). 헤더 좌측 그룹(mdedit·구분선·파일명)
+// 뒤 빈 영역에 명확히 배치해 파일명과 겹치지 않게 한다.
+const EXPORT_BTN = { left: 175, top: 9, width: 92, height: 26 };
+const EXPORT_BTN_CENTER = { x: EXPORT_BTN.left + EXPORT_BTN.width / 2, y: EXPORT_BTN.top + EXPORT_BTN.height / 2 };
+// 드롭다운: 버튼 아래(헤더 하단 y=44)에 좌측 정렬. 항목 행 높이 ~30px, 상단 패딩 space[2].
+const EXPORT_MENU = { left: EXPORT_BTN.left, top: layout.headerHeight, minWidth: 168 };
+const EXPORT_MENU_ITEM_Y = (i: number): number => EXPORT_MENU.top + space[2] + i * 30 + 15;
+const EXPORT_MENU_ITEM_X = EXPORT_MENU.left + EXPORT_MENU.minWidth / 2;
+const EXPORT_MENU_ITEMS = ['Export as HTML', 'Export as PDF', 'Export as DOCX'];
+
+// S2e 비트(절대 프레임). 1) Export 클릭 → 드롭다운 2) PDF 선택 → 인쇄/저장 창 → PDF 뷰어
+// 3) 다시 Export → HTML 선택 → 브라우저 창.
+const EXPORT_CLICK_1 = S2E.start + 45; // 2345
+const PDF_ITEM_ACTIVE = S2E.start + 95;
+const PDF_CLICK = S2E.start + 110; // 2410
+const PRINT_DIALOG_IN = S2E.start + 122;
+const PRINT_DIALOG_OUT = S2E.start + 185;
+const PDF_VIEWER_IN = S2E.start + 190;
+const PDF_VIEWER_OUT = S2E.start + 340;
+const EXPORT_CLICK_2 = S2E.start + 365; // 2665
+const HTML_ITEM_ACTIVE = S2E.start + 395;
+const HTML_CLICK = S2E.start + 410; // 2710
+const BROWSER_IN = S2E.start + 420;
+const BROWSER_OUT = S2E.start + 585;
+
+/** Export ▾ 헤더 버튼(다운로드 아이콘 + 라벨 + chevron), 열림 시 accent 강조. */
+function ExportHeaderButton({ open }: { open: boolean }): JSX.Element {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        height: EXPORT_BTN.height,
+        padding: '0 10px',
+        borderRadius: radius.sm,
+        background: open ? colors.accentSoft : colors.surfaceRaised,
+        border: `1px solid ${open ? colors.accent : colors.border}`,
+        fontFamily: font.ui,
+        fontSize: fontSize.toolbar,
+        color: open ? colors.accentHover : colors.textPrimary,
+      }}
+    >
+      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M5 20h14" />
+      </svg>
+      <span>Export</span>
+      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
+  );
+}
+
+/** Export 드롭다운(md-menu 재현): 3항목 HTML/PDF/DOCX. */
+function ExportMenu({
+  frame,
+  openFrame,
+  closeFrame,
+  activeIndex,
+  activeFrame,
+}: {
+  frame: number;
+  openFrame: number;
+  closeFrame: number;
+  activeIndex: number;
+  activeFrame: number;
+}): JSX.Element | null {
+  if (frame < openFrame || frame > closeFrame + 6) return null;
+  const opacity = interpolate(frame, [openFrame, openFrame + 6, closeFrame, closeFrame + 6], [0, 1, 1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const scale = interpolate(frame, [openFrame, openFrame + 6], [0.96, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: EXPORT_MENU.left,
+        top: EXPORT_MENU.top,
+        opacity,
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+        background: colors.surfaceRaised,
+        border: `1px solid ${colors.borderStrong}`,
+        borderRadius: radius.md,
+        boxShadow: shadow.md,
+        padding: space[2],
+        minWidth: EXPORT_MENU.minWidth,
+        zIndex: 60,
+      }}
+    >
+      {EXPORT_MENU_ITEMS.map((label, i) => {
+        const active = i === activeIndex && frame >= activeFrame;
+        return (
+          <div
+            key={label}
+            style={{
+              padding: '7px 10px',
+              borderRadius: radius.sm,
+              fontFamily: font.ui,
+              fontSize: fontSize.titlebar,
+              color: active ? colors.accentHover : colors.textPrimary,
+              background: active ? colors.accentSoft : 'transparent',
+            }}
+          >
+            {label}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 회의록.md 를 렌더한 결과물 본문 — PDF 뷰어·브라우저 창이 공유(수미상관: S2b 소재 재사용). */
+function ExportedDocBody(): JSX.Element {
+  return (
+    <div style={{ fontFamily: font.ui, color: colors.textPrimary, textAlign: 'left' }}>
+      <div
+        style={{
+          fontSize: fontSize.previewH1,
+          fontWeight: 700,
+          marginBottom: space[3],
+          paddingBottom: space[2],
+          borderBottom: `1px solid ${colors.border}`,
+        }}
+      >
+        회의록 - 7월 18일
+      </div>
+      <div style={{ fontSize: fontSize.previewH2, fontWeight: 600, marginTop: space[4], marginBottom: space[2] }}>참석자</div>
+      <div style={{ fontSize: fontSize.preview, color: colors.textMuted, marginLeft: space[3] }}>· 지원, 민준</div>
+      <div style={{ fontSize: fontSize.previewH2, fontWeight: 600, marginTop: space[4], marginBottom: space[2] }}>논의 사항</div>
+      <div style={{ fontSize: fontSize.preview, color: colors.textMuted, marginLeft: space[3] }}>· 신규 기능 우선순위 정리</div>
+    </div>
+  );
+}
+
+/** 창 목업 3종 공용 traffic-light 점(토큰 색 사용, raw hex 금지). */
+function TrafficDots(): JSX.Element {
+  return (
+    <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
+      {[colors.danger, colors.dirty, colors.success].map((c, i) => (
+        <span key={i} style={{ width: 11, height: 11, borderRadius: '50%', background: c }} />
+      ))}
+    </div>
+  );
+}
+
+function DialogBtn({ label, accent }: { label: string; accent?: boolean }): JSX.Element {
+  return (
+    <div
+      style={{
+        padding: '6px 14px',
+        borderRadius: radius.sm,
+        fontFamily: font.ui,
+        fontSize: fontSize.toolbar,
+        fontWeight: 600,
+        background: accent ? colors.accent : colors.surface,
+        color: accent ? colors.accentContrast : colors.textPrimary,
+        border: accent ? 'none' : `1px solid ${colors.border}`,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
+/** 결과 창(백드롭 dim + 중앙 정렬 + fade/scale) 공용 레이어. */
+function ExportResultLayer({
+  frame,
+  start,
+  end,
+  children,
+}: {
+  frame: number;
+  start: number;
+  end: number;
+  children: React.ReactNode;
+}): JSX.Element | null {
+  const fade = 12;
+  if (frame < start - fade || frame > end + fade) return null;
+  const opacity = interpolate(frame, [start - fade, start, end, end + fade], [0, 1, 1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const scale = interpolate(frame, [start - fade, start + 2], [0.96, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  return (
+    <div style={{ position: 'absolute', inset: 0, opacity, zIndex: 70 }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 16, 17, 0.45)' }} />
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ transform: `scale(${scale})` }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** 인쇄/저장 다이얼로그 목업(간결) — PDF 경로는 네이티브 인쇄 창에서 저장(exportPdf.ts). */
+function PrintDialogMock(): JSX.Element {
+  return (
+    <div
+      style={{
+        width: 380,
+        background: colors.surfaceRaised,
+        borderRadius: radius.lg,
+        boxShadow: shadow.lg,
+        border: `1px solid ${colors.border}`,
+        fontFamily: font.ui,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          padding: `${space[4]}px ${space[5]}px`,
+          borderBottom: `1px solid ${colors.border}`,
+          fontSize: 16,
+          fontWeight: 600,
+          color: colors.textPrimary,
+        }}
+      >
+        PDF로 저장
+      </div>
+      <div style={{ display: 'flex', gap: space[5], padding: space[5] }}>
+        <div
+          style={{
+            width: 96,
+            height: 128,
+            flex: 'none',
+            background: colors.surfaceRaised,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.sm,
+            boxShadow: shadow.sm,
+            padding: 10,
+          }}
+        >
+          <div style={{ height: 7, width: '75%', background: colors.textFaint, borderRadius: 2, marginBottom: 8 }} />
+          {[60, 90, 80, 50].map((w, i) => (
+            <div key={i} style={{ height: 4, width: `${w}%`, background: colors.border, borderRadius: 2, marginBottom: 6 }} />
+          ))}
+        </div>
+        <div style={{ flex: 1, fontSize: fontSize.status, color: colors.textMuted, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div>대상: PDF로 저장</div>
+          <div>페이지: 전체</div>
+          <div>레이아웃: 세로</div>
+          <div>파일 이름: 회의록.pdf</div>
+        </div>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: space[2],
+          padding: `${space[3]}px ${space[5]}px`,
+          borderTop: `1px solid ${colors.border}`,
+        }}
+      >
+        <DialogBtn label="취소" />
+        <DialogBtn label="저장" accent />
+      </div>
+    </div>
+  );
+}
+
+/** PDF 뷰어 창 목업 — 제목 바(회의록.pdf) + 페이지 여백이 있는 렌더 결과. */
+function PdfViewerWindow(): JSX.Element {
+  return (
+    <div
+      style={{
+        width: 720,
+        height: 620,
+        background: colors.surface,
+        borderRadius: radius.lg,
+        boxShadow: shadow.lg,
+        border: `1px solid ${colors.borderStrong}`,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: font.ui,
+      }}
+    >
+      <div
+        style={{
+          flex: 'none',
+          height: 38,
+          display: 'flex',
+          alignItems: 'center',
+          gap: space[2],
+          padding: `0 ${space[4]}px`,
+          background: colors.surface,
+          borderBottom: `1px solid ${colors.border}`,
+        }}
+      >
+        <TrafficDots />
+        <span style={{ marginLeft: space[2], fontSize: fontSize.titlebar, color: colors.textPrimary }}>회의록.pdf</span>
+        <span style={{ marginLeft: 'auto', fontSize: fontSize.status, color: colors.textMuted }}>1 / 1 · 100%</span>
+      </div>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          background: colors.surface,
+          display: 'flex',
+          justifyContent: 'center',
+          padding: space[5],
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: 470,
+            background: colors.surfaceRaised,
+            border: `1px solid ${colors.border}`,
+            boxShadow: shadow.md,
+            padding: '44px 48px',
+          }}
+        >
+          <ExportedDocBody />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 브라우저 창 목업 — 주소창에 회의록.html 경로 + 동일 문서 렌더. */
+function BrowserWindow(): JSX.Element {
+  return (
+    <div
+      style={{
+        width: 860,
+        height: 560,
+        background: colors.surfaceRaised,
+        borderRadius: radius.lg,
+        boxShadow: shadow.lg,
+        border: `1px solid ${colors.borderStrong}`,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: font.ui,
+      }}
+    >
+      <div
+        style={{
+          flex: 'none',
+          height: 42,
+          display: 'flex',
+          alignItems: 'center',
+          gap: space[3],
+          padding: `0 ${space[4]}px`,
+          background: colors.surface,
+          borderBottom: `1px solid ${colors.border}`,
+        }}
+      >
+        <TrafficDots />
+        <div
+          style={{
+            flex: 1,
+            height: 26,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '0 12px',
+            background: colors.surfaceRaised,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 999,
+            fontSize: fontSize.status,
+            color: colors.textMuted,
+          }}
+        >
+          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          <span>file:///프로젝트/회의록.html</span>
+        </div>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, background: colors.surfaceRaised, padding: '32px 52px', overflow: 'hidden' }}>
+        <ExportedDocBody />
+      </div>
+    </div>
+  );
+}
+
+function S2eExport({ frame }: { frame: number }): JSX.Element | null {
+  if (frame < S2E.start - 20 || frame > S2E.end + 20) return null;
+
+  const menu1Open = frame >= EXPORT_CLICK_1 && frame < PDF_CLICK + 6;
+  const menu2Open = frame >= EXPORT_CLICK_2 && frame < HTML_CLICK + 6;
+  const exportBtnOpacity = interpolate(frame, [S2E.start - 20, S2E.start, S2E.end, S2E.end + 20], [0, 1, 1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <>
+      <Panel frame={frame} start={S2E.start} end={S2E.end} fade={20}>
+        <AppFrameSlot
+          header={<HeaderBar viewMode="split" filename="회의록.md" />}
+          sidebar={<FileExplorer folderName={PROJECT_FOLDER_NAME} rows={PROJECT_ROWS} selected="회의록.md" />}
+        >
+          <MeetingDocEditor showTable={false} showScreenshot={false} />
+          <MeetingDocPreview frame={frame} showTable={false} tableAppearFrame={0} showScreenshot={false} screenshotAppearFrame={0} />
+        </AppFrameSlot>
+      </Panel>
+
+      {/* 헤더 위 Export ▾ 버튼 오버레이(공용 kit 무수정). */}
+      <div
+        style={{ position: 'absolute', left: EXPORT_BTN.left, top: EXPORT_BTN.top, opacity: exportBtnOpacity, zIndex: 55 }}
+      >
+        <ExportHeaderButton open={menu1Open || menu2Open} />
+      </div>
+
+      <ExportMenu frame={frame} openFrame={EXPORT_CLICK_1} closeFrame={PDF_CLICK} activeIndex={1} activeFrame={PDF_ITEM_ACTIVE} />
+      <ExportMenu frame={frame} openFrame={EXPORT_CLICK_2} closeFrame={HTML_CLICK} activeIndex={0} activeFrame={HTML_ITEM_ACTIVE} />
+
+      <ExportResultLayer frame={frame} start={PRINT_DIALOG_IN} end={PRINT_DIALOG_OUT}>
+        <PrintDialogMock />
+      </ExportResultLayer>
+      <ExportResultLayer frame={frame} start={PDF_VIEWER_IN} end={PDF_VIEWER_OUT}>
+        <PdfViewerWindow />
+      </ExportResultLayer>
+      <ExportResultLayer frame={frame} start={BROWSER_IN} end={BROWSER_OUT}>
+        <BrowserWindow />
+      </ExportResultLayer>
+
+      {/* 커서: Export 클릭 → PDF 항목 → (다시) Export → HTML 항목. 각 이동은 클릭 직전 짧게 홉. */}
+      <CursorPointer
+        positions={[
+          { frame: S2E.start, x: 700, y: 470 },
+          { frame: EXPORT_CLICK_1 - 15, x: EXPORT_BTN_CENTER.x, y: EXPORT_BTN_CENTER.y },
+          { frame: EXPORT_CLICK_1, x: EXPORT_BTN_CENTER.x, y: EXPORT_BTN_CENTER.y },
+          { frame: PDF_CLICK - 12, x: EXPORT_BTN_CENTER.x, y: EXPORT_BTN_CENTER.y },
+          { frame: PDF_CLICK, x: EXPORT_MENU_ITEM_X, y: EXPORT_MENU_ITEM_Y(1) },
+          { frame: PDF_CLICK + 20, x: EXPORT_MENU_ITEM_X, y: EXPORT_MENU_ITEM_Y(1) },
+          { frame: EXPORT_CLICK_2 - 15, x: EXPORT_BTN_CENTER.x, y: EXPORT_BTN_CENTER.y },
+          { frame: EXPORT_CLICK_2, x: EXPORT_BTN_CENTER.x, y: EXPORT_BTN_CENTER.y },
+          { frame: HTML_CLICK - 12, x: EXPORT_BTN_CENTER.x, y: EXPORT_BTN_CENTER.y },
+          { frame: HTML_CLICK, x: EXPORT_MENU_ITEM_X, y: EXPORT_MENU_ITEM_Y(0) },
+          { frame: S2E.end, x: EXPORT_MENU_ITEM_X, y: EXPORT_MENU_ITEM_Y(0) },
+        ]}
+        clicks={[EXPORT_CLICK_1, PDF_CLICK, EXPORT_CLICK_2, HTML_CLICK]}
+      />
+
+      {/* 자막: 가이드 "~요" 레지스터. 인접 자막은 2*fade(=20f) 간격으로 비중첩(반투명 겹침 방지). */}
+      <SubtitleBar text="문서는 PDF·HTML·DOCX로 내보낼 수 있어요" startFrame={S2E.start + 10} endFrame={S2E.start + 95} />
+      <SubtitleBar text="PDF는 인쇄 창에서 저장할 수 있어요" startFrame={S2E.start + 115} endFrame={S2E.start + 185} />
+      <SubtitleBar text="결과물은 PDF 뷰어로 바로 열려요" startFrame={S2E.start + 205} endFrame={S2E.start + 320} />
+      <SubtitleBar text="HTML로 내보내면 브라우저에서 열려요" startFrame={S2E.start + 340} endFrame={S2E.start + 430} />
+      <SubtitleBar text="결과물은 어디서든 그대로 열려요" startFrame={S2E.start + 450} endFrame={S2E.start + 580} />
+    </>
+  );
+}
+
 // ---- shared AppFrame slot wiring -------------------------------------------
 
 /** Thin wrapper matching S1Markdown's inner-content pattern: AppFrame + a relatively-positioned content row. */
@@ -980,6 +1441,7 @@ export function S2UITour(): JSX.Element {
         <S2bExplorer frame={frame} />
         <S2cViewModes frame={frame} />
         <S2dTableAndPaste frame={frame} />
+        <S2eExport frame={frame} />
       </div>
       <SceneChip title="2. 화면 사용법" />
     </AbsoluteFill>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { colors, font, fontSize, layout, lineHeight, radius, shadow, space } from '../tokens';
 import {
   AppFrame,
@@ -27,13 +27,17 @@ import {
  * AppFrame use-case replays. Labels/shortcuts/emoji copied verbatim from
  * docs/USER_GUIDE.md §4-§5 (no reinvented UI copy).
  */
-export const S3_DURATION_IN_FRAMES = 2850;
+// SPEC-AI-008: S3b 선택 툴바 카드에 다이어그램 종류 플라이아웃 비트를 추가하며 CARD1 을 90f(3s) 늘렸고
+// (2850 -> 2940), 이후 플라이아웃을 카메라 푸시인(zoom)으로 강조하며 노출을 75f(2.5s) 더 늘렸다
+// (2940 -> 3015). 두 번 모두 CARD1 뒤 절대 경계(CARD2~4·S3B.end·UC1·UC2)와 씬 길이를 동일 프레임만큼
+// 밀어 뒤 구간의 상대 타이밍은 보존한다.
+export const S3_DURATION_IN_FRAMES = 3015;
 
 // ---- top-level boundaries (absolute scene frames) --------------------------
 const S3A = { start: 0, end: 360 };
-const S3B = { start: 360, end: 1110 };
-const UC1 = { start: 1110, end: 1950 };
-const UC2 = { start: 1950, end: 2850 };
+const S3B = { start: 360, end: 1275 };
+const UC1 = { start: 1275, end: 2115 };
+const UC2 = { start: 2115, end: 3015 };
 
 // ---- shared layout math (mirrors S1Markdown.tsx / S2UITour.tsx conventions) --
 const FRAME_W = 1600;
@@ -274,6 +278,133 @@ function PresetMenu({
           >
             <span>{p.emoji}</span>
             <span>{p.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// SPEC-AI-008: 🧜 다이어그램으로 플라이아웃 8항목 — 자동(아이콘 없음) + 7종.
+// 라벨·순서는 앱 DIAGRAM_SUBMENU_DEFS(src/components/editor/extensions/ai-selection-toolbar.ts)
+// 그대로, 아이콘 inner 마크업은 src/components/icons/diagramIconMarkup.ts 의
+// DIAGRAM_ICON_INNER 를 1:1 복제(별도 npm 프로젝트라 앱 소스를 import 하지 않고 값만 옮김).
+const DIAGRAM_SUBMENU: Array<{ label: string; iconInner?: string }> = [
+  { label: '자동 (AI 판단)' },
+  {
+    label: '순서도',
+    iconInner:
+      '<rect x="4" y="3" width="10" height="5" rx="1"/><path d="M9 8v4"/><rect x="4" y="12" width="10" height="5" rx="1"/><path d="M14 14.5h4V20"/>',
+  },
+  {
+    label: '시퀀스 다이어그램',
+    iconInner: '<path d="M6 3v18"/><path d="M18 3v18"/><path d="M6 9h12"/><path d="m15 6 3 3-3 3"/>',
+  },
+  { label: '간트 차트', iconInner: '<path d="M3 4h9"/><path d="M7 10h11"/><path d="M5 16h8"/>' },
+  {
+    label: '클래스 다이어그램',
+    iconInner: '<rect x="5" y="4" width="14" height="16" rx="1"/><path d="M5 9h14"/><path d="M8 13h8"/><path d="M8 16h6"/>',
+  },
+  {
+    label: '상태 다이어그램',
+    iconInner: '<circle cx="6" cy="7" r="3"/><circle cx="18" cy="17" r="3"/><path d="M8.5 9.5 15 15"/>',
+  },
+  { label: '파이 차트', iconInner: '<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.4 6.4"/>' },
+  {
+    label: '마인드맵',
+    iconInner: '<circle cx="12" cy="12" r="3"/><path d="M14.5 10 19 5"/><path d="M14.5 14 19 19"/><path d="M9 12H4"/>',
+  },
+];
+
+/** 단색 스켈레톤 다이어그램 아이콘 — 앱 icons.tsx svgProps(viewBox 24, stroke currentColor, 1.5) 재현. */
+function DiagramTypeIcon({ inner }: { inner: string }): JSX.Element {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      dangerouslySetInnerHTML={{ __html: inner }}
+    />
+  );
+}
+
+/**
+ * ✨ 프리셋 메뉴 오른쪽에 열리는 다이어그램 종류 플라이아웃(SPEC-AI-008).
+ * .mdedit-ai-diagram-submenu CSS(top:0 left:100% + margin-left var(--md-space-1),
+ * surfaceRaised/border/radius.md/shadow.md, min-width 190, item padding 7px space-3,
+ * fontSize titlebar) 재현. `x`/`y` 는 프리셋 메뉴 좌표계에서 🧜 항목 오른쪽·상단으로 맞춘다.
+ */
+function DiagramFlyout({
+  x,
+  y,
+  local,
+  openFrame,
+  activeIndex,
+  activeFrame,
+}: {
+  x: number;
+  y: number;
+  local: number;
+  openFrame: number;
+  activeIndex?: number;
+  activeFrame?: number;
+}): JSX.Element | null {
+  if (local < openFrame) return null;
+  const opacity = interpolate(local, [openFrame, openFrame + 8], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const scale = interpolate(local, [openFrame, openFrame + 8], [0.9, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        opacity,
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+        background: colors.surfaceRaised,
+        border: `1px solid ${colors.border}`,
+        borderRadius: radius.md,
+        boxShadow: shadow.md,
+        padding: 6,
+        zIndex: 57,
+        minWidth: 190,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {DIAGRAM_SUBMENU.map((d, i) => {
+        const isActive = activeIndex === i && activeFrame !== undefined && local >= activeFrame;
+        return (
+          <div
+            key={d.label}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: space[3],
+              padding: '7px 10px',
+              borderRadius: radius.sm,
+              fontFamily: font.ui,
+              fontSize: fontSize.titlebar,
+              color: isActive ? colors.accentHover : colors.textPrimary,
+              background: isActive ? colors.accentSoft : 'transparent',
+            }}
+          >
+            <span style={{ display: 'flex', flex: 'none', width: 18, justifyContent: 'center' }}>
+              {d.iconInner ? <DiagramTypeIcon inner={d.iconInner} /> : null}
+            </span>
+            <span style={{ flex: 1 }}>{d.label}</span>
           </div>
         );
       })}
@@ -605,10 +736,11 @@ function HeroSegment({ frame }: { frame: number }): JSX.Element | null {
 // S3b — 기능 몽타주 (360-1110f) — 4 feature cards, reduced-scale mini demos.
 // =====================================================================
 
-const CARD1 = { start: 360, end: 548 };
-const CARD2 = { start: 548, end: 736 };
-const CARD3 = { start: 736, end: 924 };
-const CARD4 = { start: 924, end: 1110 };
+// SPEC-AI-008: CARD1 만 확장(플라이아웃 비트 90f + zoom 노출 75f = 총 +165f), CARD2~4 는 길이 유지한 채 이동.
+const CARD1 = { start: 360, end: 713 };
+const CARD2 = { start: 713, end: 901 };
+const CARD3 = { start: 901, end: 1089 };
+const CARD4 = { start: 1089, end: 1275 };
 
 function FeatureCardShell({
   frame,
@@ -663,41 +795,95 @@ function FeatureCardShell({
   );
 }
 
+// SPEC-AI-008 후속(사용자 결정): 스케일 축소된 몽타주 카드 안에서 플라이아웃이 너무 작게 보여,
+// 열려 있는 동안 카드 전체를 카메라 푸시인(zoom)으로 강조한다. zoom origin 은 프리셋 메뉴+플라이아웃
+// 영역의 중심을 씬 1600x900 좌표로 환산한 값이다. 카드는 (1600-1180)/2, (900-580)/2 = (210,160) 에
+// 중앙 정렬되고(=FeatureCardShell 의 flex center + 1180x580 카드), 그 안에서 메뉴/플라이아웃 중심은
+// card 좌표 ~(660,266) → 씬 좌표 (210+660, 160+266) = (870,426). 이 점을 고정해 1 -> 1.5 로 확대한다.
+const ZOOM_ORIGIN_X = 870;
+const ZOOM_ORIGIN_Y = 426;
+const ZOOM_MAX_SCALE = 1.5;
+// zoom 로컬 프레임 창: 플라이아웃(open 162) 직전 진입 -> 유지 -> 종료. gantt pick(235)·유지 노출 후 빠짐.
+const ZOOM_IN = [155, 178] as const;
+const ZOOM_OUT = [300, 322] as const;
+
 function SelectionToolbarCard({ frame }: { frame: number }): JSX.Element | null {
   const local = frame - CARD1.start;
+
+  // 진입/종료를 각각 부드럽게(ease in/out) 보간한 뒤 min 으로 사다리꼴 엔벨로프를 만든다(0..1).
+  const zEnvelope = Math.min(
+    interpolate(local, [ZOOM_IN[0], ZOOM_IN[1]], [0, 1], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+      easing: Easing.inOut(Easing.cubic),
+    }),
+    interpolate(local, [ZOOM_OUT[0], ZOOM_OUT[1]], [1, 0], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+      easing: Easing.inOut(Easing.cubic),
+    }),
+  );
+  const zoomScale = 1 + zEnvelope * (ZOOM_MAX_SCALE - 1);
+
   return (
-    <FeatureCardShell frame={frame} start={CARD1.start} end={CARD1.end} icon="✨" title="선택 툴바">
-      <div style={{ padding: `${space[5]}px ${space[4]}px`, position: 'relative' }}>
-        <div style={{ position: 'relative', display: 'inline-block', fontFamily: font.ui, fontSize: 22, color: colors.textPrimary }}>
-          <span
-            style={{
-              position: 'absolute',
-              left: -4,
-              top: -2,
-              width: 430,
-              height: 30,
-              background: colors.selection,
-              borderRadius: 3,
-              opacity: interpolate(local, [8, 18], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
-            }}
-          />
-          회의 결과를 정리해서 팀에 공유해야 합니다.
-        </div>
-        {local >= 26 && (
-          <SparkleButton
-            x={440}
-            y={-6}
-            opacity={interpolate(local, [26, 34], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })}
-          />
-        )}
-        <PresetMenu x={440} y={40} local={local} openFrame={46} activeIndex={1} activeFrame={110} />
+    <>
+      {/* zoom 래퍼: 씬 루트(1600x900) 를 채우고 origin 고정 확대. 자막은 이 래퍼 밖(비확대)이라 항상 읽힌다. */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          transform: zEnvelope > 0 ? `scale(${zoomScale})` : undefined,
+          transformOrigin: `${ZOOM_ORIGIN_X}px ${ZOOM_ORIGIN_Y}px`,
+        }}
+      >
+        <FeatureCardShell frame={frame} start={CARD1.start} end={CARD1.end} icon="✨" title="선택 툴바">
+          <div style={{ padding: `${space[5]}px ${space[4]}px`, position: 'relative' }}>
+            <div style={{ position: 'relative', display: 'inline-block', fontFamily: font.ui, fontSize: 22, color: colors.textPrimary }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: -4,
+                  top: -2,
+                  width: 430,
+                  height: 30,
+                  background: colors.selection,
+                  borderRadius: 3,
+                  opacity: interpolate(local, [8, 18], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+                }}
+              />
+              회의 결과를 정리해서 팀에 공유해야 합니다.
+            </div>
+            {local >= 26 && (
+              <SparkleButton
+                x={440}
+                y={-6}
+                opacity={interpolate(local, [26, 34], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })}
+              />
+            )}
+            {/* SPEC-AI-008: 🧜 다이어그램으로(프리셋 index 3)에 호버가 머물면 종류 플라이아웃이 열린다.
+                프리셋 메뉴는 x=440,y=40,width=190 이라 오른쪽 가장자리 440+190=630 → gap 4 더해 x=634.
+                앱은 서브메뉴 top 을 트리거(🧜) 상단에 맞추지만, 8항목(~252px)이 아래로 길어 y 를 위로
+                올려 🧜 근처에서 연다. gantt pick(235)은 zoom 이 완전히 들어온 뒤라 확대된 상태로 보인다. */}
+            <PresetMenu x={440} y={40} local={local} openFrame={46} activeIndex={3} activeFrame={150} />
+            <DiagramFlyout x={634} y={64} local={local} openFrame={162} activeIndex={3} activeFrame={235} />
+          </div>
+        </FeatureCardShell>
       </div>
+      {/* 자막은 zoom 래퍼 밖 — 씬 루트 기준 하단(UC1/UC2 자막과 동일 위치)에 비확대로 표시.
+          SubtitleBar fadeFrames=10 이므로 실제 표시 구간은 [start-10, end+10]. 두 자막의 fade 가
+          겹치면 반투명 상단 바로 하단 바 글자가 비쳐 겹쳐 보이므로 sub2.start - sub1.end = 20 = 2*fade
+          로 fade 구간을 정확히 맞닿게(비중첩) 둔다. sub2 는 zoom 노출 구간 전체를 덮도록 늘렸다. */}
       <SubtitleBar
         text="선택하면 나타나는 ✨로 프리셋 6종을 골라요"
         startFrame={CARD1.start + 60}
-        endFrame={CARD1.end - 20}
+        endFrame={CARD1.start + 140}
       />
-    </FeatureCardShell>
+      <SubtitleBar
+        text="다이어그램 종류도 직접 고를 수 있어요"
+        startFrame={CARD1.start + 160}
+        endFrame={CARD1.end - 16}
+      />
+    </>
   );
 }
 
