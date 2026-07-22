@@ -9,6 +9,7 @@
     "dialog:allow-save",
     "dialog:allow-message",
     "opener:default",
+    "opener:allow-reveal-item-in-dir",
     "shell:allow-execute",
     "shell:allow-spawn"
   ]
