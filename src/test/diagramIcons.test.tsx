@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as Icons from '@/components/icons';
+import { DIAGRAM_ICON_INNER } from '@/components/icons/diagramIconMarkup';
 
 const DIAGRAM_ICON_NAMES = [
   'FlowchartIcon',
@@ -72,6 +73,36 @@ describe('diagram preset icons: byte-identity across single-source extraction (S
       const Icon = (Icons as Record<string, (p: unknown) => JSX.Element>)[name];
       const markup = renderToStaticMarkup(<Icon />);
       expect(markup).toBe(DIAGRAM_ICON_RENDER_SNAPSHOT[name]);
+    }
+  });
+});
+
+// SPEC-AI-008 T-002 / AC-003 / REQ-023: 7종 아이콘 SVG inner 마크업을 명령형 서브메뉴와
+// JSX 컴포넌트가 함께 소비하는 단일 소스로 추출한다. path 데이터 중복 0 — 이 상수가 유일 소스다.
+const TYPE_TO_ICON: Record<string, string> = {
+  flowchart: 'FlowchartIcon',
+  sequenceDiagram: 'SequenceDiagramIcon',
+  gantt: 'GanttIcon',
+  classDiagram: 'ClassDiagramIcon',
+  stateDiagram: 'StateDiagramIcon',
+  pie: 'PieChartIcon',
+  mindmap: 'MindmapIcon',
+};
+
+describe('diagram icon single source (SPEC-AI-008 T-002/AC-003)', () => {
+  it('exposes inner markup for all 7 diagram types', () => {
+    for (const type of Object.keys(TYPE_TO_ICON)) {
+      expect(typeof DIAGRAM_ICON_INNER[type as keyof typeof DIAGRAM_ICON_INNER]).toBe('string');
+      expect(DIAGRAM_ICON_INNER[type as keyof typeof DIAGRAM_ICON_INNER].length).toBeGreaterThan(0);
+    }
+  });
+
+  it('the shared markup constant reproduces each JSX icon inner markup exactly (single source)', () => {
+    for (const [type, iconName] of Object.entries(TYPE_TO_ICON)) {
+      const Icon = (Icons as Record<string, (p: unknown) => JSX.Element>)[iconName];
+      const full = renderToStaticMarkup(<Icon />);
+      const inner = full.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+      expect(DIAGRAM_ICON_INNER[type as keyof typeof DIAGRAM_ICON_INNER]).toBe(inner);
     }
   });
 });

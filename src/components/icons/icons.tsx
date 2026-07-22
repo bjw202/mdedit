@@ -4,6 +4,7 @@
 // @MX:SPEC: SPEC-UI-006
 
 import type { SVGProps } from 'react';
+import { DIAGRAM_ICON_INNER } from './diagramIconMarkup';
 
 export type IconProps = SVGProps<SVGSVGElement>;
 
@@ -274,60 +275,34 @@ export function TextQuoteIcon(props: IconProps): JSX.Element {
 // @MX:NOTE: [AUTO] SPEC-UI-008 다이어그램 프리셋 흑백 스켈레톤 아이콘 7종.
 // SPEC-UI-006 규약(svgProps 인라인, stroke="currentColor" 상속, 런타임 의존성 없음)을 따르며
 // 7종 path 마크업이 서로 달라 종류별로 구별된다(REQ-UI-008-002/003).
-// @MX:SPEC: SPEC-UI-008
+// SPEC-AI-008(REQ-023): path 마크업은 diagramIconMarkup 의 단일 소스를 소비한다 — 명령형 AI
+// 서브메뉴와 같은 상수를 공유해 중복을 없앤다. 렌더 결과는 추출 전과 바이트 동일(AC-014).
+// @MX:SPEC: SPEC-UI-008 SPEC-AI-008
 
 export function FlowchartIcon(props: IconProps): JSX.Element {
-  return (
-    <svg {...svgProps(props)}>
-      <rect x="4" y="3" width="10" height="5" rx="1"></rect><path d="M9 8v4"></path><rect x="4" y="12" width="10" height="5" rx="1"></rect><path d="M14 14.5h4V20"></path>
-    </svg>
-  );
+  return <svg {...svgProps(props)} dangerouslySetInnerHTML={{ __html: DIAGRAM_ICON_INNER.flowchart }} />;
 }
 
 export function SequenceDiagramIcon(props: IconProps): JSX.Element {
-  return (
-    <svg {...svgProps(props)}>
-      <path d="M6 3v18"></path><path d="M18 3v18"></path><path d="M6 9h12"></path><path d="m15 6 3 3-3 3"></path>
-    </svg>
-  );
+  return <svg {...svgProps(props)} dangerouslySetInnerHTML={{ __html: DIAGRAM_ICON_INNER.sequenceDiagram }} />;
 }
 
 export function GanttIcon(props: IconProps): JSX.Element {
-  return (
-    <svg {...svgProps(props)}>
-      <path d="M3 4h9"></path><path d="M7 10h11"></path><path d="M5 16h8"></path>
-    </svg>
-  );
+  return <svg {...svgProps(props)} dangerouslySetInnerHTML={{ __html: DIAGRAM_ICON_INNER.gantt }} />;
 }
 
 export function ClassDiagramIcon(props: IconProps): JSX.Element {
-  return (
-    <svg {...svgProps(props)}>
-      <rect x="5" y="4" width="14" height="16" rx="1"></rect><path d="M5 9h14"></path><path d="M8 13h8"></path><path d="M8 16h6"></path>
-    </svg>
-  );
+  return <svg {...svgProps(props)} dangerouslySetInnerHTML={{ __html: DIAGRAM_ICON_INNER.classDiagram }} />;
 }
 
 export function StateDiagramIcon(props: IconProps): JSX.Element {
-  return (
-    <svg {...svgProps(props)}>
-      <circle cx="6" cy="7" r="3"></circle><circle cx="18" cy="17" r="3"></circle><path d="M8.5 9.5 15 15"></path>
-    </svg>
-  );
+  return <svg {...svgProps(props)} dangerouslySetInnerHTML={{ __html: DIAGRAM_ICON_INNER.stateDiagram }} />;
 }
 
 export function PieChartIcon(props: IconProps): JSX.Element {
-  return (
-    <svg {...svgProps(props)}>
-      <circle cx="12" cy="12" r="9"></circle><path d="M12 3v9l6.4 6.4"></path>
-    </svg>
-  );
+  return <svg {...svgProps(props)} dangerouslySetInnerHTML={{ __html: DIAGRAM_ICON_INNER.pie }} />;
 }
 
 export function MindmapIcon(props: IconProps): JSX.Element {
-  return (
-    <svg {...svgProps(props)}>
-      <circle cx="12" cy="12" r="3"></circle><path d="M14.5 10 19 5"></path><path d="M14.5 14 19 19"></path><path d="M9 12H4"></path>
-    </svg>
-  );
+  return <svg {...svgProps(props)} dangerouslySetInnerHTML={{ __html: DIAGRAM_ICON_INNER.mindmap }} />;
 }
