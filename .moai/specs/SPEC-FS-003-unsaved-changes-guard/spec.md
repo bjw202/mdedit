@@ -1,9 +1,9 @@
 ---
 id: SPEC-FS-003
-version: "0.0.3"
+version: "0.0.4"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-07-23"
 author: "jw"
 priority: high
 issue_number: 0
@@ -31,6 +31,7 @@ lifecycle: spec-anchored
 | 0.0.1 | 2026-07-22 | jw | 최초 SPEC 작성 — 미저장 변경 가드 전면 재설계. 사용자 확정 결정 반영: (1) 3버튼 인앱 커스텀 모달(취소/저장 안 함/저장), `window.confirm`·네이티브 다이얼로그 금지, (2) 가드 대상 경로 전수(탐색기 파일 클릭 / 새 문서 / 폴더 이동 / 파일 워처 자동 재로드 / 윈도우 종료), (3) 동반 결함 3건 동시 수정(`openFile`의 `setDirty(false)` 누락, dirty 이중 소스(`editorStore.dirty` vs 영속화되는 `uiStore.saveStatus`), 저장 로직 5중 중복), (4) 재사용 `ConfirmDialog` 컴포넌트를 본 SPEC이 소유하고 SPEC-EXPORT-002가 소비(계약 고정). 소스 조사 결과 폴더 이동 경로는 **문서를 폐기하지 않음**을 확인하여 요구사항을 "모달 추가"가 아닌 "허위 가드 제거"로 확정(REQ-FS-003-029). |
 | 0.0.2 | 2026-07-22 | jw | 사용자 결정 3건 반영 — **D1** REQ-029(폴더 이동 허위 가드 제거) 승인 확정 + 회귀 방지 근거 문장 추가(일어날 수 없는 손실을 경고하면 사용자가 경고를 습관적으로 무시하게 되어 파일 전환의 진짜 가드까지 무력화됨). **D2** 워처 충돌 모달의 안전한 선택지(`내 버전 유지`)를 primary/초기 포커스로 확정 — ConfirmDialog 계약("마지막 항목이 primary + 초기 포커스")은 **동결**이므로 계약을 바꾸지 않고 `actions` 배열 순서를 뒤집어 안전 선택지를 마지막에 배치. REQ-022에 배열 순서를 문자 그대로 명시하고 초기 포커스 검증 AC(AC-016) 신설. **D3** open risk #4를 Design Note에서 정규 요구로 승격 — `saveDocument()`가 `watchedPath`를 Save As 기본 디렉터리로 전달(신 REQ-034, AC-017). open risk #3(`saveStatus` 표시 전용 유지)은 열린 질문이 아닌 **확정 결정**으로 재기록. open risk #1(Tauri v2 종료 API)은 plan.md의 Run phase 검증 항목으로 이관. 3-파일 구조 완성(plan.md·acceptance.md 신규) — spec.md의 dangling `acceptance.md` 참조 해소. |
 | 0.0.3 | 2026-07-22 | jw | plan-auditor 리뷰 반영(anchor 검증 16/16 통과, REQ-029 조사 승인). **C1** `checkbox` prop을 계약에서 **완전 삭제** — 본 SPEC과 SPEC-EXPORT-002 어느 쪽도 소비하지 않음이 확인됨(EXPORT-002가 4곳에서 미사용 명시). EXPORT-002 소비 주장 3건 제거, 미래 확장 노트도 남기지 않음. 계약 미정의 3건 확정: INV-1(마지막 항목이 `danger`일 때 `variant`가 스타일을 이기고 포커스는 위치 규칙 유지), INV-2(`'default'`는 `undefined`의 명시적 등가값), INV-3(`'cancel'` id 항목 필수 — Escape·백드롭 라우팅의 데이터 안전 근거, 신 REQ-036이 개발 빌드에서 강제). **C2** `e2e/fixtures/tauri-mock.ts`가 널 스텁이라 선언 E2E 6개 중 5개가 실행 불가함을 확인 — 가상 FS 픽스처를 명시적 산출물로 승격(Delta 표 + AC-022 + plan T2b). **H3** 종료 deadlock 해소 — REQ-024/025가 종료 요청까지 삼켜 창이 영구히 닫히지 않는 문제를 신 REQ-037(열린 모달의 종료 승격)로 해결하고 원래 의도 동작 처리를 명시. **H4** AI 스트리밍 상호작용 신설(REQ-038/039/040) — `MarkdownEditor.tsx:222-232`가 AI 기록에도 `dirty=true`를 세우고 `isExternalUpdateRef`는 파일 열기(`:100`)에만 적용됨을 확인. 스트리밍 중 `저장 안 함` → 잔여 청크가 새로 연 파일을 오염시켜 REQ-011을 무력화하는 경로를 `aiCancel` 선행 호출로 차단. **H5** AC-010의 Rust 테스트 층이 검증 불가함을 인정하고 diff 리뷰로 정정, `cargo test` 게이트 주장 철회. 기타: REQ-016→029 오인용 수정, "001~033"→"001~040", **REQ-027 삭제**(REQ-026에 완전 포함되어 아무것도 제약하지 않음, 결번 처리), REQ-024 커버리지 인플레 해소(AC-012에 새 문서·워처 케이스 추가), AC-002/004를 `[review]` 기준으로 라벨링, 외부 삭제·이름변경을 명시적 non-goal로 기록. |
+| 0.0.4 | 2026-07-23 | jw | **REQ-018 V1 해소 개정** — Run phase 검증(node_modules/@tauri-apps/api/window.js `onCloseRequested` 래퍼 분석)으로 프런트엔드 `getCurrentWindow().onCloseRequested()` + `event.preventDefault()`만으로 윈도우 종료 보류가 충분함을 확인했다(랩퍼는 `preventDefault()` 미호출 시에만 `destroy()` 자동 호출). 따라서 Rust `on_window_event` + `api.prevent_close()`는 **불필요**해 `lib.rs`를 무변경으로 유지했다. **REQ-018을 "Rust 의무"에서 "프런트엔드(또는 동등 Rust)"로 완화**하고, 연관 5곳(Environment·REQ 본문·Test Strategy·Delta·AC-010·Design Notes)을 동일 정합성으로 갱신했다. 실제 종료 동작(dirty=false 즉시 종료 / dirty=true 3버튼 모달 후 `destroy()` / 취소 시 유지)은 사용자 macOS 확인 완료 상태로 무변경. |
 
 ## Summary
 
@@ -103,7 +104,7 @@ lifecycle: spec-anchored
 
 - 프론트엔드: React 18, TypeScript strict, CodeMirror 6, Zustand(+persist), Tailwind CSS 3 + SPEC-UI-006 `.md-*` 토큰.
 - 백엔드: Tauri v2, Rust. 빌더 체인은 `src-tauri/src/lib.rs:16-74`.
-- 윈도우 종료 가드는 Rust `on_window_event` + `WindowEvent::CloseRequested` + `api.prevent_close()`와 프런트엔드 `@tauri-apps/api/window`의 `getCurrentWindow().onCloseRequested()` 리스너 조합을 전제한다. 현재 프런트엔드는 `@tauri-apps/api/window`에서 아무것도 import하지 않는다.
+- 윈도우 종료 가드는 Rust `on_window_event` + `WindowEvent::CloseRequested` + `api.prevent_close()`와 프런트엔드 `@tauri-apps/api/window`의 `getCurrentWindow().onCloseRequested()` 리스너 조합을 전제한다. 현재 프런트엔드는 `@tauri-apps/api/window`에서 아무것도 import하지 않지만, Run phase V1 검증으로 `getCurrentWindow().onCloseRequested()` + `event.preventDefault()` 단독으로 종료 보류가 충분함을 확인해 Rust `on_window_event` 없이 구현했다(저장·폐기 확정 시 `getCurrentWindow().destroy()`로 닫는다).
 - AI: `aiStore`(`src/store/aiStore.ts:8` `AiRequestState = 'idle' | 'streaming' | 'done' | 'error'`, `requestId` 보유, persist 미적용 트랜지언트), `aiCancel(requestId)` IPC 래퍼(`ai-suggestion-card.ts:13` 등에서 이미 사용 중). AI 기록도 일반 dispatch를 거치므로 `MarkdownEditor.tsx:222-232`에서 `dirty=true`가 된다 — `isExternalUpdateRef`는 파일 열기 dispatch(`:100`)에만 세워지므로 AI 기록에는 적용되지 않는다(확인 완료).
 - 테스트 게이트: `npm run lint`(eslint, PR #37로 복구), `npm run typecheck`(`tsc --noEmit`), `npm test`(vitest + @testing-library/react + jsdom), `npm run test:e2e`(Playwright).
 - E2E 픽스처: `e2e/fixtures/tauri-mock.ts`는 현재 모든 IPC에 `null`을 반환하는 24줄 스텁이다. 본 SPEC의 E2E는 이를 가상 파일시스템 목으로 확장하는 것을 전제한다.
@@ -179,7 +180,7 @@ actions: [
 
 ### Event-Driven Requirements — 윈도우 종료
 
-- **REQ-FS-003-018**: **WHEN** 사용자가 윈도우 닫기를 시도하면, **the system shall** Rust `on_window_event`의 `WindowEvent::CloseRequested`에서 `api.prevent_close()`를 호출하여 종료를 보류하고 프런트엔드에 종료 요청을 전달한다.
+- **REQ-FS-003-018**: **WHEN** 사용자가 윈도우 닫기를 시도하면, **the system shall** 프런트엔드 `getCurrentWindow().onCloseRequested()` 리스너에서 `event.preventDefault()`를 호출하여 종료를 보류한다(V1 검증으로 프런트엔드 단독이 충분함이 확인됨 — Rust `on_window_event` + `api.prevent_close()` 경로는 동등 대안이나 본 구현에서는 미사용). 사용자가 가드 모달에서 저장·폐기를 확정하면 `getCurrentWindow().destroy()`로 실제 종료하고, 취소하면 창을 유지한다.
 - **REQ-FS-003-019**: **WHEN** 종료 요청 수신 시 `editorStore.dirty`가 false이면, **the system shall** 모달을 표시하지 않고 즉시 윈도우를 닫는다.
 - **REQ-FS-003-020**: **WHEN** 종료 요청 수신 시 `editorStore.dirty`가 true이면, **the system shall** 3버튼 모달을 표시하고, `저장`이면 저장 완료 후 종료, `저장 안 함`이면 즉시 종료, `취소`면 종료를 취소하고 앱을 계속 실행한다.
 
@@ -275,7 +276,7 @@ actions: [
 
 Playwright E2E는 Vite dev 서버(일반 브라우저) 대상으로 실행되며 **Tauri 런타임이 없다.** `WindowEvent::CloseRequested`는 발생하지 않고 `@tauri-apps/api/window`의 `getCurrentWindow()`도 동작하지 않는다. 따라서 윈도우 종료 가드는 Playwright로 커버하지 **않으며**, 대신 3층으로 검증한다.
 
-1. **Rust 측: 자동화 테스트 없음 — diff 리뷰로 확인한다.** `WindowEvent::CloseRequested`와 그 `CloseRequestApi`는 Tauri 런타임 없이 생성할 수 없고, 핸들러 본문을 순수 함수로 추출하면 정작 검증 대상인 `api.prevent_close()` 호출이 그 함수 **바깥**에 남는다. 즉 "추출한 순수 함수를 `cargo test`로 검증"은 검증 대상을 비껴가는 형식적 통과에 불과하므로 채택하지 않는다. `lib.rs`의 `on_window_event` 등록과 `prevent_close()` 호출 존재는 **코드 리뷰로 확인**하며, `cargo test`는 기존 컴파일 게이트(`test_run_compiles`) 역할만 수행한다. **AC-010의 근거로 `cargo test` 통과를 제시하지 않는다.**
+1. **Rust 측: 사용하지 않음(V1 해소).** Run phase 검증 결과 프런트엔드 `onCloseRequested` + `preventDefault`만으로 충분해 `lib.rs`에 `on_window_event`를 등록하지 않았다. 따라서 Rust 종료 가드 검증 항목은 존재하지 않으며, `cargo test`는 기존 컴파일 게이트(`test_run_compiles`) 역할만 수행한다.
 2. **프런트엔드 단위 테스트** (vitest) — **실질적 자동화 검증 층**: `@tauri-apps/api/window`를 모킹하여 `onCloseRequested` 리스너 등록, dirty=false 즉시 닫기 경로, dirty=true 모달 표시 후 각 선택지의 후속(닫기/저장 후 닫기/중단), 그리고 REQ-037의 승격 처리(모달이 이미 열린 상태에서 종료 요청 도착)를 검증한다. 모달 분기 로직은 이 층에서 완전히 커버된다.
 3. **수동 검증 체크리스트**: `npm run tauri dev`(또는 릴리즈 빌드)에서 (a) 편집 후 창 닫기 → 모달, (b) `취소` → 앱 유지, (c) `저장 안 함` → 즉시 종료, (d) `저장` → 저장 후 종료, (e) 깨끗한 상태 → 무모달 즉시 종료, (f) 파일 전환 모달이 열린 상태에서 창 닫기 → 승격 동작. 이 6건은 acceptance.md의 수동 검증 항목으로 기록하며, 자동화 게이트가 아님을 명시한다.
 
@@ -291,7 +292,7 @@ Playwright E2E는 Vite dev 서버(일반 브라우저) 대상으로 실행되며
 | [MODIFY] | `src/components/editor/MarkdownEditor.tsx` | `Mod-s`/`Mod-Shift-s` keymap을 `saveDocument` 호출로 치환(:113-177), `Mod-n`에 가드 적용(:178-187) |
 | [MODIFY] | `src/App.tsx` | 워처 콜백에 dirty 분기 + 워처 전용 모달 배선(:34-41), 윈도우 종료 리스너(`@tauri-apps/api/window` `onCloseRequested`) 등록 |
 | [MODIFY] | `src/store/uiStore.ts` | `partialize`에서 `saveStatus` 제외(:158-165) |
-| [MODIFY] | `src-tauri/src/lib.rs` | 빌더 체인(:16-74)에 `on_window_event` + `WindowEvent::CloseRequested` + `prevent_close` 추가 |
+| [NO-CHANGE] | `src-tauri/src/lib.rs` | **무변경** — V1 검증으로 프런트엔드 `onCloseRequested` + `preventDefault`가 충분해 Rust `on_window_event` 등록 불필요(REQ-018 개정, v0.0.4) |
 | [MODIFY] | `src/styles/mdedit-components.css` | `.md-dialog*` 클래스(백드롭/패널/액션 바) 추가 — 토큰만 사용 |
 | [NEW] | `src/test/ConfirmDialog.test.tsx` | 컴포넌트 계약·a11y·키보드 테스트 |
 | [NEW] | `src/test/useUnsavedChangesGuard.test.ts` | 가드 상태 머신·재진입·저장 실패 테스트 |
@@ -318,7 +319,7 @@ Playwright E2E는 Vite dev 서버(일반 브라우저) 대상으로 실행되며
 | AC-FS-003-007 | REQ-012, 013 | dirty 상태에서 탐색기 파일 클릭·새 문서(버튼/`Mod-n`) → 3버튼 모달 표시 |
 | AC-FS-003-008 | REQ-014, 015 | `저장` → 저장 완료 후 의도 동작 수행; `저장 안 함` → 즉시 의도 동작 수행(변경 폐기) |
 | AC-FS-003-009 | REQ-016, 017 | `취소`/Escape/백드롭 → 의도 동작 중단 + 에디터 상태 무변경; 저장 실패·Save As 취소 → 의도 동작 미수행 + dirty 유지 |
-| AC-FS-003-010 | REQ-018, 019, 020 | **`[manual]` + 모킹 단위 테스트 + `[review]`** — dirty=false 즉시 종료 / dirty=true 모달 후 저장·폐기·취소 각각 종료·종료·유지는 모킹 단위 테스트로, Rust `on_window_event` + `prevent_close` 등록은 **diff 리뷰**로, 실제 종료 동작은 수동 체크리스트로 확인한다. Rust 단위 테스트 층은 존재하지 않는다(아래 Test Strategy 참조) |
+| AC-FS-003-010 | REQ-018, 019, 020 | **`[manual]` + 모킹 단위 테스트** — dirty=false 즉시 종료 / dirty=true 모달 후 저장·폐기·취소 각각 종료·종료·유지는 모킹 단위 테스트로, 프런트엔드 모킹 단위 테스트(`windowCloseGuard.test.tsx`)로 확인하고, 실제 종료 동작은 수동 체크리스트로 확인한다. Rust `on_window_event`는 V1 해소로 미사용이라 검증 항목이 없다(아래 Test Strategy 참조) |
 | AC-FS-003-011 | REQ-021, 022, 023 | 워처: dirty=false 자동 재로드 유지; dirty=true 시 `내 버전 유지`/`디스크에서 다시 읽기` 액션의 별도 모달, 각 선택 결과 검증 |
 | AC-FS-003-012 | REQ-024, 025 | 모달 열린 동안 **파일 클릭 / 새 문서 / 워처 이벤트** 세 트리거 각각이 무시됨(모달 중첩 없음, 파일 1개만 열림, 저장 1회) + 후속 트리거 폐기(큐잉 없음). **워처 케이스는 디스크 변경이 조용히 잊히는 결과를 낳으므로 별도 어서션 필수** |
 | AC-FS-003-013 | REQ-026 | dirty=false인 모든 경로(파일 클릭 / 새 문서 / 종료)에서 모달 미표시 |
@@ -350,7 +351,7 @@ E2E 픽스처(`e2e/fixtures/tauri-mock.ts`)도 동일하게 본 SPEC이 선행 �
 
 - **가드 상태 머신 힌트**: `useUnsavedChangesGuard`는 `pendingAction: (() => void | Promise<void>) | null` 형태로 "의도한 동작"을 보관하고, 모달이 열린 동안 `pendingAction !== null`을 재진입 차단 플래그로 사용하는 방식을 상정한다(REQ-024/025). 구현 세부는 Run phase 재량.
 - **[확정 결정] `saveStatus`는 표시 전용으로 유지한다**: REQ-007은 `saveStatus`를 제거하라는 요구가 아니다. `saveStatus`는 `'saving'`/`'new'`처럼 boolean `dirty`에서 파생 불가능한 상태를 포함하므로 완전 파생 셀렉터로 만들 수 없다. 따라서 표시 전용으로 남기되 `saveDocument`/`openFile` 등 상태 전이 지점에서만 갱신하고, **가드 판정은 `dirty`만 읽는다**. 이는 열린 질문이 아니라 승인된 최소 변경 결정이다. `saveStatus`를 `dirty` + 진행 플래그 조합에서 완전히 계산하는 리팩토링은 본 SPEC 범위 밖의 후속 과제다.
-- **Rust 종료 가드 힌트**: `on_window_event` 클로저에서 `WindowEvent::CloseRequested { api, .. }` 매칭 후 `api.prevent_close()`를 호출하고, 프런트엔드가 종료를 확정할 때 `window.destroy()`(또는 `app.exit()`)를 호출하는 흐름을 상정한다. 프런트엔드 `onCloseRequested` 콜백의 `event.preventDefault()`만으로 충분한지 여부는 **추정하지 않으며**, plan.md의 Run phase 검증 항목(V1)으로 이관한다.
+- **[V1 해소 확정] 종료 가드는 프런트엔드 단독**: Run phase V1 검증(node_modules/@tauri-apps/api/window.js `onCloseRequested` 래퍼 분석)으로 `event.preventDefault()`만으로 종료 보류가 충분함을 확인했다. 따라서 Rust `on_window_event`는 등록하지 않았고, 사용자가 종료를 확정하면 프런트엔드에서 `getCurrentWindow().destroy()`로 닫는다.
 
 ## Exclusions (What NOT to Build)
 

@@ -1,9 +1,9 @@
 ---
 id: SPEC-FS-003
-version: "0.0.2"
+version: "0.0.3"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-07-23"
 author: "jw"
 priority: high
 issue_number: 0
@@ -14,6 +14,7 @@ issue_number: 0
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.0.2 | 2026-07-22 | jw | plan-auditor 리뷰 반영 — `checkbox` 관련 DoD 항목 삭제(계약에서 제거). AC-002/AC-004의 코드 검토 성격 항목을 `[review]`로 명시 라벨링(jsdom은 스타일시트 미로드, 참조 부재는 테스트 불가). **AC-010에서 Rust 자동화 테스트 층 철회** — 런타임 없이 `CloseRequested`/`CloseRequestApi` 구성 불가, 순수 함수 추출 시 `prevent_close()`가 검증 범위 밖에 남음. diff 리뷰 + 모킹 테스트 + 수동 확인으로 정정하고 `cargo test` 게이트 주장 제거. AC-012에 새 문서·워처 트리거 시나리오 추가(REQ-024 커버리지 인플레 해소) + 워처 이벤트 폐기의 알려진 한계(재알림 없음) 명시. AC-013에서 REQ-027 참조 제거(요구 삭제됨). 신규 AC-018(INV-3 강제)·019(종료 승격 deadlock 부재)·020(AI 취소 + 부분 저장)·021(AI 고지 문구)·022(E2E 가상 FS 픽스처). 수동 체크리스트에 M6(승격 + 재종료) 추가. |
+| 0.0.3 | 2026-07-23 | jw | **REQ-018 V1 해소 연동**(spec.md v0.0.4) — AC-010에서 Rust `on_window_event` diff 리뷰 항목을 철회했다. V1 검증으로 프런트엔드 `onCloseRequested` + `preventDefault` 단독이 충분해 Rust를 사용하지 않으므로, AC-010은 프런트엔드 모킹 단위 테스트(`windowCloseGuard.test.tsx`) + 수동 체크리스트(M1~M6)만으로 검증한다. |
 | 0.0.1 | 2026-07-22 | jw | 최초 acceptance 작성 — Given-When-Then 시나리오 17건(AC-FS-003-001~017) + 품질 게이트 + 수동 검증 체크리스트. spec.md v0.0.2(REQ-001~035)와 1:1 정합하며 spec.md의 dangling `acceptance.md` 참조를 해소한다. 사용자 결정 3건 반영: 폴더 이동 허위 가드 제거(AC-014), 워처 모달 안전 선택지 기본 포커스(AC-016), `saveDocument` 기본 디렉터리 통일(AC-017). 윈도우 종료 가드(AC-010)는 Playwright로 검증 불가하므로 3층(Rust 테스트 + 모킹 단위 테스트 + 수동 체크리스트)으로 분리 명시. |
 
 # Acceptance Criteria — SPEC-FS-003 (미저장 변경 가드)
@@ -25,7 +26,7 @@ issue_number: 0
 - Rust: `cargo test` (`src-tauri`)
 - **E2E 선행 조건**: `e2e/fixtures/tauri-mock.ts`는 현재 모든 IPC에 `null`을 반환하는 24줄 스텁이다. 이 상태에서는 `read_directory`가 null을 반환해 파일 트리가 비고 **클릭할 파일이 없어** AC-007/008/009/012/013의 E2E 층이 실행조차 되지 않는다. 가상 파일시스템 픽스처(AC-022, plan.md T2b)가 먼저 완성되어야 한다.
 - **윈도우 종료 가드(AC-010)는 Playwright 대상이 아니다.** Playwright E2E는 Vite dev 서버(일반 브라우저)에서 실행되어 Tauri 런타임이 없고, `WindowEvent::CloseRequested`가 발생하지 않으며 `@tauri-apps/api/window`의 `getCurrentWindow()`도 동작하지 않는다.
-- **AC-010에는 Rust 자동화 테스트 층이 없다.** `WindowEvent::CloseRequested`와 그 `CloseRequestApi`는 Tauri 런타임 없이 구성할 수 없고, 핸들러 본문을 순수 함수로 추출해도 검증 대상인 `api.prevent_close()` 호출은 그 함수 바깥에 남는다. 따라서 **모킹 기반 프런트엔드 단위 테스트 + 수동 체크리스트**로 검증하고, Rust 측 등록은 **diff 리뷰**로 확인한다. `cargo test`는 컴파일 게이트일 뿐 AC-010의 근거가 아니다.
+- **AC-010은 프런트엔드 모킹 단위 테스트 + 수동 체크리스트로 검증한다.** V1 해소(spec.md v0.0.4)로 Rust `on_window_event`를 사용하지 않아 Rust 측 검증 항목은 존재하지 않는다. `cargo test`는 컴파일 게이트일 뿐 AC-010의 근거가 아니다.
 
 ### 검증 층위 표기
 
@@ -107,11 +108,11 @@ issue_number: 0
 - **When** `저장`을 선택했으나 `saveDocument()`가 실패하거나 Save As 다이얼로그를 사용자가 취소하면
 - **Then** 의도한 동작이 수행되지 **않고** `dirty`가 true로 유지된다(암묵적 데이터 손실 없음).
 
-### AC-FS-003-010: 윈도우 종료 가드 (REQ-018, 019, 020) `[review]` + `[manual]` + 모킹 단위 테스트
+### AC-FS-003-010: 윈도우 종료 가드 (REQ-018, 019, 020) `[manual]` + 모킹 단위 테스트
 
-> **Playwright 검증 대상 아님이며 Rust 자동화 테스트 층도 없다.** 아래 첫 항목은 **diff 리뷰**로, 나머지는 `@tauri-apps/api/window` 모킹 단위 테스트로, 최종 실동작은 수동 체크리스트(M1~M6)로 확인한다.
+> **Playwright 검증 대상이 아니다.** V1 해소(v0.0.4)로 Rust를 사용하지 않아 diff 리뷰 항목도 없다. `@tauri-apps/api/window` 모킹 단위 테스트로 분기를, 최종 실동작은 수동 체크리스트(M1~M6)로 확인한다.
 
-- **`[review]`** `src-tauri/src/lib.rs` 빌더 체인에 `on_window_event`가 등록되어 있고 `WindowEvent::CloseRequested` 분기에서 `api.prevent_close()`가 호출되며 프런트엔드로 종료 요청이 전달되는지를 **코드 리뷰로 확인한다.** (런타임 없이 `CloseRequested`/`CloseRequestApi`를 구성할 수 없고, 핸들러 본문을 순수 함수로 추출하면 `prevent_close()` 호출이 그 바깥에 남아 검증 대상이 빠진다. 따라서 이 항목에 자동화 테스트를 만들지 않는다.)
+- **Rust `on_window_event`는 V1 해소(v0.0.4)로 미사용** — 등록하지 않았으므로 diff 리뷰 항목도 없다. 종료 보류는 프런트엔드 `onCloseRequested` + `preventDefault`, 실제 종료는 `getCurrentWindow().destroy()`로 처리한다(아래 모킹 단위 테스트 + 수동 체크리스트로 검증).
 - **Given** `dirty === false`인 상태에서
 - **When** 종료 요청을 수신하면
 - **Then** 모달을 표시하지 않고 즉시 윈도우가 닫힌다.
@@ -251,7 +252,7 @@ issue_number: 0
 | 타입 체크 | `npm run typecheck`(`tsc --noEmit`) 클린 (에러 0). `ConfirmDialogProps` 계약이 타입 수준에서 spec.md와 일치 |
 | 단위/컴포넌트 테스트 | `npm test`(vitest) 전체 통과 — 신규(`ConfirmDialog.test.tsx`, `useUnsavedChangesGuard.test.ts`, `saveDocument.test.ts`, `windowCloseGuard.test.ts`) + 확장(`useFileSystem.test.ts`) + 기존 전체 무변경 통과 |
 | E2E | `npm run test:e2e`(Playwright) 통과 — 신규 `e2e/unsaved-changes-guard.spec.ts` 포함. **가상 FS 픽스처(AC-022) 선행 필수**. **종료 가드(AC-010)는 E2E 범위 밖** |
-| Rust | `cargo test`(`src-tauri`) 통과 — **컴파일 게이트 역할만 하며 AC-010의 검증 근거가 아니다.** 종료 핸들러 등록은 diff 리뷰로 확인 |
+| Rust | `cargo test`(`src-tauri`) 통과 — **컴파일 게이트 역할만 하며 AC-010의 검증 근거가 아니다.** V1 해소로 `on_window_event` 미사용이라 종료 핸들러 diff 리뷰 항목 없음 |
 | 코드 리뷰 | `[review]` 표기 항목(AC-002 CSS 토큰, AC-004 가드 경로의 `saveStatus` 미참조, AC-010 Rust 등록) 확인 및 PR 본문 기록 |
 | Lint | `npm run lint` 통과 — PR #37(2026-07-20)에서 eslint 설정이 추가되어 정상 게이트로 복귀했으므로, lint 실패는 본 SPEC 구현의 실제 결함으로 취급한다 |
 | 커버리지 | 신규 코드 커밋당 80% 이상, 전체 목표 85% |
@@ -271,7 +272,7 @@ issue_number: 0
 
 ## Definition of Done
 
-- [ ] AC-FS-003-001 ~ 022 전 시나리오에 대응하는 테스트가 존재하고 통과(AC-010은 모킹 단위 테스트 + diff 리뷰 + 수동 체크리스트로 대체, `[review]` 항목은 리뷰 기록으로 대체)
+- [ ] AC-FS-003-001 ~ 022 전 시나리오에 대응하는 테스트가 존재하고 통과(AC-010은 모킹 단위 테스트 + 수동 체크리스트로 대체, `[review]` 항목은 리뷰 기록으로 대체)
 - [ ] REQ-FS-003-001 ~ 040(027 결번) 전 요구사항이 테스트 또는 diff 리뷰로 검증됨(spec.md AC 표 하단 REQ→AC 대조 참조)
 - [ ] `ConfirmDialog`가 spec.md 계약과 **문자 그대로** 일치하고 `checkbox` 관련 필드가 **존재하지 않으며**, SPEC-EXPORT-002의 계약 정의와 문자 단위로 동일함
 - [ ] 계약 불변식 INV-1/INV-2/INV-3이 구현·테스트됨(특히 INV-3 개발 빌드 콘솔 오류)
