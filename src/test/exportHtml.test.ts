@@ -1,8 +1,12 @@
 /**
- * SPEC-EXPORT-001: HTML Export tests
+ * SPEC-EXPORT-001 / SPEC-EXPORT-002: HTML Export tests
  *
  * Tests the exportToHtml function which generates self-contained HTML.
  * Mocks ipc.ts at module level so tests work without Tauri runtime.
+ *
+ * SPEC-EXPORT-002 (REQ-007): 반환 계약 변경 — exportToHtml 은 이제 HTML 문서 문자열이
+ * 아니라 **저장 경로**를 반환한다(성공 시 path, 취소 시 null). HTML 본문 품질 단언은
+ * writeFile 페이로드로 마이그레이션했다(검증 의도 보존).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -42,7 +46,8 @@ describe('ExportHtml: exportToHtml', () => {
     vi.clearAllMocks();
   });
 
-  it('returns a valid HTML string when save dialog is confirmed', async () => {
+  // SPEC-EXPORT-002 REQ-007 (성공절): 반환값 = 저장 경로.
+  it('returns the save path when save dialog is confirmed (REQ-EXPORT-002-007)', async () => {
     const { exportSaveDialog } = await import('@/lib/tauri/ipc');
     vi.mocked(exportSaveDialog).mockResolvedValueOnce('/path/to/output.html');
 
@@ -54,13 +59,11 @@ describe('ExportHtml: exportToHtml', () => {
       highlighter: null,
     });
 
-    expect(typeof result).toBe('string');
-    expect(result).toContain('<!DOCTYPE html>');
-    expect(result).toContain('<html');
-    expect(result).toContain('preview-content');
+    expect(result).toBe('/path/to/output.html');
   });
 
-  it('returns null when user cancels save dialog (REQ-EXPORT-017)', async () => {
+  // SPEC-EXPORT-002 REQ-007 (취소절) + REQ-017.
+  it('returns null when user cancels save dialog (REQ-EXPORT-002-007, REQ-017)', async () => {
     const { exportSaveDialog } = await import('@/lib/tauri/ipc');
     vi.mocked(exportSaveDialog).mockResolvedValueOnce(null);
 
@@ -75,76 +78,76 @@ describe('ExportHtml: exportToHtml', () => {
     expect(result).toBeNull();
   });
 
-  it('does not include script tags in HTML output (REQ-EXPORT-020)', async () => {
-    const { exportSaveDialog } = await import('@/lib/tauri/ipc');
+  // SPEC-EXPORT-001 REQ-020: HTML 본문에 <script> 가 없어야 한다.
+  // SPEC-EXPORT-002: 반환값이 경로가 되었으므로, 본문 품질은 writeFile 페이로드로 검증한다.
+  it('writes HTML without script tags (REQ-EXPORT-020)', async () => {
+    const { exportSaveDialog, writeFile } = await import('@/lib/tauri/ipc');
     vi.mocked(exportSaveDialog).mockResolvedValueOnce('/path/to/output.html');
 
     const { exportToHtml } = await import('@/lib/export/exportHtml');
-    const result = await exportToHtml({
+    await exportToHtml({
       content: '# Hello',
       filename: 'document.html',
       theme: 'light',
       highlighter: null,
     });
 
-    // REQ-EXPORT-020: No JavaScript in exported HTML
-    if (result !== null) {
-      expect(result).not.toContain('<script');
-    }
+    expect(writeFile).toHaveBeenCalledTimes(1);
+    const [, writtenContent] = vi.mocked(writeFile).mock.calls[0];
+    expect(writtenContent).not.toContain('<script');
   });
 
-  it('includes rendered markdown content in HTML output (REQ-EXPORT-002)', async () => {
-    const { exportSaveDialog } = await import('@/lib/tauri/ipc');
+  // SPEC-EXPORT-001 REQ-002: 렌더링된 마크다운이 파일에 포함되어야 한다.
+  it('includes rendered markdown content in the written HTML (REQ-EXPORT-002)', async () => {
+    const { exportSaveDialog, writeFile } = await import('@/lib/tauri/ipc');
     vi.mocked(exportSaveDialog).mockResolvedValueOnce('/path/to/output.html');
-
     const { renderMarkdown } = await import('@/lib/markdown/renderer');
     vi.mocked(renderMarkdown).mockResolvedValueOnce('<h1>Hello World</h1>');
 
     const { exportToHtml } = await import('@/lib/export/exportHtml');
-    const result = await exportToHtml({
+    await exportToHtml({
       content: '# Hello World',
       filename: 'document.html',
       theme: 'light',
       highlighter: null,
     });
 
-    if (result !== null) {
-      expect(result).toContain('<h1>Hello World</h1>');
-    }
+    const [, writtenContent] = vi.mocked(writeFile).mock.calls[0];
+    expect(writtenContent).toContain('<h1>Hello World</h1>');
   });
 
+  // SPEC-EXPORT-001 REQ-014: dark 테마 적용.
   it('uses dark theme CSS variables when theme is dark (REQ-EXPORT-014)', async () => {
-    const { exportSaveDialog } = await import('@/lib/tauri/ipc');
+    const { exportSaveDialog, writeFile } = await import('@/lib/tauri/ipc');
     vi.mocked(exportSaveDialog).mockResolvedValueOnce('/path/to/output.html');
 
     const { exportToHtml } = await import('@/lib/export/exportHtml');
-    const result = await exportToHtml({
+    await exportToHtml({
       content: '# Hello',
       filename: 'document.html',
       theme: 'dark',
       highlighter: null,
     });
 
-    if (result !== null) {
-      expect(result).toContain('data-theme="dark"');
-    }
+    const [, writtenContent] = vi.mocked(writeFile).mock.calls[0];
+    expect(writtenContent).toContain('data-theme="dark"');
   });
 
+  // SPEC-EXPORT-001 REQ-015: light 테마 적용.
   it('uses light theme CSS variables when theme is light (REQ-EXPORT-015)', async () => {
-    const { exportSaveDialog } = await import('@/lib/tauri/ipc');
+    const { exportSaveDialog, writeFile } = await import('@/lib/tauri/ipc');
     vi.mocked(exportSaveDialog).mockResolvedValueOnce('/path/to/output.html');
 
     const { exportToHtml } = await import('@/lib/export/exportHtml');
-    const result = await exportToHtml({
+    await exportToHtml({
       content: '# Hello',
       filename: 'document.html',
       theme: 'light',
       highlighter: null,
     });
 
-    if (result !== null) {
-      expect(result).toContain('data-theme="light"');
-    }
+    const [, writtenContent] = vi.mocked(writeFile).mock.calls[0];
+    expect(writtenContent).toContain('data-theme="light"');
   });
 
   it('calls exportSaveDialog with html format and correct default name (REQ-EXPORT-016)', async () => {

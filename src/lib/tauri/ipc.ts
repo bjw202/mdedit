@@ -3,6 +3,7 @@
 // @MX:SPEC: SPEC-FS-001
 
 import { invoke } from '@tauri-apps/api/core';
+import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener';
 import type { FileNode } from '@/types/file';
 import type { AiFeature } from '@/store/aiStore';
 import type { DiagramType } from '@/components/editor/extensions/keyboard-shortcuts';
@@ -122,6 +123,30 @@ export async function writeBinaryFile(path: string, data: number[]): Promise<voi
  */
 export async function printCurrentWindow(): Promise<void> {
   return invoke<void>('print_current_window');
+}
+
+// @MX:NOTE: [AUTO] SPEC-EXPORT-002 (REQ-006/011/012) opener 래퍼 — 내보낸 파일 열기/폴더 표시.
+//   tauri-plugin-opener 의 JS API(openPath / revealItemInDir)를 감싼다. 신규 Tauri command 없이
+//   플러그인 JS 함수를 직접 호출(REQ-021). 컴포넌트가 플러그인을 직접 import하지 못게 이 레이어로
+//   모아 테스트 모킹 지점을 단일화한다(REQ-006). browser_ops.rs(Command spawn)와 별개 — URL 전용이며
+//   본 SPEC 무관; opener 는 capability ACL 통제 + 크로스플랫폼 reveal 정확성을 제공한다.
+// @MX:SPEC: SPEC-EXPORT-002
+
+/**
+ * 내보낸 파일을 OS 기본 애플리케이션으로 연다 (완료 모달 `열기` 액션, REQ-011).
+ * openPath 는 capability ACL(opener:allow-open-path)의 통제를 받는다.
+ * (opener:default 에는 open_path 가 포함되지 않는다 — 임의 경로 실행 위험으로 별도 explicit 권한 필요.)
+ */
+export async function openExportedFile(path: string): Promise<void> {
+  await openPath(path);
+}
+
+/**
+ * 내보낸 파일을 파일 관리자에서 선택된 상태로 드러낸다 (완료 모달 `폴더에서 보기`, REQ-012).
+ * revealItemInDir 은 capability(opener:allow-reveal-item-in-dir)의 통제를 받는다.
+ */
+export async function revealExportedFile(path: string): Promise<void> {
+  await revealItemInDir(path);
 }
 
 // @MX:NOTE: [AUTO] Image IPC wrappers for SPEC-IMG-001 - clipboard save, file copy, base64 read, dialog

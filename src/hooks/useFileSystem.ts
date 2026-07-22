@@ -9,10 +9,10 @@ import {
   createFile as ipcCreateFile,
   deleteFile as ipcDeleteFile,
   renameFile as ipcRenameFile,
-  saveFileAs as ipcSaveFileAs,
   startWatch,
   registerAssetScope,
 } from '@/lib/tauri/ipc';
+import { saveDocument } from '@/lib/save/saveDocument';
 import { useFileStore } from '@/store/fileStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
@@ -112,16 +112,12 @@ export function useFileSystem(): FileSystemHook {
     }
   };
 
-  // @MX:NOTE: Opens a folder-change dialog with unsaved-changes guard (REQ-UI-003-01, REQ-UI-003-09)
+  // @MX:NOTE: [AUTO] SPEC-FS-003 REQ-029: 폴더 이동 허위 가드 제거.
+  //   openFolder/openFolderPath는 content/dirty/currentFilePath를 변경하지 않으므로(문서 유지)
+  //   changeFolder의 기존 window.confirm은 실제로 일어나지 않는 손실을 경고하는 허위 가드였다.
+  //   허위 가드는 사용자가 경고 전체를 습관적으로 무시하게 만들어 진짜 가드를 무력화한다.
+  //   대체 모달 없음. 폴더 이동은 가드 대상이 아니다.
   const changeFolder = async (): Promise<void> => {
-    const { dirty } = useEditorStore.getState();
-    if (dirty) {
-      const confirmed = window.confirm(
-        'You have unsaved changes. Do you want to discard them and change folder?'
-      );
-      if (!confirmed) return;
-    }
-
     const selectedPath = await openDirectoryDialog();
     if (selectedPath === null) return;
 
@@ -137,16 +133,16 @@ export function useFileSystem(): FileSystemHook {
   // @MX:SPEC: SPEC-PREVIEW-007 REQ-PREVIEW007-003 REQ-PREVIEW007-004 REQ-PREVIEW007-005 REQ-PREVIEW007-006
   // @MX:SPEC: SPEC-PREVIEW-004 REQ-PREVIEW004-001
   const openFile = async (path: string): Promise<void> => {
-    // 미저장 변경사항 경고
-    const { dirty } = useEditorStore.getState();
-    if (dirty) {
-      const confirmed = window.confirm(
-        'You have unsaved changes. Do you want to discard them and open the new file?'
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
+    // @MX:NOTE: [AUTO] SPEC-FS-003 REQ-012/028: 미저장 변경 가드는 호출측(FileTreeNode)에서
+    //   requestGuardedAction으로 감싼다. openFile 자체는 가드-free 순수 동작 — 워처/복원 경로에서도
+    //   재사용 가능. window.confirm 제거(REQ-028).
+    // @MX:SPEC: SPEC-FS-003
+
+    // @MX:NOTE: [AUTO] SPEC-FS-003 REQ-011: 열린 파일은 정의상 깨끗함 —
+    //   모든 분기(html/raster/svg/too-large/text/binary)가 파일을 로드하므로 dirty를 false로 리셋.
+    //   성공·실패 무관 (svg readFile reject, binary catch 포함).
+    // @MX:SPEC: SPEC-FS-003
+    useEditorStore.getState().setDirty(false);
 
     const { setPreviewStatus } = useFileStore.getState();
 
@@ -228,25 +224,12 @@ export function useFileSystem(): FileSystemHook {
     }
   };
 
+  // SPEC-FS-003 T4 (REQ-009): saveFileAs는 단일 saveDocument()로 위임한다.
+  //   hook 인터페이스 시그니처(Promise<string | null>)는 유지해 호출측 파급을 최소화한다(REQ-032).
+  //   saveDocument가 경로 유무에 따라 덮어쓰기/Save As를 처리한다.
   const saveFileAs = async (): Promise<string | null> => {
-    const { content } = useEditorStore.getState();
-    useUIStore.getState().setSaveStatus('saving');
-    try {
-      const savedPath = await ipcSaveFileAs(content);
-      if (savedPath !== null) {
-        setCurrentFilePath(savedPath);
-        useEditorStore.getState().setDirty(false);
-        useUIStore.getState().setSaveStatus('saved');
-      } else {
-        const isDirty = useEditorStore.getState().dirty;
-        useUIStore.getState().setSaveStatus(isDirty ? 'unsaved' : 'saved');
-      }
-      return savedPath;
-    } catch (err: unknown) {
-      console.error('[useFileSystem] saveFileAs failed:', err);
-      useUIStore.getState().setSaveStatus('unsaved');
-      return null;
-    }
+    const ok = await saveDocument();
+    return ok ? useEditorStore.getState().currentFilePath : null;
   };
 
   const createFile = async (dirPath: string, name: string): Promise<void> => {

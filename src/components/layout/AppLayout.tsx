@@ -4,7 +4,10 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUIStore } from '@/store/uiStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useFileStore } from '@/store/fileStore';
-import { writeFile, saveFileAs as saveFileAsIpc, aiDetectProviders, aiPolicyStatus } from '@/lib/tauri/ipc';
+import { saveFileAs as saveFileAsIpc, aiDetectProviders, aiPolicyStatus, openExportedFile, revealExportedFile } from '@/lib/tauri/ipc';
+import { saveDocument } from '@/lib/save/saveDocument';
+import { type UseUnsavedChangesGuardReturn, GuardContext } from '@/hooks/useUnsavedChangesGuard';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useAiRelay } from '@/hooks/useAiRelay';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { setAiLoggedIn, registerOnboardingOpener } from '@/components/editor/extensions/ai-suggestion-card';
@@ -29,9 +32,14 @@ import { insertImageFromDialog } from '@/lib/image/imageHandler';
 import { getFileViewType } from '@/components/preview/PreviewContainer';
 import { PanelLeftIcon } from '@/components/icons';
 
+interface AppLayoutProps {
+  /** 루트(App)에서 인스턴스화한 가드. AppLayout이 ConfirmDialog에 바인딩하고 GuardContext로 공유. */
+  guard: UseUnsavedChangesGuardReturn;
+}
+
 // @MX:NOTE: Root layout component - composes Header, 3-pane panels, Footer
 // Entry point for the entire application UI shell
-export function AppLayout(): JSX.Element {
+export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   useTheme(); // Apply theme side effects
 
   // SPEC-AI-001 (T-018): ai:// 스트리밍 이벤트를 aiStore 로 릴레이하는 단일 배선.
@@ -75,45 +83,16 @@ export function AppLayout(): JSX.Element {
   const toggleScrollSync = useUIStore((s) => s.toggleScrollSync);
 
   const currentFile = useFileStore((s) => s.currentFile);
-  const watchedPath = useFileStore((s) => s.watchedPath);
   // Handle both Unix ('/') and Windows ('\') path separators
   const filename = currentFile ? (currentFile.split(/[/\\]/).pop() ?? 'Untitled') : 'Untitled';
 
+  // SPEC-FS-003 T4 (REQ-009): 저장 단일 함수로 수렴. 헤더 Save/Save As 양쪽 모두 saveDocument 위임.
   const handleSaveAs = async (): Promise<void> => {
-    const { content } = useEditorStore.getState();
-    useUIStore.getState().setSaveStatus('saving');
-    // Default save dialog to the currently open explorer folder, if any
-    const defaultDir = watchedPath ?? undefined;
-    try {
-      const savedPath = await saveFileAsIpc(content, defaultDir);
-      if (savedPath !== null) {
-        useEditorStore.getState().setCurrentFilePath(savedPath);
-        useFileStore.getState().setCurrentFile(savedPath);
-        useEditorStore.getState().setDirty(false);
-        useUIStore.getState().setSaveStatus('saved');
-      } else {
-        const isDirty = useEditorStore.getState().dirty;
-        useUIStore.getState().setSaveStatus(isDirty ? 'unsaved' : 'saved');
-      }
-    } catch {
-      useUIStore.getState().setSaveStatus('unsaved');
-    }
+    await saveDocument();
   };
 
   const handleSave = async (): Promise<void> => {
-    const { content: c, currentFilePath } = useEditorStore.getState();
-    if (!currentFilePath) {
-      await handleSaveAs();
-      return;
-    }
-    useUIStore.getState().setSaveStatus('saving');
-    try {
-      await writeFile(currentFilePath, c);
-      useEditorStore.getState().setDirty(false);
-      useUIStore.getState().setSaveStatus('saved');
-    } catch {
-      useUIStore.getState().setSaveStatus('unsaved');
-    }
+    await saveDocument();
   };
 
   const handleNew = (): void => {
@@ -122,11 +101,21 @@ export function AppLayout(): JSX.Element {
     useUIStore.getState().setSaveStatus('new');
   };
 
+  // SPEC-FS-003 T7 (REQ-013): 새 문서·파일 전환·종료 가드 상태 머신. 단일 인스턴스를
+  //   GuardContext로 트리 전체에 공유(FileTreeNode/MarkdownEditor가 소비). ConfirmDialog 렌더.
+  // SPEC-FS-003: 가드는 App(루트)에서 인스턴스화해 전달받는다(워처 콜백과 공유).
+  const handleGuardedNew = (): void => {
+    guard.requestGuardedAction(() => handleNew());
+  };
+
   const content = useEditorStore((s) => s.content);
   const cursorLine = useEditorStore((s) => s.cursorLine);
   const cursorCol = useEditorStore((s) => s.cursorCol);
 
   const [exportLoading, setExportLoading] = useState(false);
+  // SPEC-EXPORT-002 (REQ-015/016): 완료 모달 단일 경로 슬롯. null=닫힘, string=해당 경로로 열림.
+  //   연속 성공 시 최신 경로로 덮어쓴다(큐잉/중첩 없음). try 블록에서만 설정, catch 절대 불가(REQ-018).
+  const [exportedPath, setExportedPath] = useState<string | null>(null);
   const themeRaw = useUIStore((s) => s.theme);
   // Resolve 'system' theme to actual light/dark for export CSS
   // 'system' must check OS preference; themeRaw !== 'dark' alone would always export as light
@@ -143,13 +132,15 @@ export function AppLayout(): JSX.Element {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
       const highlighter = await getHighlighter();
-      await exportToHtml({
+      const savePath = await exportToHtml({
         content: c,
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
         mdFilePath: currentFile,
       });
+      // SPEC-EXPORT-002 REQ-009: 저장 성공 시에만 모달 슬롯 설정. catch 절대 불가(REQ-018).
+      if (savePath !== null) setExportedPath(savePath);
     } catch (err) {
       console.error('HTML export failed:', err);
       window.alert(`HTML export failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -185,13 +176,15 @@ export function AppLayout(): JSX.Element {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
       const highlighter = await getHighlighter();
-      await exportToDocx({
+      const savePath = await exportToDocx({
         content: c,
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
         mdFilePath: currentFile,
       });
+      // SPEC-EXPORT-002 REQ-010: 저장 성공 시에만 모달 슬롯 설정. catch 절대 불가(REQ-018).
+      if (savePath !== null) setExportedPath(savePath);
     } catch (err) {
       console.error('DOCX export failed:', err);
       window.alert(`DOCX export failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -200,7 +193,37 @@ export function AppLayout(): JSX.Element {
     }
   }, [exportTheme]);
 
-  // EditorView ref - NOT stored in Zustand (REQ-EDITOR002-N04 / REQ-PREVIEW002-N02)
+  // @MX:NOTE: [AUTO] SPEC-EXPORT-002 완료 모달 액션 라우팅 (REQ-011/012/013/014).
+  //   - 'open' → openExportedFile(path) 1회, 'reveal' → revealExportedFile(path) 1회.
+  //   - 'cancel'(및 Escape/백드롭이 emit하는 동일 id) → opener 호출 0회, 모달만 닫음.
+  //   - open/reveal reject 시 window.alert 로 실패 알림(기존 내보내기 실패 UX 동일) + 모달 닫힘.
+  //   - 예외는 try/catch 로 흡수해 전역으로 전파하지 않는다(unhandled rejection 0건).
+  //   - PDF 는 본 모달의 대상이 아니다(handleExportPdf 무변경, REQ-019).
+  //   - 단일 슬롯 덮어쓰기(REQ-016): setExportedPath(null) 로 닫고, 새 성공이 다시 채운다.
+  // @MX:SPEC: SPEC-EXPORT-002
+  const handleExportDialogAction = useCallback(
+    async (id: string): Promise<void> => {
+      if (id === 'cancel') {
+        setExportedPath(null);
+        return;
+      }
+      const path = exportedPath;
+      if (path === null) return;
+      try {
+        if (id === 'open') {
+          await openExportedFile(path);
+        } else if (id === 'reveal') {
+          await revealExportedFile(path);
+        }
+      } catch (err) {
+        // REQ-014: 기존 내보내기 실패 알림과 동일 채널(window.alert). 예외 미전파.
+        window.alert(`파일을 여는 중 오류가 발생했습니다: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        setExportedPath(null);
+      }
+    },
+    [exportedPath],
+  );
   const viewRef = useRef<EditorView | null>(null);
   // Preview container ref for scroll sync
   const previewRef = useRef<HTMLDivElement>(null);
@@ -372,50 +395,86 @@ export function AppLayout(): JSX.Element {
   );
 
   return (
-    // SPEC-UI-006: .md-root/.md-app apply the handoff base font/color/background and the
-    // vertical titlebar/body/statusbar shell. Existing Tailwind sizing/overflow classes are
-    // preserved verbatim (h-screen/w-screen/bg-white/dark:bg-gray-900) so app.test.tsx's
-    // structural assertions keep passing — the two class systems are additive, not a replacement.
-    <div className="md-root md-app flex flex-col h-screen w-screen bg-white dark:bg-gray-900 overflow-hidden">
-      <Header
-        filename={filename}
-        isDirty={saveStatus === 'unsaved'}
-        content={content}
-        onNew={handleNew}
-        onSave={handleSave}
-        onSaveAs={handleSaveAs}
-        onExportHtml={handleExportHtml}
-        onExportPdf={handleExportPdf}
-        onExportDocx={handleExportDocx}
-        exportLoading={exportLoading}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Sidebar toggle button */}
-        <button
-          onClick={toggleSidebar}
-          className="md-icon-btn absolute left-2 top-2 z-10"
-          aria-label="Toggle sidebar"
-        >
-          <PanelLeftIcon width={16} height={16} />
-        </button>
-        <ResizablePanels
-          sidebar={<FileExplorer />}
-          editor={editorPanel}
-          preview={<PreviewContainer previewRef={previewRef} />}
+    <GuardContext.Provider
+      value={{
+        requestGuardedAction: guard.requestGuardedAction,
+        requestWatcherConflict: guard.requestWatcherConflict,
+        requestClose: guard.requestClose,
+      }}
+    >
+      {/* SPEC-UI-006: .md-root/.md-app apply the handoff base font/color/background and the
+          vertical titlebar/body/statusbar shell. Existing Tailwind sizing/overflow classes are
+          preserved verbatim (h-screen/w-screen/bg-white/dark:bg-gray-900) so app.test.tsx's
+          structural assertions keep passing — the two class systems are additive, not a replacement. */}
+      <div className="md-root md-app flex flex-col h-screen w-screen bg-white dark:bg-gray-900 overflow-hidden">
+        <Header
+          filename={filename}
+          isDirty={saveStatus === 'unsaved'}
+          content={content}
+          onNew={handleGuardedNew}
+          onSave={handleSave}
+          onSaveAs={handleSaveAs}
+          onExportHtml={handleExportHtml}
+          onExportPdf={handleExportPdf}
+          onExportDocx={handleExportDocx}
+          exportLoading={exportLoading}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Sidebar toggle button */}
+          <button
+            onClick={toggleSidebar}
+            className="md-icon-btn absolute left-2 top-2 z-10"
+            aria-label="Toggle sidebar"
+          >
+            <PanelLeftIcon width={16} height={16} />
+          </button>
+          <ResizablePanels
+            sidebar={<FileExplorer />}
+            editor={editorPanel}
+            preview={<PreviewContainer previewRef={previewRef} />}
+          />
+        </div>
+        <Footer
+          saveStatus={saveStatus}
+          wordCount={wordCount}
+          charCount={charCount}
+          lineCount={lineCount}
+          cursorLine={cursorLine}
+          cursorCol={cursorCol}
+          scrollSyncEnabled={scrollSyncEnabled}
+          onScrollSyncToggle={toggleScrollSync}
+        />
+        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        {/* SPEC-FS-003: 미저장 변경 가드 모달 (단일 가드 인스턴스에 바인딩) */}
+        <ConfirmDialog
+          open={guard.open}
+          title={guard.title}
+          message={guard.message}
+          actions={guard.actions}
+          onAction={guard.onAction}
+        />
+        {/* SPEC-EXPORT-002: HTML/DOCX 내보내기 완료 모달. ConfirmDialog(SPEC-FS-003 소유) 소비.
+            PDF 는 비대상(REQ-019). 액션 순서: 닫기→폴더에서 보기→열기(마지막=primary+초기 포커스). */}
+        <ConfirmDialog
+          open={exportedPath !== null}
+          title="내보내기 완료"
+          message={
+            exportedPath === null ? null : (
+              <div>
+                <div>내보낸 파일이 아래 경로에 저장되었습니다.</div>
+                <code data-testid="exported-path">{exportedPath}</code>
+              </div>
+            )
+          }
+          actions={[
+            { id: 'cancel', label: '닫기' },
+            { id: 'reveal', label: '폴더에서 보기' },
+            { id: 'open', label: '열기', variant: 'primary' },
+          ]}
+          onAction={handleExportDialogAction}
         />
       </div>
-      <Footer
-        saveStatus={saveStatus}
-        wordCount={wordCount}
-        charCount={charCount}
-        lineCount={lineCount}
-        cursorLine={cursorLine}
-        cursorCol={cursorCol}
-        scrollSyncEnabled={scrollSyncEnabled}
-        onScrollSyncToggle={toggleScrollSync}
-      />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </div>
+    </GuardContext.Provider>
   );
 }
