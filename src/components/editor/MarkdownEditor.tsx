@@ -11,7 +11,9 @@ import { openSearchPanel } from '@codemirror/search';
 import { useEditorStore } from '@/store/editorStore';
 import { useFileStore } from '@/store/fileStore';
 import { useUIStore } from '@/store/uiStore';
-import { writeFile, saveFileAs } from '@/lib/tauri/ipc';
+import { saveFileAs } from '@/lib/tauri/ipc';
+import { saveDocument } from '@/lib/save/saveDocument';
+import { useGuard } from '@/hooks/useUnsavedChangesGuard';
 import { createMarkdownExtensions, cursorCompartment, createCursorTheme, fontSizeCompartment, createFontSizeTheme } from './extensions/markdown-extensions';
 import { handleImagePaste, handleImageDrop, insertImageFromDialog, decideImageInsert, extractImageFile, insertImageFile } from '@/lib/image/imageHandler';
 
@@ -59,6 +61,11 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   const setCurrentFilePathRef = useRef(setCurrentFilePath);
   const resetEditorRef = useRef(resetEditor);
   const onViewReadyRef = useRef(onViewReady);
+
+  // SPEC-FS-003 T7 (REQ-013): Mod-n 가드. AppLayout의 GuardContext에서 제공(단일 인스턴스).
+  //   격이 렌더(Provider 없음)에서는 null → 직접 resetEditor.
+  const guard = useGuard();
+  const requestNewGuardRef = useRef(guard?.requestGuardedAction ?? null);
   // Flag to skip dirty-marking when content is set externally (e.g., file open)
   const isExternalUpdateRef = useRef(false);
 
@@ -70,6 +77,7 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   useEffect(() => { setCurrentFilePathRef.current = setCurrentFilePath; }, [setCurrentFilePath]);
   useEffect(() => { resetEditorRef.current = resetEditor; }, [resetEditor]);
   useEffect(() => { onViewReadyRef.current = onViewReady; }, [onViewReady]);
+  useEffect(() => { requestNewGuardRef.current = guard?.requestGuardedAction ?? null; }, [guard]);
 
   // Reconfigure font size when user changes it via A+/A- buttons
   useEffect(() => {
@@ -107,70 +115,23 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const setSaveStatus = useUIStore.getState().setSaveStatus;
-
     // @MX:NOTE: [AUTO] EditorView initialization - createMarkdownExtensions provides the full extension bundle
+    // SPEC-FS-003 T4 (REQ-009): Mod-s / Mod-Shift-s 모두 단일 saveDocument()로 수렴.
+    //   에디터 updateListener(:222-233)가 docChanged마다 동기적으로 editorStore.content를 갱신하므로
+    //   saveDocument가 읽는 store content는 항상 최신이다(view.state.doc 우회 불필요).
     const editorSaveKeymap = keymap.of([
       {
         key: 'Mod-s',
-        run: (view) => {
-          const filePath = currentFilePathRef.current;
-          const docContent = view.state.doc.toString();
-          if (filePath) {
-            setSaveStatus('saving');
-            writeFile(filePath, docContent)
-              .then(() => {
-                setDirtyRef.current(false);
-                useUIStore.getState().setSaveStatus('saved');
-              })
-              .catch(() => {
-                // Save failed - revert to unsaved
-                useUIStore.getState().setSaveStatus('unsaved');
-              });
-          } else {
-            // No file path yet - trigger Save As (consistent with header Save button)
-            useUIStore.getState().setSaveStatus('saving');
-            saveFileAs(docContent)
-              .then((savedPath) => {
-                if (savedPath !== null) {
-                  setCurrentFilePathRef.current(savedPath);
-                  useFileStore.getState().setCurrentFile(savedPath);
-                  setDirtyRef.current(false);
-                  useUIStore.getState().setSaveStatus('saved');
-                } else {
-                  const isDirty = useEditorStore.getState().dirty;
-                  useUIStore.getState().setSaveStatus(isDirty ? 'unsaved' : 'saved');
-                }
-              })
-              .catch(() => {
-                useUIStore.getState().setSaveStatus('unsaved');
-              });
-          }
+        run: () => {
+          void saveDocument();
           return true;
         },
         preventDefault: true,
       },
       {
         key: 'Mod-Shift-s',
-        run: (view) => {
-          const docContent = view.state.doc.toString();
-          useUIStore.getState().setSaveStatus('saving');
-          saveFileAs(docContent)
-            .then((savedPath) => {
-              if (savedPath !== null) {
-                setCurrentFilePathRef.current(savedPath);
-                useFileStore.getState().setCurrentFile(savedPath);
-                setDirtyRef.current(false);
-                useUIStore.getState().setSaveStatus('saved');
-              } else {
-                // User cancelled - restore previous status
-                const isDirty = useEditorStore.getState().dirty;
-                useUIStore.getState().setSaveStatus(isDirty ? 'unsaved' : 'saved');
-              }
-            })
-            .catch(() => {
-              useUIStore.getState().setSaveStatus('unsaved');
-            });
+        run: () => {
+          void saveDocument();
           return true;
         },
         preventDefault: true,
@@ -178,9 +139,18 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
       {
         key: 'Mod-n',
         run: () => {
-          resetEditorRef.current();
-          useFileStore.getState().setCurrentFile(null);
-          useUIStore.getState().setSaveStatus('new');
+          // SPEC-FS-003 REQ-013: 새 문서 전 가드. Provider 없으면 직접 실행(격리 테스트 호환).
+          const doNewDoc = (): void => {
+            resetEditorRef.current();
+            useFileStore.getState().setCurrentFile(null);
+            useUIStore.getState().setSaveStatus('new');
+          };
+          const guardedNew = requestNewGuardRef.current;
+          if (guardedNew) {
+            guardedNew(doNewDoc);
+          } else {
+            doNewDoc();
+          }
           return true;
         },
         preventDefault: true,

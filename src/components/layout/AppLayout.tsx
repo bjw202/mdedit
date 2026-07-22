@@ -4,7 +4,10 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUIStore } from '@/store/uiStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useFileStore } from '@/store/fileStore';
-import { writeFile, saveFileAs as saveFileAsIpc, aiDetectProviders, aiPolicyStatus } from '@/lib/tauri/ipc';
+import { saveFileAs as saveFileAsIpc, aiDetectProviders, aiPolicyStatus } from '@/lib/tauri/ipc';
+import { saveDocument } from '@/lib/save/saveDocument';
+import { type UseUnsavedChangesGuardReturn, GuardContext } from '@/hooks/useUnsavedChangesGuard';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useAiRelay } from '@/hooks/useAiRelay';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { setAiLoggedIn, registerOnboardingOpener } from '@/components/editor/extensions/ai-suggestion-card';
@@ -29,9 +32,14 @@ import { insertImageFromDialog } from '@/lib/image/imageHandler';
 import { getFileViewType } from '@/components/preview/PreviewContainer';
 import { PanelLeftIcon } from '@/components/icons';
 
+interface AppLayoutProps {
+  /** 루트(App)에서 인스턴스화한 가드. AppLayout이 ConfirmDialog에 바인딩하고 GuardContext로 공유. */
+  guard: UseUnsavedChangesGuardReturn;
+}
+
 // @MX:NOTE: Root layout component - composes Header, 3-pane panels, Footer
 // Entry point for the entire application UI shell
-export function AppLayout(): JSX.Element {
+export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   useTheme(); // Apply theme side effects
 
   // SPEC-AI-001 (T-018): ai:// 스트리밍 이벤트를 aiStore 로 릴레이하는 단일 배선.
@@ -75,51 +83,29 @@ export function AppLayout(): JSX.Element {
   const toggleScrollSync = useUIStore((s) => s.toggleScrollSync);
 
   const currentFile = useFileStore((s) => s.currentFile);
-  const watchedPath = useFileStore((s) => s.watchedPath);
   // Handle both Unix ('/') and Windows ('\') path separators
   const filename = currentFile ? (currentFile.split(/[/\\]/).pop() ?? 'Untitled') : 'Untitled';
 
+  // SPEC-FS-003 T4 (REQ-009): 저장 단일 함수로 수렴. 헤더 Save/Save As 양쪽 모두 saveDocument 위임.
   const handleSaveAs = async (): Promise<void> => {
-    const { content } = useEditorStore.getState();
-    useUIStore.getState().setSaveStatus('saving');
-    // Default save dialog to the currently open explorer folder, if any
-    const defaultDir = watchedPath ?? undefined;
-    try {
-      const savedPath = await saveFileAsIpc(content, defaultDir);
-      if (savedPath !== null) {
-        useEditorStore.getState().setCurrentFilePath(savedPath);
-        useFileStore.getState().setCurrentFile(savedPath);
-        useEditorStore.getState().setDirty(false);
-        useUIStore.getState().setSaveStatus('saved');
-      } else {
-        const isDirty = useEditorStore.getState().dirty;
-        useUIStore.getState().setSaveStatus(isDirty ? 'unsaved' : 'saved');
-      }
-    } catch {
-      useUIStore.getState().setSaveStatus('unsaved');
-    }
+    await saveDocument();
   };
 
   const handleSave = async (): Promise<void> => {
-    const { content: c, currentFilePath } = useEditorStore.getState();
-    if (!currentFilePath) {
-      await handleSaveAs();
-      return;
-    }
-    useUIStore.getState().setSaveStatus('saving');
-    try {
-      await writeFile(currentFilePath, c);
-      useEditorStore.getState().setDirty(false);
-      useUIStore.getState().setSaveStatus('saved');
-    } catch {
-      useUIStore.getState().setSaveStatus('unsaved');
-    }
+    await saveDocument();
   };
 
   const handleNew = (): void => {
     useEditorStore.getState().resetEditor();
     useFileStore.getState().setCurrentFile(null);
     useUIStore.getState().setSaveStatus('new');
+  };
+
+  // SPEC-FS-003 T7 (REQ-013): 새 문서·파일 전환·종료 가드 상태 머신. 단일 인스턴스를
+  //   GuardContext로 트리 전체에 공유(FileTreeNode/MarkdownEditor가 소비). ConfirmDialog 렌더.
+  // SPEC-FS-003: 가드는 App(루트)에서 인스턴스화해 전달받는다(워처 콜백과 공유).
+  const handleGuardedNew = (): void => {
+    guard.requestGuardedAction(() => handleNew());
   };
 
   const content = useEditorStore((s) => s.content);
@@ -372,50 +358,66 @@ export function AppLayout(): JSX.Element {
   );
 
   return (
-    // SPEC-UI-006: .md-root/.md-app apply the handoff base font/color/background and the
-    // vertical titlebar/body/statusbar shell. Existing Tailwind sizing/overflow classes are
-    // preserved verbatim (h-screen/w-screen/bg-white/dark:bg-gray-900) so app.test.tsx's
-    // structural assertions keep passing — the two class systems are additive, not a replacement.
-    <div className="md-root md-app flex flex-col h-screen w-screen bg-white dark:bg-gray-900 overflow-hidden">
-      <Header
-        filename={filename}
-        isDirty={saveStatus === 'unsaved'}
-        content={content}
-        onNew={handleNew}
-        onSave={handleSave}
-        onSaveAs={handleSaveAs}
-        onExportHtml={handleExportHtml}
-        onExportPdf={handleExportPdf}
-        onExportDocx={handleExportDocx}
-        exportLoading={exportLoading}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Sidebar toggle button */}
-        <button
-          onClick={toggleSidebar}
-          className="md-icon-btn absolute left-2 top-2 z-10"
-          aria-label="Toggle sidebar"
-        >
-          <PanelLeftIcon width={16} height={16} />
-        </button>
-        <ResizablePanels
-          sidebar={<FileExplorer />}
-          editor={editorPanel}
-          preview={<PreviewContainer previewRef={previewRef} />}
+    <GuardContext.Provider
+      value={{
+        requestGuardedAction: guard.requestGuardedAction,
+        requestWatcherConflict: guard.requestWatcherConflict,
+        requestClose: guard.requestClose,
+      }}
+    >
+      {/* SPEC-UI-006: .md-root/.md-app apply the handoff base font/color/background and the
+          vertical titlebar/body/statusbar shell. Existing Tailwind sizing/overflow classes are
+          preserved verbatim (h-screen/w-screen/bg-white/dark:bg-gray-900) so app.test.tsx's
+          structural assertions keep passing — the two class systems are additive, not a replacement. */}
+      <div className="md-root md-app flex flex-col h-screen w-screen bg-white dark:bg-gray-900 overflow-hidden">
+        <Header
+          filename={filename}
+          isDirty={saveStatus === 'unsaved'}
+          content={content}
+          onNew={handleGuardedNew}
+          onSave={handleSave}
+          onSaveAs={handleSaveAs}
+          onExportHtml={handleExportHtml}
+          onExportPdf={handleExportPdf}
+          onExportDocx={handleExportDocx}
+          exportLoading={exportLoading}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Sidebar toggle button */}
+          <button
+            onClick={toggleSidebar}
+            className="md-icon-btn absolute left-2 top-2 z-10"
+            aria-label="Toggle sidebar"
+          >
+            <PanelLeftIcon width={16} height={16} />
+          </button>
+          <ResizablePanels
+            sidebar={<FileExplorer />}
+            editor={editorPanel}
+            preview={<PreviewContainer previewRef={previewRef} />}
+          />
+        </div>
+        <Footer
+          saveStatus={saveStatus}
+          wordCount={wordCount}
+          charCount={charCount}
+          lineCount={lineCount}
+          cursorLine={cursorLine}
+          cursorCol={cursorCol}
+          scrollSyncEnabled={scrollSyncEnabled}
+          onScrollSyncToggle={toggleScrollSync}
+        />
+        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        {/* SPEC-FS-003: 미저장 변경 가드 모달 (단일 가드 인스턴스에 바인딩) */}
+        <ConfirmDialog
+          open={guard.open}
+          title={guard.title}
+          message={guard.message}
+          actions={guard.actions}
+          onAction={guard.onAction}
         />
       </div>
-      <Footer
-        saveStatus={saveStatus}
-        wordCount={wordCount}
-        charCount={charCount}
-        lineCount={lineCount}
-        cursorLine={cursorLine}
-        cursorCol={cursorCol}
-        scrollSyncEnabled={scrollSyncEnabled}
-        onScrollSyncToggle={toggleScrollSync}
-      />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </div>
+    </GuardContext.Provider>
   );
 }

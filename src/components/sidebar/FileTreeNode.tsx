@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFileStore } from '@/store/fileStore';
 import { useFileSystem } from '@/hooks/useFileSystem';
+import { useGuard } from '@/hooks/useUnsavedChangesGuard';
 import { useUIStore } from '@/store/uiStore';
 import { readDirectory } from '@/lib/tauri/ipc';
 import type { FileNode } from '@/types/file';
@@ -94,6 +95,7 @@ interface FileTreeNodeProps {
 export function FileTreeNode({ node, depth, onRefresh }: FileTreeNodeProps): JSX.Element {
   const { currentFile, expandedDirs, updateNodeChildren } = useFileStore();
   const { openFile, createFile, deleteNode, renameNode, openFolderPath } = useFileSystem();
+  const guard = useGuard();
   const { setStatusMessage } = useUIStore();
 
   const isExpanded = expandedDirs.has(node.path);
@@ -143,15 +145,19 @@ export function FileTreeNode({ node, depth, onRefresh }: FileTreeNodeProps): JSX
     if (isCreating) createInputRef.current?.focus();
   }, [isCreating]);
 
+  // SPEC-FS-003 T7 (REQ-012): 파일 클릭 시 미저장 변경 가드로 감싼다. 가드는 AppLayout의
+  //   GuardContext에서 제공(단일 인스턴스). Provider 없는 격리 렌더에서는 null → 직접 openFile.
   const handleClick = useCallback((): void => {
     if (node.isDirectory) {
       openFolderPath(node.path).catch((err: unknown) => {
         console.error('[FileTreeNode] Directory navigation failed:', node.path, err);
       });
+    } else if (guard) {
+      guard.requestGuardedAction(() => openFile(node.path));
     } else {
       void openFile(node.path);
     }
-  }, [node, openFolderPath, openFile]);
+  }, [node, openFolderPath, openFile, guard]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent): void => {
     e.preventDefault();

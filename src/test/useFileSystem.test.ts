@@ -9,6 +9,7 @@ vi.mock('@/lib/tauri/ipc', () => ({
   openDirectoryDialog: vi.fn(),
   readDirectory: vi.fn(),
   readFile: vi.fn(),
+  writeFile: vi.fn().mockResolvedValue(undefined),
   createFile: vi.fn(),
   deleteFile: vi.fn(),
   renameFile: vi.fn(),
@@ -365,5 +366,88 @@ describe('useFileSystem', () => {
       }),
     ).resolves.not.toThrow();
     expect(useFileStore.getState().currentFile).toBe(svgPath);
+  });
+
+  // ---- SPEC-FS-003 T3 (REQ-011): openFile 모든 분기가 setDirty(false) 호출 ----
+
+  it('openFile: .html 분기에서 dirty를 false로 리셋한다 (REQ-011)', async () => {
+    useEditorStore.setState({ dirty: true, content: 'old', currentFilePath: '/old.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFile('/project/index.html'); });
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it('openFile: 래스터 이미지 분기에서 dirty를 false로 리셋한다 (REQ-011)', async () => {
+    useEditorStore.setState({ dirty: true, content: 'old', currentFilePath: '/old.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFile('/project/logo.png'); });
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it('openFile: .svg 성공 분기에서 dirty를 false로 리셋한다 (REQ-011)', async () => {
+    vi.mocked(ipc.readFile).mockResolvedValue('<svg/>');
+    useEditorStore.setState({ dirty: true, content: 'old', currentFilePath: '/old.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFile('/project/icon.svg'); });
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it('openFile: .svg 실패(binary) 분기에서도 dirty를 false로 리셋한다 (REQ-011, 성공·실패 무관)', async () => {
+    vi.mocked(ipc.readFile).mockRejectedValue(new Error('read failed'));
+    useEditorStore.setState({ dirty: true, content: 'old', currentFilePath: '/old.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFile('/project/broken.svg'); });
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it('openFile: 대용량 파일 분기에서 dirty를 false로 리셋한다 (REQ-011)', async () => {
+    useFileStore.setState({
+      fileTree: [{ name: 'big.md', path: '/project/big.md', isDirectory: false, size: 6 * 1024 * 1024 }],
+    });
+    useEditorStore.setState({ dirty: true, content: 'old', currentFilePath: '/old.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFile('/project/big.md'); });
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it('openFile: 일반 텍스트 성공 분기에서 dirty를 false로 리셋한다 (REQ-011)', async () => {
+    vi.mocked(ipc.readFile).mockResolvedValue('# Hello');
+    useEditorStore.setState({ dirty: true, content: 'old', currentFilePath: '/old.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFile('/project/README.md'); });
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  it('openFile: 일반 텍스트 실패(binary) 분기에서도 dirty를 false로 리셋한다 (REQ-011)', async () => {
+    vi.mocked(ipc.readFile).mockRejectedValue(new Error('binary'));
+    useEditorStore.setState({ dirty: true, content: 'old', currentFilePath: '/old.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFile('/project/data.bin'); });
+    expect(useEditorStore.getState().dirty).toBe(false);
+  });
+
+  // ---- SPEC-FS-003 T1 (REQ-029): 폴더 이동은 문서를 폐기하지 않는다 (회귀 가드) ----
+  // openFolder/openFolderPath는 setContent/setCurrentFilePath/resetEditor를 호출하지 않는다.
+  // 이 테스트는 향후 누군가 가드를 "복원"하려 할 때 실패하게 만든다.
+
+  it('openFolderPath: 에디터 content/dirty/currentFilePath를 변경하지 않는다 (REQ-029 회귀 가드)', async () => {
+    vi.mocked(ipc.readDirectory).mockResolvedValue(mockTree);
+    useEditorStore.setState({ content: '내 문서', dirty: true, currentFilePath: '/doc.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFolderPath('/new/folder'); });
+    expect(useEditorStore.getState().content).toBe('내 문서');
+    expect(useEditorStore.getState().dirty).toBe(true);
+    expect(useEditorStore.getState().currentFilePath).toBe('/doc.md');
+  });
+
+  it('openFolder: 에디터 content/dirty/currentFilePath를 변경하지 않는다 (REQ-029 회귀 가드)', async () => {
+    vi.mocked(ipc.openDirectoryDialog).mockResolvedValue('/new/folder');
+    vi.mocked(ipc.readDirectory).mockResolvedValue(mockTree);
+    useEditorStore.setState({ content: '내 문서', dirty: true, currentFilePath: '/doc.md' });
+    const { result } = renderHook(() => useFileSystem());
+    await act(async () => { await result.current.openFolder(); });
+    expect(useEditorStore.getState().content).toBe('내 문서');
+    expect(useEditorStore.getState().dirty).toBe(true);
+    expect(useEditorStore.getState().currentFilePath).toBe('/doc.md');
   });
 });

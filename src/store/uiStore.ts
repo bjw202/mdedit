@@ -157,10 +157,24 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: 'mdedit-ui-store',
-      // statusMessage 는 트랜지언트 값이므로 영속화에서 제외 (앱 재시작 시 잔류 방지, SPEC-UI-005)
+      // SPEC-FS-003 (REQ-008): saveStatus는 표시 전용 트랜지언트 값이므로 영속화에서 제외.
+      //   가드 판정은 editorStore.dirty만 읽는다(REQ-007). 영속화하면 앱 재시작 시 stale
+      //   'unsaved'가 빈 버퍼에 복원되어 결함 B가 해소되지 않는다.
+      //   statusMessage도 트랜지언트(SPEC-UI-005)이므로 함께 제외.
+      version: 1,
       partialize: (state) => {
-        const { statusMessage, ...rest } = state;
+        const { statusMessage, saveStatus, ...rest } = state;
         return rest;
+      },
+      // V2(SPEC-FS-003): version 0→1 마이그레이션. 기존 사용자 localStorage에 잔류한 stale
+      //   saveStatus를 제거한다(나머지 환경설정 보존). version 미지정(0) 상태에서 범프.
+      migrate: (persistedState, version) => {
+        if (version < 1 && persistedState && typeof persistedState === 'object') {
+          const { saveStatus: _drop, ...rest } = persistedState as Record<string, unknown>;
+          void _drop;
+          return rest;
+        }
+        return persistedState;
       },
     }
   )

@@ -373,3 +373,49 @@ describe('uiStore: statusMessage (SPEC-UI-005)', () => {
     expect(persisted.state).not.toHaveProperty('statusMessage');
   });
 });
+
+// ---- SPEC-FS-003 T5 (REQ-007/008): saveStatus 비영속화 + 마이그레이션 ----
+
+describe('uiStore: saveStatus 비영속화 + 마이그레이션 (SPEC-FS-003)', () => {
+  beforeEach(() => {
+    localStorage.removeItem('mdedit-ui-store');
+    useUIStore.setState({ saveStatus: 'new' });
+  });
+
+  it('partialize 결과에 saveStatus 키가 없다 (REQ-008)', () => {
+    const opts = useUIStore.persist.getOptions();
+    const partial = opts.partialize!(useUIStore.getState()) as Record<string, unknown>;
+    expect(partial).not.toHaveProperty('saveStatus');
+  });
+
+  it('saveStatus를 localStorage에 저장하지 않는다 (REQ-008, AC-004)', () => {
+    const { setSaveStatus } = useUIStore.getState();
+    act(() => setSaveStatus('unsaved'));
+
+    const raw = localStorage.getItem('mdedit-ui-store');
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw as string);
+    expect(persisted.state).not.toHaveProperty('saveStatus');
+  });
+
+  it('persist version이 1로 범프되었다 (V2 — 기존 사용자 마이그레이션 트리거)', () => {
+    const opts = useUIStore.persist.getOptions();
+    expect(opts.version).toBe(1);
+  });
+
+  it('migrate가 version<1의 stale saveStatus를 제거하고 다른 필드는 보존한다 (V2, AC-004)', () => {
+    const opts = useUIStore.persist.getOptions();
+    const oldState = { saveStatus: 'unsaved', theme: 'dark', fontSize: 18 };
+    const migrated = opts.migrate!(oldState, 0) as Record<string, unknown>;
+    expect(migrated).not.toHaveProperty('saveStatus');
+    expect(migrated).toHaveProperty('theme', 'dark');
+    expect(migrated).toHaveProperty('fontSize', 18);
+  });
+
+  it('migrate는 version>=1의 상태를 그대로 반환한다', () => {
+    const opts = useUIStore.persist.getOptions();
+    const state = { theme: 'light' };
+    const migrated = opts.migrate!(state, 1);
+    expect(migrated).toEqual(state);
+  });
+});
