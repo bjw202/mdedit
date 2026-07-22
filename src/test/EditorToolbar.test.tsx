@@ -96,6 +96,20 @@ describe('EditorToolbar: Rendering', () => {
     expect(trigger).toHaveAttribute('aria-haspopup', 'true');
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
+
+  it('should render the Diagram trigger button (SPEC-UI-008)', async () => {
+    const { EditorToolbar } = await import('@/components/editor/EditorToolbar');
+    render(<EditorToolbar />);
+    expect(screen.getByRole('button', { name: '다이어그램 삽입' })).toBeInTheDocument();
+  });
+
+  it('Diagram button should have aria-haspopup and aria-expanded (SPEC-UI-008)', async () => {
+    const { EditorToolbar } = await import('@/components/editor/EditorToolbar');
+    render(<EditorToolbar />);
+    const trigger = screen.getByRole('button', { name: '다이어그램 삽입' });
+    expect(trigger).toHaveAttribute('aria-haspopup', 'true');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
 });
 
 describe('EditorToolbar: Format button callbacks', () => {
