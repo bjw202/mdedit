@@ -109,7 +109,10 @@ interface TableGridPickerProps {
 function TableGridPicker({ onInsertTable }: TableGridPickerProps): JSX.Element {
   const [open, setOpen] = useState(false);
   const [hovered, setHovered] = useState<{ row: number; col: number } | null>(null);
+  // 좁은 창(오른쪽 근처)에서 left-0 그리드 피커가 화면 밖으로 잘리면 right-0 정렬로 뒤집는다.
+  const [alignRight, setAlignRight] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleMouseDown = (event: MouseEvent): void => {
@@ -136,6 +139,23 @@ function TableGridPicker({ onInsertTable }: TableGridPickerProps): JSX.Element {
     };
   }, [open]);
 
+  // @MX:NOTE: [AUTO] SPEC-UI-007 후속(좁은 창): 열림 시 다음 프레임에 피커 rect 를 측정해 left-0
+  // 기본 정렬이 오른쪽 뷰포트 경계를 넘으면 right-0 으로 뒤집는다(DiagramInsertMenu 와 동일 패턴).
+  // @MX:SPEC: SPEC-UI-007
+  useEffect(() => {
+    if (!open) {
+      setAlignRight(false);
+      return;
+    }
+    const raf = requestAnimationFrame(() => {
+      const el = pickerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setAlignRight(wouldOverflowRight(r.left, r.width, window.innerWidth));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+
   const handleCellClick = (rows: number, cols: number): void => {
     onInsertTable?.(rows, cols);
     setOpen(false);
@@ -160,7 +180,10 @@ function TableGridPicker({ onInsertTable }: TableGridPickerProps): JSX.Element {
       </button>
 
       {open && (
-        <div className="md-table-picker absolute left-0 top-full z-50">
+        <div
+          ref={pickerRef}
+          className={`md-table-picker absolute ${alignRight ? 'right-0' : 'left-0'} top-full z-50`}
+        >
           <div className="md-table-picker-grid" onMouseLeave={() => setHovered(null)}>
             {rows.map((r) => (
               <div key={r} className="md-table-picker-row">
