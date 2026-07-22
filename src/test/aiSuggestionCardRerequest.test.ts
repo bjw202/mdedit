@@ -143,6 +143,29 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
     expect(sentArgs.presetKind).toBe('diagram');
   });
 
+  // @MX:SPEC: SPEC-AI-008
+  // AC-AI-008-010: 종류(diagramType)를 실은 초기 요청의 자동 재요청(feature='diagram' 유지)이
+  // fireReRequest 의 원본 args 스프레드로 diagramType 을 승계한다(부수효과, fireReRequest 무변경).
+  it('SPEC-AI-008: 종류(diagramType)가 자동 재요청에 승계된다(fireReRequest 스프레드)', async () => {
+    parseMock.mockImplementation((code: string) =>
+      code.includes('BADSYNTAX') ? Promise.reject(new Error('Parse error')) : Promise.resolve(true),
+    );
+
+    startSuggestionCard(makeDiagramRequest({ diagramType: 'gantt' }));
+    useAiStore.setState({ requestId: 'orig-1', requestState: 'streaming', streamBuffer: '' });
+    useAiStore.setState({
+      requestId: 'orig-1',
+      requestState: 'done',
+      streamBuffer: '```mermaid\nBADSYNTAX\n```',
+    });
+
+    await vi.waitFor(() => expect(aiRequestMock).toHaveBeenCalledTimes(1));
+
+    const sentArgs = aiRequestMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(sentArgs.feature).toBe('diagram');
+    expect(sentArgs.diagramType).toBe('gantt');
+  });
+
   it('BUG-3(a): 펜스로 감싼 유효 다이어그램은 펜스를 제거한 뒤 검증되어 즉시 diagram-valid 로 간다', async () => {
     // 펜스가 없는 순수 코드만 valid 로 취급하는 스텁 — 사전 검증에 펜스가 그대로 전달되면
     // 이 테스트는 실패한다(현재 프로덕션 코드는 stripMermaidFence 를 검증 전에 적용하지 않는다).
