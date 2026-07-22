@@ -231,6 +231,16 @@
 .md-tool-btn:focus-visible { outline: 2px solid var(--md-accent); outline-offset: 1px; }
 .md-tool-sep { width: 1px; height: 18px; background: var(--md-border); margin: 0 4px; }
 
+/* ── Diagram insert dropdown (SPEC-UI-008) ───────────────────────────── */
+/* 드롭다운 리스트/항목은 기존 .md-menu/.md-menu-item 토큰 클래스를 재사용한다. */
+/* 프리뷰 빈-펜스 플레이스홀더: raw hex 금지, --md-* 토큰만. 다크모드는 토큰 전환으로 자동. */
+.md-diagram-placeholder {
+  padding: var(--md-space-2) 0;
+  font-size: var(--md-fs-editor);
+  font-style: italic;
+  color: var(--md-text-muted);
+}
+
 /* ── Insert Table grid-picker popover (SPEC-UI-007) ──────────────────── */
 .md-table-picker {
   margin-top: 4px; padding: var(--md-space-2);
