@@ -866,3 +866,205 @@ describe('createAiSelectionToolbar: extension factory', () => {
     expect(ext).toBeDefined();
   });
 });
+
+// SPEC-AI-008: 다이어그램 종류 선택 플라이아웃 서브메뉴(명령형 DOM).
+describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
+  async function build(selectionLength = 100) {
+    const mod = await import('@/components/editor/extensions/ai-selection-toolbar');
+    const callbacks = {
+      onSelectPreset: vi.fn(),
+      onSubmitCustom: vi.fn(),
+      onClose: vi.fn(),
+    };
+    const menu = mod.createPresetMenu({ selectionLength, callbacks });
+    document.body.appendChild(menu.dom);
+    const trigger = menu.dom.querySelector<HTMLButtonElement>('[data-preset="diagram"]')!;
+    return { menu, callbacks, trigger };
+  }
+
+  const DIAGRAM_ICON_INNER = () => import('@/components/icons/diagramIconMarkup');
+
+  it('the diagram item advertises a popup and starts collapsed (AC-001)', async () => {
+    const { trigger, menu } = await build();
+    expect(trigger.getAttribute('aria-haspopup')).toBe('true');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    menu.destroy();
+  });
+
+  it('clicking the diagram item opens the submenu without firing a request (AC-001)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(callbacks.onSelectPreset).not.toHaveBeenCalled();
+    menu.destroy();
+  });
+
+  it('hover (mouseenter) opens the submenu (AC-001, REQ-006)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    menu.destroy();
+  });
+
+  it('click toggles the submenu open then closed (AC-001, REQ-007)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    menu.destroy();
+  });
+
+  it('renders exactly 8 items, auto first, then the 7 types in order (AC-002)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const items = menu.dom.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
+    expect(items.length).toBe(8);
+    // every item is a native button with a non-empty aria-label + label text
+    for (const it of items) {
+      expect(it.tagName).toBe('BUTTON');
+      expect(it.getAttribute('aria-label')).toBeTruthy();
+      expect(it.textContent?.trim().length).toBeGreaterThan(0);
+    }
+    // auto first, no diagram type
+    expect(items[0].dataset.diagramAuto).toBe('true');
+    expect(items[0].textContent).toContain('자동');
+    const types = Array.from(items)
+      .slice(1)
+      .map((it) => it.dataset.diagramType);
+    expect(types).toEqual([
+      'flowchart',
+      'sequenceDiagram',
+      'gantt',
+      'classDiagram',
+      'stateDiagram',
+      'pie',
+      'mindmap',
+    ]);
+    menu.destroy();
+  });
+
+  it('each of the 7 type items renders an <svg> with currentColor from the single source (AC-003)', async () => {
+    const { trigger, menu } = await build();
+    const { DIAGRAM_ICON_INNER: inner } = await DIAGRAM_ICON_INNER();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    for (const [type, expected] of Object.entries(inner)) {
+      const item = menu.dom.querySelector<HTMLButtonElement>(`[data-diagram-type="${type}"]`)!;
+      const svg = item.querySelector('svg')!;
+      expect(svg).toBeTruthy();
+      expect(svg.getAttribute('stroke')).toBe('currentColor');
+      expect(svg.innerHTML).toBe(expected);
+    }
+    menu.destroy();
+  });
+
+  it('selecting "자동" fires onSelectPreset("diagram") with no diagram type (AC-004)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    menu.dom
+      .querySelector<HTMLButtonElement>('[data-diagram-auto="true"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(callbacks.onSelectPreset).toHaveBeenCalledTimes(1);
+    expect(callbacks.onSelectPreset).toHaveBeenCalledWith('diagram', undefined);
+    menu.destroy();
+  });
+
+  it('selecting a type fires onSelectPreset("diagram", type) for each of the 7 (AC-005)', async () => {
+    for (const type of [
+      'flowchart',
+      'sequenceDiagram',
+      'gantt',
+      'classDiagram',
+      'stateDiagram',
+      'pie',
+      'mindmap',
+    ]) {
+      const { trigger, callbacks, menu } = await build();
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      menu.dom
+        .querySelector<HTMLButtonElement>(`[data-diagram-type="${type}"]`)!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(callbacks.onSelectPreset).toHaveBeenCalledWith('diagram', type);
+      menu.destroy();
+    }
+  });
+
+  it('Escape closes only the submenu and keeps the preset list (AC-007)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    menu.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
+    // preset list still present, menu not closed
+    expect(menu.dom.querySelector('[data-preset="polish"]')).toBeTruthy();
+    expect(callbacks.onClose).not.toHaveBeenCalled();
+    menu.destroy();
+  });
+});
+
+// SPEC-AI-008: 위젯 경유로 종류가 요청 args 에 실리는지(자동=미포함).
+describe('AiSparkleWidget: diagram type carried into onRequest (SPEC-AI-008)', () => {
+  function makeCtx(overrides: Record<string, unknown> = {}) {
+    return {
+      getSelection: () => ({
+        text: 'hello',
+        contextBefore: 'a ',
+        contextAfter: ' b',
+        from: 0,
+        to: 5,
+        originalText: 'hello',
+      }),
+      getUiState: () => ({ loggedIn: true, advancedModel: false }),
+      onRequest: vi.fn(),
+      onConnectNeeded: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  async function open() {
+    const { AiSparkleWidget } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    const ctx = makeCtx();
+    const dom = new AiSparkleWidget(ctx as never, '0:5').toDOM();
+    document.body.appendChild(dom);
+    dom
+      .querySelector<HTMLButtonElement>('.mdedit-ai-sparkle-btn')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    dom
+      .querySelector<HTMLButtonElement>('[data-preset="diagram"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    return { ctx, dom };
+  }
+
+  it('auto → onRequest args has feature "diagram" and no diagramType (AC-004)', async () => {
+    const { ctx, dom } = await open();
+    dom
+      .querySelector<HTMLButtonElement>('[data-diagram-auto="true"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const req = (ctx.onRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(req.args.feature).toBe('diagram');
+    expect(req.args.presetKind).toBe('diagram');
+    expect(req.args.diagramType).toBeUndefined();
+  });
+
+  it('type → onRequest args carries the exact diagramType (AC-005)', async () => {
+    const { ctx, dom } = await open();
+    dom
+      .querySelector<HTMLButtonElement>('[data-diagram-type="gantt"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const req = (ctx.onRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(req.args.feature).toBe('diagram');
+    expect(req.args.diagramType).toBe('gantt');
+  });
+
+  it('outside mousedown closes the whole menu incl. submenu (AC-008)', async () => {
+    const { dom } = await open();
+    expect(dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(dom.querySelector('.mdedit-ai-preset-menu')).toBeNull();
+    expect(dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
+  });
+});
