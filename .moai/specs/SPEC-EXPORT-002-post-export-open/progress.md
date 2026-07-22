@@ -98,16 +98,33 @@ T1 감사 결과:
 
 | 태스크 | 상태 | 비고 |
 |--------|------|------|
-| T0a ConfirmDialog | ✅ 선행 랜딩 (FS-003) | 소비만 |
-| T0b Playwright 픽스처 | ✅ 선행 랜딩 (FS-003) | 확장 예정 |
-| T1 호출자 감사 | ✅ 완료 (본 문서) | 읽기 전용 |
-| T2 반환 계약 결정+구현 | 🔄 착수 | 후보 A, 근거 본 문서 + @MX:NOTE |
+| T0a ConfirmDialog | ✅ 선행 랜딩 (FS-003) | 소비만 — byte-identical to 5e56451 확인 |
+| T0b Playwright 픽스처 | ✅ 선행 랜딩 (FS-003) | injectExportStubs 로 확장(포크 아님) |
+| T1 호출자 감사 | ✅ 완료 (본 문서) | 읽기 전용 grep |
+| T2 반환 계약 결정+구현 | ✅ 완료 (85a6e75) | 후보 A, @MX:NOTE 근거 기록 |
 | T3 Pre-RED 특성화 | ✅ 완료 (본 문서) | 기준선 1216 tests green |
-| T4 opener IPC 래퍼 | ⏳ 대기 | `openPath` / `revealItemInDir` 래핑 |
-| T5 capability 권한 | ⏳ 대기 | `opener:allow-reveal-item-in-dir` 추가 (수동 검증 항목) |
-| T6 완료 모달 상태+라우팅 | ⏳ 대기 | AppLayout 단일 슬롯 + handleExportDialogAction |
-| T7 정적 회귀 가드 | ⏳ 대기 | 신규 exportOpenRegressionGuard.test.ts |
-| T8 E2E + 품질 게이트 | ⏳ 대기 | 픽스처 확장 + Playwright + 4종 게이트 |
+| T4 opener IPC 래퍼 | ✅ 완료 (98b0dc8) | openExportedFile/revealExportedFile |
+| T5 capability 권한 | ✅ 추가 (98b0dc8) | reveal 권한 충분성 = 수동 검증 항목(manual-verification.md) |
+| T6 완료 모달 상태+라우팅 | ✅ 완료 (b901d88) | 단일 슬롯 + handleExportDialogAction, 11 컴포넌트 테스트 |
+| T7 정적 회귀 가드 | ✅ 완료 (98b0dc8) | exportOpenRegressionGuard.test.ts (3 tests) |
+| T8 E2E + 품질 게이트 | ✅ 완료 (01cce3d) | 픽스처 확장 + Playwright 6/6 + 4종 게이트 |
+
+## 최종 게이트 결과
+
+- typecheck (`tsc --noEmit`): **클린** (에러 0)
+- vitest: **1236 tests / 84 files 통과** (기준선 1216 대비 +20: T2 +2, T4 +4, T6 +11, T7 +3)
+- lint (eslint --max-warnings 0): **클린**
+- 기존 회귀 가드 2종 **무수정 통과**: diagramRegressionGuard (3) + aiDiagramTypeRegressionGuard (4)
+- 본 SPEC E2E (post-export-dialog.spec.ts): **6/6 통과**
+- 코드 리뷰(diff): ConfirmDialog byte-identical to FS-003 · PDF/browser_ops 무변경 ·
+  src-tauri/ 변경 capabilities/main.json 1건 한정 · lib.rs 무변경(REQ-021) · package.json 무변경(REQ-020)
+
+## 알려진 기존 결함 (본 SPEC 무관)
+
+`npm run test:e2e` 전체 실행 시 ai-inline-edit.spec.ts(2)/table-border.spec.ts(2) 가
+4건 실패. 이들은 **브랜치 분기점 5e56451 에서도 동일 실패**(worktree 검증 완료)이며
+SPEC-EXPORT-002 범위 밖의 기존 결함이다. 본 SPEC 의 책임 아님.
+
 
 ---
 
