@@ -28,6 +28,7 @@ import {
   type IconProps,
 } from '@/components/icons';
 import { DIAGRAM_PRESETS, type DiagramPreset } from '@/components/editor/extensions/keyboard-shortcuts';
+import { wouldOverflowRight } from '@/lib/ui/menuPlacement';
 
 /**
  * Supported format action types for the toolbar.
@@ -210,7 +211,10 @@ interface DiagramInsertMenuProps {
 // @MX:SPEC: SPEC-UI-008
 function DiagramInsertMenu({ onInsertDiagram }: DiagramInsertMenuProps): JSX.Element {
   const [open, setOpen] = useState(false);
+  // 좁은 창(오른쪽 근처)에서 left-0 드롭다운이 화면 밖으로 잘리면 right-0 정렬로 뒤집는다.
+  const [alignRight, setAlignRight] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
@@ -236,6 +240,23 @@ function DiagramInsertMenu({ onInsertDiagram }: DiagramInsertMenuProps): JSX.Ele
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
+  }, [open]);
+
+  // @MX:NOTE: [AUTO] SPEC-UI-008 후속(좁은 창): 열림 시 다음 프레임에 드롭다운 rect 를 측정해
+  // left-0 기본 정렬이 오른쪽 뷰포트 경계를 넘으면 right-0 으로 뒤집는다(순수 판정은 menuPlacement).
+  // @MX:SPEC: SPEC-UI-008
+  useEffect(() => {
+    if (!open) {
+      setAlignRight(false);
+      return;
+    }
+    const raf = requestAnimationFrame(() => {
+      const el = menuRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setAlignRight(wouldOverflowRight(r.left, r.width, window.innerWidth));
+    });
+    return () => cancelAnimationFrame(raf);
   }, [open]);
 
   const handleSelect = (preset: DiagramPreset): void => {
@@ -274,7 +295,12 @@ function DiagramInsertMenu({ onInsertDiagram }: DiagramInsertMenuProps): JSX.Ele
       </button>
 
       {open && (
-        <div className="md-menu absolute left-0 top-full z-50 mt-1" role="menu" onKeyDown={handleMenuKeyDown}>
+        <div
+          ref={menuRef}
+          className={`md-menu absolute ${alignRight ? 'right-0' : 'left-0'} top-full z-50 mt-1`}
+          role="menu"
+          onKeyDown={handleMenuKeyDown}
+        >
           {DIAGRAM_PRESETS.map((def, i) => {
             const Icon = DIAGRAM_ICONS[def.preset];
             return (
