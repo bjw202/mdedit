@@ -101,6 +101,71 @@ export async function seedFs(page: Page, files: Record<string, string>): Promise
   await injectTauriMock(page, { files, strict: true });
 }
 
+/**
+ * SPEC-EXPORT-002 E2E용 내보내기 스텁 주입 (T0b 픽스처 확장 — 포크 금지).
+ *
+ * injectTauriMock 뒤에 호출한다. base 스크립트가 만든 window.__TAURI_MOCK_HANDLERS__
+ * 확장 포인트에 다음 명령을 추가한다:
+ *  - export_save_dialog: 결정론적 저장 경로 반환 (또는 opts.savePath === null 이면 취소)
+ *  - write_binary_file: null 반환 (DOCX 쓰기 성공)
+ *  - plugin:opener|open_path: window.__EXPORT_OPEN_CALLS__ 에 {path} 기록
+ *  - plugin:opener|reveal_item_in_dir: window.__EXPORT_REVEAL_CALLS__ 에 {paths} 기록
+ *
+ * 주의: export_save_dialog 를 스텁하지 않으면 graceful 모드에서 null(=취소)이 돌아가
+ * 완료 모달이 절대 뜨지 않는다(SPEC-EXPORT-002 acceptance.md 검증 불가 경계 (2)).
+ * open/reveal 의 실제 OS 앱 실행은 Playwright 관측 밖 — 호출 payload 단언까지만 검증한다.
+ */
+export async function injectExportStubs(
+  page: Page,
+  opts: { savePath?: string | null; format?: 'html' | 'docx' } = {},
+): Promise<void> {
+  // 주의: opts.savePath === null 은 "취소"를 의미한다(명시적 null). ?? 는 null 을
+  // 기본값으로 대체해버리므로 "key 존재 여부"로 판별한다.
+  const savePath =
+    'savePath' in opts ? opts.savePath : `/tmp/export-${opts.format ?? 'html'}.preview`;
+  await page.addInitScript(
+    ([path]) => {
+      // 캡처 배열 초기화 — 테스트가 evaluate 로 읽어 invoke payload 단언에 쓴다.
+      (window as unknown as Record<string, unknown>).__EXPORT_OPEN_CALLS__ = [];
+      (window as unknown as Record<string, unknown>).__EXPORT_REVEAL_CALLS__ = [];
+
+      const ext: Record<string, (args: Record<string, unknown>) => unknown> = {
+        export_save_dialog: (args) => {
+          const fmt = String(args.format ?? 'html');
+          // 경로가 명시되지 않았으면 형식에 맞는 결정론적 경로 생성.
+          if (path === '/tmp/export-html.preview' && fmt !== 'html') {
+            return `/tmp/export-${fmt}.preview`;
+          }
+          return path;
+        },
+        write_binary_file: () => null,
+        'plugin:opener|open_path': (args) => {
+          (
+            window as unknown as { __EXPORT_OPEN_CALLS__: Array<{ path: string }> }
+          ).__EXPORT_OPEN_CALLS__.push({ path: String(args.path ?? '') });
+          return null;
+        },
+        'plugin:opener|reveal_item_in_dir': (args) => {
+          const raw = args.paths;
+          const paths = Array.isArray(raw) ? raw.map(String) : [String(args.path ?? '')];
+          (
+            window as unknown as { __EXPORT_REVEAL_CALLS__: Array<{ paths: string[] }> }
+          ).__EXPORT_REVEAL_CALLS__.push({ paths });
+          return null;
+        },
+      };
+
+      const holder = (
+        window as unknown as { __TAURI_MOCK_HANDLERS__?: Record<string, (a: Record<string, unknown>) => unknown> }
+      ).__TAURI_MOCK_HANDLERS__;
+      if (holder) {
+        for (const [k, v] of Object.entries(ext)) holder[k] = v;
+      }
+    },
+    [savePath] as const,
+  );
+}
+
 export const test = base.extend<{ tauriPage: Page }>({
   tauriPage: async ({ page }, use) => {
     await injectTauriMock(page);
