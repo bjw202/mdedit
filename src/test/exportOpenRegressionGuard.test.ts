@@ -15,15 +15,28 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..');
 
 describe('SPEC-EXPORT-002 regression guard', () => {
-  it('capabilities/main.json 에 opener:allow-open-path / allow-reveal-item-in-dir 포함 + 기존 항목 유지 (REQ-008, AC-013)', () => {
+  it('capabilities/main.json 에 opener:allow-open-path / allow-reveal-item-in-dir 가 path scope 와 함께 포함 + 기존 항목 유지 (REQ-008, AC-013)', () => {
+    type ScopedPerm = { identifier: string; allow?: Array<{ path?: string }> };
     const caps = JSON.parse(
       readFileSync(resolve(repoRoot, 'src-tauri', 'capabilities', 'main.json'), 'utf-8'),
-    ) as { permissions: string[] };
+    ) as { permissions: Array<string | ScopedPerm> };
 
-    // open_path(openExportedFile)·reveal-item-in-dir(revealExportedFile) 모두 explicit 권한 필요 —
-    // opener:default 에는 이 둘이 포함되지 않는다(임의 경로 실행 위험). 회귀 방지.
-    expect(caps.permissions).toContain('opener:allow-open-path');
-    expect(caps.permissions).toContain('opener:allow-reveal-item-in-dir');
+    // open_path·reveal-item-in-dir 은 explicit 권한 + path scope 가 필요. opener:default 는
+    // scope 없이는 "Not allowed to open path" 로 거부(빈 scope = 안전 기본). path:'**' 단언까지.
+    const findPerm = (id: string): ScopedPerm | undefined =>
+      caps.permissions.find(
+        (p): p is ScopedPerm => typeof p === 'object' && p !== null && p.identifier === id,
+      );
+    const openPath = findPerm('opener:allow-open-path');
+    expect(openPath).toBeDefined();
+    expect(openPath?.allow).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: '**' })]),
+    );
+    const reveal = findPerm('opener:allow-reveal-item-in-dir');
+    expect(reveal).toBeDefined();
+    expect(reveal?.allow).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: '**' })]),
+    );
     // 기존 항목 미제거 확인(회귀 방지).
     for (const required of [
       'core:default',

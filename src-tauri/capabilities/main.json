@@ -9,8 +9,14 @@
     "dialog:allow-save",
     "dialog:allow-message",
     "opener:default",
-    "opener:allow-open-path",
-    "opener:allow-reveal-item-in-dir",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "opener:allow-reveal-item-in-dir",
+      "allow": [{ "path": "**" }]
+    },
     "shell:allow-execute",
     "shell:allow-spawn"
   ]
