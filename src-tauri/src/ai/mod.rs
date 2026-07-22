@@ -9,7 +9,10 @@ pub mod stream;
 
 use crate::state::app_state::{AppState, InFlightRequest};
 use claude_cli::{claim_terminal, ErrorPayload};
-use prompt::{build_continue_prompt_with_length, build_inline_prompt, build_section_prompt, AiFeature, ContinueLength};
+use prompt::{
+    build_continue_prompt_with_length, build_inline_prompt_with_diagram_type, build_section_prompt,
+    AiFeature, ContinueLength,
+};
 use provider::{AiModel, AiRequest, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -150,7 +153,15 @@ pub fn ai_request(
             };
             build_continue_prompt_with_length(outline, before, after, length)
         }
-        _ => build_inline_prompt(&feature, selection, before, after),
+        // SPEC-AI-008: 공유 인라인 조립 경로에 diagram_type 을 전달한다. 조각 부착은
+        // build_inline_prompt_with_diagram_type 내부에서 feature 가 Diagram 일 때만 일어난다.
+        _ => build_inline_prompt_with_diagram_type(
+            &feature,
+            selection,
+            before,
+            after,
+            args.diagram_type.as_deref(),
+        ),
     };
     let truncated = assembled.truncated;
 
