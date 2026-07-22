@@ -1004,10 +1004,11 @@ describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
   });
 });
 
-// SPEC-AI-008 후속(실기기 결함): 좁은 창에서 플라이아웃 서브메뉴가 화면 밖으로 잘린다.
-// jsdom 은 레이아웃이 없으므로 getBoundingClientRect + innerWidth/Height 를 목킹해 좁은 창
-// 지오메트리를 재현하고, 열림 시 rAF 측정으로 뒤집힘 클래스가 토글되는지 검증한다(BUG-9/BUG-2 선례).
-describe('createPresetMenu: diagram submenu viewport-aware placement (SPEC-AI-008 narrow-window fix)', () => {
+// SPEC-AI-008 후속(실기기 결함): 좁은/넓은 창에서 플라이아웃 서브메뉴가 잘린다. 수정 후 기계는
+// 클래스 토글이 아니라 rAF 측정으로 계산한 inline left/top 오프셋(flip→clamp)이다. jsdom 은 레이아웃이
+// 없으므로 앵커(wrap)·서브메뉴 rect + innerWidth/Height 를 목킹해 지오메트리를 재현하고, 열림 시
+// 적용된 inline 오프셋을 검증한다(정밀한 flip/clamp 경계값은 menuPlacement.test.ts 순수 테스트 담당).
+describe('createPresetMenu: diagram submenu clip-aware placement (SPEC-AI-008)', () => {
   const rafCallbacks: FrameRequestCallback[] = [];
 
   beforeEach(() => {
@@ -1053,11 +1054,15 @@ describe('createPresetMenu: diagram submenu viewport-aware placement (SPEC-AI-00
     return { menu, trigger, sub };
   }
 
-  it('keeps the default placement (no flip classes) when the submenu fits', async () => {
+  // 앵커(wrap = trigger.parentElement) rect 를 목킹한다 — 수정 후 배치는 앵커=offsetParent 기준.
+  function mockAnchor(trigger: HTMLElement, r: Partial<DOMRect>): void {
+    const wrap = trigger.parentElement as HTMLElement;
+    vi.spyOn(wrap, 'getBoundingClientRect').mockReturnValue(rect(r));
+  }
+
+  it('opens rightward (default) when the submenu fits — offset beside the anchor, top-aligned', async () => {
     const { menu, trigger, sub } = await openSubmenu();
-    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(
-      rect({ left: 100, right: 300, top: 100, bottom: 124, height: 24 }),
-    );
+    mockAnchor(trigger, { left: 100, right: 300, top: 100, bottom: 124 });
     vi.spyOn(sub, 'getBoundingClientRect').mockReturnValue(
       rect({ left: 300, right: 480, top: 100, bottom: 340, width: 180, height: 240 }),
     );
@@ -1066,17 +1071,16 @@ describe('createPresetMenu: diagram submenu viewport-aware placement (SPEC-AI-00
 
     flushRaf();
 
-    expect(sub.classList.contains('mdedit-ai-diagram-submenu--left')).toBe(false);
-    expect(sub.classList.contains('mdedit-ai-diagram-submenu--up')).toBe(false);
+    // right(300)+gap(4)=304 → offset.left = 304 - anchor.left(100) = 204; top aligns anchor.top → 0.
+    expect(sub.style.left).toBe('204px');
+    expect(sub.style.top).toBe('0px');
     menu.destroy();
   });
 
-  it('flips to open leftward when the submenu overflows the right edge (narrow window)', async () => {
+  it('flips to open leftward when the rightward submenu overflows the boundary right (narrow window)', async () => {
     const { menu, trigger, sub } = await openSubmenu();
-    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(
-      rect({ left: 360, right: 540, top: 100, bottom: 124, height: 24 }),
-    );
-    // default (rightward) position would put the submenu at 540..720 — beyond a 600px viewport.
+    mockAnchor(trigger, { left: 360, right: 540, top: 100, bottom: 124 });
+    // rightward would be 544..724 — beyond a 600px boundary; flip left to anchor.left-180-4 = 176.
     vi.spyOn(sub, 'getBoundingClientRect').mockReturnValue(
       rect({ left: 540, right: 720, top: 100, bottom: 340, width: 180, height: 240 }),
     );
@@ -1085,15 +1089,14 @@ describe('createPresetMenu: diagram submenu viewport-aware placement (SPEC-AI-00
 
     flushRaf();
 
-    expect(sub.classList.contains('mdedit-ai-diagram-submenu--left')).toBe(true);
+    // offset.left = 176 - anchor.left(360) = -184 (opens leftward, fully inside 0..600).
+    expect(sub.style.left).toBe('-184px');
     menu.destroy();
   });
 
-  it('shifts up when the submenu overflows the bottom edge', async () => {
+  it('shifts up when the submenu overflows the boundary bottom', async () => {
     const { menu, trigger, sub } = await openSubmenu();
-    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(
-      rect({ left: 100, right: 300, top: 700, bottom: 724, height: 24 }),
-    );
+    mockAnchor(trigger, { left: 100, right: 300, top: 700, bottom: 724 });
     vi.spyOn(sub, 'getBoundingClientRect').mockReturnValue(
       rect({ left: 300, right: 480, top: 700, bottom: 940, width: 180, height: 240 }),
     );
@@ -1102,7 +1105,8 @@ describe('createPresetMenu: diagram submenu viewport-aware placement (SPEC-AI-00
 
     flushRaf();
 
-    expect(sub.classList.contains('mdedit-ai-diagram-submenu--up')).toBe(true);
+    // down would be 700..940 — beyond 800; flip up to anchor.bottom-240 = 484 → offset.top = 484-700 = -216.
+    expect(sub.style.top).toBe('-216px');
     menu.destroy();
   });
 });

@@ -14,7 +14,7 @@ import { aiRequest, ipcErrorMessage } from '@/lib/tauri/ipc';
 import type { AiModel, AiRequestArgs, DiagramType } from '@/lib/tauri/ipc';
 import type { AiFeature } from '@/store/aiStore';
 import { DIAGRAM_ICON_INNER } from '@/components/icons/diagramIconMarkup';
-import { wouldOverflowRight, wouldOverflowBottom } from '@/lib/ui/menuPlacement';
+import { getClipBoundary, computeFlyoutOffset } from '@/lib/ui/menuPlacement';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
 import { getEffectiveAiEnabled } from '@/store/aiPolicy';
@@ -284,28 +284,42 @@ const DIAGRAM_SUBMENU_DEFS: readonly { type: DiagramType | null; label: string }
   { type: 'mindmap', label: '마인드맵' },
 ];
 
-/** 서브메뉴가 오른쪽 뷰포트 경계를 넘으면 부모 메뉴 왼쪽으로 뒤집는다(좁은 창). */
-const SUBMENU_LEFT_CLASS = 'mdedit-ai-diagram-submenu--left';
-/** 서브메뉴가 아래 뷰포트 경계를 넘으면 위로 끌어올린다(하단 클램프). */
-const SUBMENU_UP_CLASS = 'mdedit-ai-diagram-submenu--up';
+/** 플라이아웃과 앵커(wrap) 사이 간격(px) — CSS margin var(--md-space-1) 과 동일. */
+const SUBMENU_GAP = 4;
 
-// @MX:NOTE: [AUTO] SPEC-AI-008 후속: 좁은 창 뷰포트 경계 인지 배치. 기본은 부모 메뉴 오른쪽·상단
-// 정렬로 열고, 레이아웃 커밋 다음 프레임(rAF)에 측정해 오른쪽/아래로 잘리면 각각 왼쪽 열림·위로
-// 끌어올림 클래스를 토글한다(preset 메뉴 scheduleMenuFlipMeasurement 선례와 동형, 순수 판정은
-// menuPlacement 헬퍼). 측정은 기본 위치 rect 기준 1회.
+// @MX:NOTE: [AUTO] SPEC-AI-008 후속(실기기 결함): 좁은/넓은 창 모두에서 클리핑 경계 인지 배치.
+// 기본은 부모 메뉴 오른쪽·상단 정렬로 열고, 레이아웃 커밋 다음 프레임(rAF)에 측정한다. 경계는 창이
+// 아니라 실효 클리핑 경계(getClipBoundary, 에디터 패널 overflow:hidden) — 넓은 창이라도 패널 밖으로
+// 잘린다. 측 선택(flip)만으로는 부족해(뒤집어도 반대편 경계를 넘을 수 있음), computeFlyoutOffset 이
+// flip→clamp 를 한 번에 계산한 오프셋을 inline style 로 적용한다. 경계가 서브메뉴보다 작으면
+// max-height + overflow-y 로 스크롤 가드를 건다.
 // @MX:SPEC: SPEC-AI-008
 function scheduleSubmenuFlipMeasurement(sub: HTMLElement, trigger: HTMLElement): void {
   requestAnimationFrame(() => {
+    // 앵커=서브메뉴의 containing block(=offsetParent, .mdedit-ai-diagram-wrap). 없으면 트리거 부모.
+    const anchorEl = (sub.offsetParent as HTMLElement | null) ?? trigger.parentElement;
+    if (!anchorEl) return;
+    const anchor = anchorEl.getBoundingClientRect();
     const subRect = sub.getBoundingClientRect();
-    const triggerRect = trigger.getBoundingClientRect();
-    sub.classList.toggle(
-      SUBMENU_LEFT_CLASS,
-      wouldOverflowRight(subRect.left, subRect.width, window.innerWidth),
+    const clip = getClipBoundary(sub);
+    const off = computeFlyoutOffset(
+      { left: anchor.left, top: anchor.top, right: anchor.right, bottom: anchor.bottom },
+      { width: subRect.width, height: subRect.height },
+      clip,
+      SUBMENU_GAP,
     );
-    sub.classList.toggle(
-      SUBMENU_UP_CLASS,
-      wouldOverflowBottom(triggerRect.top, subRect.height, window.innerHeight),
-    );
+    sub.style.left = `${off.left}px`;
+    sub.style.top = `${off.top}px`;
+    sub.style.right = 'auto';
+    sub.style.bottom = 'auto';
+    sub.style.marginLeft = '0';
+    sub.style.marginRight = '0';
+    // 경계가 서브메뉴보다 낮으면(담을 수 없음) 스크롤 가드로 잘림 대신 스크롤.
+    const availH = clip.bottom - clip.top;
+    if (subRect.height > availH) {
+      sub.style.maxHeight = `${Math.max(0, availH)}px`;
+      sub.style.overflowY = 'auto';
+    }
   });
 }
 
