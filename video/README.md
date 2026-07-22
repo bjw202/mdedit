@@ -95,3 +95,33 @@ npm run typecheck
 
 `Root.tsx`'s `Full` composition never needs to change — it derives its total
 duration and its list of `<Sequence>`s entirely from `sceneManifest`.
+
+## 두 번째 영상 — AI 유즈케이스 쇼케이스 (`UseCase`, v2 페르소나 케이스)
+
+튜토리얼(`Full`)과 별개인 두 번째 영상입니다. "AI 기능이 있다는데, 그래서 뭐?"에
+답하되, 기능 사용법이 아니라 **페르소나 기반 실무 케이스**로 보여줍니다. 각 케이스는
+페르소나·마감을 담은 상황 카드로 열고 앱으로 컷인해, 결과물이 만들어지는 과정을
+before/after 로 시연합니다. 총 88초(2,640프레임 @30fps).
+
+- 창작 기준: `STORYBOARD-USECASE.md`
+- 씬 파일: `src/usecase/`
+  - `UHook.tsx`(U0 훅)
+  - `UCase1Sales.tsx`(C1 영업 — 메모→개요, 일정→간트, 이어쓰기)
+  - `UCase2Promo.tsx`(C2 홍보 — 지표→표, 비중→파이, 이어쓰기)
+  - `UOutro.tsx`(U4 마무리)
+- 확장점: `src/usecase/manifest.ts`(튜토리얼의 `scenes/manifest.ts`와 동일 계약)
+- AI 크롬 조각(✨ 툴바 · 프리셋 메뉴 · 8종 다이어그램 플라이아웃 · 제안 카드 · 고스트 텍스트 ·
+  간트/파이 차트 · 상황 카드)은 `src/usecase/chrome.tsx`에 앱 실물 기준으로 자립 구현
+- 대상 플랫폼은 Windows — 단축키 키캡은 Ctrl(Ctrl+Enter)
+
+```bash
+# 전체 영상 렌더 (완성본 결과물)
+npm run render -- UseCase out/mdedit-ai-usecase.mp4
+
+# 씬 단위 렌더 / 스틸
+npm run render -- C1 out/c1.mp4          # 영업 케이스만
+npm run still  -- C2 out/c2.png --frame=835   # 홍보 케이스 파이 차트 프레임
+
+# 헤드리스 렌더 풀이 간헐적으로 페이지 로딩에 실패하면 단일 동시성으로 재시도
+npm run render -- UseCase out/mdedit-ai-usecase.mp4 --concurrency=1
+```
