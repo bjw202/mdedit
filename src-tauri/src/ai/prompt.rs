@@ -785,4 +785,37 @@ mod tests {
         assert!(prompt.system_prompt.contains("금지"));
         assert!(prompt.system_prompt.contains("짧게"));
     }
+
+    // --- SPEC-AI-008 T-001: Pre-RED 특성화 스냅샷 (diagram 종류 게이팅 회귀 기준선) ---
+
+    /// 변경 전 diagram(자동/None) 조립 시스템 프롬프트의 바이트 동일 기준선(AC-AI-008-004).
+    /// diagram_type 게이팅 배선 후에도 `diagram_type=None`이면 이 문자열과 바이트 동일해야 한다.
+    const DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT: &str = "주어진 절차·관계 설명을 mermaid 다이어그램으로 변환하라. 순수 mermaid 문법 코드만 출력하고, ```mermaid 코드펜스나 다른 설명 문구 없이 다이어그램 코드만 그대로 출력하라. 출력은 graph·flowchart·sequenceDiagram 등 mermaid 키워드로 시작해야 하며, 백틱 문자는 한 글자도 포함하지 말라.\n\n결과 텍스트만 출력하라. 설명·인사·사족을 붙이지 말라. 마크다운 코드펜스는 요청받은 경우에만 사용하라.\n\n오직 [대상] 텍스트만 변환·정리하라. [앞 문맥]과 [뒤 문맥]은 이해를 돕는 읽기 전용 참고 자료일 뿐이니 결과에 포함하거나 이어 쓰지 말라. 결과는 입력 텍스트의 언어를 그대로 유지하라.";
+
+    #[test]
+    fn diagram_none_assembled_prompt_matches_prechange_snapshot() {
+        // AC-AI-008-004: 자동(종류 없음) 경로는 게이팅 배선 전후 바이트 동일.
+        let p = build_inline_prompt(&AiFeature::Diagram, "S", "", "");
+        assert_eq!(p.system_prompt, DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT);
+    }
+
+    #[test]
+    fn all_five_non_diagram_features_assembled_prompt_snapshot() {
+        // AC-AI-008-014/REQ-025: 비-diagram 5기능(polish/outline/table/shorten/custom) 조립
+        // 프롬프트를 조립 공식(system_prompt()+"\n\n"+INLINE_SCOPE)으로 고정한다. diagram 종류
+        // 게이팅을 공유 경로에 배선한 뒤에도 이 5기능은 바이트 동일해야 한다(공유 hot path 회귀 가드).
+        for feature in [
+            AiFeature::Polish,
+            AiFeature::Outline,
+            AiFeature::Table,
+            AiFeature::Shorten,
+            AiFeature::Custom("영어로 번역".to_string()),
+        ] {
+            let p = build_inline_prompt(&feature, "S", "", "");
+            let expected = format!("{}\n\n{}", feature.system_prompt(), INLINE_SCOPE);
+            assert_eq!(p.system_prompt, expected, "{:?} assembled prompt drifted", feature);
+        }
+    }
 }
+
+
