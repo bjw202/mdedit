@@ -4,6 +4,16 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-23
+
+### Added
+- **미저장 변경 보호 (SPEC-FS-003)**: 편집 중인 파일 전환·새 문서·창 닫기를 시도할 때 미저장 변경이 있으면 3버튼 모달(취소/저장 안 함/저장)로 보호한다. 재사용 가능한 `ConfirmDialog` 컴포넌트를 신설해 향후 다이얼로그의 공유 기반으로 둔다. 파일 워처 충돌 시엔 별도 모달(안전 선택지가 기본 포커스)로 분리. 동반 결함 3건도 함께 수정 — `openFile`의 dirty 리셋 누락, dirty 이중 소스 + 영속화된 stale `unsaved`, 5중 저장 중복을 단일 `saveDocument()`로 수렴. 폴더 이동의 허위 가드(문서를 버리지도 않는데 뜨던 경고)는 제거했다.
+- **Export 후 열기 모달 (SPEC-EXPORT-002)**: HTML/DOCX 내보내기가 실제로 파일 쓰기까지 성공했을 때 저장 경로를 표시하고 3버튼(닫기/폴더에서 보기/열기) 모달을 띄운다. 기본 애플리케이션으로 열거나 파일 관리자에서 선택 표시(opener 플러그인, 크로스플랫폼). PDF는 OS 인쇄 다이얼로그가 경로를 소유해 이번 범위에서는 제외했다.
+
+### Fixed
+- **macOS에서 HTML/DOCX export 후 「열기」 실패**: 두 단계의 권한 결함이었다. (1) `opener:allow-open-path` 권한 누락 — `opener:default`에는 `allow-open-url`만 있고 `open_path`는 별도 explicit 권한이 필요. (2) path scope 누락 — 권한은 있어도 scope가 없으면 빈 scope로 모든 경로를 거부("Not allowed to open path"). 권한 + `{path:"**"}` scope 추가로 해결. Windows·Linux도 동일 원인.
+- **앱이 닫히지 않는 문제(X 버튼)**: `core:window:allow-destroy` 권한 누락. `core:window:default`는 읽기/조회 권한만 담고 `destroy`/`close`/`hide`/`start-dragging`은 별도 explicit 권한이라, `getCurrentWindow().destroy()`가 권한 거부로 창을 닫지 못했다.
+
 ## [0.11.0] - 2026-07-22
 
 ### Added
