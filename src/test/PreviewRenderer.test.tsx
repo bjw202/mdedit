@@ -164,6 +164,80 @@ describe('PreviewRenderer', () => {
   });
 });
 
+// ---- SPEC-UI-008: 빈/공백 mermaid 펜스 → 플레이스홀더 (REQ-013/014, AC-006/007) ----
+describe('PreviewRenderer: empty mermaid fence placeholder (SPEC-UI-008)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('빈 data-diagram → 플레이스홀더 표시, mermaid.parse 미호출, ⚠ 오류 미표시 (AC-006)', async () => {
+    const mermaidModule = await import('mermaid');
+    const mockMermaid = mermaidModule.default;
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const html = '<div class="mermaid-container" data-diagram=""></div>';
+
+    render(<PreviewRenderer html={html} />);
+
+    await vi.waitFor(() => {
+      const container = document.querySelector('.mermaid-container');
+      expect(container?.textContent).toContain('다이어그램 문법을 입력하세요');
+    });
+    expect(mockMermaid.parse).not.toHaveBeenCalled();
+    const container = document.querySelector('.mermaid-container');
+    expect(container?.textContent).not.toContain('Diagram syntax error');
+    expect(container?.querySelector('.md-diagram-placeholder')).not.toBeNull();
+  });
+
+  it('공백만 있는 data-diagram → 플레이스홀더 표시, parse 미호출', async () => {
+    const mermaidModule = await import('mermaid');
+    const mockMermaid = mermaidModule.default;
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const html = '<div class="mermaid-container" data-diagram="   \n  "></div>';
+
+    render(<PreviewRenderer html={html} />);
+
+    await vi.waitFor(() => {
+      const container = document.querySelector('.mermaid-container');
+      expect(container?.textContent).toContain('다이어그램 문법을 입력하세요');
+    });
+    expect(mockMermaid.parse).not.toHaveBeenCalled();
+  });
+
+  it('내용이 있는 펜스는 통상 parse/render 경로로 진행하고 플레이스홀더를 쓰지 않는다 (AC-007)', async () => {
+    const mermaidModule = await import('mermaid');
+    const mockMermaid = mermaidModule.default;
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const diagram = 'graph TD\n  A --> B';
+    const html = `<div class="mermaid-container" data-diagram="${diagram}"></div>`;
+
+    render(<PreviewRenderer html={html} />);
+
+    await vi.waitFor(() => {
+      expect(mockMermaid.parse).toHaveBeenCalledWith(diagram);
+      expect(mockMermaid.render).toHaveBeenCalled();
+    });
+    const container = document.querySelector('.mermaid-container');
+    expect(container?.querySelector('.md-diagram-placeholder')).toBeNull();
+  });
+
+  it('내용이 있으나 문법 오류이면 기존 ⚠ 폴백을 유지한다 (AC-007, 회귀)', async () => {
+    const mermaidModule = await import('mermaid');
+    const mockMermaid = mermaidModule.default;
+    (mockMermaid.parse as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Syntax error in text'),
+    );
+    const { PreviewRenderer } = await import('@/components/preview/PreviewRenderer');
+    const html = '<div class="mermaid-container" data-diagram="nonsense diagram"></div>';
+
+    render(<PreviewRenderer html={html} />);
+
+    await vi.waitFor(() => {
+      const el = document.querySelector('.mermaid-container p');
+      expect(el?.textContent).toContain('Diagram syntax error');
+    });
+  });
+});
+
 // ---- SPEC-PREVIEW-010: mermaid 다이어그램의 라이트/다크 테마 연동 ----
 describe('PreviewRenderer: mermaid dark theme (SPEC-PREVIEW-010)', () => {
   beforeEach(() => {

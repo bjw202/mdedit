@@ -22,7 +22,8 @@ import { EditorToolbar } from '@/components/editor/EditorToolbar';
 import type { FormatAction } from '@/components/editor/EditorToolbar';
 import { FileExplorer } from '@/components/sidebar/FileExplorer';
 import { PreviewContainer } from '@/components/preview/PreviewContainer';
-import { wrapSelection, prefixLine, insertTable } from '@/components/editor/extensions/keyboard-shortcuts';
+import { wrapSelection, prefixLine, insertTable, insertDiagram } from '@/components/editor/extensions/keyboard-shortcuts';
+import type { DiagramPreset } from '@/components/editor/extensions/keyboard-shortcuts';
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { insertImageFromDialog } from '@/lib/image/imageHandler';
 import { getFileViewType } from '@/components/preview/PreviewContainer';
@@ -304,6 +305,16 @@ export function AppLayout(): JSX.Element {
     view.focus();
   };
 
+  // @MX:NOTE: [AUTO] 다이어그램 삽입 핸들러 — handleInsertTable과 동일한 null 가드(view-only no-op).
+  // view가 null(보기 전용)이면 문서 변경 없이 반환하고, 그 외에는 insertDiagram 후 포커스를 복귀한다.
+  // @MX:SPEC: SPEC-UI-008
+  const handleInsertDiagram = (preset: DiagramPreset): void => {
+    const view = viewRef.current;
+    if (!view) return;
+    insertDiagram(view, preset);
+    view.focus();
+  };
+
   // SPEC-PREVIEW-007: html/binary/too-large 파일은 편집 불가 — isViewOnly로 확장
   // previewStatus를 fileStore에서 읽어 binary/too-large 여부를 판정한다
   // SPEC-PREVIEW-008: image/svg도 보기 전용 — 이미지·SVG는 편집/주석·소스 저장을 다루지 않는다
@@ -317,7 +328,11 @@ export function AppLayout(): JSX.Element {
   // Editor panel: toolbar + editor (inlined to avoid re-creating the component function on every render)
   const editorPanel = (
     <div className="h-full flex flex-col">
-      <EditorToolbar onFormat={handleFormat} onInsertTable={handleInsertTable} />
+      <EditorToolbar
+        onFormat={handleFormat}
+        onInsertTable={handleInsertTable}
+        onInsertDiagram={handleInsertDiagram}
+      />
       <div className="flex-1 overflow-hidden">
         {isViewOnly ? (
           // 보기 전용 플레이스홀더 — HTML/바이너리/대용량 파일 편집 불가 안내

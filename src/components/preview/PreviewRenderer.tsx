@@ -113,6 +113,15 @@ export function PreviewRenderer({ html, zoom = 1 }: PreviewRendererProps): JSX.E
     const containers = container.querySelectorAll('.mermaid-container');
     containers.forEach(async (el) => {
       const diagram = el.getAttribute('data-diagram') ?? '';
+      // @MX:NOTE: [AUTO] SPEC-UI-008 빈 펜스 분기 — 본문을 trim()했을 때 빈 문자열이면
+      // mermaid.parse를 호출하지 않고(빈 입력은 파싱 오류를 유발하므로) 안내 플레이스홀더를
+      // 표시한다. 비어 있지 않으면 아래 통상 parse→render→catch(⚠ 폴백) 경로를 그대로 탄다.
+      // @MX:SPEC: SPEC-UI-008
+      if (diagram.trim() === '') {
+        el.innerHTML =
+          '<p class="md-diagram-placeholder">다이어그램 문법을 입력하세요</p>';
+        return;
+      }
       try {
         await mermaid.parse(diagram);
         const id = `mermaid-${Math.random().toString(36).slice(2)}`;

@@ -144,6 +144,143 @@ export function insertTable(view: EditorView, rows: number, cols: number): boole
   return true;
 }
 
+// @MX:NOTE: [AUTO] SPEC-UI-008 다이어그램 프리셋 삽입 규칙 — 각 프리셋은 ```mermaid 펜스로 감싼
+// 3–5줄 한글 최소 예제를 삽입한다. 스니펫 body 문자열은 spec.md "Preset Snippet Definitions"의
+// 고정본과 문자 단위로 일치해야 하며(mermaid 11.12.3 검증 완료), token은 삽입 후 커서를 놓을
+// "첫 사용자 편집 토큰"이다(custom은 token=null → 빈 펜스 본문 줄에 커서). 커서가 줄 중간이면
+// insertTable과 동일한 앞뒤 빈 줄 패딩으로 독립 블록화한다.
+// @MX:SPEC: SPEC-UI-008
+export type DiagramPreset =
+  | 'flowchart'
+  | 'sequenceDiagram'
+  | 'gantt'
+  | 'classDiagram'
+  | 'stateDiagram'
+  | 'pie'
+  | 'mindmap'
+  | 'custom';
+
+export interface DiagramPresetDef {
+  /** stable preset key (union member) */
+  preset: DiagramPreset;
+  /** Korean menu label shown in the dropdown */
+  label: string;
+  /** fence body between ```mermaid and ``` (empty string for custom) */
+  body: string;
+  /** first user-edit token to place the cursor on; null = collapsed cursor on the body line */
+  token: string | null;
+}
+
+const MERMAID_FENCE_OPEN = '```mermaid\n';
+const MERMAID_FENCE_CLOSE = '\n```';
+
+export const DIAGRAM_PRESETS: readonly DiagramPresetDef[] = [
+  {
+    preset: 'flowchart',
+    label: '순서도',
+    body: ['flowchart TD', '    A[시작] --> B{조건}', '    B -->|예| C[처리]', '    B -->|아니오| D[종료]'].join(
+      '\n',
+    ),
+    token: '시작',
+  },
+  {
+    preset: 'sequenceDiagram',
+    label: '시퀀스 다이어그램',
+    body: [
+      'sequenceDiagram',
+      '    participant 사용자',
+      '    participant 서버',
+      '    사용자->>서버: 요청',
+      '    서버-->>사용자: 응답',
+    ].join('\n'),
+    token: '사용자',
+  },
+  {
+    preset: 'gantt',
+    label: '간트 차트',
+    body: [
+      'gantt',
+      '    title 프로젝트 일정',
+      '    dateFormat YYYY-MM-DD',
+      '    section 준비',
+      '    요구 분석 :a1, 2026-01-01, 7d',
+    ].join('\n'),
+    token: '프로젝트 일정',
+  },
+  {
+    preset: 'classDiagram',
+    label: '클래스 다이어그램',
+    body: ['classDiagram', '    class 동물 {', '        +String 이름', '        +소리내기()', '    }'].join('\n'),
+    token: '동물',
+  },
+  {
+    preset: 'stateDiagram',
+    label: '상태 다이어그램',
+    body: ['stateDiagram-v2', '    [*] --> 대기', '    대기 --> 진행 : 시작', '    진행 --> [*]'].join('\n'),
+    token: '대기',
+  },
+  {
+    preset: 'pie',
+    label: '파이 차트',
+    body: ['pie title 분포 현황', '    "항목 A" : 40', '    "항목 B" : 35', '    "항목 C" : 25'].join('\n'),
+    token: '분포 현황',
+  },
+  {
+    preset: 'mindmap',
+    label: '마인드맵',
+    body: ['mindmap', '  root((중심 주제))', '    분기 A', '    분기 B', '    분기 C'].join('\n'),
+    token: '중심 주제',
+  },
+  {
+    preset: 'custom',
+    label: '사용자 정의(빈 다이어그램)',
+    body: '',
+    token: null,
+  },
+];
+
+/**
+ * Inserts a ```mermaid fenced block for the given diagram preset at the cursor.
+ * Presets insert a byte-exact 3–5 line Korean example and select the first edit token.
+ * `custom` inserts an empty fence with the cursor on the blank body line.
+ * If the cursor sits mid-line, blank lines are inserted so the fence is a standalone block.
+ * Returns false (no-op) for an unknown preset.
+ */
+export function insertDiagram(view: EditorView, preset: DiagramPreset): boolean {
+  const def = DIAGRAM_PRESETS.find((p) => p.preset === preset);
+  if (!def) return false;
+
+  const block = MERMAID_FENCE_OPEN + def.body + MERMAID_FENCE_CLOSE;
+
+  const { state } = view;
+  const changes = state.changeByRange((range) => {
+    const line = state.doc.lineAt(range.from);
+    const needsLeadingPad = range.from > line.from;
+    const needsTrailingPad = range.to < line.to;
+    const insertText = (needsLeadingPad ? '\n' : '') + block + (needsTrailingPad ? '\n' : '');
+
+    if (def.token === null) {
+      // custom: collapsed cursor on the empty body line (right after "```mermaid\n")
+      const cursorPos = range.from + (needsLeadingPad ? 1 : 0) + MERMAID_FENCE_OPEN.length;
+      return {
+        changes: { from: range.from, to: range.to, insert: insertText },
+        range: EditorSelection.cursor(cursorPos),
+      };
+    }
+
+    const tokenOffset = insertText.indexOf(def.token);
+    const selStart = range.from + tokenOffset;
+    const selEnd = selStart + def.token.length;
+    return {
+      changes: { from: range.from, to: range.to, insert: insertText },
+      range: EditorSelection.range(selStart, selEnd),
+    };
+  });
+
+  view.dispatch(changes);
+  return true;
+}
+
 /**
  * Toggles HTML comment wrapping: <!-- selection -->
  * If no selection, inserts <!-- --> with cursor placed inside.
