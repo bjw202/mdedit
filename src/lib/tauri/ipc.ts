@@ -134,7 +134,8 @@ export async function printCurrentWindow(): Promise<void> {
 
 /**
  * 내보낸 파일을 OS 기본 애플리케이션으로 연다 (완료 모달 `열기` 액션, REQ-011).
- * openPath 는 capability ACL(opener:default)의 통제를 받는다.
+ * openPath 는 capability ACL(opener:allow-open-path)의 통제를 받는다.
+ * (opener:default 에는 open_path 가 포함되지 않는다 — 임의 경로 실행 위험으로 별도 explicit 권한 필요.)
  */
 export async function openExportedFile(path: string): Promise<void> {
   await openPath(path);

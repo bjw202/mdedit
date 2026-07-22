@@ -15,11 +15,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..');
 
 describe('SPEC-EXPORT-002 regression guard', () => {
-  it('capabilities/main.json 에 opener:allow-reveal-item-in-dir 포함 + 기존 항목 유지 (REQ-008, AC-013)', () => {
+  it('capabilities/main.json 에 opener:allow-open-path / allow-reveal-item-in-dir 포함 + 기존 항목 유지 (REQ-008, AC-013)', () => {
     const caps = JSON.parse(
       readFileSync(resolve(repoRoot, 'src-tauri', 'capabilities', 'main.json'), 'utf-8'),
     ) as { permissions: string[] };
 
+    // open_path(openExportedFile)·reveal-item-in-dir(revealExportedFile) 모두 explicit 권한 필요 —
+    // opener:default 에는 이 둘이 포함되지 않는다(임의 경로 실행 위험). 회귀 방지.
+    expect(caps.permissions).toContain('opener:allow-open-path');
     expect(caps.permissions).toContain('opener:allow-reveal-item-in-dir');
     // 기존 항목 미제거 확인(회귀 방지).
     for (const required of [
