@@ -4,7 +4,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUIStore } from '@/store/uiStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useFileStore } from '@/store/fileStore';
-import { saveFileAs as saveFileAsIpc, aiDetectProviders, aiPolicyStatus } from '@/lib/tauri/ipc';
+import { saveFileAs as saveFileAsIpc, aiDetectProviders, aiPolicyStatus, openExportedFile, revealExportedFile } from '@/lib/tauri/ipc';
 import { saveDocument } from '@/lib/save/saveDocument';
 import { type UseUnsavedChangesGuardReturn, GuardContext } from '@/hooks/useUnsavedChangesGuard';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -113,6 +113,9 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   const cursorCol = useEditorStore((s) => s.cursorCol);
 
   const [exportLoading, setExportLoading] = useState(false);
+  // SPEC-EXPORT-002 (REQ-015/016): 완료 모달 단일 경로 슬롯. null=닫힘, string=해당 경로로 열림.
+  //   연속 성공 시 최신 경로로 덮어쓴다(큐잉/중첩 없음). try 블록에서만 설정, catch 절대 불가(REQ-018).
+  const [exportedPath, setExportedPath] = useState<string | null>(null);
   const themeRaw = useUIStore((s) => s.theme);
   // Resolve 'system' theme to actual light/dark for export CSS
   // 'system' must check OS preference; themeRaw !== 'dark' alone would always export as light
@@ -129,13 +132,15 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
       const highlighter = await getHighlighter();
-      await exportToHtml({
+      const savePath = await exportToHtml({
         content: c,
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
         mdFilePath: currentFile,
       });
+      // SPEC-EXPORT-002 REQ-009: 저장 성공 시에만 모달 슬롯 설정. catch 절대 불가(REQ-018).
+      if (savePath !== null) setExportedPath(savePath);
     } catch (err) {
       console.error('HTML export failed:', err);
       window.alert(`HTML export failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -171,13 +176,15 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
       const highlighter = await getHighlighter();
-      await exportToDocx({
+      const savePath = await exportToDocx({
         content: c,
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
         mdFilePath: currentFile,
       });
+      // SPEC-EXPORT-002 REQ-010: 저장 성공 시에만 모달 슬롯 설정. catch 절대 불가(REQ-018).
+      if (savePath !== null) setExportedPath(savePath);
     } catch (err) {
       console.error('DOCX export failed:', err);
       window.alert(`DOCX export failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -186,7 +193,37 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
     }
   }, [exportTheme]);
 
-  // EditorView ref - NOT stored in Zustand (REQ-EDITOR002-N04 / REQ-PREVIEW002-N02)
+  // @MX:NOTE: [AUTO] SPEC-EXPORT-002 완료 모달 액션 라우팅 (REQ-011/012/013/014).
+  //   - 'open' → openExportedFile(path) 1회, 'reveal' → revealExportedFile(path) 1회.
+  //   - 'cancel'(및 Escape/백드롭이 emit하는 동일 id) → opener 호출 0회, 모달만 닫음.
+  //   - open/reveal reject 시 window.alert 로 실패 알림(기존 내보내기 실패 UX 동일) + 모달 닫힘.
+  //   - 예외는 try/catch 로 흡수해 전역으로 전파하지 않는다(unhandled rejection 0건).
+  //   - PDF 는 본 모달의 대상이 아니다(handleExportPdf 무변경, REQ-019).
+  //   - 단일 슬롯 덮어쓰기(REQ-016): setExportedPath(null) 로 닫고, 새 성공이 다시 채운다.
+  // @MX:SPEC: SPEC-EXPORT-002
+  const handleExportDialogAction = useCallback(
+    async (id: string): Promise<void> => {
+      if (id === 'cancel') {
+        setExportedPath(null);
+        return;
+      }
+      const path = exportedPath;
+      if (path === null) return;
+      try {
+        if (id === 'open') {
+          await openExportedFile(path);
+        } else if (id === 'reveal') {
+          await revealExportedFile(path);
+        }
+      } catch (err) {
+        // REQ-014: 기존 내보내기 실패 알림과 동일 채널(window.alert). 예외 미전파.
+        window.alert(`파일을 여는 중 오류가 발생했습니다: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        setExportedPath(null);
+      }
+    },
+    [exportedPath],
+  );
   const viewRef = useRef<EditorView | null>(null);
   // Preview container ref for scroll sync
   const previewRef = useRef<HTMLDivElement>(null);
@@ -416,6 +453,26 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
           message={guard.message}
           actions={guard.actions}
           onAction={guard.onAction}
+        />
+        {/* SPEC-EXPORT-002: HTML/DOCX 내보내기 완료 모달. ConfirmDialog(SPEC-FS-003 소유) 소비.
+            PDF 는 비대상(REQ-019). 액션 순서: 닫기→폴더에서 보기→열기(마지막=primary+초기 포커스). */}
+        <ConfirmDialog
+          open={exportedPath !== null}
+          title="내보내기 완료"
+          message={
+            exportedPath === null ? null : (
+              <div>
+                <div>내보낸 파일이 아래 경로에 저장되었습니다.</div>
+                <code data-testid="exported-path">{exportedPath}</code>
+              </div>
+            )
+          }
+          actions={[
+            { id: 'cancel', label: '닫기' },
+            { id: 'reveal', label: '폴더에서 보기' },
+            { id: 'open', label: '열기', variant: 'primary' },
+          ]}
+          onAction={handleExportDialogAction}
         />
       </div>
     </GuardContext.Provider>
