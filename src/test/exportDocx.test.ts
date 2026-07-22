@@ -203,3 +203,51 @@ describe('exportToDocx: data URI image handling', () => {
     expect(imageRunArgs.type).toBe('jpg');
   });
 });
+
+/**
+ * SPEC-EXPORT-002 (REQ-007): exportToDocx 반환 계약 변경.
+ * 과거에는 Promise<void> 였으나, 완료 모달이 저장 경로를 필요로 하므로
+ * 성공 시 저장 경로(string), 취소 시 null 을 반환한다.
+ */
+describe('exportToDocx: return contract (SPEC-EXPORT-002 REQ-007)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns the save path when save dialog is confirmed (REQ-EXPORT-002-007)', async () => {
+    const { exportSaveDialog, writeBinaryFile } = await import('@/lib/tauri/ipc');
+    vi.mocked(exportSaveDialog).mockResolvedValue('/tmp/test.docx');
+    vi.mocked(writeBinaryFile).mockResolvedValue(undefined);
+
+    const { exportToDocx } = await import('@/lib/export/exportDocx');
+
+    const result = await exportToDocx({
+      content: '# Hello',
+      filename: 'test.md',
+      theme: 'light',
+      highlighter: null,
+      mdFilePath: null,
+    });
+
+    expect(result).toBe('/tmp/test.docx');
+  });
+
+  it('returns null when user cancels save dialog (REQ-EXPORT-002-007, REQ-017)', async () => {
+    const { exportSaveDialog, writeBinaryFile } = await import('@/lib/tauri/ipc');
+    vi.mocked(exportSaveDialog).mockResolvedValue(null);
+
+    const { exportToDocx } = await import('@/lib/export/exportDocx');
+
+    const result = await exportToDocx({
+      content: '# Hello',
+      filename: 'test.md',
+      theme: 'light',
+      highlighter: null,
+      mdFilePath: null,
+    });
+
+    expect(result).toBeNull();
+    // 취소 시 파일 쓰기 미호출 (REQ-017).
+    expect(writeBinaryFile).not.toHaveBeenCalled();
+  });
+});

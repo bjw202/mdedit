@@ -16,8 +16,13 @@ import type { ExportOptions } from './types';
  * - Contains NO JavaScript (REQ-EXPORT-020)
  *
  * @param options - Export options including content, filename, theme, and highlighter
- * @returns The HTML string if saved successfully, or null if user cancelled the dialog
+ * @returns 저장 경로(string)를 반환. 사용자가 다이얼로그를 취소하면 null.
  */
+// @MX:NOTE: [AUTO] SPEC-EXPORT-002 (REQ-007) 반환 계약 — string 의미가 HTML 문서 본문에서
+//   **저장 경로**로 변경됨. 후보 A(path-only) 선택 근거: T1 감사에서 프로덕션 호출자 0곳이
+//   반환값을 사용(AppLayout.tsx:132 폐기). 사용처는 테스트 단언만. PDF 경로는 generateHtmlContent
+//   (별도 export, :70) 분리로 무영향(REQ-019). 결정 근거 = progress.md T2.
+// @MX:SPEC: SPEC-EXPORT-002
 export async function exportToHtml(options: ExportOptions): Promise<string | null> {
   const { content, filename, theme, highlighter, mdFilePath } = options;
 
@@ -56,7 +61,8 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
   // Write the HTML file via Tauri IPC
   await writeFile(savePath, htmlDocument);
 
-  return htmlDocument;
+  // SPEC-EXPORT-002 REQ-007: 저장 경로를 반환 (HTML 본문이 아님).
+  return savePath;
 }
 
 /**

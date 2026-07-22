@@ -41,14 +41,20 @@ type DocxChild = Paragraph | Table;
  * 4. Save via Tauri IPC
  *
  * @param options - Export options
+ * @returns 저장 경로(string)를 반환. 사용자가 다이얼로그를 취소하면 null.
  */
-export async function exportToDocx(options: ExportOptions): Promise<void> {
+// @MX:NOTE: [AUTO] SPEC-EXPORT-002 (REQ-007) 반환 계약 — 과거 Promise<void> 에서
+//   Promise<string | null> 로 확장. 완료 모달이 저장 경로를 필요로 함. exportToHtml 과 동형.
+//   후보 A 선택: 프로덕션 호출자(AppLayout.tsx:174)가 폐기하므로 회귀 없음(progress.md T2).
+// @MX:SPEC: SPEC-EXPORT-002
+export async function exportToDocx(options: ExportOptions): Promise<string | null> {
   const { content, filename, mdFilePath } = options;
 
   const defaultName = generateExportFilename(filename, 'docx');
   const savePath = await exportSaveDialog('docx', defaultName);
   if (savePath === null) {
-    return;
+    // SPEC-EXPORT-002 REQ-007 (취소절) + REQ-017: null 반환, 파일 쓰기 없음.
+    return null;
   }
 
   // Capture mermaid SVGs from DOM before conversion
@@ -80,6 +86,9 @@ export async function exportToDocx(options: ExportOptions): Promise<void> {
   const byteArray = Array.from(uint8Array);
 
   await writeBinaryFile(savePath, byteArray);
+
+  // SPEC-EXPORT-002 REQ-007: 저장 경로를 반환.
+  return savePath;
 }
 
 interface MermaidImageData {
