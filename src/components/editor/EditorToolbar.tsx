@@ -28,6 +28,7 @@ import {
   type IconProps,
 } from '@/components/icons';
 import { DIAGRAM_PRESETS, type DiagramPreset } from '@/components/editor/extensions/keyboard-shortcuts';
+import { getClipBoundary, computeDropdownOffset } from '@/lib/ui/menuPlacement';
 
 /**
  * Supported format action types for the toolbar.
@@ -98,6 +99,9 @@ const TOOLBAR_BUTTONS_BEFORE_TABLE: Array<{
 
 const TABLE_GRID_SIZE = 8;
 
+/** 다이어그램 드롭다운과 앵커 버튼 사이 세로 간격(px) — 기존 mt-1 과 동일. */
+const DIAGRAM_MENU_GAP = 4;
+
 interface TableGridPickerProps {
   onInsertTable?: (rows: number, cols: number) => void;
 }
@@ -108,7 +112,11 @@ interface TableGridPickerProps {
 function TableGridPicker({ onInsertTable }: TableGridPickerProps): JSX.Element {
   const [open, setOpen] = useState(false);
   const [hovered, setHovered] = useState<{ row: number; col: number } | null>(null);
+  // 좁은 창/좁은 패널에서 그리드 피커가 실효 클리핑 경계(에디터 패널)를 넘으면 flip→clamp 한 오프셋을
+  // inline 으로 적용한다(측정 전에는 null=기본 left-0/top-full).
+  const [offset, setOffset] = useState<{ left: number; top: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleMouseDown = (event: MouseEvent): void => {
@@ -135,6 +143,33 @@ function TableGridPicker({ onInsertTable }: TableGridPickerProps): JSX.Element {
     };
   }, [open]);
 
+  // @MX:NOTE: [AUTO] SPEC-UI-007/SPEC-AI-008 후속(실기기 결함): 열림 시 다음 프레임에 피커·앵커 rect
+  // 를 측정해 실효 클리핑 경계(에디터 패널) 안으로 flip→clamp 한 오프셋을 계산한다. 경계는 창이 아니라
+  // getClipBoundary 이며, 우측 정렬로 뒤집어도 경계를 넘으면 경계 안으로 민다(DiagramInsertMenu 동일).
+  // @MX:SPEC: SPEC-AI-008
+  useEffect(() => {
+    if (!open) {
+      setOffset(null);
+      return;
+    }
+    const raf = requestAnimationFrame(() => {
+      const el = pickerRef.current;
+      const wrap = wrapperRef.current;
+      if (!el || !wrap) return;
+      const anchor = wrap.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      setOffset(
+        computeDropdownOffset(
+          { left: anchor.left, top: anchor.top, right: anchor.right, bottom: anchor.bottom },
+          { width: r.width, height: r.height },
+          getClipBoundary(el),
+          0, // 표 피커는 앵커 바로 아래(간격 없음, 기존 top-full).
+        ),
+      );
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+
   const handleCellClick = (rows: number, cols: number): void => {
     onInsertTable?.(rows, cols);
     setOpen(false);
@@ -159,7 +194,11 @@ function TableGridPicker({ onInsertTable }: TableGridPickerProps): JSX.Element {
       </button>
 
       {open && (
-        <div className="md-table-picker absolute left-0 top-full z-50">
+        <div
+          ref={pickerRef}
+          className="md-table-picker absolute z-50"
+          style={offset ? { left: offset.left, top: offset.top } : { left: 0, top: '100%' }}
+        >
           <div className="md-table-picker-grid" onMouseLeave={() => setHovered(null)}>
             {rows.map((r) => (
               <div key={r} className="md-table-picker-row">
@@ -210,7 +249,11 @@ interface DiagramInsertMenuProps {
 // @MX:SPEC: SPEC-UI-008
 function DiagramInsertMenu({ onInsertDiagram }: DiagramInsertMenuProps): JSX.Element {
   const [open, setOpen] = useState(false);
+  // 좁은 창/좁은 패널에서 드롭다운이 실효 클리핑 경계(에디터 패널)를 넘으면 flip→clamp 한 오프셋을
+  // inline 으로 적용한다(측정 전에는 null=기본 left-0/top-full+간격).
+  const [offset, setOffset] = useState<{ left: number; top: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
@@ -236,6 +279,33 @@ function DiagramInsertMenu({ onInsertDiagram }: DiagramInsertMenuProps): JSX.Ele
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
+  }, [open]);
+
+  // @MX:NOTE: [AUTO] SPEC-UI-008/SPEC-AI-008 후속(실기기 결함): 열림 시 다음 프레임에 드롭다운·앵커
+  // rect 를 측정해 실효 클리핑 경계(에디터 패널) 안으로 flip→clamp 한 오프셋을 계산한다(TableGridPicker
+  // 동일 패턴). 경계는 창이 아니라 getClipBoundary 이며, 우측 정렬로 뒤집어도 넘으면 경계 안으로 민다.
+  // @MX:SPEC: SPEC-AI-008
+  useEffect(() => {
+    if (!open) {
+      setOffset(null);
+      return;
+    }
+    const raf = requestAnimationFrame(() => {
+      const el = menuRef.current;
+      const wrap = wrapperRef.current;
+      if (!el || !wrap) return;
+      const anchor = wrap.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      setOffset(
+        computeDropdownOffset(
+          { left: anchor.left, top: anchor.top, right: anchor.right, bottom: anchor.bottom },
+          { width: r.width, height: r.height },
+          getClipBoundary(el),
+          DIAGRAM_MENU_GAP, // 앵커 아래 4px 간격(기존 mt-1).
+        ),
+      );
+    });
+    return () => cancelAnimationFrame(raf);
   }, [open]);
 
   const handleSelect = (preset: DiagramPreset): void => {
@@ -274,7 +344,13 @@ function DiagramInsertMenu({ onInsertDiagram }: DiagramInsertMenuProps): JSX.Ele
       </button>
 
       {open && (
-        <div className="md-menu absolute left-0 top-full z-50 mt-1" role="menu" onKeyDown={handleMenuKeyDown}>
+        <div
+          ref={menuRef}
+          className="md-menu absolute z-50"
+          style={offset ? { left: offset.left, top: offset.top } : { left: 0, top: 'calc(100% + 4px)' }}
+          role="menu"
+          onKeyDown={handleMenuKeyDown}
+        >
           {DIAGRAM_PRESETS.map((def, i) => {
             const Icon = DIAGRAM_ICONS[def.preset];
             return (

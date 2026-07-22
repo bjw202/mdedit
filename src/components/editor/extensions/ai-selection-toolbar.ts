@@ -11,8 +11,10 @@ import type { Extension } from '@codemirror/state';
 import { evaluateSelectionGuard, formatCharCount, EDIT_LIMIT } from './ai-length-guard';
 import type { AiPresetKind } from './ai-length-guard';
 import { aiRequest, ipcErrorMessage } from '@/lib/tauri/ipc';
-import type { AiModel, AiRequestArgs } from '@/lib/tauri/ipc';
+import type { AiModel, AiRequestArgs, DiagramType } from '@/lib/tauri/ipc';
 import type { AiFeature } from '@/store/aiStore';
+import { DIAGRAM_ICON_INNER } from '@/components/icons/diagramIconMarkup';
+import { getClipBoundary, computeFlyoutOffset } from '@/lib/ui/menuPlacement';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
 import { getEffectiveAiEnabled } from '@/store/aiPolicy';
@@ -79,6 +81,8 @@ export interface BuildSelectionRequestInput {
   to?: number;
   /** range 의 원문 스냅샷. 생략 시 selection. */
   originalText?: string;
+  /** SPEC-AI-008: diagram 프리셋에서 고른 종류 제약. "자동"은 생략. */
+  diagramType?: DiagramType;
 }
 
 /** 문단 경계로 잘라낸 선택 + 앞뒤 컨텍스트(설계 §7 인라인 편집). */
@@ -179,6 +183,10 @@ export function buildSelectionRequest(input: BuildSelectionRequestInput): AiSele
   if (input.presetKind === 'custom' && input.customInstruction) {
     args.customInstruction = input.customInstruction;
   }
+  // SPEC-AI-008: diagram 종류 제약은 diagram 프리셋 + 종류 선택 시에만 실린다("자동"은 생략).
+  if (input.presetKind === 'diagram' && input.diagramType) {
+    args.diagramType = input.diagramType;
+  }
   const from = input.from ?? 0;
   const to = input.to ?? input.selection.length;
   return {
@@ -250,12 +258,69 @@ export function generateRequestId(): string {
 // ============================================================
 
 export interface PresetMenuCallbacks {
-  /** 활성 프리셋 선택(비활성 항목 클릭은 무시). */
-  onSelectPreset: (kind: AiPresetKind) => void;
+  /**
+   * 활성 프리셋 선택(비활성 항목 클릭은 무시). SPEC-AI-008: diagram 은 서브메뉴에서 종류를
+   * 골라 선택되며, "자동"은 diagramType 없이, 종류는 diagramType 을 실어 호출한다.
+   */
+  onSelectPreset: (kind: AiPresetKind, diagramType?: DiagramType) => void;
   /** 직접 입력 제출(trim 후 비어있지 않을 때만). */
   onSubmitCustom: (instruction: string) => void;
   /** 프리셋 목록에서 Esc / 외부 클릭으로 닫기. */
   onClose: () => void;
+}
+
+// @MX:NOTE: [AUTO] SPEC-AI-008 다이어그램 플라이아웃 서브메뉴 항목(8개 고정). "자동 (AI 판단)"이
+// 첫 항목·기본(종류 없음=오늘 동작), 이어 7종. 라벨은 SPEC-UI-008 수동 삽입 라벨을 재사용하고,
+// 아이콘은 diagramIconMarkup 단일 소스를 명령형 DOM 으로 주입한다(REQ-001/002/004/023).
+// @MX:SPEC: SPEC-AI-008
+const DIAGRAM_SUBMENU_DEFS: readonly { type: DiagramType | null; label: string }[] = [
+  { type: null, label: '자동 (AI 판단)' },
+  { type: 'flowchart', label: '순서도' },
+  { type: 'sequenceDiagram', label: '시퀀스 다이어그램' },
+  { type: 'gantt', label: '간트 차트' },
+  { type: 'classDiagram', label: '클래스 다이어그램' },
+  { type: 'stateDiagram', label: '상태 다이어그램' },
+  { type: 'pie', label: '파이 차트' },
+  { type: 'mindmap', label: '마인드맵' },
+];
+
+/** 플라이아웃과 앵커(wrap) 사이 간격(px) — CSS margin var(--md-space-1) 과 동일. */
+const SUBMENU_GAP = 4;
+
+// @MX:NOTE: [AUTO] SPEC-AI-008 후속(실기기 결함): 좁은/넓은 창 모두에서 클리핑 경계 인지 배치.
+// 기본은 부모 메뉴 오른쪽·상단 정렬로 열고, 레이아웃 커밋 다음 프레임(rAF)에 측정한다. 경계는 창이
+// 아니라 실효 클리핑 경계(getClipBoundary, 에디터 패널 overflow:hidden) — 넓은 창이라도 패널 밖으로
+// 잘린다. 측 선택(flip)만으로는 부족해(뒤집어도 반대편 경계를 넘을 수 있음), computeFlyoutOffset 이
+// flip→clamp 를 한 번에 계산한 오프셋을 inline style 로 적용한다. 경계가 서브메뉴보다 작으면
+// max-height + overflow-y 로 스크롤 가드를 건다.
+// @MX:SPEC: SPEC-AI-008
+function scheduleSubmenuFlipMeasurement(sub: HTMLElement, trigger: HTMLElement): void {
+  requestAnimationFrame(() => {
+    // 앵커=서브메뉴의 containing block(=offsetParent, .mdedit-ai-diagram-wrap). 없으면 트리거 부모.
+    const anchorEl = (sub.offsetParent as HTMLElement | null) ?? trigger.parentElement;
+    if (!anchorEl) return;
+    const anchor = anchorEl.getBoundingClientRect();
+    const subRect = sub.getBoundingClientRect();
+    const clip = getClipBoundary(sub);
+    const off = computeFlyoutOffset(
+      { left: anchor.left, top: anchor.top, right: anchor.right, bottom: anchor.bottom },
+      { width: subRect.width, height: subRect.height },
+      clip,
+      SUBMENU_GAP,
+    );
+    sub.style.left = `${off.left}px`;
+    sub.style.top = `${off.top}px`;
+    sub.style.right = 'auto';
+    sub.style.bottom = 'auto';
+    sub.style.marginLeft = '0';
+    sub.style.marginRight = '0';
+    // 경계가 서브메뉴보다 낮으면(담을 수 없음) 스크롤 가드로 잘림 대신 스크롤.
+    const availH = clip.bottom - clip.top;
+    if (subRect.height > availH) {
+      sub.style.maxHeight = `${Math.max(0, availH)}px`;
+      sub.style.overflowY = 'auto';
+    }
+  });
 }
 
 export interface PresetMenuOptions {
@@ -396,7 +461,79 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
 
   let mode: 'presets' | 'custom-input' = 'presets';
 
+  // @MX:NOTE: [AUTO] SPEC-AI-008: 다이어그램 플라이아웃 서브메뉴 상태(명령형 DOM). diagram 항목
+  // hover/클릭이 이 서브메뉴를 열고, Esc 는 서브메뉴만 닫아 목록으로 복귀한다. 외부 mousedown/
+  // 메뉴 파기(destroy)는 위젯 경로가 dom 을 제거하므로 서브메뉴도 함께 사라진다(리스너 누수 없음).
+  // @MX:SPEC: SPEC-AI-008
+  let diagramSubmenu: HTMLElement | null = null;
+  let diagramTrigger: HTMLButtonElement | null = null;
+
+  const buildDiagramIcon = (type: DiagramType): SVGSVGElement => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '15');
+    svg.setAttribute('height', '15');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.5');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    // 단일 소스 마크업 주입(REQ-023) — path 데이터를 여기 다시 타이핑하지 않는다.
+    svg.innerHTML = DIAGRAM_ICON_INNER[type];
+    return svg;
+  };
+
+  const closeDiagramSubmenu = (returnFocus = false): void => {
+    diagramSubmenu?.remove();
+    diagramSubmenu = null;
+    if (diagramTrigger) {
+      diagramTrigger.setAttribute('aria-expanded', 'false');
+      if (returnFocus) diagramTrigger.focus();
+    }
+  };
+
+  const openDiagramSubmenu = (): void => {
+    if (diagramSubmenu || !diagramTrigger) return;
+    const sub = document.createElement('div');
+    sub.className = 'mdedit-ai-diagram-submenu';
+    DIAGRAM_SUBMENU_DEFS.forEach((def) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'mdedit-ai-diagram-submenu-item';
+      item.setAttribute('aria-label', def.label);
+      if (def.type === null) {
+        item.dataset.diagramAuto = 'true';
+      } else {
+        item.dataset.diagramType = def.type;
+        item.appendChild(buildDiagramIcon(def.type));
+      }
+      const labelEl = document.createElement('span');
+      labelEl.className = 'mdedit-ai-diagram-submenu-label';
+      labelEl.textContent = def.label;
+      item.appendChild(labelEl);
+      // "자동" → 종류 없이 발행(REQ-008), 종류 → diagramType 실어 발행(REQ-009).
+      item.addEventListener('click', () => {
+        callbacks.onSelectPreset('diagram', def.type ?? undefined);
+      });
+      sub.appendChild(item);
+    });
+    diagramTrigger.parentElement?.appendChild(sub);
+    diagramTrigger.setAttribute('aria-expanded', 'true');
+    diagramSubmenu = sub;
+    // 좁은 창에서 오른쪽/아래로 잘리면 왼쪽 열림·위로 끌어올림으로 뒤집는다(다음 프레임 측정).
+    scheduleSubmenuFlipMeasurement(sub, diagramTrigger);
+  };
+
+  const toggleDiagramSubmenu = (): void => {
+    if (diagramSubmenu) closeDiagramSubmenu();
+    else openDiagramSubmenu();
+  };
+
   const renderPresets = (): void => {
+    // 재렌더는 이전 서브메뉴 DOM/참조를 버린다 — 상태를 초기화하고 트리거를 새로 바인딩한다.
+    diagramSubmenu = null;
+    diagramTrigger = null;
     dom.replaceChildren();
 
     // REQ-AI7-001/002/003/005: 가드가 현재 선택에 영향을 주는 구간에서만 항상-보이는 안내 줄을
@@ -430,6 +567,24 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
         btn.title = item.reason;
         btn.setAttribute('aria-disabled', 'true');
       }
+
+      // SPEC-AI-008: diagram 항목은 즉시 발행이 아니라 종류 플라이아웃 서브메뉴를 연다.
+      if (item.kind === 'diagram') {
+        btn.setAttribute('aria-haspopup', 'true');
+        btn.setAttribute('aria-expanded', 'false');
+        const wrap = document.createElement('div');
+        wrap.className = 'mdedit-ai-diagram-wrap';
+        wrap.appendChild(btn);
+        if (!item.disabled) {
+          diagramTrigger = btn;
+          // hover 시 열림(REQ-006), 클릭 토글(REQ-007) — 클릭은 즉시 발행하지 않는다.
+          btn.addEventListener('mouseenter', () => openDiagramSubmenu());
+          btn.addEventListener('click', () => toggleDiagramSubmenu());
+        }
+        list.appendChild(wrap);
+        return;
+      }
+
       btn.addEventListener('click', () => {
         if (item.disabled) return;
         if (item.kind === 'custom') {
@@ -481,6 +636,12 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
 
   const handleKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape') return;
+    // SPEC-AI-008: 서브메뉴가 열려 있으면 서브메뉴만 닫고 목록으로 복귀(툴바 유지, REQ-011).
+    if (diagramSubmenu) {
+      event.stopPropagation();
+      closeDiagramSubmenu(true);
+      return;
+    }
     if (mode === 'custom-input') {
       // Esc / ← 는 프리셋 목록으로 복귀(설계 §4.1) — 메뉴를 닫지 않는다.
       event.stopPropagation();
@@ -500,6 +661,8 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
   return {
     dom,
     destroy: () => {
+      // SPEC-AI-008: 열린 서브메뉴도 함께 정리(REQ-015, 누수 없음).
+      closeDiagramSubmenu();
       dom.removeEventListener('keydown', handleKeyDown);
       dom.remove();
     },
@@ -567,7 +730,11 @@ export class AiSparkleWidget extends WidgetType {
       connectHint = null;
     };
 
-    const fire = (presetKind: AiPresetKind, customInstruction?: string): void => {
+    const fire = (
+      presetKind: AiPresetKind,
+      customInstruction?: string,
+      diagramType?: DiagramType,
+    ): void => {
       const sel = this.ctx.getSelection();
       if (!sel) return;
       const model = resolveModel(this.ctx.getUiState());
@@ -579,6 +746,7 @@ export class AiSparkleWidget extends WidgetType {
         contextAfter: sel.contextAfter,
         model,
         customInstruction,
+        diagramType,
         from: sel.from,
         to: sel.to,
         originalText: sel.originalText,
@@ -609,7 +777,8 @@ export class AiSparkleWidget extends WidgetType {
       menu = createPresetMenu({
         selectionLength,
         callbacks: {
-          onSelectPreset: (kind) => fire(kind),
+          // SPEC-AI-008: diagram 서브메뉴에서 온 종류를 그대로 실어 발행한다("자동"=undefined).
+          onSelectPreset: (kind, diagramType) => fire(kind, undefined, diagramType),
           onSubmitCustom: (instruction) => fire('custom', instruction),
           onClose: closeMenu,
         },

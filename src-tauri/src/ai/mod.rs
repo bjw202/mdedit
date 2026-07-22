@@ -9,7 +9,10 @@ pub mod stream;
 
 use crate::state::app_state::{AppState, InFlightRequest};
 use claude_cli::{claim_terminal, ErrorPayload};
-use prompt::{build_continue_prompt_with_length, build_inline_prompt, build_section_prompt, AiFeature, ContinueLength};
+use prompt::{
+    build_continue_prompt_with_length, build_inline_prompt_with_diagram_type, build_section_prompt,
+    AiFeature, ContinueLength,
+};
 use provider::{AiModel, AiRequest, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -104,6 +107,12 @@ pub struct AiRequestArgs {
     /// 에서만 반영되고 그 외 분기(인라인·섹션 채우기)는 무영향이다.
     #[serde(default)]
     pub length: Option<String>,
+    // @MX:NOTE: [AUTO] SPEC-AI-008 REQ-009/010: AI 다이어그램 종류 제약. `#[serde(default)]` 로
+    // 하위호환(자동=필드 생략=None). 공유 인라인 조립 호출에 전달되어 feature 가 Diagram 일 때만
+    // 종류 조각을 부착한다(prompt.rs 게이팅). 비-diagram 분기에는 영향이 없다.
+    // @MX:SPEC: SPEC-AI-008
+    #[serde(default)]
+    pub diagram_type: Option<String>,
 }
 
 /// AI 요청을 시작한다 — 정책 확인 → 프롬프트 조립 → in-flight 교체 → 스폰 → 릴레이(REQ-AI-002/004/006).
@@ -144,7 +153,15 @@ pub fn ai_request(
             };
             build_continue_prompt_with_length(outline, before, after, length)
         }
-        _ => build_inline_prompt(&feature, selection, before, after),
+        // SPEC-AI-008: 공유 인라인 조립 경로에 diagram_type 을 전달한다. 조각 부착은
+        // build_inline_prompt_with_diagram_type 내부에서 feature 가 Diagram 일 때만 일어난다.
+        _ => build_inline_prompt_with_diagram_type(
+            &feature,
+            selection,
+            before,
+            after,
+            args.diagram_type.as_deref(),
+        ),
     };
     let truncated = assembled.truncated;
 
@@ -410,6 +427,31 @@ mod tests {
         let json = r#"{"requestId":"r1","feature":"polish","selection":"안녕"}"#;
         let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
         assert!(args.length.is_none());
+    }
+
+    // --- SPEC-AI-008: 다이어그램 종류(diagramType) IPC 필드 (REQ-009/010, AC-005/006) ---
+
+    #[test]
+    fn request_args_deserialize_diagram_type_camel_case() {
+        // 종류를 실은 다이어그램 요청: camelCase diagramType → snake_case diagram_type.
+        let json = r#"{
+            "requestId":"d1","feature":"diagram","presetKind":"diagram","model":"haiku",
+            "selection":"절차 설명","diagramType":"gantt"
+        }"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(args.diagram_type.as_deref(), Some("gantt"));
+        assert_eq!(
+            AiFeature::resolve(&args.feature, args.preset_kind.as_deref(), None),
+            Ok(AiFeature::Diagram)
+        );
+    }
+
+    #[test]
+    fn request_args_diagram_type_absent_defaults_to_none() {
+        // 자동(종류 없음)·비-diagram 요청은 필드 생략 → None(하위호환).
+        let json = r#"{"requestId":"r1","feature":"polish","selection":"안녕"}"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert!(args.diagram_type.is_none());
     }
 
     #[test]

@@ -160,6 +160,11 @@ export type DiagramPreset =
   | 'mindmap'
   | 'custom';
 
+// @MX:NOTE: [AUTO] SPEC-AI-008: AI 다이어그램 종류 선택 union — 수동 삽입 DiagramPreset 에서
+// 'custom'(빈 펜스)을 제외한 7종. AI 생성 프롬프트 종류 제약(diagramType)이 이 키를 실어 보낸다.
+// @MX:SPEC: SPEC-AI-008
+export type DiagramType = Exclude<DiagramPreset, 'custom'>;
+
 export interface DiagramPresetDef {
   /** stable preset key (union member) */
   preset: DiagramPreset;

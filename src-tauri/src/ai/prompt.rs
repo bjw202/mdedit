@@ -167,12 +167,63 @@ pub fn truncate_tail_at_paragraph(text: &str, max_chars: usize) -> (String, bool
     }
 }
 
+// @MX:NOTE: [AUTO] SPEC-AI-008: 다이어그램 종류(diagramType) → mermaid 종류 강제 조각.
+// feature 가 Diagram 이고 종류가 실렸을 때만 build_inline_prompt_with_diagram_type 가 부착한다.
+// 미지의 종류는 None(자동)으로 관대 처리한다. 첫 줄 키워드는 spec.md "Diagram Type Prompt
+// Fragments" 표의 값이다(stateDiagram → `stateDiagram-v2`).
+// @MX:SPEC: SPEC-AI-008
+fn diagram_type_fragment(diagram_type: &str) -> Option<&'static str> {
+    match diagram_type {
+        "flowchart" => Some(
+            "반드시 mermaid 순서도만 생성하라. 출력 첫 줄은 `flowchart` 키워드로 시작해야 한다.",
+        ),
+        "sequenceDiagram" => Some(
+            "반드시 mermaid 시퀀스 다이어그램만 생성하라. 출력 첫 줄은 `sequenceDiagram` 키워드로 시작해야 한다.",
+        ),
+        "gantt" => Some(
+            "반드시 mermaid 간트 차트만 생성하라. 출력 첫 줄은 `gantt` 키워드로 시작해야 한다.",
+        ),
+        "classDiagram" => Some(
+            "반드시 mermaid 클래스 다이어그램만 생성하라. 출력 첫 줄은 `classDiagram` 키워드로 시작해야 한다.",
+        ),
+        "stateDiagram" => Some(
+            "반드시 mermaid 상태 다이어그램만 생성하라. 출력 첫 줄은 `stateDiagram-v2` 키워드로 시작해야 한다.",
+        ),
+        "pie" => Some(
+            "반드시 mermaid 파이 차트만 생성하라. 출력 첫 줄은 `pie` 키워드로 시작해야 한다.",
+        ),
+        "mindmap" => Some(
+            "반드시 mermaid 마인드맵만 생성하라. 출력 첫 줄은 `mindmap` 키워드로 시작해야 한다.",
+        ),
+        _ => None,
+    }
+}
+
 /// 인라인 편집(축 1) 프롬프트를 조립한다. 선택 텍스트는 절단하지 않는다(REQ-AI-027).
+/// 기존 4인자 시그니처는 종류 없음(None)으로 위임한다 — 바이트 동일 하위호환.
 pub fn build_inline_prompt(
     feature: &AiFeature,
     selection: &str,
     before: &str,
     after: &str,
+) -> AssembledPrompt {
+    build_inline_prompt_with_diagram_type(feature, selection, before, after, None)
+}
+
+// @MX:NOTE: [AUTO] SPEC-AI-008 REQ-010/025: 공유 인라인 조립 경로 내 diagram 전용 종류 게이팅.
+// `matches!(feature, AiFeature::Diagram)` 이고 diagram_type 이 있을 때만 종류 조각을 조립
+// system_prompt 뒤에 덧붙인다. None 또는 비-diagram 이면 현행 조립 결과와 바이트 동일 —
+// 비-diagram 5기능 hot path 는 침범하지 않는다(build_continue_prompt_with_length 위임 선례와 동형).
+// @MX:SPEC: SPEC-AI-008
+/// 인라인 편집 프롬프트를 조립하되, feature 가 Diagram 이고 `diagram_type` 이 있으면 그 mermaid
+/// 종류를 강제하는 제약 조각을 조립 시스템 프롬프트에 덧붙인다. `diagram_type=None`(자동) 또는
+/// 비-diagram feature 이면 조각을 부착하지 않아 `build_inline_prompt`(4인자)와 바이트 동일하다.
+pub fn build_inline_prompt_with_diagram_type(
+    feature: &AiFeature,
+    selection: &str,
+    before: &str,
+    after: &str,
+    diagram_type: Option<&str>,
 ) -> AssembledPrompt {
     let (before_ctx, before_cut) = truncate_tail_at_paragraph(before, INLINE_SIDE_MAX);
     let (after_ctx, after_cut) = truncate_head_at_paragraph(after, INLINE_SIDE_MAX);
@@ -190,10 +241,18 @@ pub fn build_inline_prompt(
         user_prompt.push_str(after_ctx.trim());
     }
 
+    // SPEC-AI-006 D1: INLINE_SCOPE 는 이 조립 지점에서만 부착된다(6기능 균일 커버, Custom
+    // 포함 — Custom::system_prompt() 는 조기 return 하지만 여기서 뒤에 이어붙이므로 영향받는다).
+    let mut system_prompt = format!("{}\n\n{}", feature.system_prompt(), INLINE_SCOPE);
+    // SPEC-AI-008: diagram 전용 종류 게이팅 — 종류가 있고 유효할 때만 조각을 덧붙인다.
+    if matches!(feature, AiFeature::Diagram) {
+        if let Some(fragment) = diagram_type.and_then(diagram_type_fragment) {
+            system_prompt = format!("{}\n\n{}", system_prompt, fragment);
+        }
+    }
+
     AssembledPrompt {
-        // SPEC-AI-006 D1: INLINE_SCOPE 는 이 조립 지점에서만 부착된다(6기능 균일 커버, Custom
-        // 포함 — Custom::system_prompt() 는 조기 return 하지만 여기서 뒤에 이어붙이므로 영향받는다).
-        system_prompt: format!("{}\n\n{}", feature.system_prompt(), INLINE_SCOPE),
+        system_prompt,
         user_prompt,
         truncated: before_cut || after_cut,
     }
@@ -785,4 +844,117 @@ mod tests {
         assert!(prompt.system_prompt.contains("금지"));
         assert!(prompt.system_prompt.contains("짧게"));
     }
+
+    // --- SPEC-AI-008 T-001: Pre-RED 특성화 스냅샷 (diagram 종류 게이팅 회귀 기준선) ---
+
+    /// 변경 전 diagram(자동/None) 조립 시스템 프롬프트의 바이트 동일 기준선(AC-AI-008-004).
+    /// diagram_type 게이팅 배선 후에도 `diagram_type=None`이면 이 문자열과 바이트 동일해야 한다.
+    const DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT: &str = "주어진 절차·관계 설명을 mermaid 다이어그램으로 변환하라. 순수 mermaid 문법 코드만 출력하고, ```mermaid 코드펜스나 다른 설명 문구 없이 다이어그램 코드만 그대로 출력하라. 출력은 graph·flowchart·sequenceDiagram 등 mermaid 키워드로 시작해야 하며, 백틱 문자는 한 글자도 포함하지 말라.\n\n결과 텍스트만 출력하라. 설명·인사·사족을 붙이지 말라. 마크다운 코드펜스는 요청받은 경우에만 사용하라.\n\n오직 [대상] 텍스트만 변환·정리하라. [앞 문맥]과 [뒤 문맥]은 이해를 돕는 읽기 전용 참고 자료일 뿐이니 결과에 포함하거나 이어 쓰지 말라. 결과는 입력 텍스트의 언어를 그대로 유지하라.";
+
+    #[test]
+    fn diagram_none_assembled_prompt_matches_prechange_snapshot() {
+        // AC-AI-008-004: 자동(종류 없음) 경로는 게이팅 배선 전후 바이트 동일.
+        let p = build_inline_prompt(&AiFeature::Diagram, "S", "", "");
+        assert_eq!(p.system_prompt, DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT);
+    }
+
+    // --- SPEC-AI-008 T-005: diagram 종류 게이팅 + 조각 (REQ-010/018/025, AC-004/006/014) ---
+
+    #[test]
+    fn diagram_type_injects_fragment_with_first_line_keyword() {
+        // AC-006: 7종 각각 종류 조각 + 첫 줄 키워드(표)가 조립 프롬프트에 포함된다.
+        let cases = [
+            ("flowchart", "flowchart", "순서도"),
+            ("sequenceDiagram", "sequenceDiagram", "시퀀스"),
+            ("gantt", "gantt", "간트"),
+            ("classDiagram", "classDiagram", "클래스"),
+            ("stateDiagram", "stateDiagram-v2", "상태"),
+            ("pie", "pie", "파이"),
+            ("mindmap", "mindmap", "마인드맵"),
+        ];
+        for (dt, keyword, kind_word) in cases {
+            let p = build_inline_prompt_with_diagram_type(&AiFeature::Diagram, "S", "", "", Some(dt));
+            assert!(
+                p.system_prompt.contains(&format!("`{}`", keyword)),
+                "{} missing first-line keyword `{}`: {}",
+                dt,
+                keyword,
+                p.system_prompt
+            );
+            assert!(p.system_prompt.contains(kind_word), "{} missing kind word", dt);
+            // 종류 조각은 자동 조립 결과(스냅샷) 뒤에 덧붙는다(기존 지시 보존).
+            assert!(p.system_prompt.starts_with(DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT));
+        }
+    }
+
+    #[test]
+    fn seven_diagram_type_fragments_are_distinct() {
+        let types = [
+            "flowchart",
+            "sequenceDiagram",
+            "gantt",
+            "classDiagram",
+            "stateDiagram",
+            "pie",
+            "mindmap",
+        ];
+        let mut set = std::collections::HashSet::new();
+        for dt in types {
+            let p = build_inline_prompt_with_diagram_type(&AiFeature::Diagram, "S", "", "", Some(dt));
+            assert!(set.insert(p.system_prompt), "{} fragment not distinct", dt);
+        }
+    }
+
+    #[test]
+    fn diagram_type_none_is_byte_identical_to_legacy_assembly() {
+        // AC-004: 자동(None) → 기존 4인자 조립과 바이트 동일 + Pre-RED 스냅샷과 동일.
+        let with = build_inline_prompt_with_diagram_type(&AiFeature::Diagram, "S", "b", "a", None);
+        let legacy = build_inline_prompt(&AiFeature::Diagram, "S", "b", "a");
+        assert_eq!(with, legacy);
+        assert_eq!(with.system_prompt, DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT);
+    }
+
+    #[test]
+    fn diagram_type_ignored_for_non_diagram_features() {
+        // REQ-025: 종류가 비-diagram feature 로 새어도 조립 프롬프트는 바이트 동일(엄격 게이팅).
+        for feature in [
+            AiFeature::Polish,
+            AiFeature::Outline,
+            AiFeature::Table,
+            AiFeature::Shorten,
+            AiFeature::Custom("x".to_string()),
+        ] {
+            let gated = build_inline_prompt_with_diagram_type(&feature, "S", "", "", Some("gantt"));
+            let legacy = build_inline_prompt(&feature, "S", "", "");
+            assert_eq!(gated, legacy, "{:?} drifted with diagram_type", feature);
+        }
+    }
+
+    #[test]
+    fn unknown_diagram_type_falls_back_to_auto_byte_identical() {
+        // 미지의 종류 값 → 조각 미부착 = 자동과 동일(관대 처리, Design Notes).
+        let p =
+            build_inline_prompt_with_diagram_type(&AiFeature::Diagram, "S", "", "", Some("erDiagram"));
+        assert_eq!(p.system_prompt, DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT);
+    }
+
+    #[test]
+    fn all_five_non_diagram_features_assembled_prompt_snapshot() {
+        // AC-AI-008-014/REQ-025: 비-diagram 5기능(polish/outline/table/shorten/custom) 조립
+        // 프롬프트를 조립 공식(system_prompt()+"\n\n"+INLINE_SCOPE)으로 고정한다. diagram 종류
+        // 게이팅을 공유 경로에 배선한 뒤에도 이 5기능은 바이트 동일해야 한다(공유 hot path 회귀 가드).
+        for feature in [
+            AiFeature::Polish,
+            AiFeature::Outline,
+            AiFeature::Table,
+            AiFeature::Shorten,
+            AiFeature::Custom("영어로 번역".to_string()),
+        ] {
+            let p = build_inline_prompt(&feature, "S", "", "");
+            let expected = format!("{}\n\n{}", feature.system_prompt(), INLINE_SCOPE);
+            assert_eq!(p.system_prompt, expected, "{:?} assembled prompt drifted", feature);
+        }
+    }
 }
+
+

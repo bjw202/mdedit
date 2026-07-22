@@ -5,6 +5,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { FileNode } from '@/types/file';
 import type { AiFeature } from '@/store/aiStore';
+import type { DiagramType } from '@/components/editor/extensions/keyboard-shortcuts';
+
+export type { DiagramType };
 
 /**
  * Reads a file and returns its content as a UTF-8 string.
@@ -208,6 +211,12 @@ export interface AiRequestArgs {
    * 실어 보낸다 — 섹션 채우기·인라인 변환에는 영향을 주지 않는다.
    */
   length?: 'short' | 'normal';
+  /**
+   * SPEC-AI-008 REQ-009/010: AI 다이어그램 종류 제약(7종). 다이어그램 서브메뉴에서 종류를
+   * 고르면 실린다 — "자동"은 필드 생략(하위호환). Rust `diagram_type`(`#[serde(default)]`)로
+   * 매핑되어 feature 가 diagram 일 때만 프롬프트에 종류 조각을 부착한다.
+   */
+  diagramType?: DiagramType;
 }
 
 /** ai_detect_providers 결과 항목 — 설치·버전 + 로그인 선제 판정(설계 §8.1, REQ-AI-012). */
