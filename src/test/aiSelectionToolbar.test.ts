@@ -1004,6 +1004,109 @@ describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
   });
 });
 
+// SPEC-AI-008 후속(실기기 결함): 좁은 창에서 플라이아웃 서브메뉴가 화면 밖으로 잘린다.
+// jsdom 은 레이아웃이 없으므로 getBoundingClientRect + innerWidth/Height 를 목킹해 좁은 창
+// 지오메트리를 재현하고, 열림 시 rAF 측정으로 뒤집힘 클래스가 토글되는지 검증한다(BUG-9/BUG-2 선례).
+describe('createPresetMenu: diagram submenu viewport-aware placement (SPEC-AI-008 narrow-window fix)', () => {
+  const rafCallbacks: FrameRequestCallback[] = [];
+
+  beforeEach(() => {
+    rafCallbacks.length = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function flushRaf(): void {
+    const cbs = rafCallbacks.splice(0, rafCallbacks.length);
+    cbs.forEach((cb) => cb(0));
+  }
+
+  function rect(partial: Partial<DOMRect>): DOMRect {
+    return {
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      width: 0,
+      height: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+      ...partial,
+    } as DOMRect;
+  }
+
+  async function openSubmenu() {
+    const mod = await import('@/components/editor/extensions/ai-selection-toolbar');
+    const callbacks = { onSelectPreset: vi.fn(), onSubmitCustom: vi.fn(), onClose: vi.fn() };
+    const menu = mod.createPresetMenu({ selectionLength: 100, callbacks });
+    document.body.appendChild(menu.dom);
+    const trigger = menu.dom.querySelector<HTMLButtonElement>('[data-preset="diagram"]')!;
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const sub = menu.dom.querySelector<HTMLElement>('.mdedit-ai-diagram-submenu')!;
+    return { menu, trigger, sub };
+  }
+
+  it('keeps the default placement (no flip classes) when the submenu fits', async () => {
+    const { menu, trigger, sub } = await openSubmenu();
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(
+      rect({ left: 100, right: 300, top: 100, bottom: 124, height: 24 }),
+    );
+    vi.spyOn(sub, 'getBoundingClientRect').mockReturnValue(
+      rect({ left: 300, right: 480, top: 100, bottom: 340, width: 180, height: 240 }),
+    );
+    Object.defineProperty(window, 'innerWidth', { value: 1000, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+
+    flushRaf();
+
+    expect(sub.classList.contains('mdedit-ai-diagram-submenu--left')).toBe(false);
+    expect(sub.classList.contains('mdedit-ai-diagram-submenu--up')).toBe(false);
+    menu.destroy();
+  });
+
+  it('flips to open leftward when the submenu overflows the right edge (narrow window)', async () => {
+    const { menu, trigger, sub } = await openSubmenu();
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(
+      rect({ left: 360, right: 540, top: 100, bottom: 124, height: 24 }),
+    );
+    // default (rightward) position would put the submenu at 540..720 — beyond a 600px viewport.
+    vi.spyOn(sub, 'getBoundingClientRect').mockReturnValue(
+      rect({ left: 540, right: 720, top: 100, bottom: 340, width: 180, height: 240 }),
+    );
+    Object.defineProperty(window, 'innerWidth', { value: 600, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+
+    flushRaf();
+
+    expect(sub.classList.contains('mdedit-ai-diagram-submenu--left')).toBe(true);
+    menu.destroy();
+  });
+
+  it('shifts up when the submenu overflows the bottom edge', async () => {
+    const { menu, trigger, sub } = await openSubmenu();
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(
+      rect({ left: 100, right: 300, top: 700, bottom: 724, height: 24 }),
+    );
+    vi.spyOn(sub, 'getBoundingClientRect').mockReturnValue(
+      rect({ left: 300, right: 480, top: 700, bottom: 940, width: 180, height: 240 }),
+    );
+    Object.defineProperty(window, 'innerWidth', { value: 1000, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+
+    flushRaf();
+
+    expect(sub.classList.contains('mdedit-ai-diagram-submenu--up')).toBe(true);
+    menu.destroy();
+  });
+});
+
 // SPEC-AI-008: 위젯 경유로 종류가 요청 args 에 실리는지(자동=미포함).
 describe('AiSparkleWidget: diagram type carried into onRequest (SPEC-AI-008)', () => {
   function makeCtx(overrides: Record<string, unknown> = {}) {

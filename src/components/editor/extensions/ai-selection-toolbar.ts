@@ -14,6 +14,7 @@ import { aiRequest, ipcErrorMessage } from '@/lib/tauri/ipc';
 import type { AiModel, AiRequestArgs, DiagramType } from '@/lib/tauri/ipc';
 import type { AiFeature } from '@/store/aiStore';
 import { DIAGRAM_ICON_INNER } from '@/components/icons/diagramIconMarkup';
+import { wouldOverflowRight, wouldOverflowBottom } from '@/lib/ui/menuPlacement';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
 import { getEffectiveAiEnabled } from '@/store/aiPolicy';
@@ -283,6 +284,31 @@ const DIAGRAM_SUBMENU_DEFS: readonly { type: DiagramType | null; label: string }
   { type: 'mindmap', label: '마인드맵' },
 ];
 
+/** 서브메뉴가 오른쪽 뷰포트 경계를 넘으면 부모 메뉴 왼쪽으로 뒤집는다(좁은 창). */
+const SUBMENU_LEFT_CLASS = 'mdedit-ai-diagram-submenu--left';
+/** 서브메뉴가 아래 뷰포트 경계를 넘으면 위로 끌어올린다(하단 클램프). */
+const SUBMENU_UP_CLASS = 'mdedit-ai-diagram-submenu--up';
+
+// @MX:NOTE: [AUTO] SPEC-AI-008 후속: 좁은 창 뷰포트 경계 인지 배치. 기본은 부모 메뉴 오른쪽·상단
+// 정렬로 열고, 레이아웃 커밋 다음 프레임(rAF)에 측정해 오른쪽/아래로 잘리면 각각 왼쪽 열림·위로
+// 끌어올림 클래스를 토글한다(preset 메뉴 scheduleMenuFlipMeasurement 선례와 동형, 순수 판정은
+// menuPlacement 헬퍼). 측정은 기본 위치 rect 기준 1회.
+// @MX:SPEC: SPEC-AI-008
+function scheduleSubmenuFlipMeasurement(sub: HTMLElement, trigger: HTMLElement): void {
+  requestAnimationFrame(() => {
+    const subRect = sub.getBoundingClientRect();
+    const triggerRect = trigger.getBoundingClientRect();
+    sub.classList.toggle(
+      SUBMENU_LEFT_CLASS,
+      wouldOverflowRight(subRect.left, subRect.width, window.innerWidth),
+    );
+    sub.classList.toggle(
+      SUBMENU_UP_CLASS,
+      wouldOverflowBottom(triggerRect.top, subRect.height, window.innerHeight),
+    );
+  });
+}
+
 export interface PresetMenuOptions {
   selectionLength: number;
   callbacks: PresetMenuCallbacks;
@@ -481,6 +507,8 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     diagramTrigger.parentElement?.appendChild(sub);
     diagramTrigger.setAttribute('aria-expanded', 'true');
     diagramSubmenu = sub;
+    // 좁은 창에서 오른쪽/아래로 잘리면 왼쪽 열림·위로 끌어올림으로 뒤집는다(다음 프레임 측정).
+    scheduleSubmenuFlipMeasurement(sub, diagramTrigger);
   };
 
   const toggleDiagramSubmenu = (): void => {
