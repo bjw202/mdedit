@@ -2,8 +2,14 @@
 // 윈도우 종료 가드 단위 테스트 (REQ-018/019/020) — @tauri-apps/api/window 모킹
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { useWindowCloseGuard } from '@/hooks/useWindowCloseGuard';
 import { useEditorStore } from '@/store/editorStore';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(here, '..', '..');
 
 // onCloseRequested 핸들러를 캡처하기 위한 모킹
 const mockDestroy = vi.fn().mockResolvedValue(undefined);
@@ -67,5 +73,14 @@ describe('useWindowCloseGuard (REQ-018/019/020)', () => {
     const requestClose = vi.fn();
     await act(async () => { render(<TestComponent requestClose={requestClose} />); });
     expect(mockOnCloseRequested).not.toHaveBeenCalled();
+  });
+
+  it('capabilities/main.json 에 core:window:allow-destroy 포함 (close 가드 전제 — 누락 시 destroy() 권한 거부로 창이 안 닫힘, REQ-018/019/020)', () => {
+    const caps = JSON.parse(
+      readFileSync(resolve(repoRoot, 'src-tauri', 'capabilities', 'main.json'), 'utf-8'),
+    ) as { permissions: string[] };
+    // core:window:default 는 읽기/조회 권한만 포함(allow-get-*/allow-is-* 등). destroy 는 별도
+    // explicit 권한 — 없으면 getCurrentWindow().destroy() 가 권한 거부로 창을 닫지 못한다.
+    expect(caps.permissions).toContain('core:window:allow-destroy');
   });
 });
