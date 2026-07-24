@@ -13,6 +13,7 @@ import { SettingsModal } from '@/components/settings/SettingsModal';
 import { setAiLoggedIn, registerOnboardingOpener } from '@/components/editor/extensions/ai-suggestion-card';
 import { setAiPolicyDisabled } from '@/store/aiPolicy';
 import { initAiToggleEffects } from '@/lib/ai/aiOffEffects';
+import { initAiFileSwitchEffects } from '@/lib/ai/aiFileSwitchEffects';
 import { exportToHtml } from '@/lib/export/exportHtml';
 import { exportToPdf } from '@/lib/export/exportPdf';
 import { exportToDocx } from '@/lib/export/exportDocx';
@@ -82,6 +83,12 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   // 고스트/카드 정리를 수행한다. 마운트 1회 등록, 언마운트 시 해제.
   useEffect(() => {
     return initAiToggleEffects();
+  }, []);
+
+  // SPEC-AI-009 REQ-AI9-033/034: 활성 문서 전환(결함 3a)을 앱 수명 동안 관찰해 in-flight 취소 +
+  // 고스트/카드 정리를 수행한다. 마운트 1회 등록, 언마운트 시 해제(initAiToggleEffects 와 동일 형태).
+  useEffect(() => {
+    return initAiFileSwitchEffects();
   }, []);
 
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);

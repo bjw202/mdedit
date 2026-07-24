@@ -261,6 +261,13 @@ export interface AiProviderStatus {
   installed: boolean;
   version?: string;
   loggedIn: boolean;
+  /**
+   * SPEC-AI-009 REQ-AI9-051: 백엔드가 공급하는 고급 티어 표시 문자열(claude → `sonnet`,
+   * codex → `gpt-5.5 · 높은 추론`). 실제 인자를 조립하는 중앙 매핑 함수에서 파생되므로
+   * 프론트는 이 값을 그대로 렌더하고 재구성하지 않는다(REQ-AI9-048/052). 부재·빈 값일 때의
+   * 폴백은 REQ-AI9-053 참조.
+   */
+  advancedModelLabel?: string;
 }
 
 /** ai_policy_status 결과 — kill-switch 활성 여부와 출처(설계 §8.2, REQ-AI-017). */

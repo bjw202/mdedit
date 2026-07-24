@@ -145,7 +145,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
           ) : (
             <AiSection
               state={state}
-              provider={provider}
               providers={providers}
               onStartOnboarding={() => setShowWizard(true)}
             />
@@ -158,73 +157,45 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
 
 interface AiSectionProps {
   state: AiConnectionState;
-  provider: AiProviderStatus | undefined;
-  /** SPEC-AI-009: 다중 provider 감지 목록 — 드롭다운이 각 provider 의 설치/로그인 상태를 렌더한다. */
+  /** SPEC-AI-009 v0.0.4: 감지된 provider 배열 — registry 순서 그대로 대등한 행으로 렌더한다. */
   providers: AiProviderStatus[];
   onStartOnboarding: () => void;
 }
 
-/** 감지 상태별 AI 섹션 본문. */
-function AiSection({ state, provider, providers, onStartOnboarding }: AiSectionProps): JSX.Element {
+/** 감지 상태별 AI 섹션 본문. loading 만 별도 분기 — 그 외에는 항상 대등 provider 행 목록을 렌더한다. */
+function AiSection({ state, providers, onStartOnboarding }: AiSectionProps): JSX.Element {
   const mutedRow: React.CSSProperties = { color: 'var(--md-text-muted)', fontSize: 13 };
 
-  switch (state) {
-    case 'loading':
-      return <p style={mutedRow}>감지 중...</p>;
-
-    case 'available':
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--md-space-3)' }}>
-          <NoticeBanner />
-          <p style={{ fontSize: 13, margin: 0 }}>
-            Claude Code{' '}
-            <span style={{ color: 'var(--md-success)' }}>
-              ✅ 사용 가능{provider?.version ? ` (v${provider.version})` : ''}
-            </span>
-          </p>
-          <AiEnabledToggle disabled={false} />
-          <AiProviderSelect providers={providers} disabled={false} />
-          <AdvancedModelToggle disabled={false} />
-          <ContinueLengthToggle disabled={false} />
-        </div>
-      );
-
-    case 'connect-needed':
-      return (
-        <div>
-          <p style={{ fontSize: 13, marginBottom: 'var(--md-space-3)' }}>
-            Claude Code{' '}
-            <span style={{ color: 'var(--md-dirty)' }}>연결 필요</span> — 로그인이 필요해요.
-          </p>
-          <button type="button" className="md-btn" onClick={onStartOnboarding}>
-            연결 안내 보기
-          </button>
-        </div>
-      );
-
-    case 'not-installed':
-      return (
-        <div>
-          <p style={{ fontSize: 13, marginBottom: 'var(--md-space-3)' }}>
-            Claude Code가 설치되어 있지 않아요.
-          </p>
-          <button type="button" className="md-btn" onClick={onStartOnboarding}>
-            설치 안내 보기
-          </button>
-        </div>
-      );
-
-    case 'policy-locked':
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--md-space-3)' }}>
-          <p style={mutedRow}>조직 정책으로 AI 기능이 비활성화되어 있어요 (토글 잠금).</p>
-          <AiEnabledToggle disabled />
-          <AiProviderSelect providers={providers} disabled />
-          <AdvancedModelToggle disabled />
-          <ContinueLengthToggle disabled />
-        </div>
-      );
+  if (state === 'loading') {
+    return <p style={mutedRow}>감지 중...</p>;
   }
+
+  // @MX:NOTE: [AUTO] M8.2.4: deriveConnectionState 는 여기서 섹션 수준 분기(loading/policy-locked
+  // 안내 문구)에만 쓰인다 — 행 렌더 여부는 각 행의 deriveProviderRowState 만으로 결정된다
+  // (REQ-AI9-029). policy-locked 여부만 전 행에 공통으로 전파한다(REQ-AI9-031).
+  const policyLocked = state === 'policy-locked';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--md-space-3)' }}>
+      {policyLocked && (
+        <p style={mutedRow}>조직 정책으로 AI 기능이 비활성화되어 있어요 (토글 잠금).</p>
+      )}
+      <NoticeBanner />
+      <div role="group" aria-label="AI 도구">
+        {providers.map((p) => (
+          <ProviderRow
+            key={p.id}
+            provider={p}
+            policyLocked={policyLocked}
+            onStartOnboarding={onStartOnboarding}
+          />
+        ))}
+      </div>
+      <AiEnabledToggle disabled={policyLocked} />
+      <AdvancedModelToggle disabled={policyLocked} providers={providers} />
+      <ContinueLengthToggle disabled={policyLocked} />
+    </div>
+  );
 }
 
 // @MX:NOTE: 데이터 전송 고지는 1회만 표시하고 확인 여부를 영속화한다(REQ-AI-013). "로컬 CLI =
@@ -294,10 +265,61 @@ function AiEnabledToggle({ disabled }: { disabled: boolean }): JSX.Element {
   );
 }
 
-/** 고급 모델(sonnet) 사용 토글. 정책 잠금 시 disabled + 자물쇠 표기. */
-function AdvancedModelToggle({ disabled }: { disabled: boolean }): JSX.Element {
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-048 REQ-AI9-049 REQ-AI9-053
+// @MX:NOTE: [AUTO] 고급 티어 표시는 백엔드가 내려준 advancedModelLabel 을 그대로 감싸 렌더한다
+//   (REQ-AI9-048). 프론트에 provider id → 모델명 리터럴 테이블을 두지 않으며, 필드가 부재·빈
+//   값이면 기존 providerDisplayName 기반 폴백으로만 강등한다(REQ-AI9-053).
+/** 'auto' 를 감지 배열에서 selectable 인 첫 provider 로 해석하고, 그 외는 id 로 직접 조회한다. */
+function findEffectiveAdvancedProvider(
+  providers: AiProviderStatus[],
+  selected: 'auto' | 'claude' | 'codex',
+): AiProviderStatus | undefined {
+  if (selected === 'auto') {
+    return providers.find((p) => deriveProviderRowState(p).selectable);
+  }
+  return providers.find((p) => p.id === selected);
+}
+
+/**
+ * 고급 모델 토글의 라벨/aria-label 텍스트를 파생한다(순수, AC-AI9-030).
+ * 우선순위: 유효 provider 의 advancedModelLabel(비어있지 않음) → providerDisplayName 기반
+ * 폴백({표시명} 고급 티어) → 유효 provider 자체가 없으면 중립 문구.
+ */
+export function deriveAdvancedModelLabel(
+  providers: AiProviderStatus[],
+  selected: 'auto' | 'claude' | 'codex',
+): { text: string; ariaLabel: string } {
+  const effective = findEffectiveAdvancedProvider(providers, selected);
+  let content = '';
+  if (effective) {
+    const raw = effective.advancedModelLabel;
+    content = raw && raw.trim() !== '' ? raw : `${providerDisplayName(effective.id)} 고급 티어`;
+  }
+  if (content) {
+    return {
+      text: `고급 모델 사용 (${content} — 더 정확, 더 느림)`,
+      ariaLabel: `고급 모델 사용 (${content})`,
+    };
+  }
+  return {
+    text: '고급 모델 사용 (더 정확, 더 느림)',
+    ariaLabel: '고급 모델 사용',
+  };
+}
+
+/** 고급 모델 사용 토글. 라벨은 백엔드 공급 advancedModelLabel 을 그대로 렌더한다(REQ-AI9-048). */
+function AdvancedModelToggle({
+  disabled,
+  providers,
+}: {
+  disabled: boolean;
+  providers: AiProviderStatus[];
+}): JSX.Element {
   const advanced = useUIStore((s) => s.aiAdvancedModel);
   const setAdvanced = useUIStore((s) => s.setAiAdvancedModel);
+  const selected = useUIStore((s) => s.aiSelectedProvider);
+
+  const { text, ariaLabel } = deriveAdvancedModelLabel(providers, selected);
 
   return (
     <label
@@ -312,12 +334,13 @@ function AdvancedModelToggle({ disabled }: { disabled: boolean }): JSX.Element {
     >
       <input
         type="checkbox"
-        aria-label="고급 모델 사용 (sonnet)"
+        aria-label={ariaLabel}
         checked={advanced}
         disabled={disabled}
         onChange={(e) => setAdvanced(e.target.checked)}
       />
-      고급 모델 사용 (sonnet — 더 정확, 더 느림){disabled ? ' 🔒' : ''}
+      {text}
+      {disabled ? ' 🔒' : ''}
     </label>
   );
 }
@@ -354,42 +377,65 @@ function ContinueLengthToggle({ disabled }: { disabled: boolean }): JSX.Element 
   );
 }
 
-// @MX:SPEC: SPEC-AI-009 REQ-AI9-002 REQ-AI9-003
-// @MX:NOTE: [AUTO] AI 엔진(provider) 선택 드롭다운. 다중 provider(claude/codex) 감지 결과를
-//   옵션으로 노출하고, 사용자가 선택한 provider(aiSelectedProvider)를 uiStore 에 영속화한다.
-//   - "자동 감지(권장)": 백엔드가 first_available() 로 자동 선택(claude > codex)
-//   - "Claude"/"codex": 해당 provider 강제. 설치+로그인된 provider 만 활성화되며,
-//     미설치/미로그인 항목은 disabled + 사유(설치 필요/로그인 필요) 표시.
-//   - 정책 잠금 시 disabled + 🔒(AdvancedModelToggle 선례와 동일한 정책 잠금 관례).
-//   - `--md-*` 토큰 전용(채팅앱풍 raw hex 금지, SPEC-AI-001 REQ-AI-010).
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-027
+// @MX:NOTE: [AUTO] provider 표시명 소스 — id → 표시명 매핑, 미등록 id 는 원본 id 로 폴백한다.
+//   registry 에 3번째 provider 가 추가돼도(REQ-AI9-029) SettingsModal.tsx 를 고치지 않고 이
+//   테이블에 한 줄만 추가하면 표시명이 붙는다(plan.md Open Questions §7).
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  claude: 'Claude Code',
+  codex: 'codex',
+};
+
+/** provider id → 사람이 읽는 표시명(미등록 id 는 id 원문으로 폴백). */
+function providerDisplayName(id: string): string {
+  return PROVIDER_DISPLAY_NAMES[id] ?? id;
+}
+
+// @MX:ANCHOR: [AUTO] deriveProviderRowState - provider 행 상태 파생의 단일 소스
+// @MX:REASON: [AUTO] ProviderRow 렌더와 SettingsModal.test.tsx 의 순수 함수 단위 테스트(AC-AI9-017)
+//   양쪽이 이 함수 하나만 참조한다(fan_in >= 2, 향후 행 UI 변형이 늘면 fan_in 이 늘어난다).
+//   deriveConnectionState(섹션 수준)와 달리 오직 해당 provider 자신의 ProviderStatus 만 입력받는다
+//   — 다른 provider·"유효 provider" 개념에 의존하지 않는다(REQ-AI9-027).
 /**
- * AI 엔진 선택 드롭다운. 정책 잠금 시 disabled + 자물쇠 표기.
- * 사용 가능한 provider 만 옵션으로 활성화되고, 미사용 항목은 사유와 함께 비활성화된다.
+ * provider 행 상태를 그 provider 자신의 ProviderStatus 만으로 파생한다(REQ-AI9-027).
+ * - installed && loggedIn → "사용 가능" + selectable
+ * - installed && !loggedIn → "로그인 필요" + not selectable
+ * - !installed → "미설치" + not selectable(loggedIn 값 무시)
  */
-function AiProviderSelect({
-  providers,
-  disabled,
+export function deriveProviderRowState(
+  p: AiProviderStatus,
+): { label: string; selectable: boolean; reason: string } {
+  if (!p.installed) return { label: '미설치', selectable: false, reason: '미설치' };
+  if (!p.loggedIn) return { label: '로그인 필요', selectable: false, reason: '로그인 필요' };
+  return { label: '사용 가능', selectable: true, reason: '' };
+}
+
+/** aiSelectedProvider 가 실제로 다룰 수 있는 provider id 도메인('auto'|'claude'|'codex', REQ-AI9-030(a)). */
+function isKnownProviderId(id: string): id is 'claude' | 'codex' {
+  return id === 'claude' || id === 'codex';
+}
+
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-026 REQ-AI9-028 REQ-AI9-029 REQ-AI9-030 REQ-AI9-031 REQ-AI9-032
+// @MX:NOTE: [AUTO] provider 대등 행(결함 2 수정, v0.0.4) — 드롭다운(AiProviderSelect, 개정 전)을
+//   대체한다. 각 행은 (1) radio, (2) 표시명, (3) 상태 배지, (4) 버전(있으면) 순서로 4요소를
+//   렌더한다(REQ-AI9-026). 미사용 행은 disabled + 사유 인라인(REQ-AI9-028), installed 이지만
+//   미로그인인 행에는 온보딩 진입 컨트롤을 함께 노출한다(REQ-AI9-032).
+/** provider 1개를 렌더하는 대등 행 — registry 순서 그대로 부모(AiSection)가 순회 호출한다. */
+function ProviderRow({
+  provider,
+  policyLocked,
+  onStartOnboarding,
 }: {
-  providers: AiProviderStatus[];
-  disabled: boolean;
+  provider: AiProviderStatus;
+  policyLocked: boolean;
+  onStartOnboarding: () => void;
 }): JSX.Element {
   const selected = useUIStore((s) => s.aiSelectedProvider);
   const setSelected = useUIStore((s) => s.setAiSelectedProvider);
 
-  // 감지 결과가 비었을 때도 드롭다운 모양을 유지하도록 기본 상태를 세팅한다(미감지 항목은 disabled).
-  const claude = providers.find((p) => p.id === 'claude');
-  const codex = providers.find((p) => p.id === 'codex');
-
-  /** provider 감지 결과 → 드롭다운 옵션 활성/비활성 상태 + 비활성 사유. */
-  const optionState = (p: AiProviderStatus | undefined): { disabled: boolean; reason: string } => {
-    if (!p) return { disabled: true, reason: '설치 필요' };
-    if (!p.installed) return { disabled: true, reason: '설치 필요' };
-    if (!p.loggedIn) return { disabled: true, reason: '로그인 필요' };
-    return { disabled: false, reason: '' };
-  };
-
-  const claudeState = optionState(claude);
-  const codexState = optionState(codex);
+  const { label, selectable } = deriveProviderRowState(provider);
+  const disabled = policyLocked || !selectable;
+  const name = providerDisplayName(provider.id);
 
   return (
     <label
@@ -398,35 +444,40 @@ function AiProviderSelect({
         alignItems: 'center',
         gap: 'var(--md-space-2)',
         fontSize: 13,
+        padding: '4px 0',
         color: disabled ? 'var(--md-text-faint)' : 'var(--md-text-primary)',
         cursor: disabled ? 'not-allowed' : 'pointer',
       }}
     >
-      <span>AI 엔진{disabled ? ' 🔒' : ''}</span>
-      <select
-        aria-label="AI 엔진 선택"
-        value={selected}
+      <input
+        type="radio"
+        name="ai-provider-row"
+        aria-label={name}
+        checked={selected === provider.id}
         disabled={disabled}
-        onChange={(e) => setSelected(e.target.value as 'auto' | 'claude' | 'codex')}
-        style={{
-          fontFamily: 'var(--md-font-ui)',
-          fontSize: 13,
-          color: 'var(--md-text-primary)',
-          background: 'var(--md-surface-raised)',
-          border: '1px solid var(--md-border)',
-          borderRadius: 'var(--md-radius-sm)',
-          padding: '2px 6px',
-          cursor: disabled ? 'not-allowed' : 'pointer',
+        onChange={() => {
+          // REQ-AI9-028/031: disabled(미사용 또는 정책 잠금) 상태에서는 change 이벤트가 오더라도
+          // 선택을 반영하지 않는다 — disabled 어트리뷰트만으로는 jsdom 합성 이벤트를 막지 못한다.
+          if (!disabled && isKnownProviderId(provider.id)) setSelected(provider.id);
         }}
-      >
-        <option value="auto">자동 감지 (권장)</option>
-        <option value="claude" disabled={claudeState.disabled}>
-          Claude{claudeState.reason ? ` (${claudeState.reason})` : ''}
-        </option>
-        <option value="codex" disabled={codexState.disabled}>
-          codex{codexState.reason ? ` (${codexState.reason})` : ''}
-        </option>
-      </select>
+      />
+      <span>{name}</span>
+      <span style={{ color: selectable ? 'var(--md-success)' : 'var(--md-text-muted)' }}>
+        {selectable ? '✅ ' : ''}
+        {label}
+        {policyLocked ? ' 🔒' : ''}
+      </span>
+      {provider.version && <span>(v{provider.version})</span>}
+      {!provider.installed && (
+        <button type="button" className="md-btn" onClick={onStartOnboarding}>
+          설치 안내 보기
+        </button>
+      )}
+      {provider.installed && !provider.loggedIn && (
+        <button type="button" className="md-btn" onClick={onStartOnboarding}>
+          연결 안내 보기
+        </button>
+      )}
     </label>
   );
 }

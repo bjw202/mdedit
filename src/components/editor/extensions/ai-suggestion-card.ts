@@ -195,6 +195,12 @@ export interface CardCallbacks {
   onListFallback: () => void;
   /** [연결 안내 보기] — 로그인 만료 시 설정 온보딩 열기(REQ-AI-037). */
   onOpenOnboarding?: () => void;
+  /**
+   * [닫기] — 종결 phase(error/empty/cancelled-by-new/stale) 카드를 레지스트리에서 제거한다
+   * (SPEC-AI-009 REQ-AI9-036/037). 문서 텍스트를 바꾸거나 재시도·재요청을 겸하지 않는다 —
+   * 레지스트리 제거 1가지 부수효과만 갖는다(REQ-AI9-038).
+   */
+  onDismiss?: () => void;
 }
 
 export interface RenderCardInput {
@@ -223,6 +229,17 @@ function makeButton(className: string, label: string): HTMLButtonElement {
   btn.className = className;
   btn.textContent = label;
   return btn;
+}
+
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-036 REQ-AI9-037 REQ-AI9-038
+// @MX:NOTE: [AUTO] 종결 phase(error/empty/cancelled-by-new/stale) 4개 분기가 동일한 [닫기]
+// 컨트롤을 붙이므로 헬퍼로 중복을 제거한다(M8.4.4). 핸들러는 onDismiss 호출 1가지 부수효과만
+// 수행한다 — streaming 은 이미 [✕ 취소]가 있으므로 이 헬퍼를 쓰지 않는다(중복 종료 컨트롤 금지).
+/** [닫기] 버튼을 카드에 추가한다(종결 phase 전용, 기존 액션 버튼과 병존). */
+function appendDismissButton(card: HTMLElement, callbacks: CardCallbacks): void {
+  const dismiss = makeButton('mdedit-ai-dismiss', '닫기');
+  dismiss.addEventListener('click', () => callbacks.onDismiss?.());
+  card.appendChild(dismiss);
 }
 
 /** 적용 버튼 행(actions.modes 순서대로). primary 에 .is-primary(accent 채움) 부여 — 포커스는 주지 않는다. */
@@ -323,6 +340,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     msg.className = 'mdedit-ai-notice';
     msg.textContent = '이미 자연스러워서 바꿀 곳이 없어요';
     card.appendChild(msg);
+    appendDismissButton(card, callbacks); // REQ-AI9-037: 버튼 없는 종결 phase 닫기 확장
     return card;
   }
 
@@ -349,6 +367,9 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
       );
       card.appendChild(retry);
     }
+    // REQ-AI9-036: error 의 errorKind 3종(login/network/other) 전부에 닫기가 존재한다 —
+    // network 처럼 다른 액션 버튼이 없어도 사용자가 카드를 치울 수단이 반드시 있어야 한다.
+    appendDismissButton(card, callbacks);
     return card;
   }
 
@@ -375,6 +396,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     msg.className = 'mdedit-ai-notice';
     msg.textContent = '새 요청으로 취소되었어요';
     card.appendChild(msg);
+    appendDismissButton(card, callbacks); // REQ-AI9-037
     return card;
   }
 
@@ -383,6 +405,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     msg.className = 'mdedit-ai-notice';
     msg.textContent = '원문이 바뀌어 적용할 수 없어요';
     card.appendChild(msg);
+    appendDismissButton(card, callbacks); // REQ-AI9-037
     return card;
   }
 
@@ -1183,6 +1206,12 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       controller.rearmWaitNotice();
     },
     onOpenOnboarding: () => openOnboarding(),
+    // REQ-AI9-038: 레지스트리 제거 1가지 부수효과만 — onCancel 과 달리 aiCancel IPC 를 발사하지
+    // 않는다(종결 phase 는 in-flight 요청이 없으므로 취소할 대상이 없다, M8.4.3).
+    onDismiss: () => {
+      controller.destroy();
+      removeCardController(controller);
+    },
   };
   controller = new AiSuggestionCardController(model, callbacks, { renderMermaid: renderMermaidInto });
   registerCardController(controller);

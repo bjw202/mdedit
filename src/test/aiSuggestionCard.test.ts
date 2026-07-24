@@ -4,7 +4,7 @@
 // helpers, plus the card DOM renderer (streaming/done/empty/error/exhausted states,
 // insert-only vs replace, outline dual-button, diagram valid/fallback).
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe('reduceCard: card state machine transitions', () => {
   const initial = { phase: 'streaming' as const, suggestion: '', retryCount: 0 };
@@ -405,6 +405,149 @@ describe('renderSuggestionCard: DOM per phase (jsdom)', () => {
     });
     expect(dom.textContent).toContain('원문이 바뀌어');
     expect(dom.querySelector('.mdedit-ai-apply')).toBeNull();
+  });
+});
+
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-036 REQ-AI9-037 REQ-AI9-038
+// 결함 3b — 종결 phase 닫기 컨트롤(AC-AI9-022/023). TDD RED phase: written before
+// ai-suggestion-card.ts renders a `닫기` control on error/empty/cancelled-by-new/stale.
+describe('renderSuggestionCard: 닫기 컨트롤 (종결 phase, AC-AI9-022/023)', () => {
+  const cb = () => ({
+    onApply: vi.fn(),
+    onCancel: vi.fn(),
+    onReRequest: vi.fn(),
+    onListFallback: vi.fn(),
+    onOpenOnboarding: vi.fn(),
+    onDismiss: vi.fn(),
+  });
+
+  async function render(input: Record<string, unknown>) {
+    const mod = await import('@/components/editor/extensions/ai-suggestion-card');
+    const callbacks = cb();
+    const dom = mod.renderSuggestionCard({ callbacks, ...input } as never);
+    document.body.appendChild(dom);
+    return { dom, callbacks };
+  }
+
+  it.each(['login', 'network', 'other'] as const)(
+    'error phase (%s) renders 닫기 alongside the existing action button',
+    async (kind) => {
+      const { dom, callbacks } = await render({
+        state: { phase: 'error', suggestion: '', retryCount: 0, errorKind: kind, errorMessage: 'x' },
+        actions: { modes: ['replace'], primary: 'replace' },
+        presetKind: 'polish',
+        streamBuffer: '',
+      });
+      const dismiss = dom.querySelector<HTMLButtonElement>('.mdedit-ai-dismiss')!;
+      expect(dismiss).toBeTruthy();
+      expect(dismiss.textContent).toBe('닫기');
+      dismiss.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(callbacks.onDismiss).toHaveBeenCalled();
+      expect(callbacks.onReRequest).not.toHaveBeenCalled();
+    },
+  );
+
+  it('network kind has no other action button, but 닫기 is still present (regression fix)', async () => {
+    const { dom } = await render({
+      state: { phase: 'error', suggestion: '', retryCount: 0, errorKind: 'network', errorMessage: 'x' },
+      actions: { modes: ['replace'], primary: 'replace' },
+      presetKind: 'polish',
+      streamBuffer: '',
+    });
+    expect(dom.querySelector('.mdedit-ai-retry')).toBeNull();
+    expect(dom.querySelector('.mdedit-ai-connect')).toBeNull();
+    expect(dom.querySelector('.mdedit-ai-dismiss')).toBeTruthy();
+  });
+
+  it.each(['empty', 'cancelled-by-new', 'stale'] as const)(
+    '%s phase renders 닫기 and clicking it invokes onDismiss',
+    async (phase) => {
+      const { dom, callbacks } = await render({
+        state: { phase, suggestion: '', retryCount: 0 },
+        actions: { modes: ['replace'], primary: 'replace' },
+        presetKind: 'polish',
+        streamBuffer: '',
+      });
+      const dismiss = dom.querySelector<HTMLButtonElement>('.mdedit-ai-dismiss')!;
+      expect(dismiss).toBeTruthy();
+      expect(dismiss.textContent).toBe('닫기');
+      dismiss.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(callbacks.onDismiss).toHaveBeenCalled();
+    },
+  );
+
+  it('streaming phase does NOT render 닫기 (only ✕ 취소, REQ-AI9-038 (b))', async () => {
+    const { dom } = await render({
+      state: { phase: 'streaming', suggestion: '', retryCount: 0 },
+      actions: { modes: ['replace'], primary: 'replace' },
+      presetKind: 'polish',
+      streamBuffer: 'x',
+    });
+    expect(dom.querySelector('.mdedit-ai-dismiss')).toBeNull();
+    expect(dom.querySelector('.mdedit-ai-cancel')).toBeTruthy();
+  });
+
+  it.each(['intruded', 'retry-exhausted', 'diagram-fallback'] as const)(
+    '%s phase keeps its existing terminal control and does not add 닫기 (no duplicate exit control)',
+    async (phase) => {
+      const { dom } = await render({
+        state: { phase, suggestion: '```mermaid\nflowchart LR\n A-->B\n```', retryCount: 3 },
+        actions: { modes: ['replace'], primary: 'replace' },
+        presetKind: phase === 'diagram-fallback' ? 'diagram' : 'polish',
+        streamBuffer: '',
+      });
+      expect(dom.querySelector('.mdedit-ai-dismiss')).toBeNull();
+    },
+  );
+});
+
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-036 REQ-AI9-038
+// 닫기 클릭의 런타임 부수효과(레지스트리 제거 1가지만) — AC-AI9-022, 통합(startSuggestionCard).
+describe('닫기 컨트롤: 런타임 통합 (레지스트리 제거 1가지 부수효과, AC-AI9-022)', () => {
+  beforeEach(async () => {
+    const { clearCardRegistry, setActiveEditorView } = await import(
+      '@/components/editor/extensions/ai-suggestion-card'
+    );
+    clearCardRegistry();
+    setActiveEditorView(null);
+  });
+
+  afterEach(async () => {
+    const { clearCardRegistry, setActiveEditorView } = await import(
+      '@/components/editor/extensions/ai-suggestion-card'
+    );
+    clearCardRegistry();
+    setActiveEditorView(null);
+  });
+
+  it('닫기 클릭 시 컨트롤러가 레지스트리에서 제거되고, 문서·재요청은 무영향', async () => {
+    const { startSuggestionCard, getCardControllers } = await import(
+      '@/components/editor/extensions/ai-suggestion-card'
+    );
+    const { useAiStore } = await import('@/store/aiStore');
+
+    const controller = startSuggestionCard({
+      args: {
+        requestId: 'card-dismiss-1',
+        feature: 'inline-edit',
+        presetKind: 'polish',
+        model: 'haiku',
+        selection: 'x',
+      },
+      insertOnly: false,
+      range: { from: 0, to: 1 },
+      originalText: 'x',
+    });
+    controller.onError({ kind: 'other', message: '잠시 문제가 있었어요' });
+    expect(getCardControllers().length).toBe(1);
+    expect(controller.getState().phase).toBe('error');
+
+    const input = controller.getRenderInput();
+    input.callbacks.onDismiss?.();
+
+    expect(getCardControllers().length).toBe(0);
+    // aiStore 는 정상 완료 상태(취소/오류 재기록 없음) — 닫기가 요청 상태를 건드리지 않는다.
+    expect(useAiStore.getState().requestState).not.toBe('streaming');
   });
 });
 
