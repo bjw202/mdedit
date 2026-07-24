@@ -1,15 +1,25 @@
 llm:
+    mode: ""
+    team_mode: ""
+    glm_env_var: GLM_API_KEY
+    performance_tier: medium
+    profile: ""
+    profiles: {}
+    agent_overrides: {}
     claude_models:
-        high: opus
-        low: haiku
+        high: claude-opus-4-7
         medium: sonnet
+        low: haiku
     glm:
         base_url: https://api.z.ai/api/anthropic
         models:
-            high: glm-5
-            low: glm-4.7-flashx
-            medium: glm-4.7
-    glm_env_var: GLM_API_KEY
-    mode: ""
-    performance_tier: medium
-    team_mode: ""
+            high: glm-5.2[1m]
+            medium: glm-5.2[1m]
+            low: glm-4.5-air
+            fable: glm-5.2
+            opus: glm-5.2[1m]
+            sonnet: glm-5.2[1m]
+            haiku: glm-4.5-air
+    default_model: ""
+    quality_model: ""
+    speed_model: ""

@@ -10,7 +10,7 @@ description: |
   ZH: 文档, README, API文档, Nextra, markdown, 技术写作
   NOT for: code implementation, testing, architecture design, git branch management, security audits
 tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch, TodoWrite, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
-model: haiku
+model: sonnet
 permissionMode: bypassPermissions
 memory: project
 skills:
@@ -29,6 +29,7 @@ hooks:
         - type: command
           command: "\"$CLAUDE_PROJECT_DIR/.claude/hooks/moai/handle-agent-hook.sh\" docs-completion"
           timeout: 10
+effort: low
 ---
 
 # Documentation Manager Expert

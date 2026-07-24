@@ -10,24 +10,35 @@ trap 'rm -f "$temp_file"' EXIT
 # Read stdin into temp file
 cat > "$temp_file"
 
-# Try moai command in PATH first
+# Load GLM environment variables if configured (for Agent Teams tmux mode)
+if [ -f "$HOME/.moai/.env.glm" ]; then
+	# shellcheck disable=SC1091
+	source "$HOME/.moai/.env.glm"
+fi
+
+# Try moai command in PATH first.
+# Note: `exec` replaces the shell process, so any code after exec is unreachable.
+# Vertical padding is controlled via settings.json `statusLine.padding: N` (M1: REQ-SLV-002).
 if command -v moai &> /dev/null; then
 	exec moai statusline < "$temp_file"
 fi
 
-# Fall back to well-known install locations, relative to the current $HOME.
-# Both bare and .exe names are probed so the same script works on
-# macOS/Linux and on Windows (Git Bash).
-for candidate in \
-	"$HOME/go/bin/moai" \
-	"$HOME/go/bin/moai.exe" \
-	"$HOME/.local/bin/moai" \
-	"$HOME/.local/bin/moai.exe"
-do
-	if [ -f "$candidate" ]; then
-		exec "$candidate" statusline < "$temp_file"
-	fi
-done
+# Try the installed binary's own resolved path (captured at init/update time).
+# Resolves the binary even when it is not on PATH (e.g. an installer location
+# whose directory was not propagated to an already-running process).
+if [ -f "/Users/byunjungwon/.local/bin/moai" ]; then
+	exec "/Users/byunjungwon/.local/bin/moai" statusline < "$temp_file"
+fi
+
+# Try the Go bin directory ($HOME-relative for portability).
+if [ -f "$HOME/go/bin/moai" ]; then
+	exec "$HOME/go/bin/moai" statusline < "$temp_file"
+fi
+
+# Try user local bin directory.
+if [ -f "$HOME/.local/bin/moai" ]; then
+	exec "$HOME/.local/bin/moai" statusline < "$temp_file"
+fi
 
 # Not found - exit silently (Claude Code handles missing statusline gracefully)
 exit 0

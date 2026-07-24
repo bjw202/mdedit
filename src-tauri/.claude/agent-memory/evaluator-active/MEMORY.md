@@ -1,0 +1,2 @@
+- [회의적 평가 요청 스타일](feedback_skeptical_eval_request_style.md) — 코드 수정 금지 + 4차원 점수 + 한국어 + 결함 발견 관점
+- [SPEC-AI-009 codex 통합 평가](project_spec_ai_009_state.md) — 2026-07-24 codex CLI 두 번째 프로바이더 통합 평가 완료, 미머지 상태
