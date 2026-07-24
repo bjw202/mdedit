@@ -87,8 +87,9 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   const filename = currentFile ? (currentFile.split(/[/\\]/).pop() ?? 'Untitled') : 'Untitled';
 
   // SPEC-FS-003 T4 (REQ-009): 저장 단일 함수로 수렴. 헤더 Save/Save As 양쪽 모두 saveDocument 위임.
+  // REQ-FS-003-041~044: Save As는 기존 파일이 있어도 항상 다이얼로그를 띄워야 하므로 forceDialog:true 전달.
   const handleSaveAs = async (): Promise<void> => {
-    await saveDocument();
+    await saveDocument({ forceDialog: true });
   };
 
   const handleSave = async (): Promise<void> => {

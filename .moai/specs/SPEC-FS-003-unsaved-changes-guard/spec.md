@@ -1,9 +1,9 @@
 ---
 id: SPEC-FS-003
-version: "0.0.4"
+version: "0.0.5"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-23"
+updated: "2026-07-24"
 author: "jw"
 priority: high
 issue_number: 0
@@ -32,6 +32,7 @@ lifecycle: spec-anchored
 | 0.0.2 | 2026-07-22 | jw | 사용자 결정 3건 반영 — **D1** REQ-029(폴더 이동 허위 가드 제거) 승인 확정 + 회귀 방지 근거 문장 추가(일어날 수 없는 손실을 경고하면 사용자가 경고를 습관적으로 무시하게 되어 파일 전환의 진짜 가드까지 무력화됨). **D2** 워처 충돌 모달의 안전한 선택지(`내 버전 유지`)를 primary/초기 포커스로 확정 — ConfirmDialog 계약("마지막 항목이 primary + 초기 포커스")은 **동결**이므로 계약을 바꾸지 않고 `actions` 배열 순서를 뒤집어 안전 선택지를 마지막에 배치. REQ-022에 배열 순서를 문자 그대로 명시하고 초기 포커스 검증 AC(AC-016) 신설. **D3** open risk #4를 Design Note에서 정규 요구로 승격 — `saveDocument()`가 `watchedPath`를 Save As 기본 디렉터리로 전달(신 REQ-034, AC-017). open risk #3(`saveStatus` 표시 전용 유지)은 열린 질문이 아닌 **확정 결정**으로 재기록. open risk #1(Tauri v2 종료 API)은 plan.md의 Run phase 검증 항목으로 이관. 3-파일 구조 완성(plan.md·acceptance.md 신규) — spec.md의 dangling `acceptance.md` 참조 해소. |
 | 0.0.3 | 2026-07-22 | jw | plan-auditor 리뷰 반영(anchor 검증 16/16 통과, REQ-029 조사 승인). **C1** `checkbox` prop을 계약에서 **완전 삭제** — 본 SPEC과 SPEC-EXPORT-002 어느 쪽도 소비하지 않음이 확인됨(EXPORT-002가 4곳에서 미사용 명시). EXPORT-002 소비 주장 3건 제거, 미래 확장 노트도 남기지 않음. 계약 미정의 3건 확정: INV-1(마지막 항목이 `danger`일 때 `variant`가 스타일을 이기고 포커스는 위치 규칙 유지), INV-2(`'default'`는 `undefined`의 명시적 등가값), INV-3(`'cancel'` id 항목 필수 — Escape·백드롭 라우팅의 데이터 안전 근거, 신 REQ-036이 개발 빌드에서 강제). **C2** `e2e/fixtures/tauri-mock.ts`가 널 스텁이라 선언 E2E 6개 중 5개가 실행 불가함을 확인 — 가상 FS 픽스처를 명시적 산출물로 승격(Delta 표 + AC-022 + plan T2b). **H3** 종료 deadlock 해소 — REQ-024/025가 종료 요청까지 삼켜 창이 영구히 닫히지 않는 문제를 신 REQ-037(열린 모달의 종료 승격)로 해결하고 원래 의도 동작 처리를 명시. **H4** AI 스트리밍 상호작용 신설(REQ-038/039/040) — `MarkdownEditor.tsx:222-232`가 AI 기록에도 `dirty=true`를 세우고 `isExternalUpdateRef`는 파일 열기(`:100`)에만 적용됨을 확인. 스트리밍 중 `저장 안 함` → 잔여 청크가 새로 연 파일을 오염시켜 REQ-011을 무력화하는 경로를 `aiCancel` 선행 호출로 차단. **H5** AC-010의 Rust 테스트 층이 검증 불가함을 인정하고 diff 리뷰로 정정, `cargo test` 게이트 주장 철회. 기타: REQ-016→029 오인용 수정, "001~033"→"001~040", **REQ-027 삭제**(REQ-026에 완전 포함되어 아무것도 제약하지 않음, 결번 처리), REQ-024 커버리지 인플레 해소(AC-012에 새 문서·워처 케이스 추가), AC-002/004를 `[review]` 기준으로 라벨링, 외부 삭제·이름변경을 명시적 non-goal로 기록. |
 | 0.0.4 | 2026-07-23 | jw | **REQ-018 V1 해소 개정** — Run phase 검증(node_modules/@tauri-apps/api/window.js `onCloseRequested` 래퍼 분석)으로 프런트엔드 `getCurrentWindow().onCloseRequested()` + `event.preventDefault()`만으로 윈도우 종료 보류가 충분함을 확인했다(랩퍼는 `preventDefault()` 미호출 시에만 `destroy()` 자동 호출). 따라서 Rust `on_window_event` + `api.prevent_close()`는 **불필요**해 `lib.rs`를 무변경으로 유지했다. **REQ-018을 "Rust 의무"에서 "프런트엔드(또는 동등 Rust)"로 완화**하고, 연관 5곳(Environment·REQ 본문·Test Strategy·Delta·AC-010·Design Notes)을 동일 정합성으로 갱신했다. 실제 종료 동작(dirty=false 즉시 종료 / dirty=true 3버튼 모달 후 `destroy()` / 취소 시 유지)은 사용자 macOS 확인 완료 상태로 무변경. |
+| 0.0.5 | 2026-07-24 | jw | **"다른 이름으로 저장(Save As)" 다이얼로그 누락 결함 개정** — 근인: `src/lib/save/saveDocument.ts`가 Save와 Save As를 인자 없는 단일 `saveDocument()`로 통합하고, 네이티브 다이얼로그 표시 여부를 `currentFilePath` **단독**으로 판정한다(`null`이면 다이얼로그, 설정되어 있으면 직접 덮어쓰기). 그 결과 기존 파일이 열려 있을 때 Save As가 다이얼로그를 건너뛰고 조용히 Save처럼 동작한다. REQ-009(단일 저장 함수)와 `@MX:ANCHOR` "5중 저장 수렴점" 계약은 Save에는 맞지만 "Save As는 항상 다이얼로그를 연다"는 의미를 잃었다. **신규 REQ 4건 추가**(REQ-FS-003-041~044): Save As의 무조건 다이얼로그 개시, Save(`Mod-s`/헤더)의 인플레이스 덮어쓰기 불변(REQ-009 의미 보존, 두 동작을 구분), Save As 신규 경로 기록 시 추적 경로 전환, Save As 취소 시 dirty 유지·무기록. 합의된 수정 방향은 `saveDocument(opts?: { forceDialog?: boolean })`로 시그니처를 확장하고 분기를 `if (currentFilePath && !opts?.forceDialog)`로 바꾸는 것이며, Save As 진입점 3곳(`handleSaveAs` AppLayout.tsx / `Mod-Shift-s` keymap MarkdownEditor.tsx / `saveFileAs` useFileSystem.ts)만 `forceDialog: true`를 전달하고 Save(`Mod-s`)는 **절대** 전달하지 않는다. 매칭 AC-FS-003-023 신설. 구현 시 `saveDocument.ts`의 `@MX:ANCHOR`/`@MX:REASON` 주석 계약을 옵션 파라미터 반영으로 갱신해야 한다(단일 함수 계약이 이제 선택적 인자를 받는다). REQ 커버리지 표기를 001~040에서 001~044로 갱신. |
 
 ## Summary
 
@@ -240,6 +241,15 @@ actions: [
 - **REQ-FS-003-039** *(State-Driven)*: **WHILE** AI 스트리밍이 진행 중인 동안 미저장 변경 모달이 표시되면, **the system shall** 모달 메시지에 진행 중인 AI 응답이 중단된다는 사실을 알리는 문구를 포함한다. AI 스트리밍이 진행 중이 아니면 이 문구를 표시하지 않는다.
 - **REQ-FS-003-040** *(Ubiquitous)*: The system **shall** 항상 스트리밍 도중 `저장`이 선택된 경우 **그 시점까지 버퍼에 기록된 부분 생성 결과를 그대로 저장한다**. 부분 응답을 잘라내거나 저장을 스트림 완료까지 지연시키지 않는다. 근거: 에디터 버퍼가 곧 문서이며, 사용자가 화면에서 보고 있는 내용과 디스크에 기록되는 내용이 달라지는 것이 부분 저장보다 나쁘다. REQ-FS-003-039의 고지 문구가 이 결과를 사전에 알린다.
 
+#### Save As 다이얼로그 강제 (v0.0.5 추가)
+
+> 근인: `src/lib/save/saveDocument.ts`가 Save와 Save As를 인자 없는 단일 `saveDocument()`로 통합하고 다이얼로그 표시 여부를 `currentFilePath` **단독**으로 판정하여(`null`이면 다이얼로그, 설정되어 있으면 직접 덮어쓰기), 기존 파일이 열려 있을 때 Save As가 다이얼로그를 건너뛰고 Save처럼 조용히 동작한다. 아래 요구는 Save와 Save As를 **서로 다른 동작**으로 분리한다. REQ-009(단일 저장 함수)와 REQ-035(`watchedPath` 기본 디렉터리 통일)는 그대로 유효하며, 본 개정은 그 위에 "강제 다이얼로그" 경로를 추가한다.
+
+- **REQ-FS-003-041** *(Event-Driven)*: **WHEN** 사용자가 "다른 이름으로 저장(Save As)"을 실행하면(`AppLayout.handleSaveAs` / `MarkdownEditor`의 `Mod-Shift-s` keymap / `useFileSystem.saveFileAs`), **the system shall** `currentFilePath`의 설정 여부와 무관하게 **항상 네이티브 저장 다이얼로그를 연다.** 판정은 `currentFilePath` 단독이 아니라 명시적 Save As 의도로 결정된다(예: `saveDocument({ forceDialog: true })` — 분기가 `if (currentFilePath && !opts?.forceDialog)`가 되어, Save As 진입점 3곳만 `forceDialog: true`를 전달한다).
+- **REQ-FS-003-042** *(Event-Driven)*: **WHEN** 사용자가 "저장(Save)"을 실행하면(`Mod-s` 또는 헤더 저장 버튼) 그리고 `currentFilePath`가 설정되어 있으면, **the system shall** 다이얼로그를 열지 않고 해당 경로에 인플레이스로 덮어쓴다(REQ-009 의미 보존). Save는 `forceDialog`를 **절대 전달하지 않는다.** Save와 Save As는 서로 구분되는 동작이다 — Save는 기존 경로를 재사용하고, Save As는 항상 다이얼로그로 새 경로를 묻는다. `currentFilePath`가 `null`인 Save는 기존대로 다이얼로그로 위임된다(REQ-009 무변경).
+- **REQ-FS-003-043** *(Event-Driven)*: **WHEN** Save As가 사용자가 선택한 새 경로에 내용을 기록하면, **the system shall** 문서의 추적 경로(`currentFilePath` / `fileStore`)를 그 새 경로로 전환하여 이후 Save가 새 경로를 재사용하게 한다. (현재 이미 발생하는 동작이며 기대 동작으로 명시한다.)
+- **REQ-FS-003-044** *(Unwanted Behavior)*: **IF** Save As 네이티브 다이얼로그가 사용자에 의해 취소되면, **then the system shall** 어떤 파일도 기록하지 않고 `editorStore.dirty`를 true로 유지한다(기존 취소 처리 보존, 암묵적 데이터 손실 금지). 이는 REQ-017과 정합한다.
+
 ## Test Strategy
 
 리포지토리 게이트는 eslint + tsc + vitest + Playwright 4종이다. 요구사항별 검증 층위는 다음과 같다.
@@ -250,6 +260,7 @@ actions: [
 |------|----------|
 | `ConfirmDialog.test.tsx` — 렌더/`role`·`aria-modal`/액션 순서·primary/Escape·백드롭→`'cancel'`/focus trap/포커스 복귀/`data-testid` | 001–006 |
 | `saveDocument.test.ts` — 경로 유무 분기, 성공 시 dirty/saveStatus 동기, 실패 시 dirty 유지, Save As 시 `watchedPath` 기본 디렉터리 전달 | 009, 010, 035 |
+| `saveDocument.test.ts` (Save As 강제 다이얼로그) — `currentFilePath` 설정 상태에서 `forceDialog: true`이면 다이얼로그 개시(직접 덮어쓰기 안 함), `forceDialog` 없으면 인플레이스 덮어쓰기(다이얼로그 없음), Save 3진입점이 `forceDialog` 미전달·Save As 3진입점이 `forceDialog: true` 전달, 새 경로 기록 시 추적 경로 전환, Save As 취소 시 무기록·dirty 유지 | 041–044 |
 | `useFileSystem.openFile` 확장 테스트 — 5개 분기 전부 `setDirty(false)` 호출 확인 | 011 |
 | `uiStore` persist 테스트 — `partialize` 결과에 `saveStatus` 부재 | 008 |
 | 가드 훅 테스트 — 저장/폐기/취소 각각의 후속 동작, 저장 실패 시 중단, 모달 열린 동안 재진입 차단 | 012–017, 024–027 |
@@ -287,6 +298,10 @@ Playwright E2E는 Vite dev 서버(일반 브라우저) 대상으로 실행되며
 | [NEW] | `src/components/common/ConfirmDialog.tsx` | 재사용 다이얼로그 컴포넌트 + 계약 타입 export (REQ-001~006) |
 | [NEW] | `src/hooks/useUnsavedChangesGuard.ts` | 3버튼 가드 상태 머신 + 재진입 차단 + 의도 동작 실행 + 종료 승격 + AI 취소 (REQ-012~017, 024~026, 037~040) |
 | [NEW] | `src/lib/save/saveDocument.ts` (또는 동등 위치) | 단일 저장 함수 — 5중 중복 수렴점 (REQ-009, 010) |
+| [MODIFY] | `src/lib/save/saveDocument.ts` | **(v0.0.5)** 시그니처를 `saveDocument(opts?: { forceDialog?: boolean })`로 확장하고 분기를 `if (currentFilePath && !opts?.forceDialog)`로 변경(REQ-041~044). `@MX:ANCHOR`/`@MX:REASON` 주석 계약을 선택적 인자 반영으로 갱신 — 단일 함수 계약이 이제 옵션 파라미터를 받는다. |
+| [MODIFY] | `src/components/layout/AppLayout.tsx` | **(v0.0.5)** `handleSaveAs`가 `saveDocument({ forceDialog: true })`를 호출. `handleSave`(헤더 저장)는 `forceDialog` 미전달(REQ-042) |
+| [MODIFY] | `src/components/editor/MarkdownEditor.tsx` | **(v0.0.5)** `Mod-Shift-s` keymap이 `saveDocument({ forceDialog: true })` 호출, `Mod-s`는 `forceDialog` 미전달(REQ-041, 042) |
+| [MODIFY] | `src/hooks/useFileSystem.ts` | **(v0.0.5)** `saveFileAs`가 `saveDocument({ forceDialog: true })`로 위임 |
 | [MODIFY] | `src/hooks/useFileSystem.ts` | `openFile`의 `window.confirm` 제거(:141-149), 5개 분기 전부 `setDirty(false)` 추가(:154-228), `changeFolder`의 허위 `window.confirm` 제거(:117-123), `saveFileAs`를 `saveDocument`로 위임 |
 | [MODIFY] | `src/components/layout/AppLayout.tsx` | `handleNew`에 가드 적용(:119-123), `handleSave`/`handleSaveAs`를 `saveDocument` 위임으로 축약(:82-117), `ConfirmDialog` 마운트 |
 | [MODIFY] | `src/components/editor/MarkdownEditor.tsx` | `Mod-s`/`Mod-Shift-s` keymap을 `saveDocument` 호출로 치환(:113-177), `Mod-n`에 가드 적용(:178-187) |
@@ -304,7 +319,7 @@ Playwright E2E는 Vite dev 서버(일반 브라우저) 대상으로 실행되며
 
 ## Acceptance Criteria
 
-> acceptance.md의 Given-When-Then 시나리오와 1:1 매핑. 아래 표는 REQ-FS-003-001~040(027 결번) 전체를 커버한다.
+> acceptance.md의 Given-When-Then 시나리오와 1:1 매핑. 아래 표는 REQ-FS-003-001~044(027 결번) 전체를 커버한다.
 >
 > **검증 층위 표기**: 표시가 없으면 자동화 테스트(vitest 또는 Playwright)로 검증한다. `[review]`는 코드 검토·grep 기준이며 실행 테스트가 아니다. `[manual]`은 Tauri 런타임이 필요해 자동화 불가능한 항목이다.
 
@@ -332,8 +347,9 @@ Playwright E2E는 Vite dev 서버(일반 브라우저) 대상으로 실행되며
 | AC-FS-003-020 | REQ-038, 040 | 스트리밍 중 `저장 안 함` → `aiCancel(requestId)`가 `openFile` **이전에** 호출되고, 이후 도착하는 스트림 청크가 새로 연 파일 버퍼를 오염시키지 않으며 새 파일의 `dirty`가 false 유지(REQ-011 방어); 스트리밍 중 `저장` → `aiCancel` 호출 후 그 시점 버퍼(부분 응답 포함)가 그대로 디스크에 기록됨 |
 | AC-FS-003-021 | REQ-039 | 스트리밍 중 모달 메시지에 AI 응답 중단 고지 문구 포함; 비스트리밍 시 미포함 |
 | AC-FS-003-022 | E2E 인프라 | `e2e/fixtures/tauri-mock.ts`가 `read_directory`/`read_file`/`write_file`/`save_file_as`/`start_watch`를 시드 데이터 기반으로 응답하며, 파일 트리가 렌더되고 파일 노드 클릭이 가능함(이 픽스처 없이는 AC-007/008/009/012/013의 E2E 층이 실행 불가) |
+| AC-FS-003-023 | REQ-041, 042, 043, 044 | 기존 파일 열린 상태의 Save As → 다이얼로그 개시(직접 덮어쓰기 아님); 새 문서(경로 없음)의 Save As → 다이얼로그 개시; 기존 파일의 Save(`Mod-s`/헤더) → 다이얼로그 없이 인플레이스 덮어쓰기; Save As 신규 경로 기록 시 추적 경로 전환; Save As 다이얼로그 취소 → 무기록 + dirty 유지 |
 
-REQ 커버리지 대조(001–040 전수, 027 결번): 001→AC1, 002→AC2, 003→AC1, 004→AC3, 005→AC3, 006→AC2, 007→AC4, 008→AC4, 009→AC5, 010→AC5, 011→AC6·AC20, 012→AC7, 013→AC7, 014→AC8, 015→AC8, 016→AC9, 017→AC9, 018→AC10, 019→AC10, 020→AC10, 021→AC11, 022→AC11·AC16, 023→AC11, 024→AC12·AC19, 025→AC12·AC19, 026→AC13, 028→AC14, 029→AC14, 030→AC15, 031→AC15, 032→AC15, 033→AC15, 034→AC16, 035→AC17, 036→AC18, 037→AC19, 038→AC20, 039→AC21, 040→AC20. 미커버 REQ 없음(027은 v0.0.3에서 삭제된 결번).
+REQ 커버리지 대조(001–044 전수, 027 결번): 001→AC1, 002→AC2, 003→AC1, 004→AC3, 005→AC3, 006→AC2, 007→AC4, 008→AC4, 009→AC5, 010→AC5, 011→AC6·AC20, 012→AC7, 013→AC7, 014→AC8, 015→AC8, 016→AC9, 017→AC9, 018→AC10, 019→AC10, 020→AC10, 021→AC11, 022→AC11·AC16, 023→AC11, 024→AC12·AC19, 025→AC12·AC19, 026→AC13, 028→AC14, 029→AC14, 030→AC15, 031→AC15, 032→AC15, 033→AC15, 034→AC16, 035→AC17, 036→AC18, 037→AC19, 038→AC20, 039→AC21, 040→AC20, 041→AC23, 042→AC23, 043→AC23, 044→AC23. 미커버 REQ 없음(027은 v0.0.3에서 삭제된 결번).
 
 **Quality Gates (AC 외 공통 게이트)**: `npm run lint`(eslint) 클린 + `npm run typecheck`(`tsc --noEmit`) 클린 + `npm test`(vitest) 전체 통과 + `npm run test:e2e`(Playwright) 통과 + `cargo test`(src-tauri) 통과. 윈도우 종료 가드 수동 검증 5건은 별도 체크리스트로 기록한다.
 
@@ -352,6 +368,7 @@ E2E 픽스처(`e2e/fixtures/tauri-mock.ts`)도 동일하게 본 SPEC이 선행 �
 - **가드 상태 머신 힌트**: `useUnsavedChangesGuard`는 `pendingAction: (() => void | Promise<void>) | null` 형태로 "의도한 동작"을 보관하고, 모달이 열린 동안 `pendingAction !== null`을 재진입 차단 플래그로 사용하는 방식을 상정한다(REQ-024/025). 구현 세부는 Run phase 재량.
 - **[확정 결정] `saveStatus`는 표시 전용으로 유지한다**: REQ-007은 `saveStatus`를 제거하라는 요구가 아니다. `saveStatus`는 `'saving'`/`'new'`처럼 boolean `dirty`에서 파생 불가능한 상태를 포함하므로 완전 파생 셀렉터로 만들 수 없다. 따라서 표시 전용으로 남기되 `saveDocument`/`openFile` 등 상태 전이 지점에서만 갱신하고, **가드 판정은 `dirty`만 읽는다**. 이는 열린 질문이 아니라 승인된 최소 변경 결정이다. `saveStatus`를 `dirty` + 진행 플래그 조합에서 완전히 계산하는 리팩토링은 본 SPEC 범위 밖의 후속 과제다.
 - **[V1 해소 확정] 종료 가드는 프런트엔드 단독**: Run phase V1 검증(node_modules/@tauri-apps/api/window.js `onCloseRequested` 래퍼 분석)으로 `event.preventDefault()`만으로 종료 보류가 충분함을 확인했다. 따라서 Rust `on_window_event`는 등록하지 않았고, 사용자가 종료를 확정하면 프런트엔드에서 `getCurrentWindow().destroy()`로 닫는다.
+- **[v0.0.5] `saveDocument`의 `@MX:ANCHOR`/`@MX:REASON` 계약 갱신**: REQ-009이 확립한 "5중 저장 수렴점" 단일 함수 계약은 옵션 파라미터(`opts?: { forceDialog?: boolean }`)를 받도록 진화한다. Run phase 구현 시 `saveDocument.ts`의 `@MX:ANCHOR` 주석은 함수가 이제 강제 다이얼로그 경로를 선택적으로 받는다는 사실을, `@MX:REASON`은 Save/Save As가 동일 함수를 공유하되 다이얼로그 개시 여부만 인자로 분기한다는 근거를 반영해야 한다. Save는 인자 미전달로 기존 의미(경로 있으면 덮어쓰기, 없으면 다이얼로그 위임)를 그대로 유지하므로 REQ-009의 수렴점 불변식은 깨지지 않는다.
 
 ## Exclusions (What NOT to Build)
 

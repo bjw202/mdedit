@@ -227,8 +227,9 @@ export function useFileSystem(): FileSystemHook {
   // SPEC-FS-003 T4 (REQ-009): saveFileAs는 단일 saveDocument()로 위임한다.
   //   hook 인터페이스 시그니처(Promise<string | null>)는 유지해 호출측 파급을 최소화한다(REQ-032).
   //   saveDocument가 경로 유무에 따라 덮어쓰기/Save As를 처리한다.
+  // REQ-FS-003-041~044: saveFileAs는 항상 다이얼로그를 띄워야 하므로 forceDialog:true 전달.
   const saveFileAs = async (): Promise<string | null> => {
-    const ok = await saveDocument();
+    const ok = await saveDocument({ forceDialog: true });
     return ok ? useEditorStore.getState().currentFilePath : null;
   };
 

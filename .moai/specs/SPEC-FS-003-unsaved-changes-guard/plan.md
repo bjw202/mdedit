@@ -1,9 +1,9 @@
 ---
 id: SPEC-FS-003
-version: "0.0.2"
+version: "0.0.3"
 status: planned
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-07-24"
 author: "jw"
 priority: high
 issue_number: 0
@@ -13,6 +13,7 @@ issue_number: 0
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.0.3 | 2026-07-24 | jw | **Save As 다이얼로그 누락 결함 연동**(spec.md v0.0.5, REQ-041~044) — T4(saveDocument)에 `forceDialog` 옵션 확장을 반영했다. `saveDocument()`가 다이얼로그 여부를 `currentFilePath` 단독으로 판정하던 것을 `saveDocument(opts?: { forceDialog?: boolean })` + `if (currentFilePath && !opts?.forceDialog)`로 바꾸고, Save As 진입점 3곳만 `forceDialog: true`를 전달·Save(`Mod-s`/헤더)는 미전달하도록 명시. `@MX:ANCHOR`/`@MX:REASON` 갱신 지시 추가. 매핑에 REQ-041~044·AC-023 추가. |
 | 0.0.2 | 2026-07-22 | jw | plan-auditor 리뷰 반영 — `checkbox` 관련 지시 삭제(계약에서 제거됨, 소비자 0), 계약 불변식 INV-1/2/3 구현 지시 추가. **T2b 신설**(E2E 가상 FS 픽스처 — 현 널 스텁으로는 선언 E2E 5개가 실행 불가, SPEC-EXPORT-002와 공유·포크 금지). **T1 축소** — 사라질 저장 5경로 특성화를 제거하고 에디터↔스토어 동기 타이밍 확인 1건만 유지(나머지 3 기준선은 유지). T6에 종료 승격(REQ-037)·AI 취소(REQ-038~040) 로직 추가. T8에서 Rust 자동화 테스트 불가를 명시하고 diff 리뷰로 정정, `cargo test`를 AC-010 근거에서 제외. 투기적 API 확장 2건 삭제(`saveDocument(contentOverride?)`, `App.tsx` 3-훅 분해) — 뒷받침하는 요구사항 없음. |
 | 0.0.1 | 2026-07-22 | jw | Run-entry plan 작성 — spec.md v0.0.2(사용자 결정 3건 반영본)와 정합. SPEC-UI-008 `plan.md` 구조 준용. 실제 소스 대조로 파일·라인 근거 확정(`useFileSystem.ts:67·91·116·139·141·154-228·231`, `AppLayout.tsx:82·103·119`, `MarkdownEditor.tsx:113·153·178`, `App.tsx:34-41`, `uiStore.ts:34·158-165`, `editorStore.ts:15`, `lib.rs:16-74`, `SettingsModal.tsx:78·97-105·112-117`). 개발 방법론 = TDD(브라운필드 Pre-RED 특성화 포함). 브랜치 = `feature/SPEC-FS-003-unsaved-changes-guard`. 실행 순서는 ConfirmDialog 선착륙(SPEC-EXPORT-002 언블록) → 상태·저장 단일화 → 가드 트리거 순으로 고정. |
 
@@ -23,7 +24,7 @@ issue_number: 0
 - 개발 방법론: **TDD** (`quality.yaml` `development_mode: tdd`, RED-GREEN-REFACTOR, 브라운필드 Pre-RED 특성화 포함)
 - 브랜치: `feature/SPEC-FS-003-unsaved-changes-guard` (`/moai run` 단계에서 생성)
 - 신규 런타임 의존성: **없음** (`@tauri-apps/api`는 기존 의존성)
-- 요구/수용 기준: spec.md REQ-FS-003-001~040(027 결번), acceptance.md AC-FS-003-001~022 (본 plan은 이를 구현 관점으로 분해하며 요구사항 자체를 변경하지 않는다)
+- 요구/수용 기준: spec.md REQ-FS-003-001~044(027 결번), acceptance.md AC-FS-003-001~023 (본 plan은 이를 구현 관점으로 분해하며 요구사항 자체를 변경하지 않는다)
 
 ## Confirmed Design Decisions (사용자 승인, 재검토 금지)
 
@@ -99,17 +100,17 @@ TDD 순서에 맞춰 각 유닛은 "테스트 먼저(RED) → 최소 구현(GREE
 
 ### T4. [RED→GREEN→REFACTOR] 단일 저장 함수 — `src/lib/save/saveDocument.ts` (신규)
 
-- 시그니처(안): `saveDocument(): Promise<boolean>` — 성공 true / 실패·사용자 취소 false.
-- 로직: `editorStore`에서 `content`·`currentFilePath` 취득 → 경로 있으면 `writeFile` 덮어쓰기, 없으면 `saveFileAs(content, watchedPath ?? undefined)` — **`watchedPath` 기본 디렉터리 전달은 모든 경로 공통**(REQ-035).
+- 시그니처(안): `saveDocument(opts?: { forceDialog?: boolean }): Promise<boolean>` — 성공 true / 실패·사용자 취소 false. `forceDialog: true`는 Save As 의도를 나타내며, Save As 진입점 3곳(`handleSaveAs`/`Mod-Shift-s`/`saveFileAs`)만 전달한다(REQ-041). Save(`Mod-s`/헤더)는 인자를 **전달하지 않는다**(REQ-042).
+- 로직: `editorStore`에서 `content`·`currentFilePath` 취득 → **`if (currentFilePath && !opts?.forceDialog)`**이면 `writeFile` 인플레이스 덮어쓰기(다이얼로그 없음, REQ-042), 그 외(경로 없음 **또는** `forceDialog: true`)면 `saveFileAs(content, watchedPath ?? undefined)`로 네이티브 다이얼로그 개시(REQ-041) — **`watchedPath` 기본 디렉터리 전달은 모든 경로 공통**(REQ-035). Save As가 새 경로를 반환하면 추적 경로(`currentFilePath`)를 전환한다(REQ-043). 다이얼로그 취소(null 반환) 시 무기록 + dirty 유지 + false 반환(REQ-044).
 - 상태 전이: 진입 시 `setSaveStatus('saving')`, 성공 시 `setDirty(false)` + `setSaveStatus('saved')`, 취소 시 이전 dirty 기준 복원, 실패 시 `setSaveStatus('unsaved')` + **dirty true 유지**(REQ-010/017).
 - 기존 5경로를 이 함수 호출로 치환:
-  - `AppLayout.handleSave`(`:103-117`), `handleSaveAs`(`:82-101`) → 축약
-  - `useFileSystem.saveFileAs`(`:231-250`) → 위임 (hook 인터페이스 시그니처는 유지해 호출측 파급 최소화)
-  - `MarkdownEditor` `Mod-s`(`:113-152`)·`Mod-Shift-s`(`:153-177`) → IPC 직접 호출 제거, 스토어 우회 제거
+  - `AppLayout.handleSave`(`:103-117`) → `saveDocument()`(forceDialog 미전달), `handleSaveAs`(`:82-101`) → `saveDocument({ forceDialog: true })`로 축약
+  - `useFileSystem.saveFileAs`(`:231-250`) → `saveDocument({ forceDialog: true })`로 위임 (hook 인터페이스 시그니처는 유지해 호출측 파급 최소화)
+  - `MarkdownEditor` `Mod-s`(`:113-152`) → `saveDocument()`(forceDialog 미전달)·`Mod-Shift-s`(`:153-177`) → `saveDocument({ forceDialog: true })` → IPC 직접 호출 제거, 스토어 우회 제거
 - 주의: keymap은 `view.state.doc.toString()`을 쓰고 스토어를 우회한다. 치환 전에 T1의 동기 타이밍 특성화로 `editorStore.content`가 최신임을 **확인한 뒤** 우회를 제거한다. 확인 결과 최신이 아니라면 그것은 별개의 결함이므로 임의로 API를 넓히지 말고 보고한다.
-- @MX: `saveDocument`에 `@MX:ANCHOR`(저장 단일 진입점, fan_in >= 5) + `@MX:REASON` + `@MX:SPEC: SPEC-FS-003`.
-- 테스트(RED first, 신규 `src/test/saveDocument.test.ts`): 경로 유무 분기 / 성공 시 dirty·saveStatus 동기 / 실패 시 dirty 유지 / Save As 취소 시 false + dirty 유지 / **4개 진입 경로 전부 `watchedPath` 전달**.
-- 매핑: REQ-009/010/035, AC-005/017.
+- @MX: `saveDocument`에 `@MX:ANCHOR`(저장 단일 진입점, fan_in >= 5) + `@MX:REASON` + `@MX:SPEC: SPEC-FS-003`. **`@MX:ANCHOR`/`@MX:REASON`은 단일 함수가 이제 `forceDialog` 옵션으로 Save/Save As를 분기한다는 사실을 반영해야 한다**(Save는 인자 미전달로 REQ-009 수렴점 불변식 유지).
+- 테스트(RED first, 신규 `src/test/saveDocument.test.ts`): 경로 유무 분기 / 성공 시 dirty·saveStatus 동기 / 실패 시 dirty 유지 / Save As 취소 시 false + dirty 유지 / **4개 진입 경로 전부 `watchedPath` 전달** / **`currentFilePath` 설정 상태에서 `forceDialog: true`면 다이얼로그 개시·미전달이면 인플레이스 덮어쓰기 / Save 3진입점 미전달·Save As 3진입점 전달 / 새 경로 기록 시 추적 경로 전환**(REQ-041~044).
+- 매핑: REQ-009/010/035/041/042/043/044, AC-005/017/023.
 
 ### T5. [RED→GREEN] `saveStatus` 영속화 제외 — `src/store/uiStore.ts`
 
@@ -233,7 +234,7 @@ T1 (Pre-RED 특성화 — 4항목으로 축소)
 | 위치 | 태그 | 사유 |
 |------|------|------|
 | `ConfirmDialog.tsx` | `@MX:ANCHOR` + `@MX:REASON` + `@MX:SPEC: SPEC-FS-003` | 재사용 다이얼로그 공개 계약, SPEC-EXPORT-002와 공유(fan_in >= 2 예정) |
-| `saveDocument.ts` | `@MX:ANCHOR` + `@MX:REASON` + `@MX:SPEC: SPEC-FS-003` | 저장 단일 진입점(fan_in >= 5) |
+| `saveDocument.ts` | `@MX:ANCHOR` + `@MX:REASON` + `@MX:SPEC: SPEC-FS-003` | 저장 단일 진입점(fan_in >= 5). `forceDialog` 옵션으로 Save/Save As 분기 — 주석 계약이 옵션 파라미터를 반영해야 함(REQ-041~044) |
 | `useUnsavedChangesGuard.ts` | `@MX:NOTE` + `@MX:SPEC: SPEC-FS-003` | 재진입 차단이 큐잉이 아닌 폐기인 이유 |
 | `App.tsx` 종료 리스너 | `@MX:WARN` + `@MX:REASON` | 종료 경로 — 오구현 시 창이 닫히지 않거나 무경고 손실 |
 | `App.tsx` 워처 모달 | `@MX:NOTE` | 액션 배열 순서가 안전 선택지 기본 포커스를 위한 의도적 배치임을 명시(재정렬 방지) |
@@ -254,7 +255,7 @@ spec.md "Exclusions (What NOT to Build)"와 동일 — 요약: 자동 저장 없
 
 ## Related Documents
 
-- `spec.md` — EARS 요구사항(REQ-FS-003-001~040, 027 결번) + ConfirmDialog Contract + 계약 불변식 INV-1/2/3 + Test Strategy + Delta
-- `acceptance.md` — Given-When-Then 시나리오(AC-FS-003-001~022) + Quality Gate Criteria + 수동 검증 체크리스트(M1~M6) + Definition of Done
+- `spec.md` — EARS 요구사항(REQ-FS-003-001~044, 027 결번) + ConfirmDialog Contract + 계약 불변식 INV-1/2/3 + Test Strategy + Delta
+- `acceptance.md` — Given-When-Then 시나리오(AC-FS-003-001~023) + Quality Gate Criteria + 수동 검증 체크리스트(M1~M6) + Definition of Done
 - 소비처: `.moai/specs/SPEC-EXPORT-002/` — `ConfirmDialog`(T2)와 E2E 가상 FS 픽스처(T2b)를 공유 소비. **본 SPEC T2 머지 이후 착수 가능**. 픽스처는 `export_save_dialog`를 추가 확장하는 방식이어야 하며 포크 금지
 - 선례: `.moai/specs/SPEC-UI-008-diagram-insert-menu/{spec,plan,acceptance}.md`

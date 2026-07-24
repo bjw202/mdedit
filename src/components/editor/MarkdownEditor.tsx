@@ -130,8 +130,9 @@ export function MarkdownEditor({ onViewReady }: MarkdownEditorProps): JSX.Elemen
       },
       {
         key: 'Mod-Shift-s',
+        // REQ-FS-003-041~044: Mod-Shift-s는 Save As — 기존 파일이 있어도 항상 다이얼로그를 띄운다.
         run: () => {
-          void saveDocument();
+          void saveDocument({ forceDialog: true });
           return true;
         },
         preventDefault: true,
