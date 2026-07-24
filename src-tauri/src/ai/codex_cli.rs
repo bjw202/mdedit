@@ -18,7 +18,7 @@ use crate::ai::claude_cli::{
 };
 use crate::ai::provider::{AiModel, AiProvider, AiRequest, Capabilities, ProviderStatus};
 use crate::ai::stream::{parse_codex_agent_message, parse_codex_turn_completed};
-use crate::process_util::no_window;
+use crate::process_util::{login_shell_path, no_window};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
@@ -99,6 +99,12 @@ pub fn build_codex_command(binary: &Path, args: &[String], cwd: &Path) -> Comman
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    // macOS GUI 환경(PATH 최소)에서 codex(node 스크립트)가 node를 찾도록 로그인 셸 PATH 주입.
+    // 인자는 Command 에 직접 전달(셸 문자열 조립 아님 → 프롬프트 특수문자 인젝션 방지),
+    // PATH 만 사용자 로그인 셸 값(nvm node 포함)으로 보강한다.
+    if let Some(path) = login_shell_path() {
+        cmd.env("PATH", path);
+    }
     cmd
 }
 

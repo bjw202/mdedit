@@ -10,7 +10,7 @@
 //! 미로그인이면 프론트는 ✨를 "연결 필요"로 표시하므로(REQ-AI-015), 첫 클릭 실패를 예방한다.
 
 use crate::ai::provider::ProviderStatus;
-use crate::process_util::no_window;
+use crate::process_util::{login_shell_path, no_window};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -371,9 +371,12 @@ pub fn is_codex_logged_in(home: &Path) -> bool {
 pub fn detect_codex() -> ProviderStatus {
     let version = codex_binary().and_then(|bin| {
         let mut cmd = Command::new(&bin);
-        no_window(&mut cmd)
-            .args(claude_version_args())
-            .output()
+        no_window(&mut cmd).args(claude_version_args());
+        // macOS GUI 환경에서 codex(node 스크립트)가 node를 찾도록 로그인 셸 PATH 주입.
+        if let Some(path) = login_shell_path() {
+            cmd.env("PATH", path);
+        }
+        cmd.output()
             .ok()
             .filter(|out| out.status.success())
             .and_then(|out| parse_version_output(&String::from_utf8_lossy(&out.stdout)))
