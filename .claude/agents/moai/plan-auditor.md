@@ -9,7 +9,7 @@ description: |
   ZH: SPEC 审计, BRIEF 审计, 项目文档审查, 计划审计, 独立审查, 偏见防止, EARS 合规, 文档验证
   NOT for: code implementation, code review, documentation writing, git operations, running tests
 tools: Read, Grep, Glob, Bash, mcp__sequential-thinking__sequentialthinking, Write, Edit
-model: inherit
+model: opus
 effort: high
 permissionMode: default
 ---

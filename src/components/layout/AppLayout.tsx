@@ -13,6 +13,7 @@ import { SettingsModal } from '@/components/settings/SettingsModal';
 import { setAiLoggedIn, registerOnboardingOpener } from '@/components/editor/extensions/ai-suggestion-card';
 import { setAiPolicyDisabled } from '@/store/aiPolicy';
 import { initAiToggleEffects } from '@/lib/ai/aiOffEffects';
+import { initAiFileSwitchEffects } from '@/lib/ai/aiFileSwitchEffects';
 import { exportToHtml } from '@/lib/export/exportHtml';
 import { exportToPdf } from '@/lib/export/exportPdf';
 import { exportToDocx } from '@/lib/export/exportDocx';
@@ -56,13 +57,20 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
 
   // 시작 시 로그인·정책 상태를 1회 감지해 캐시한다 — ✨ "연결 필요" 게이팅의 소스(REQ-AI-012/015)이자
   // SPEC-AI-005 effectiveAiEnabled(REQ-AI5-013/014)의 정책 절반이다(getAiLoggedIn 세팅 지점 옆).
+  // SPEC-AI-009: 자동 감지 우선순위(claude > codex)를 반영한다. claude 가 사용 가능하면 claude,
+  // 아니면 codex 를 fallback 으로 삼고, 둘 다 없으면 claude 기준(기존 동작)을 유지한다 —
+  // 클라라가 없고 codex 만 설치+로그인된 사용자도 ✨ 툴바가 "연결 필요"로 막히지 않아야 한다.
   useEffect(() => {
     let cancelled = false;
     void Promise.all([aiDetectProviders(), aiPolicyStatus()])
       .then(([providers, policy]) => {
         if (cancelled) return;
         const claude = providers.find((p) => p.id === 'claude');
-        setAiLoggedIn(claude?.loggedIn ?? false);
+        const codex = providers.find((p) => p.id === 'codex');
+        const effective = claude?.installed && claude.loggedIn ? claude
+                        : codex?.installed && codex.loggedIn ? codex
+                        : claude;
+        setAiLoggedIn(effective?.loggedIn ?? false);
         setAiPolicyDisabled(policy.disabled);
       })
       .catch(() => undefined);
@@ -75,6 +83,12 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   // 고스트/카드 정리를 수행한다. 마운트 1회 등록, 언마운트 시 해제.
   useEffect(() => {
     return initAiToggleEffects();
+  }, []);
+
+  // SPEC-AI-009 REQ-AI9-033/034: 활성 문서 전환(결함 3a)을 앱 수명 동안 관찰해 in-flight 취소 +
+  // 고스트/카드 정리를 수행한다. 마운트 1회 등록, 언마운트 시 해제(initAiToggleEffects 와 동일 형태).
+  useEffect(() => {
+    return initAiFileSwitchEffects();
   }, []);
 
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);

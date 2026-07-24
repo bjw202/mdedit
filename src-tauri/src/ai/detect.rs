@@ -10,7 +10,7 @@
 //! 미로그인이면 프론트는 ✨를 "연결 필요"로 표시하므로(REQ-AI-015), 첫 클릭 실패를 예방한다.
 
 use crate::ai::provider::ProviderStatus;
-use crate::process_util::no_window;
+use crate::process_util::{login_shell_path, no_window};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -284,6 +284,122 @@ pub fn detect_claude() -> ProviderStatus {
         installed,
         version,
         logged_in,
+        // SPEC-AI-009 REQ-AI9-051: 매핑 지식을 detect.rs 로 들이지 않는다 — 라벨은
+        // ClaudeProvider::detect()(claude_cli.rs)가 채운다.
+        advanced_model_label: None,
+    }
+}
+
+// ============================================================================
+// SPEC-AI-009 — codex CLI 감지 (REQ-AI9-015/016/017)
+// ============================================================================
+// @MX:NOTE: [AUTO] codex 경로 해석·로그인 판정은 claude detect 함수들과 대칭되는 순수 함수로 분리.
+//   핵심 차이: (1) 표준 설치 위치 후보만 조회(nvm·로그인셸 프로브는 v1 제외, REQ-AI9-015 제외항),
+//   (2) 로그인 판정을 ~/.codex/auth.json 단일 파일 존재로 단순화(claude 의 oauthAccount 보다 단순).
+// @MX:SPEC: SPEC-AI-009
+
+/// detect 시 해석한 codex 절대경로 캐시. claude_binary 와 대칭(claude_cli.rs/detect.rs 일관성).
+static CODEX_BINARY: OnceLock<PathBuf> = OnceLock::new();
+
+/// codex 실행 파일 후보 경로를 우선순위 순으로 만든다(순수, REQ-AI9-015).
+///
+/// 순서: (1) PATH의 각 디렉토리 + 실행파일명(`codex`/`codex.exe`),
+/// (2) 플랫폼 표준 설치 위치 — macOS/Linux: `~/.local/bin/codex`, `/opt/homebrew/bin/codex`,
+/// `/usr/local/bin/codex`; Windows: `~/.local/bin/codex.exe`, `%APPDATA%\npm\codex.cmd`.
+/// nvm glob·로그인셸 프로브는 v1 제외(REQ-AI9-015 제외사항).
+pub fn codex_binary_candidates(path_dirs: &[PathBuf], home: &Path, is_windows: bool) -> Vec<PathBuf> {
+    let exe = if is_windows { "codex.exe" } else { "codex" };
+    let mut candidates: Vec<PathBuf> = path_dirs.iter().map(|dir| dir.join(exe)).collect();
+
+    if is_windows {
+        candidates.push(home.join(".local").join("bin").join("codex.exe"));
+        candidates.push(
+            home.join("AppData")
+                .join("Roaming")
+                .join("npm")
+                .join("codex.cmd"),
+        );
+    } else {
+        candidates.push(home.join(".local").join("bin").join("codex"));
+        candidates.push(PathBuf::from("/opt/homebrew/bin/codex"));
+        candidates.push(PathBuf::from("/usr/local/bin/codex"));
+    }
+    candidates
+}
+
+/// codex 실행 파일의 절대경로를 해석한다(PATH → 표준 위치 순, REQ-AI9-015).
+///
+/// claude 의 `resolve_claude_binary` 와 달리 nvm 탐색·로그인셸 프로브를 하지 않는다(v1 제외).
+/// 미설치 환경에서 `None`(panic 없음).
+pub fn resolve_codex_binary() -> Option<PathBuf> {
+    let is_windows = cfg!(target_os = "windows");
+    let path_dirs = split_path_var(&std::env::var("PATH").unwrap_or_default(), is_windows);
+    let home = resolve_home();
+
+    let candidates = match home {
+        Some(ref h) => codex_binary_candidates(&path_dirs, h, is_windows),
+        None => {
+            let exe = if is_windows { "codex.exe" } else { "codex" };
+            path_dirs.iter().map(|d| d.join(exe)).collect()
+        }
+    };
+
+    resolve_from_candidates(&candidates, |p| p.exists())
+}
+
+/// 해석한 codex 절대경로를 반환한다(첫 성공을 캐시, 미설치면 다음 호출에서 재시도).
+/// `claude_binary`(detect.rs:251-258)와 대칭.
+pub fn codex_binary() -> Option<PathBuf> {
+    if let Some(cached) = CODEX_BINARY.get() {
+        return Some(cached.clone());
+    }
+    let resolved = resolve_codex_binary()?;
+    let _ = CODEX_BINARY.set(resolved.clone());
+    Some(resolved)
+}
+
+/// `~/.codex/auth.json` 존재 여부로 codex 로그인을 판정한다(순수, REQ-AI9-016).
+///
+/// v1 휴리스틱: 파일이 있으면 로그인 됨, 없으면 미로그인. JSON 내용 파싱·토큰 만료 선제 판정은
+/// 후속 SPEC(Design Notes 참조). claude 의 `is_logged_in`(detect.rs:99-107)과 대칭하되 단일 신호.
+pub fn is_codex_logged_in(home: &Path) -> bool {
+    home.join(".codex").join("auth.json").exists()
+}
+
+/// codex 설치·버전·로그인을 감지한다(REQ-AI9-017).
+///
+/// `codex --version` 이 성공하면 installed + 파싱된 version, 실패하면 installed=false + version=None.
+/// 미설치 환경에서도 panic 없이 `id="codex"` 상태를 반환한다(`detect_claude` 와 동일 구조).
+// @MX:NOTE: [AUTO] Command 실행 부작용 포함 - 순수 로직(경로 후보·로그인 판정)은 위 함수로 분리해 테스트한다
+pub fn detect_codex() -> ProviderStatus {
+    let version = codex_binary().and_then(|bin| {
+        let mut cmd = Command::new(&bin);
+        no_window(&mut cmd).args(claude_version_args());
+        // macOS GUI 환경에서 codex(node 스크립트)가 node를 찾도록 로그인 셸 PATH 주입.
+        if let Some(path) = login_shell_path() {
+            cmd.env("PATH", path);
+        }
+        cmd.output()
+            .ok()
+            .filter(|out| out.status.success())
+            .and_then(|out| parse_version_output(&String::from_utf8_lossy(&out.stdout)))
+    });
+
+    let installed = version.is_some();
+
+    let logged_in = installed
+        && resolve_home()
+            .map(|home| is_codex_logged_in(&home))
+            .unwrap_or(false);
+
+    ProviderStatus {
+        id: "codex".to_string(),
+        installed,
+        version,
+        logged_in,
+        // SPEC-AI-009 REQ-AI9-051: 매핑 지식을 detect.rs 로 들이지 않는다 — 라벨은
+        // CodexProvider::detect()(codex_cli.rs)가 채운다.
+        advanced_model_label: None,
     }
 }
 
@@ -579,6 +695,102 @@ mod tests {
         let status = detect_claude();
         assert_eq!(status.id, "claude");
         // installed는 환경 의존이므로 값만 확인(불변 계약: 미설치면 미로그인).
+        if !status.installed {
+            assert!(!status.logged_in);
+            assert!(status.version.is_none());
+        }
+    }
+
+    // --- SPEC-AI-009 codex 감지 (REQ-AI9-015/016/017, AC-AI9-009/010) ---
+
+    #[test]
+    fn codex_candidates_put_path_dirs_first_then_platform_unix() {
+        // macOS/Linux: PATH 후보 → ~/.local/bin/codex → /opt/homebrew/bin/codex → /usr/local/bin/codex
+        let home = Path::new("/Users/jw");
+        let path_dirs = vec![PathBuf::from("/usr/bin"), PathBuf::from("/bin")];
+        let candidates = codex_binary_candidates(&path_dirs, home, false);
+
+        assert_eq!(candidates[0], PathBuf::from("/usr/bin/codex"));
+        assert_eq!(candidates[1], PathBuf::from("/bin/codex"));
+        assert!(candidates.contains(&PathBuf::from("/Users/jw/.local/bin/codex")));
+        assert!(candidates.contains(&PathBuf::from("/opt/homebrew/bin/codex")));
+        assert!(candidates.contains(&PathBuf::from("/usr/local/bin/codex")));
+    }
+
+    #[test]
+    fn codex_candidates_windows_use_exe_and_appdata() {
+        // Windows: PATH 후보 → ~/.local/bin/codex.exe → %APPDATA%\npm\codex.cmd
+        let home = Path::new("C:/Users/jw");
+        let path_dirs = vec![PathBuf::from("C:/Windows")];
+        let candidates = codex_binary_candidates(&path_dirs, home, true);
+        assert_eq!(candidates[0], PathBuf::from("C:/Windows/codex.exe"));
+        assert!(candidates.contains(&PathBuf::from("C:/Users/jw/.local/bin/codex.exe")));
+        assert!(candidates.contains(&PathBuf::from(
+            "C:/Users/jw/AppData/Roaming/npm/codex.cmd"
+        )));
+    }
+
+    #[test]
+    fn resolve_codex_binary_returns_none_without_panic_when_missing() {
+        // 모든 후보가 존재하지 않으면 None(panic 없음). 실제 환경에서 codex 가 없으면 None.
+        // 이 테스트는 환경에 codex 가 있어도 후보 생성·조회 자체가 panic 없음을 검증한다.
+        let _ = resolve_codex_binary();
+    }
+
+    #[test]
+    fn codex_binary_finds_local_bin_like_claude_pattern() {
+        // claude 의 reproduces_gui_path_finds_local_bin(detect.rs:539)과 대칭.
+        // 빈 PATH + ~/.local/bin/codex 가 있으면 해석 성공.
+        let home = std::env::temp_dir().join(format!("mdedit_codex_guipath_{}", unique()));
+        let local_bin = home.join(".local").join("bin");
+        std::fs::create_dir_all(&local_bin).unwrap();
+        let real = local_bin.join("codex");
+        std::fs::write(&real, "#!/bin/sh\n").unwrap();
+
+        let path_dirs: Vec<PathBuf> = vec![];
+        let candidates = codex_binary_candidates(&path_dirs, &home, false);
+        let found = resolve_from_candidates(&candidates, |p| p.exists());
+        assert_eq!(found, Some(real));
+
+        std::fs::remove_dir_all(&home).ok();
+    }
+
+    #[test]
+    fn is_codex_logged_in_true_when_auth_json_present() {
+        let home = std::env::temp_dir().join(format!("mdedit_codex_auth_{}", unique()));
+        let codex_dir = home.join(".codex");
+        std::fs::create_dir_all(&codex_dir).unwrap();
+        std::fs::write(codex_dir.join("auth.json"), "{}").unwrap();
+
+        assert!(is_codex_logged_in(&home));
+
+        std::fs::remove_dir_all(&home).ok();
+    }
+
+    #[test]
+    fn is_codex_logged_in_false_when_auth_json_absent() {
+        let home = std::env::temp_dir().join(format!("mdedit_codex_noauth_{}", unique()));
+        std::fs::create_dir_all(&home).unwrap();
+
+        assert!(!is_codex_logged_in(&home));
+
+        std::fs::remove_dir_all(&home).ok();
+    }
+
+    #[test]
+    fn is_codex_logged_in_false_in_empty_home_without_panic() {
+        // .codex 디렉토리 자체가 없어도 panic 없이 false.
+        let home = std::env::temp_dir().join(format!("mdedit_codex_empty_{}", unique()));
+        std::fs::create_dir_all(&home).unwrap();
+        assert!(!is_codex_logged_in(&home));
+        std::fs::remove_dir_all(&home).ok();
+    }
+
+    #[test]
+    fn detect_codex_returns_codex_status_without_panic() {
+        // REQ-AI9-017: 미설치 환경에서도 panic 없이 id="codex" 상태 반환.
+        let status = detect_codex();
+        assert_eq!(status.id, "codex");
         if !status.installed {
             assert!(!status.logged_in);
             assert!(status.version.is_none());

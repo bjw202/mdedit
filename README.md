@@ -13,7 +13,7 @@ Tauri v2 + React 18 + CodeMirror 6 기반 크로스 플랫폼 마크다운 에�
 ## 주요 기능
 
 - **마크다운 편집 + 실시간 미리보기**: CodeMirror 6 편집, markdown-it 렌더링(약 300ms 디바운스), KaTeX 수식, Mermaid 다이어그램(라이트/다크 테마 연동), Shiki 코드 강조
-- **AI 어시스턴트** (아래 [AI 기능](#ai-기능) 참고): ✨ 선택 툴바 6종 프리셋, 이어쓰기, 섹션 채우기 — 모두 로컬 Claude Code CLI 기반
+- **AI 어시스턴트** (아래 [AI 기능](#ai-기능) 참고): ✨ 선택 툴바 6종 프리셋, 이어쓰기, 섹션 채우기 — 로컬 **Claude Code CLI** 또는 **codex CLI** 중 설치된 것으로 자동 동작
 - **서식 툴바**: 굵게·이탤릭·제목·목록·코드·링크·인용, 8×8 그리드 표 삽입 피커, 이미지 삽입
 - **다양한 파일 뷰어**: 마크다운, HTML, 이미지, SVG, 코드/설정 파일, 평문 등 확장자별 자동 라우팅([지원 형식](#지원-파일-형식) 참고)
 - **뷰 모드 토글**: 편집 / 분할 / 미리보기 (상태 영속)
@@ -27,13 +27,18 @@ Tauri v2 + React 18 + CodeMirror 6 기반 크로스 플랫폼 마크다운 에�
 
 ## AI 기능
 
-mdedit의 AI는 로컬에 설치된 **Claude Code CLI(`claude`)** 를 통해 동작합니다. 앱 자체 서버는 없으며, 문서 내용은 로컬 CLI 프로세스를 거쳐서만 처리됩니다(요청당 CLI 프로세스 1개, 동시 1개 요청).
+mdedit의 AI는 로컬에 설치된 **Claude Code CLI(`claude`)** 또는 **codex CLI(`codex`)** 를 통해 동작합니다. 두 CLI 중 하나라도 설치·로그인되어 있으면 AI 기능을 바로 쓸 수 있습니다. 앱 자체 서버는 없으며, 문서 내용은 로컬 CLI 프로세스를 거쳐서만 처리됩니다(요청당 CLI 프로세스 1개, 동시 1개 요청).
 
 - **✨ 선택 툴바**: 텍스트를 선택하면 나타나는 ✨ 버튼으로 프리셋 실행 — 🖊 다듬기 · 📋 개요로 정리 · 📊 표로 만들기 · 🧜 다이어그램으로 · ✂️ 짧게 줄이기 · ✏️ 직접 입력. 결과는 실시간 스트리밍 제안 카드로 보여지고 **바꾸기 / 아래 삽입**, Cmd/Ctrl+Z 1회 복원, ↻ 재요청을 지원합니다.
 - **이어쓰기**: 문서 끝 또는 자유 위치에서 Cmd/Ctrl+Enter(또는 힌트)로 문체를 이어받아 계속 씁니다. 회색 고스트로 미리 보고 확정합니다.
 - **섹션 채우기**: 빈 헤딩 아래 빈 줄에서 Cmd/Ctrl+Enter로 섹션 내용을 생성합니다.
 
-사전 조건: 로컬에 [Claude Code CLI](https://claude.com/product/claude-code)가 설치·로그인되어 있어야 합니다. 없으면 설정(헤더 톱니) 온보딩이 안내합니다. 조직 정책으로 끄려면 `MDEDIT_AI_DISABLED=1` 환경 변수 또는 정책 파일을 사용하세요.
+사전 조건: 아래 둘 중 하나를 설치·로그인합니다.
+
+- [Claude Code CLI](https://claude.com/product/claude-code) — `npm install -g @anthropic-ai/claude-code`
+- [codex CLI](https://github.com/openai/codex) — `npm install -g @openai/codex`
+
+둘 다 설치된 경우 **claude가 우선**으로 자동 선택되며, 설정(헤더 톱니)에서 수동으로 provider를 지정할 수도 있습니다. 아무 것도 없으면 온보딩이 안내합니다. 조직 정책으로 끄려면 `MDEDIT_AI_DISABLED=1` 환경 변수 또는 정책 파일을 사용하세요.
 
 각 기능의 단계별 사용법, 제안 카드 조작, 대기·타임아웃 동작, 유즈케이스는 [사용자 가이드](docs/USER_GUIDE.md#4-ai-어시스턴트)에 정리되어 있습니다.
 

@@ -19,8 +19,9 @@ import type { AiRequestArgs } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
 import { resolveModel } from '@/components/settings/SettingsModal';
-import { getEffectiveAiEnabled } from '@/store/aiPolicy';
+import { getEffectiveAiEnabled, resolveProviderId } from '@/store/aiPolicy';
 import { WAIT_NOTICE_DELAY_MS, WAIT_NOTICE_TEXT } from '@/lib/ai/waitNotice';
+import { isEmptyOrIdentical } from '@/components/editor/extensions/ai-suggestion-card';
 
 // ============================================================
 // 순수 판정 — 힌트는 토큰 0 로컬 로직(설계 §5.2, REQ-AI-028/032)
@@ -249,15 +250,35 @@ export const aiGhostField = StateField.define<GhostValue | null>({
     EditorView.decorations.from(field, (value) => ghostDecorations(value)),
 });
 
+// @MX:NOTE: [AUTO] isTerminalEmptyGhost - terminal-empty(REQ-AI9-039) 파생 판정의 단일 지점.
+// ghostDecorations 와 GhostControlsWidget 렌더가 모두 이 값을 통해서만 판정한다(fan_in 1,
+// 호출부는 ghostDecorations 하나뿐이지만 그 결과를 컨트롤 위젯 생성에도 함께 전달한다). aiStore
+// 리듀서는 무변경으로 유지하고(부록 A.1 권위 값 계약), 판정은 고스트가 이미 가진 두 신호
+// (status/text)만으로 렌더 계층에서 파생한다(Design Notes). 빈/공백-only 의미론은
+// ai-suggestion-card.ts 의 isEmptyOrIdentical 을 그대로 재사용해 판정 문자열 규칙을 새로
+// 작성하지 않는다(REQ-AI9-040) — 원문 인자로 빈 문자열을 넘겨 "동일(identical)" 분기를 무력화한다
+// (고스트는 대체 대상 원문이 없다).
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-039 REQ-AI9-040
+function isTerminalEmptyGhost(value: GhostValue | null): boolean {
+  return !!value && value.status === 'done' && isEmptyOrIdentical(value.text, '');
+}
+
 // @MX:NOTE: value.text === '' 는 "요청은 시작됐지만 첫 청크가 아직 안 왔다"는 뜻이다(REQ-AI2-006).
 // 이 구간엔 상수 eq() 의 GhostPlaceholderWidget 을 렌더해 pulse 가 청크 대기 중 재시작되지 않게
 // 한다. 첫 청크가 도착해 text 가 비지 않으면 기존 GhostWidget(text 비교 eq) 경로로 자연 전환된다
 // (REQ-AI2-007). !value(고스트 자체가 없음)만 Decoration.none — 대기 상태와는 구분한다.
-/** 고스트 값 → 데코레이션 세트(대기 플레이스홀더/회색 고스트 텍스트 + 상태별 컨트롤 버튼). */
+// terminal-empty(REQ-AI9-039, status==='done' && text.trim()==='')는 대기 플레이스홀더 대신
+// 안내 위젯을 렌더한다 — 종결된 요청을 진행 중으로 오인시키지 않기 위함이다(REQ-AI9-041).
+/** 고스트 값 → 데코레이션 세트(대기 플레이스홀더/회색 고스트 텍스트/terminal-empty 안내 + 상태별 컨트롤). */
 function ghostDecorations(value: GhostValue | null): DecorationSet {
   if (!value) return Decoration.none;
   const ranges: Range<Decoration>[] = [];
-  if (value.text === '') {
+  const terminalEmpty = isTerminalEmptyGhost(value);
+  if (terminalEmpty) {
+    ranges.push(
+      Decoration.widget({ widget: new GhostEmptyNoticeWidget(), side: 1 }).range(value.from),
+    );
+  } else if (value.text === '') {
     ranges.push(
       Decoration.widget({
         widget: new GhostPlaceholderWidget(value.waitingLong ?? false),
@@ -271,9 +292,10 @@ function ghostDecorations(value: GhostValue | null): DecorationSet {
   }
   if (value.status) {
     ranges.push(
-      Decoration.widget({ widget: new GhostControlsWidget(value.status), side: 2 }).range(
-        value.from,
-      ),
+      Decoration.widget({
+        widget: new GhostControlsWidget(value.status, terminalEmpty),
+        side: 2,
+      }).range(value.from),
     );
   }
   return Decoration.set(ranges, true);
@@ -303,6 +325,26 @@ class GhostPlaceholderWidget extends WidgetType {
       notice.textContent = ` ${WAIT_NOTICE_TEXT}`;
       span.appendChild(notice);
     }
+    return span;
+  }
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+/**
+ * terminal-empty 안내 위젯(REQ-AI9-039) — section-fill 요청이 실질적 빈 값으로 종결됐을 때
+ * "✨ 작성 중…" 대신 렌더한다. eq() 가 항상 true(상수)라 재생성 시 애니메이션/포커스 흔들림이 없다.
+ * 뷰 레이어 전용이며 문서 텍스트를 절대 변경하지 않는다(REQ-AI9-042).
+ */
+class GhostEmptyNoticeWidget extends WidgetType {
+  eq(other: WidgetType): boolean {
+    return other instanceof GhostEmptyNoticeWidget;
+  }
+  toDOM(): HTMLElement {
+    const span = document.createElement('span');
+    span.className = 'mdedit-ai-ghost-empty';
+    span.textContent = 'ℹ 더 쓸 내용을 찾지 못했어요';
     return span;
   }
   ignoreEvent(): boolean {
@@ -359,18 +401,31 @@ function makeGhostRedoButton(): HTMLButtonElement {
  * 고스트 컨트롤 버튼 위젯(REQ-AI-029/030) — 스트리밍 중엔 [■ 중지], 완료(done)면
  * [✓ 넣기]·[✕ 지우기]를 렌더한다. 기존 confirmGhostCommand/dismissGhostCommand 를 그대로
  * 재사용해 확정·소멸 경로를 Mod-Enter/Esc 와 단일화한다(view 레이어 전용, 문서 직접 조작 없음).
+ * terminalEmpty(REQ-AI9-039)면 위 두 상태와 배타적으로 [✕ 닫기] 1개만 렌더한다 — 닫기는 기존
+ * dismissGhostCommand 를 그대로 재사용하며, 신규 확정/재요청 경로를 만들지 않는다(REQ-AI9-042/044).
  */
 class GhostControlsWidget extends WidgetType {
-  constructor(readonly status: 'streaming' | 'done') {
+  constructor(
+    readonly status: 'streaming' | 'done',
+    readonly terminalEmpty: boolean = false,
+  ) {
     super();
   }
   eq(other: WidgetType): boolean {
-    return other instanceof GhostControlsWidget && other.status === this.status;
+    return (
+      other instanceof GhostControlsWidget &&
+      other.status === this.status &&
+      other.terminalEmpty === this.terminalEmpty
+    );
   }
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('span');
     wrap.className = 'cm-ai-ghost-controls';
-    if (this.status === 'streaming') {
+    if (this.terminalEmpty) {
+      const close = makeGhostControlButton('✕ 닫기');
+      close.addEventListener('click', () => dismissGhostCommand(view));
+      wrap.appendChild(close);
+    } else if (this.status === 'streaming') {
       const stop = makeGhostControlButton('■ 중지');
       stop.addEventListener('click', () => dismissGhostCommand(view));
       wrap.appendChild(stop);
@@ -451,7 +506,7 @@ export function reRequestGhost(view: EditorView): boolean {
   });
   armGhostWaitNotice(view);
 
-  void aiRequest({ requestId, ...lastGhostTrigger }).catch((e) =>
+  void aiRequest({ requestId, ...lastGhostTrigger, providerId: resolveProviderId() }).catch((e) =>
     useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
   );
   return true;
@@ -510,12 +565,14 @@ export const startSectionFillCommand: Command = (view) => {
   // 백엔드 계약(team-lead 확정): outline = 전체 헤딩 아웃라인, contextBefore = 커서 앞 본문 꼬리.
   // 1.5K자 상한 절단은 백엔드가 수행하므로 프론트는 커서 앞 원문을 그대로 넘긴다(설계 §7). presetKind·selection 없음.
   // 섹션 채우기는 continue 가 아니므로 length 를 싣지 않는다(REQ-AI6-014).
+  // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     model,
     outline: ctx.outline.join('\n'),
     contextBefore: view.state.sliceDoc(0, head),
+    providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
   void aiRequest({ requestId, ...requestArgs }).catch((e) =>
@@ -545,6 +602,7 @@ export const startContinueWritingCommand: Command = (view) => {
 
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   // SPEC-AI-006 REQ-AI6-013: 이어쓰기(continue) 발행부 — 지속 설정 길이를 실어 보낸다.
+  // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     presetKind: 'continue',
@@ -552,6 +610,7 @@ export const startContinueWritingCommand: Command = (view) => {
     outline: ctx.outline.join('\n'),
     contextBefore: ctx.contextBefore,
     length: useUIStore.getState().aiContinueLength,
+    providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
   void aiRequest({ requestId, ...requestArgs }).catch((e) =>
@@ -581,6 +640,7 @@ export const startFreeContinueWritingCommand: Command = (view) => {
 
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   // SPEC-AI-006 REQ-AI6-013: 이어쓰기(continue) 발행부 — 지속 설정 길이를 실어 보낸다.
+  // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     presetKind: 'continue',
@@ -589,6 +649,7 @@ export const startFreeContinueWritingCommand: Command = (view) => {
     contextBefore: ctx.contextBefore,
     contextAfter: ctx.contextAfter,
     length: useUIStore.getState().aiContinueLength,
+    providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
   void aiRequest({ requestId, ...requestArgs }).catch((e) =>

@@ -30,3 +30,22 @@ export function getAiPolicyDisabled(): boolean {
 export function getEffectiveAiEnabled(): boolean {
   return !getAiPolicyDisabled() && useUIStore.getState().aiEnabled;
 }
+
+// @MX:ANCHOR: [AUTO] resolveProviderId - aiRequest args.providerId 의 단일 소스
+// @MX:REASON: [AUTO] 발행 지점 5곳(startSectionFill/startContinueWriting/startFreeContinueWriting/
+//   buildSelectionRequest/fireReRequest)과 재요청 1곳(reRequestGhost)이 모두 이 함수를 통해
+//   providerId 를 결정한다(fan_in >= 5). 단일 소스화가 핵심 — aiSelectedProvider 가 바뀌면
+//   모든 발행 지점이 즉시 따라간다. 백엔드 ProviderRegistry::route(None) 는 first_available()
+//   로 자동 감지(claude > codex), route(Some("claude"|"codex")) 는 해당 provider 강제 라우팅
+//   (src-tauri/src/ai/provider.rs 참조).
+// @MX:SPEC: SPEC-AI-009
+/**
+ * uiStore.aiSelectedProvider 를 aiRequest args.providerId 용 값으로 환원한다.
+ * - 'auto' → undefined (백엔드 자동 감지에 위임, claude > codex 우선)
+ * - 'claude' → 'claude' (claude 강제)
+ * - 'codex' → 'codex' (codex 강제)
+ */
+export function resolveProviderId(): string | undefined {
+  const sel = useUIStore.getState().aiSelectedProvider;
+  return sel === 'auto' ? undefined : sel;
+}

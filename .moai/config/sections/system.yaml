@@ -27,6 +27,7 @@ github:
     enable_trust_5: true
     spec_git_workflow: main_direct
 moai:
+    model_policy: high
     template_version: 2.14.0
     update_check_frequency: daily
     version: 2.14.0

@@ -5,6 +5,7 @@
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::process::Command;
+use std::sync::OnceLock;
 
 /// Windows `CREATE_NO_WINDOW` 프로세스 생성 플래그. 콘솔 애플리케이션을 실행해도
 /// 새 콘솔 창을 만들지 않는다(Win32 `CreateProcess` dwCreationFlags).
@@ -24,6 +25,31 @@ pub fn no_window(cmd: &mut Command) -> &mut Command {
 #[cfg(not(windows))]
 pub fn no_window(cmd: &mut Command) -> &mut Command {
     cmd
+}
+
+/// 사용자 로그인 셸에서 PATH 환경변수를 획득한다(codex 등 node 기반 CLI용, macOS GUI 한계 우회).
+///
+/// macOS GUI 앱(`cargo tauri dev` / .app)은 PATH가 `/usr/bin:/bin` 최소라 nvm/asdf로 설치한
+/// node를 못 찾는다. 로그인 셸(`-lc`)이 `.zshrc`/`.bash_profile`을 로드해 사용자 PATH
+/// (nvm node 포함)를 복원한다. codex는 `/usr/bin/env node` shebang이므로 이 PATH가 있어야 실행된다.
+/// claude(네이티브 바이너리)는 node 불필요라 이 헬퍼를 쓰지 않는다.
+/// 셸 실행 실패/미지원 환경 시 None(호출부는 기존 PATH 유지). OnceLock로 최초 1회만 실행·캐싱.
+static LOGIN_SHELL_PATH: OnceLock<Option<String>> = OnceLock::new();
+
+/// 로그인 셸의 PATH를 반환한다(캐싱). 실패 시 None.
+pub fn login_shell_path() -> Option<String> {
+    LOGIN_SHELL_PATH.get_or_init(|| {
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+        Command::new(&shell)
+            .arg("-lc")
+            .arg("printf %s \"$PATH\"")
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .filter(|s| !s.is_empty())
+    })
+    .clone()
 }
 
 #[cfg(test)]

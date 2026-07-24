@@ -109,3 +109,12 @@ Always resolve theme: const exportTheme: 'light' | 'dark' = themeRaw === 'dark' 
 Cannot unit test export_save_dialog directly (needs Tauri AppHandle).
 Test write_binary_file and format validation logic instead.
 Integration testing of dialog is manual or via Tauri testing framework.
+
+### Lint plugin install gap (feedback-lint-plugin-install-gap.md)
+`npm run lint` can crash on missing `eslint-plugin-react-hooks` despite it being in package.json — node_modules install gap, not a code defect. Fix: `npm install`, then `git checkout package-lock.json` to keep diff scoped. Do not treat as a regression.
+
+### SPEC-UI-008 completed (2026-07-22)
+Diagram insert menu on `feature/SPEC-UI-008-diagram-insert-menu`. New: `insertDiagram(view,preset)` + `DIAGRAM_PRESETS` (8: 7 presets + custom) in keyboard-shortcuts.ts; 7 skeleton icons in icons.tsx; `DiagramInsertMenu` (reuses `.md-menu`/`.md-menu-item` + TableGridPicker popover shell) in EditorToolbar.tsx; `handleInsertDiagram` null-guard in AppLayout.tsx; empty-fence `trim()===''` placeholder branch in PreviewRenderer.tsx. Snippets byte-exact from spec, verified via real `mermaid.parse` in jsdom (all 7 incl mindmap pass). No new deps, `markdownKeyBindings` unchanged. 1104 vitest pass.
+
+### Git stash safety (feedback-git-stash-safety.md)
+Never `git stash pop` blind in this repo — verify `git stash list` identity first. Parallel release-prep backup stashes (e.g. "v0.5.0 prep") exist; a blind pop conflict-merges version bumps into package.json/Cargo.*/tauri.conf.json and breaks the build. Recover mis-popped committed-clean files with `git checkout HEAD -- <files>`.
