@@ -2,6 +2,7 @@
 // @MX:NOTE: [AUTO] ai 관련 순수 로직(stream/prompt/detect)과 Tauri 커맨드를 이 모듈에서 노출한다
 
 pub mod claude_cli;
+pub mod codex_cli;
 pub mod detect;
 pub mod prompt;
 pub mod provider;
@@ -169,7 +170,9 @@ pub fn ai_request(
     let model = AiModel::from_opt(args.model.as_deref());
 
     // 5. 프로바이더 라우팅(trait 경유).
-    let registry = claude_cli::claude_registry();
+    // SPEC-AI-009: default_registry() 가 claude+codex 2개를 등록하고, route(None) 은
+    // first_available()(installed && logged_in 첫 provider)로 자동 감지(claude 우선, codex 폴백).
+    let registry = claude_cli::default_registry();
     let provider = registry
         .route(args.provider_id.as_deref())
         .ok_or_else(|| "사용 가능한 AI 도구가 없어요.".to_string())?;
@@ -215,6 +218,9 @@ pub fn ai_request(
         system_prompt: assembled.system_prompt,
         user_prompt: assembled.user_prompt,
     };
+    // SPEC-AI-009: provider id 에 따라 릴레이 파서를 분기 — codex 는 JSONL 파서,
+    // claude 는 기존 stream-json 파서(REQ-AI9-023 회귀 가드: claude 경로 무변경).
+    let provider_id = provider.id();
     let mut child = provider.spawn(&request, &cwd)?;
 
     // 9. stdout/stderr 릴레이 스레드 기동.
@@ -230,15 +236,31 @@ pub fn ai_request(
     // SPEC-AI-006 REQ-AI6-004/006: 요청별 공유 단일발행 선점 플래그 — 릴레이·워치독·
     // ai_cancel·신규 요청 교체 네 지점이 발행 전 이 플래그를 claim한다.
     let finished = Arc::new(AtomicBool::new(false));
-    claude_cli::relay_process(
-        app_handle.clone(),
-        args.request_id.clone(),
-        stdout,
-        stderr,
-        cancel_flag.clone(),
-        truncated,
-        finished.clone(),
-    );
+    match provider_id {
+        // SPEC-AI-009: codex 전용 릴레이 — parse_codex_agent_message/turn_completed 사용.
+        "codex" => codex_cli::relay_codex_process(
+            app_handle.clone(),
+            args.request_id.clone(),
+            stdout,
+            stderr,
+            cancel_flag.clone(),
+            truncated,
+            finished.clone(),
+        ),
+        // 기본(claude) 경로 — 기존 parse_text_delta/parse_final_result 사용(REQ-AI9-023 무변경).
+        // 주의(M1): 와일드카드 폴밭은 claude 전용. 새 provider 추가 시 반드시 명시적 케이스를
+        // 추가할 것 — 그렇지 않으면 알 수 없는 provider가 claude stream-json 파서로 릴레이되어
+        // 모든 라인이 parse_text_delta에서 None이 되고 "parse" 오류로 silent breakage된다.
+        _ => claude_cli::relay_process(
+            app_handle.clone(),
+            args.request_id.clone(),
+            stdout,
+            stderr,
+            cancel_flag.clone(),
+            truncated,
+            finished.clone(),
+        ),
+    }
 
     // 10. in-flight 저장(동시 1개).
     {
@@ -323,9 +345,10 @@ pub fn ai_cancel(
 }
 
 /// 등록된 프로바이더의 설치·버전·로그인 상태를 감지한다(REQ-AI-012).
+/// SPEC-AI-009: claude + codex 양쪽 상태를 반환한다(default_registry 경유).
 #[tauri::command]
 pub fn ai_detect_providers() -> Result<Vec<ProviderStatus>, String> {
-    Ok(claude_cli::claude_registry().detect_all())
+    Ok(claude_cli::default_registry().detect_all())
 }
 
 /// 정책 kill-switch 상태를 반환한다(REQ-AI-017). 값은 setup에서 1회 프로브해 저장됨.

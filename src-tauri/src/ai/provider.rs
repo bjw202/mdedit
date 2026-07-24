@@ -112,16 +112,36 @@ impl ProviderRegistry {
         self.providers.first().map(|p| p.as_ref())
     }
 
+    /// "installed && logged_in" 조건을 만족하는 첫 프로바이더를 반환한다(SPEC-AI-009 REQ-AI9-002).
+    ///
+    /// `route(None)`이 이 메서드를 호출해 자동 감지 우선순위(claude 먼저, 그다음 codex)를 적용한다.
+    /// 어느 것도 사용 불가능하면 `None` → 호출부(mod.rs)에서 "사용 가능한 AI 도구가 없어요" 오류.
+    /// `default_provider()`(첫 등록 무조건 반환)와 달리 설치·로그인 상태로 필터링한다.
+    // @MX:NOTE: [AUTO] first_available - 자동 감지 우선순위 claude>codex 적용(REQ-AI9-002/025)
+    // @MX:SPEC: SPEC-AI-009
+    pub fn first_available(&self) -> Option<&dyn AiProvider> {
+        self.providers
+            .iter()
+            .find(|p| {
+                let s = p.detect();
+                s.installed && s.logged_in
+            })
+            .map(|p| p.as_ref())
+    }
+
     /// 등록된 모든 프로바이더를 감지해 상태 목록을 반환한다.
     pub fn detect_all(&self) -> Vec<ProviderStatus> {
         self.providers.iter().map(|p| p.detect()).collect()
     }
 
     /// provider_id 미지정 시 기본, 지정 시 해당 프로바이더로 라우팅한다.
+    ///
+    /// SPEC-AI-009: provider_id 가 None 이면 `first_available()`(installed && logged_in 첫 provider)
+    /// 으로 자동 감지한다(claude 우선, codex 폴백). 명시적 provider_id 는 해당 provider 강제 라우팅.
     pub fn route(&self, provider_id: Option<&str>) -> Option<&dyn AiProvider> {
         match provider_id {
             Some(id) => self.get(id),
-            None => self.default_provider(),
+            None => self.first_available(),
         }
     }
 }
@@ -145,6 +165,37 @@ mod tests {
                 installed: true,
                 version: Some("1.0.0".to_string()),
                 logged_in: true,
+            }
+        }
+        fn spawn(&self, _request: &AiRequest, _cwd: &Path) -> Result<Child, String> {
+            Err("mock does not spawn".to_string())
+        }
+        fn capabilities(&self) -> Capabilities {
+            Capabilities {
+                supports_streaming: true,
+                typical_latency_ms: 100,
+            }
+        }
+    }
+
+    /// 상태 제어 가능한 목 프로바이더 — first_available 우선순위 테스트용(SPEC-AI-009 REQ-AI9-002).
+    /// installed/logged_in 조합을 자유롭게 주입해 자동 감지 분기를 검증한다.
+    struct StatusMockProvider {
+        id: &'static str,
+        installed: bool,
+        logged_in: bool,
+    }
+
+    impl AiProvider for StatusMockProvider {
+        fn id(&self) -> &str {
+            self.id
+        }
+        fn detect(&self) -> ProviderStatus {
+            ProviderStatus {
+                id: self.id.to_string(),
+                installed: self.installed,
+                version: (self.installed).then(|| "1.0.0".to_string()),
+                logged_in: self.logged_in,
             }
         }
         fn spawn(&self, _request: &AiRequest, _cwd: &Path) -> Result<Child, String> {
@@ -250,5 +301,140 @@ mod tests {
         };
         let json = serde_json::to_string(&status).unwrap();
         assert!(!json.contains("version"));
+    }
+
+    // --- SPEC-AI-009 자동 감지 우선순위 (REQ-AI9-001/002/003/025, AC-AI9-001/002) ---
+
+    #[test]
+    fn first_available_picks_claude_when_both_available() {
+        // claude 설치+로그인, codex 동일 → claude 먼저(등록 순서상 우선, REQ-AI9-002/025).
+        let registry = ProviderRegistry::with_providers(vec![
+            Box::new(StatusMockProvider {
+                id: "claude",
+                installed: true,
+                logged_in: true,
+            }),
+            Box::new(StatusMockProvider {
+                id: "codex",
+                installed: true,
+                logged_in: true,
+            }),
+        ]);
+        let picked = registry.first_available().expect("at least one available");
+        assert_eq!(picked.id(), "claude");
+    }
+
+    #[test]
+    fn first_available_falls_back_to_codex_when_claude_missing() {
+        // claude 미설치, codex 만 사용 가능 → codex 폴백(REQ-AI9-002).
+        let registry = ProviderRegistry::with_providers(vec![
+            Box::new(StatusMockProvider {
+                id: "claude",
+                installed: false,
+                logged_in: false,
+            }),
+            Box::new(StatusMockProvider {
+                id: "codex",
+                installed: true,
+                logged_in: true,
+            }),
+        ]);
+        let picked = registry.first_available().expect("codex should be picked");
+        assert_eq!(picked.id(), "codex");
+    }
+
+    #[test]
+    fn first_available_returns_none_when_nothing_usable() {
+        // 양쪽 다 미사용 → None(REQ-AI9-002, "사용 가능한 AI 도구가 없어요" 오류로 연결).
+        let registry = ProviderRegistry::with_providers(vec![
+            Box::new(StatusMockProvider {
+                id: "claude",
+                installed: true,
+                logged_in: false, // 로그인 안 됨
+            }),
+            Box::new(StatusMockProvider {
+                id: "codex",
+                installed: false,
+                logged_in: false,
+            }),
+        ]);
+        assert!(registry.first_available().is_none());
+    }
+
+    #[test]
+    fn first_available_skips_installed_but_not_logged_in() {
+        // installed=true 만으로는 부족 — logged_in 도 true 여야 사용 가능(REQ-AI9-002 조건).
+        let registry = ProviderRegistry::with_providers(vec![
+            Box::new(StatusMockProvider {
+                id: "claude",
+                installed: true,
+                logged_in: false,
+            }),
+            Box::new(StatusMockProvider {
+                id: "codex",
+                installed: true,
+                logged_in: true,
+            }),
+        ]);
+        let picked = registry.first_available().expect("codex usable");
+        assert_eq!(picked.id(), "codex");
+    }
+
+    #[test]
+    fn route_none_uses_first_available_not_default_provider() {
+        // route(None) 은 first_available 경로를 탄다(REQ-AI9-003). default_provider(첫 등록) 와 다름.
+        // claude 미설치 환경에서 route(None) → codex(first_available), default_provider → claude(첫 등록 무조건).
+        let registry = ProviderRegistry::with_providers(vec![
+            Box::new(StatusMockProvider {
+                id: "claude",
+                installed: false,
+                logged_in: false,
+            }),
+            Box::new(StatusMockProvider {
+                id: "codex",
+                installed: true,
+                logged_in: true,
+            }),
+        ]);
+        assert_eq!(registry.route(None).unwrap().id(), "codex");
+        // default_provider 는 여전히 첫 등록(claude) — 무변경.
+        assert_eq!(registry.default_provider().unwrap().id(), "claude");
+    }
+
+    #[test]
+    fn route_explicit_id_overrides_auto_detection() {
+        // providerId="codex" 명시 → 자동 감지와 무관하게 codex 강제 라우팅(REQ-AI9-003 수동 오버라이드).
+        let registry = ProviderRegistry::with_providers(vec![
+            Box::new(StatusMockProvider {
+                id: "claude",
+                installed: true,
+                logged_in: true,
+            }),
+            Box::new(StatusMockProvider {
+                id: "codex",
+                installed: true,
+                logged_in: true,
+            }),
+        ]);
+        assert_eq!(registry.route(Some("codex")).unwrap().id(), "codex");
+        assert_eq!(registry.route(Some("claude")).unwrap().id(), "claude");
+    }
+
+    #[test]
+    fn route_unknown_id_returns_none() {
+        // 존재하지 않는 id → None(기존 오류 메시지 재사용, 새 오류 메시지 금지).
+        let registry = ProviderRegistry::with_providers(vec![
+            Box::new(StatusMockProvider {
+                id: "claude",
+                installed: true,
+                logged_in: true,
+            }),
+            Box::new(StatusMockProvider {
+                id: "codex",
+                installed: true,
+                logged_in: true,
+            }),
+        ]);
+        assert!(registry.route(Some("unknown")).is_none());
     }
 }

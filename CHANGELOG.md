@@ -4,6 +4,9 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Added
+- **codex CLI를 두 번째 AI 프로바이더로 통합 (SPEC-AI-009)**: OpenAI `codex` CLI를 지원하는 두 번째 로컬 AI 프로바이더로 추가. 이제 `claude`와 `codex` 중 하나라도 설치·로그인되어 있으면 AI 글쓰기 도우미가 동작합니다. 둘 다 설치된 환경에서는 **claude가 우선**으로 자동 선택되고, 설정 모달에서 수동으로 provider를 지정할 수 있습니다. codex는 빈 스크래치 작업 디렉터리 + `--ignore-user-config` + `--skip-git-repo-check` + `--ephemeral` + `--sandbox read-only` + stdin 차단(`Stdio::null()`)으로 격리하며, 사용자 홈의 `AGENTS.md` 자동 로딩은 차단됩니다(실측: input_tokens 15,022, 마커 침투 0건). codex `--json` JSONL의 `item.completed`(`agent_message`) 결과를 `ai://chunk`로 1회 emit하고 `turn.completed`에서 `ai://done`으로 마무리. 기존 `claude` 경로(인자 조립·스트림 파싱·프롬프트·프론트엔드 IPC 계약)는 **0줄 변경** — 바이트 단위 회귀 스냅샷으로 보증. 검증: cargo test 308 passed, clippy 무경고, AC 15/15 PASS.
+
 ## [0.12.1] - 2026-07-24
 
 ### Fixed

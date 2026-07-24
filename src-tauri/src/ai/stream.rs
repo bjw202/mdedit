@@ -2,10 +2,13 @@
 // @MX:REASON: [AUTO] AI 릴레이 스레드가 라인마다 호출하는 파싱 계약 (fan_in >= 2: relay + result 2차 파싱)
 // @MX:SPEC: SPEC-AI-001
 
-//! claude CLI의 `--output-format stream-json` 출력과 stderr를 해석하는 순수 함수 모음.
+//! claude CLI(`--output-format stream-json`) 및 codex CLI(`--json` JSONL) 출력과 stderr 를 해석하는
+//! 순수 함수 모음.
 //!
 //! 모든 함수는 부작용이 없어 Tauri 런타임 없이 단위 테스트한다.
-//! 파싱 실패는 절대 panic 하지 않으며 raw JSON을 프론트로 노출하지 않는다(REQ-AI-040).
+//! 파싱 실패는 절대 panic 하지 않으며 raw JSON 을 프론트로 노출하지 않는다(REQ-AI-040).
+//! SPEC-AI-009: codex 전용 파서(parse_codex_agent_message/parse_codex_turn_completed)가 추가됐다.
+//! 기존 claude 파서(parse_text_delta/parse_final_result/classify_stderr)는 무변경이다(REQ-AI9-023).
 
 use serde_json::Value;
 
@@ -123,6 +126,63 @@ pub fn classify_stderr(stderr: &str) -> StderrKind {
         return StderrKind::Network;
     }
     StderrKind::Other
+}
+
+// ============================================================================
+// SPEC-AI-009 — codex JSONL 파싱 (REQ-AI9-009/010, AC-AI9-006)
+// ============================================================================
+// @MX:NOTE: [AUTO] codex --json 은 stream-json 과 완전히 다른 이벤트 모델을 쓴다 — item.completed 의
+//   agent_message 가 완성본을 한 번에 실어 보낸다(토큰 단위 스트리밍 아님, 실측). 별도 파서로 분리.
+// @MX:SPEC: SPEC-AI-009
+
+/// codex `--json` 출력 한 줄에서 `item.completed(agent_message)` 의 본문 텍스트를 추출한다(순수, REQ-AI9-009).
+///
+/// 대상 형태(codex-cli 0.144.1 실측 기준):
+/// `{"type":"event","event":{"type":"item.completed","item":{"type":"agent_message","text":"<본문>"}}}`
+///
+/// 이벤트 타입이 `item.completed` 이고 그 item.type 이 `"agent_message"` 면 `item.text` 를 반환한다.
+/// 그 외 이벤트(`thread.started`, `turn.started`, `turn.completed`, `item.completed` 이더라도
+/// item.type 이 reasoning 등 다른 경우)이거나 JSON 파싱 실패면 `None`(panic 없음, raw JSON 노출 없음).
+/// `parse_text_delta`(stream.rs:40-55)와 동일한 안전 계약.
+pub fn parse_codex_agent_message(line: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(line.trim()).ok()?;
+
+    if value.get("type")?.as_str()? != "event" {
+        return None;
+    }
+    let event = value.get("event")?;
+    if event.get("type")?.as_str()? != "item.completed" {
+        return None;
+    }
+    let item = event.get("item")?;
+    if item.get("type")?.as_str()? != "agent_message" {
+        return None;
+    }
+    item.get("text")?.as_str().map(|s| s.to_string())
+}
+
+/// codex `--json` 라인이 `turn.completed` 이벤트(usage 포함 최종 종료 신호)인지 판정한다(순수, REQ-AI9-010).
+///
+/// 대상 형태: `{"type":"event","event":{"type":"turn.completed","usage":{...}}}`
+///
+/// `turn.completed` 면 `true`, 그 외 이벤트이거나 JSON 파싱 실패면 `false`(panic 없음).
+pub fn parse_codex_turn_completed(line: &str) -> bool {
+    let Ok(value) = serde_json::from_str::<Value>(line.trim()) else {
+        return false;
+    };
+    // m2 정정: 최상위 type=="event" 래퍼 검사(parse_codex_agent_message와 대칭).
+    // 비정상 래퍼{"type":"other",...}에 대한 오탐을 방지한다.
+    if value.get("type").and_then(|v| v.as_str()) != Some("event") {
+        return false;
+    }
+    let Some(event_type) = value
+        .get("event")
+        .and_then(|e| e.get("type"))
+        .and_then(|t| t.as_str())
+    else {
+        return false;
+    };
+    event_type == "turn.completed"
 }
 
 #[cfg(test)]
@@ -254,5 +314,146 @@ mod tests {
         assert_eq!(StderrKind::LoginExpired.as_key(), "login");
         assert_eq!(StderrKind::Network.as_key(), "network");
         assert_eq!(StderrKind::Other.as_key(), "other");
+    }
+
+    // --- SPEC-AI-009 codex JSONL 파싱 (REQ-AI9-009/010, AC-AI9-006) ---
+
+    #[test]
+    fn codex_extracts_text_from_agent_message_item_completed() {
+        let line = r#"{"type":"event","event":{"type":"item.completed","item":{"type":"agent_message","text":"AI 완성 본문"}}}"#;
+        assert_eq!(
+            parse_codex_agent_message(line),
+            Some("AI 완성 본문".to_string())
+        );
+    }
+
+    #[test]
+    fn codex_extracts_text_with_trailing_newline() {
+        let line = "{\"type\":\"event\",\"event\":{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"x\"}}}\n";
+        assert_eq!(parse_codex_agent_message(line), Some("x".to_string()));
+    }
+
+    #[test]
+    fn codex_extracts_multiline_text_intact() {
+        // EC-1: 긴·다중 행 본문도 통째로 추출(청킹 금지 검증). JSON 안의 개행은 \n escape.
+        let body = "line1\nline2\nline3";
+        let v = serde_json::json!({
+            "type": "event",
+            "event": {
+                "type": "item.completed",
+                "item": {"type": "agent_message", "text": body}
+            }
+        });
+        let line = serde_json::to_string(&v).unwrap();
+        assert_eq!(parse_codex_agent_message(&line), Some(body.to_string()));
+    }
+
+    #[test]
+    fn codex_returns_none_for_thread_started() {
+        let line = r#"{"type":"event","event":{"type":"thread.started"}}"#;
+        assert_eq!(parse_codex_agent_message(line), None);
+    }
+
+    #[test]
+    fn codex_returns_none_for_turn_started() {
+        let line = r#"{"type":"event","event":{"type":"turn.started"}}"#;
+        assert_eq!(parse_codex_agent_message(line), None);
+    }
+
+    #[test]
+    fn codex_returns_none_for_turn_completed_in_agent_parser() {
+        let line = r#"{"type":"event","event":{"type":"turn.completed","usage":{"input_tokens":100}}}"#;
+        assert_eq!(parse_codex_agent_message(line), None);
+    }
+
+    #[test]
+    fn codex_returns_none_for_non_agent_message_item_type() {
+        // item.completed 이더라도 item.type 이 reasoning 등 다른 경우 → None.
+        let line = r#"{"type":"event","event":{"type":"item.completed","item":{"type":"reasoning","text":"..."}}}"#;
+        assert_eq!(parse_codex_agent_message(line), None);
+    }
+
+    #[test]
+    fn codex_returns_none_for_malformed_json() {
+        assert_eq!(parse_codex_agent_message("{not json"), None);
+        assert_eq!(parse_codex_agent_message(""), None);
+        assert_eq!(parse_codex_agent_message("   "), None);
+        assert_eq!(parse_codex_agent_message("plain log output"), None);
+    }
+
+    #[test]
+    fn codex_agent_parser_never_panics_on_broken_input() {
+        // raw JSON 노출 없이 None 반환(panic 방지).
+        assert_eq!(parse_codex_agent_message("}{"), None);
+        assert_eq!(parse_codex_agent_message("null"), None);
+        assert_eq!(parse_codex_agent_message("[]"), None);
+        assert_eq!(parse_codex_agent_message("42"), None);
+    }
+
+    #[test]
+    fn codex_returns_none_when_event_wrapper_missing() {
+        // type/event 경로가 다른 변형 → None(과잉 단언 없이 유연한 탐색).
+        assert_eq!(
+            parse_codex_agent_message(r#"{"item":{"type":"agent_message","text":"x"}}"#),
+            None
+        );
+        assert_eq!(
+            parse_codex_agent_message(r#"{"type":"event","event":{"type":"other"}}"#),
+            None
+        );
+    }
+
+    // --- parse_codex_turn_completed (REQ-AI9-010) ---
+
+    #[test]
+    fn codex_turn_completed_true_for_turn_completed_event() {
+        let line = r#"{"type":"event","event":{"type":"turn.completed","usage":{"input_tokens":120,"output_tokens":80}}}"#;
+        assert!(parse_codex_turn_completed(line));
+    }
+
+    #[test]
+    fn codex_turn_completed_false_for_other_events() {
+        assert!(!parse_codex_turn_completed(
+            r#"{"type":"event","event":{"type":"thread.started"}}"#
+        ));
+        assert!(!parse_codex_turn_completed(
+            r#"{"type":"event","event":{"type":"turn.started"}}"#
+        ));
+        assert!(!parse_codex_turn_completed(
+            r#"{"type":"event","event":{"type":"item.completed","item":{"type":"agent_message","text":"x"}}}"#
+        ));
+    }
+
+    #[test]
+    fn codex_turn_completed_false_for_malformed() {
+        assert!(!parse_codex_turn_completed(""));
+        assert!(!parse_codex_turn_completed("}{"));
+        assert!(!parse_codex_turn_completed("null"));
+        assert!(!parse_codex_turn_completed("plain text"));
+    }
+
+    #[test]
+    fn codex_turn_completed_false_when_event_field_missing() {
+        assert!(!parse_codex_turn_completed(r#"{"type":"event"}"#));
+        assert!(!parse_codex_turn_completed(
+            r#"{"type":"event","event":null}"#
+        ));
+    }
+
+    // --- EC-8: codex stderr 은 기존 classify_stderr 재사용 (REQ-AI9-014) ---
+
+    #[test]
+    fn codex_stderr_classified_by_existing_classify_stderr() {
+        // REQ-AI9-014: codex 전용 stderr 파서를 새로 만들지 않는다. 기존 classify_stderr 로
+        // login/network/other 분류가 동일하게 동작함을 검증.
+        assert_eq!(
+            classify_stderr("401 unauthorized"),
+            StderrKind::LoginExpired
+        );
+        assert_eq!(
+            classify_stderr("connect ETIMEDOUT"),
+            StderrKind::Network
+        );
+        assert_eq!(classify_stderr("unexpected panic"), StderrKind::Other);
     }
 }
