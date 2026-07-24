@@ -44,14 +44,51 @@ pub fn codex_model_arg(model: AiModel) -> &'static str {
     }
 }
 
+/// codex 의 `model_reasoning_effort` 값으로 매핑한다(순수, REQ-AI9-045).
+///
+/// `codex_model_arg` 와 형제 위치에 중앙화 — 기본(Haiku)="medium", 고급(Sonnet)="high".
+/// `build_codex_args` 는 이 함수의 반환값만 소비하며, 이 값을 다시 적어둔 두 번째 상수를
+/// 두지 않는다(REQ-AI9-049 (b) — 라벨 조립부도 반드시 이 함수를 호출해야 한다).
+pub fn codex_reasoning_effort(model: AiModel) -> &'static str {
+    match model {
+        AiModel::Haiku => "medium",
+        AiModel::Sonnet => "high",
+    }
+}
+
+/// `codex_reasoning_effort` 가 반환한 값을 사람이 읽는 표기로 옮긴다(순수, REQ-AI9-052).
+///
+/// **알 수 없는 키는 원문 그대로 통과시킨다** — 향후 `codex_reasoning_effort` 가 새 키를
+/// 반환해도 이 함수는 그 키를 날것으로 노출할 뿐 "높은 추론"이라고 거짓 주장하지 않는다.
+/// 티어→문자열 매칭을 라벨 쪽에서 다시 수행하는 것은 REQ-AI9-049 (b) 위반이다.
+pub fn codex_effort_display(effort: &str) -> &str {
+    match effort {
+        "high" => "높은 추론",
+        "medium" => "보통 추론",
+        other => other,
+    }
+}
+
+/// 고급 티어 표시 문자열(SPEC-AI-009 REQ-AI9-051/052) — `codex_model_arg(Sonnet)` 과
+/// `codex_effort_display(codex_reasoning_effort(Sonnet))` 만으로 조립한다. 모델명·effort
+/// 리터럴을 여기 다시 적지 않는다(REQ-AI9-049 (b)).
+pub fn codex_advanced_model_label() -> String {
+    format!(
+        "{} · {}",
+        codex_model_arg(AiModel::Sonnet),
+        codex_effort_display(codex_reasoning_effort(AiModel::Sonnet))
+    )
+}
+
 /// model·combined_prompt·scratch_dir 로 codex 실행 인자를 조립한다(순수, REQ-AI9-004).
 ///
-/// 산출 인자는 정확히 다음 순서의 15개 원소다(codex-cli 0.144.1 실측 기준):
+/// 산출 인자는 정확히 다음 순서의 14개 원소다(codex-cli 0.144.1 실측 기준):
 /// ```text
 /// ["exec", "-C", <scratch>, "--ignore-user-config", "--skip-git-repo-check",
 ///  "--ephemeral", "--sandbox", "read-only", "--model", <model_arg>,
-///  "-c", "model_reasoning_effort=\"medium\"", "--json", <combined_prompt>]
+///  "-c", "model_reasoning_effort=\"<effort>\"", "--json", <combined_prompt>]
 /// ```
+/// `<effort>` 는 `codex_reasoning_effort` 결과(기본 티어 `medium` / 고급 티어 `high`, REQ-AI9-045)다.
 /// `<scratch>` 는 빈 스크래치 디렉토리 절대경로, `<model_arg>` 는 `codex_model_arg` 결과,
 /// `<combined_prompt>` 는 `combine_prompts` 결과다.
 // @MX:ANCHOR: [AUTO] codex 격리 플래그 시퀀스 - --ignore-user-config/--sandbox read-only/--ephemeral
@@ -71,7 +108,10 @@ pub fn build_codex_args(model: AiModel, combined_prompt: &str, scratch_dir: &Pat
         "--model".to_string(),
         codex_model_arg(model).to_string(),
         "-c".to_string(),
-        "model_reasoning_effort=\"medium\"".to_string(),
+        format!(
+            "model_reasoning_effort=\"{}\"",
+            codex_reasoning_effort(model)
+        ),
         "--json".to_string(),
         combined_prompt.to_string(),
     ]
@@ -251,7 +291,11 @@ impl AiProvider for CodexProvider {
     }
 
     fn detect(&self) -> ProviderStatus {
-        crate::ai::detect::detect_codex()
+        // SPEC-AI-009 REQ-AI9-051: 매핑 소유 어댑터가 고급 티어 표시 문자열을 채운다.
+        ProviderStatus {
+            advanced_model_label: Some(codex_advanced_model_label()),
+            ..crate::ai::detect::detect_codex()
+        }
     }
 
     fn spawn(&self, request: &AiRequest, cwd: &Path) -> Result<Child, String> {
@@ -328,7 +372,7 @@ mod tests {
     // --- build_codex_args (REQ-AI9-004, AC-AI9-003) ---
 
     #[test]
-    fn build_codex_args_haiku_snapshot_exact_15_elements() {
+    fn build_codex_args_haiku_snapshot_exact_14_elements() {
         // AC-AI9-003: 정확한 순서·개수·값의 스냅샷. <scratch> 자리에는 실제 경로를 넣는다.
         let scratch = Path::new("/tmp/scratch");
         let combined = "system\n\nuser";
@@ -368,6 +412,124 @@ mod tests {
             .position(|a| a == "--model")
             .expect("--model 플래그 있어야 함");
         assert_eq!(args[model_idx + 1], "gpt-5.5");
+        // SPEC-AI-009 M10.1.3: Sonnet(고급 티어)는 reasoning effort 가 "high" 여야 한다.
+        let c_idx = args.iter().position(|a| a == "-c").unwrap();
+        assert_eq!(args[c_idx + 1], "model_reasoning_effort=\"high\"");
+    }
+
+    // --- SPEC-AI-009 M10.1 / AC-AI9-028: 기본 vs 고급 인자 벡터가 원소 1개만 달라야 함 ---
+
+    #[test]
+    fn build_codex_args_haiku_vs_sonnet_differ_in_exactly_one_element() {
+        // RED 확보 계약: 현행 구현은 effort 를 하드코딩하므로 두 벡터가 완전히 동일해
+        // "상이한 인덱스 0개"로 이 단언이 실패해야 한다.
+        let scratch = Path::new("/tmp/scratch");
+        let combined = "SYS\n\nUSER";
+        let haiku_args = build_codex_args(AiModel::Haiku, combined, scratch);
+        let sonnet_args = build_codex_args(AiModel::Sonnet, combined, scratch);
+
+        assert_eq!(haiku_args.len(), 14);
+        assert_eq!(sonnet_args.len(), 14);
+
+        let diffs: Vec<usize> = haiku_args
+            .iter()
+            .zip(sonnet_args.iter())
+            .enumerate()
+            .filter_map(|(i, (a, b))| if a != b { Some(i) } else { None })
+            .collect();
+
+        assert_eq!(
+            diffs.len(),
+            1,
+            "기본/고급 벡터는 정확히 1개 원소만 달라야 한다: {:?}",
+            diffs
+        );
+        let idx = diffs[0];
+        assert_eq!(haiku_args[idx], "model_reasoning_effort=\"medium\"");
+        assert_eq!(sonnet_args[idx], "model_reasoning_effort=\"high\"");
+        // 그 인덱스 직전 원소가 "-c"(플래그-값 쌍 유지).
+        assert_eq!(haiku_args[idx - 1], "-c");
+        assert_eq!(sonnet_args[idx - 1], "-c");
+    }
+
+    #[test]
+    fn build_codex_args_both_tiers_keep_model_gpt55() {
+        // 사전 합의 §2: --model 값은 두 티어 모두 여전히 "gpt-5.5"(REQ-AI9-045 무변경 부분).
+        let scratch = Path::new("/tmp/scratch");
+        for model in [AiModel::Haiku, AiModel::Sonnet] {
+            let args = build_codex_args(model, "p", scratch);
+            let model_idx = args.iter().position(|a| a == "--model").unwrap();
+            assert_eq!(args[model_idx + 1], "gpt-5.5");
+        }
+    }
+
+    #[test]
+    fn build_codex_args_both_tiers_keep_isolation_flags() {
+        // AC-AI9-028: 격리 플래그 단언을 두 티어로 범위만 확장(완화 금지).
+        let scratch = Path::new("/tmp/scratch");
+        for model in [AiModel::Haiku, AiModel::Sonnet] {
+            let args = build_codex_args(model, "p", scratch);
+            for flag in [
+                "--ignore-user-config",
+                "--skip-git-repo-check",
+                "--ephemeral",
+                "--sandbox",
+                "--json",
+                "-c",
+            ] {
+                assert!(
+                    args.iter().any(|a| a == flag),
+                    "{:?} 티어에 격리 플래그 {} 가 빠졌다",
+                    model,
+                    flag
+                );
+            }
+            let sb_idx = args.iter().position(|a| a == "--sandbox").unwrap();
+            assert_eq!(args[sb_idx + 1], "read-only");
+            let c_idx = args.iter().position(|a| a == "-C").unwrap();
+            assert_eq!(args[c_idx + 1], "/tmp/scratch");
+        }
+    }
+
+    #[test]
+    fn codex_reasoning_effort_haiku_medium_sonnet_high() {
+        // REQ-AI9-045: 추론 강도 매핑이 codex_model_arg 와 형제인 단일 순수 함수에 중앙화.
+        assert_eq!(codex_reasoning_effort(AiModel::Haiku), "medium");
+        assert_eq!(codex_reasoning_effort(AiModel::Sonnet), "high");
+    }
+
+    // --- SPEC-AI-009 M10.3 / AC-AI9-031: 라벨이 중앙 매핑 함수 반환값과 대조되어야 함 ---
+
+    #[test]
+    fn codex_effort_display_known_keys() {
+        assert_eq!(codex_effort_display("high"), "높은 추론");
+        assert_eq!(codex_effort_display("medium"), "보통 추론");
+    }
+
+    #[test]
+    fn codex_effort_display_unknown_key_passes_through_verbatim() {
+        // REQ-AI9-052: 알 수 없는 키는 원문 그대로 통과 — "높은 추론"이라 거짓 주장하지 않는다.
+        assert_eq!(codex_effort_display("ultra"), "ultra");
+        assert_eq!(codex_effort_display(""), "");
+    }
+
+    #[test]
+    fn codex_advanced_model_label_matches_central_functions() {
+        // 하드코딩 기대 문자열("gpt-5.5 · 높은 추론")과 단독 비교하지 않고, 중앙 함수 반환값과
+        // 대조한다(REQ-AI9-052) — 라벨이 codex_model_arg(Sonnet) 로 시작하고 그 뒤에
+        // codex_effort_display(codex_reasoning_effort(Sonnet)) 이 이어짐을 검증.
+        let label = codex_advanced_model_label();
+        assert!(label.starts_with(codex_model_arg(AiModel::Sonnet)));
+        let expected_effort = codex_effort_display(codex_reasoning_effort(AiModel::Sonnet));
+        assert!(label.ends_with(expected_effort));
+    }
+
+    #[test]
+    fn codex_detect_fills_advanced_model_label_non_empty() {
+        let status = CodexProvider::new().detect();
+        assert_eq!(status.id, "codex");
+        let label = status.advanced_model_label.expect("label must be Some");
+        assert!(!label.trim().is_empty());
     }
 
     #[test]
@@ -485,8 +647,28 @@ mod tests {
         }
     }
 
-    /// 파서 fixture 검증용 헬퍼 — codex JSONL 이벤트 라인을 조립한다(테스트 전용).
+    /// 파서 fixture 검증용 헬퍼 — codex JSONL **PRIMARY(FLAT)** 이벤트 라인을 조립한다(테스트 전용).
+    ///
+    /// codex-cli 0.144.1 실측 출력 형태(`event` 래퍼 없음)를 반영한다. M8.1.5 fixture 위생 —
+    /// 이 헬퍼는 결함 1 재발 방지를 위해 반드시 실측 FLAT 형태를 산출해야 하며, 래핑 형태는
+    /// [`wrapped_agent_message_line`]으로 별도 분리한다(AC-AI9-006, primary vs fallback 구분).
     fn agent_message_line(text: &str) -> String {
+        let v = serde_json::json!({
+            "type": "item.completed",
+            "item": {
+                "id": "item_0",
+                "type": "agent_message",
+                "text": text
+            }
+        });
+        serde_json::to_string(&v).unwrap()
+    }
+
+    /// 파서 fixture 검증용 헬퍼 — codex JSONL **FALLBACK(래핑)** 이벤트 라인을 조립한다(테스트 전용).
+    ///
+    /// 향후 codex CLI가 `event` 래퍼를 재도입해도 회귀하지 않도록 하는 FALLBACK 계약 검증 전용이며,
+    /// PRIMARY 자리에 쓰지 않는다(AC-AI9-006).
+    fn wrapped_agent_message_line(text: &str) -> String {
         let v = serde_json::json!({
             "type": "event",
             "event": {
@@ -501,9 +683,19 @@ mod tests {
     }
 
     #[test]
-    fn codex_relay_parser_wiring_extracts_agent_message() {
-        // stream.rs 의 parse_codex_agent_message 와 연동되는 fixture 검증.
+    fn codex_relay_parser_wiring_extracts_agent_message_primary_flat() {
+        // stream.rs 의 parse_codex_agent_message 와 연동되는 PRIMARY(FLAT) fixture 검증.
         let line = agent_message_line("AI 완성 본문");
+        assert_eq!(
+            parse_codex_agent_message(&line),
+            Some("AI 완성 본문".to_string())
+        );
+    }
+
+    #[test]
+    fn codex_relay_parser_wiring_extracts_agent_message_fallback_wrapped() {
+        // 래핑(event 래퍼) FALLBACK 형태도 연동 경로에서 인식되는지 검증(REQ-AI9-009 FALLBACK 계약).
+        let line = wrapped_agent_message_line("AI 완성 본문");
         assert_eq!(
             parse_codex_agent_message(&line),
             Some("AI 완성 본문".to_string())

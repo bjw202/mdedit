@@ -68,7 +68,8 @@ pub enum RelayOutcome {
 ///
 /// 격리 플래그: `--output-format stream-json --include-partial-messages --verbose
 /// --setting-sources "" --tools ""`.
-/// (`MAX_THINKING_TOKENS=0` env는 `spawn_claude`에서 설정)
+/// (`MAX_THINKING_TOKENS` env는 기본 티어에서만 `spawn_claude`가 설정하고, 고급 티어는
+/// 미설정으로 CLI 기본값에 위임한다 — `claude_thinking_env` 참조, SPEC-AI-009 REQ-AI9-046)
 //
 // @MX:ANCHOR: [AUTO] `--tools ""` — 내장 도구 전면 비활성화 계약
 // @MX:REASON: [AUTO] 이 앱의 AI 기능(인라인 편집·고스트 텍스트·다이어그램)은 전부 순수 텍스트
@@ -95,6 +96,24 @@ pub fn build_claude_args(model: AiModel, system_prompt: &str, user_prompt: &str)
         "--tools".to_string(),
         String::new(),
     ]
+}
+
+/// claude 의 사고 예산 환경변수를 티어에서 파생한다(순수, REQ-AI9-046).
+///
+/// 기본 티어(Haiku)는 `MAX_THINKING_TOKENS=0`(추론 비활성, 기존 동작 유지).
+/// 고급 티어(Sonnet)는 `None` — 환경변수를 아예 설정하지 않고 claude CLI 자체 기본값에
+/// 위임한다. 숫자 예산을 발명하지 않는다(무출처 매직 넘버 금지, REQ-AI9-047).
+pub fn claude_thinking_env(model: AiModel) -> Option<(&'static str, &'static str)> {
+    match model {
+        AiModel::Haiku => Some(("MAX_THINKING_TOKENS", "0")),
+        AiModel::Sonnet => None,
+    }
+}
+
+/// 고급 티어 표시 문자열(SPEC-AI-009 REQ-AI9-051/052) — `AiModel::as_arg(Sonnet)` 반환값
+/// 그 자체다. 이 값을 다시 적어둔 두 번째 상수를 두지 않는다(REQ-AI9-049 (b)).
+pub fn claude_advanced_model_label() -> String {
+    AiModel::Sonnet.as_arg().to_string()
 }
 
 /// 스크래치 디렉토리 경로(앱 데이터 디렉토리 하위).
@@ -164,20 +183,25 @@ pub fn decide_outcome(
     RelayOutcome::Error(kind, friendly_error_message(kind))
 }
 
-/// claude 프로세스를 스폰한다. stdout/stderr piped, stdin null, 빈 cwd, 사고 토큰 0.
+/// claude 프로세스를 스폰한다. stdout/stderr piped, stdin null, 빈 cwd.
+///
+/// 사고 예산 env(`MAX_THINKING_TOKENS`)는 `claude_thinking_env(model)` 이 `Some((k, v))` 를
+/// 반환할 때만 설정한다 — 기본 티어는 `0`(추론 비활성), 고급 티어는 미설정(CLI 기본값 위임,
+/// SPEC-AI-009 REQ-AI9-046). 그 외 Command 설정(`no_window`/`current_dir`/`stdin`/`stdout`/
+/// `stderr`)은 무변경이다.
 // @MX:WARN: [AUTO] 외부 바이너리(claude)를 실행한다 - 임의 경로 실행 보안 표면
 // @MX:REASON: [AUTO] cwd를 빈 스크래치로 고정하고 --setting-sources ""로 사용자/프로젝트 설정·훅을 차단해 부작용을 최소화한다(부록 A)
-pub fn spawn_claude(args: &[String], cwd: &Path) -> Result<Child, String> {
+pub fn spawn_claude(args: &[String], cwd: &Path, model: AiModel) -> Result<Child, String> {
     // bare "claude"가 아니라 detect와 동일하게 해석된 절대경로로 스폰한다(GUI 최소 PATH 우회).
     let binary = crate::ai::detect::claude_binary()
         .ok_or_else(|| "claude 실행 파일을 찾지 못했어요.".to_string())?;
     let mut cmd = Command::new(&binary);
     // Windows에서 콘솔 창이 깜빡이며 뜨는 것을 막는다(GUI 앱 전면 탈취 방지).
-    no_window(&mut cmd)
-        .args(args)
-        .current_dir(cwd)
-        .env("MAX_THINKING_TOKENS", "0")
-        .stdin(Stdio::null())
+    no_window(&mut cmd).args(args).current_dir(cwd);
+    if let Some((key, value)) = claude_thinking_env(model) {
+        cmd.env(key, value);
+    }
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -284,12 +308,16 @@ impl AiProvider for ClaudeProvider {
     }
 
     fn detect(&self) -> ProviderStatus {
-        crate::ai::detect::detect_claude()
+        // SPEC-AI-009 REQ-AI9-051: 매핑 소유 어댑터가 고급 티어 표시 문자열을 채운다.
+        ProviderStatus {
+            advanced_model_label: Some(claude_advanced_model_label()),
+            ..crate::ai::detect::detect_claude()
+        }
     }
 
     fn spawn(&self, request: &AiRequest, cwd: &Path) -> Result<Child, String> {
         let args = build_claude_args(request.model, &request.system_prompt, &request.user_prompt);
-        spawn_claude(&args, cwd)
+        spawn_claude(&args, cwd, request.model)
     }
 
     fn capabilities(&self) -> Capabilities {
@@ -540,6 +568,38 @@ mod tests {
             assert!(!msg.contains("{"));
             assert!(!msg.contains("Error:"));
         }
+    }
+
+    // --- SPEC-AI-009 M10.3 / AC-AI9-031: 라벨이 중앙 매핑 함수 반환값과 대조되어야 함 ---
+
+    #[test]
+    fn claude_advanced_model_label_matches_as_arg_sonnet() {
+        // 하드코딩 기대 문자열이 아니라 AiModel::as_arg(Sonnet) 반환값과 대조한다(REQ-AI9-052).
+        assert_eq!(claude_advanced_model_label(), AiModel::Sonnet.as_arg());
+    }
+
+    #[test]
+    fn claude_detect_fills_advanced_model_label_non_empty() {
+        let status = ClaudeProvider::new().detect();
+        assert_eq!(status.id, "claude");
+        let label = status.advanced_model_label.expect("label must be Some");
+        assert!(!label.trim().is_empty());
+    }
+
+    // --- SPEC-AI-009 M10.2 / AC-AI9-029: claude 티어별 사고 예산 env 파생 ---
+
+    #[test]
+    fn claude_thinking_env_haiku_sets_zero() {
+        assert_eq!(
+            claude_thinking_env(AiModel::Haiku),
+            Some(("MAX_THINKING_TOKENS", "0"))
+        );
+    }
+
+    #[test]
+    fn claude_thinking_env_sonnet_is_none() {
+        // 고급 티어는 env 를 아예 설정하지 않는다(CLI 기본값 위임, REQ-AI9-046/047).
+        assert_eq!(claude_thinking_env(AiModel::Sonnet), None);
     }
 
     // --- SPEC-AI-006 항목 2: timeout 오류 종류 + 단일발행 선점 헬퍼 (REQ-AI6-004/005/006) ---

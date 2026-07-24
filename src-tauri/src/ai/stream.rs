@@ -135,25 +135,43 @@ pub fn classify_stderr(stderr: &str) -> StderrKind {
 //   agent_message 가 완성본을 한 번에 실어 보낸다(토큰 단위 스트리밍 아님, 실측). 별도 파서로 분리.
 // @MX:SPEC: SPEC-AI-009
 
+/// FLAT(PRIMARY) 우선, 실패 시 `event` 래퍼(FALLBACK)로 폴백해 이벤트 노드를 선택한다
+/// (REQ-AI9-009/010 공용, M8.1.4 REFACTOR — 두 파서의 "FLAT vs 래핑 노드 선택" 중복 제거).
+///
+/// `value`의 최상위 `type`이 `expected_type`과 일치하면 그 값 자체를 반환한다
+/// (PRIMARY, codex-cli 0.144.1 실측 — `event` 래퍼 없음).
+/// 일치하지 않으면 최상위 `type`이 `"event"`이고 `event.type`이 `expected_type`인 경우
+/// `event` 서브값을 반환한다(FALLBACK, 레거시/미래 호환 래핑 형태).
+/// 둘 다 아니거나 형태가 어긋나면 `None`(panic 없음).
+fn codex_event_node<'a>(value: &'a Value, expected_type: &str) -> Option<&'a Value> {
+    if value.get("type")?.as_str()? == expected_type {
+        return Some(value);
+    }
+    if value.get("type")?.as_str()? == "event" {
+        let event = value.get("event")?;
+        if event.get("type")?.as_str()? == expected_type {
+            return Some(event);
+        }
+    }
+    None
+}
+
 /// codex `--json` 출력 한 줄에서 `item.completed(agent_message)` 의 본문 텍스트를 추출한다(순수, REQ-AI9-009).
 ///
-/// 대상 형태(codex-cli 0.144.1 실측 기준):
-/// `{"type":"event","event":{"type":"item.completed","item":{"type":"agent_message","text":"<본문>"}}}`
+/// 인정하는 라인 형태(우선순위 순, M8.1.3 GREEN — 결함 1 수정):
+/// - **PRIMARY(실측, codex-cli 0.144.1)** — `event` 래퍼 없는 FLAT 형태:
+///   `{"type":"item.completed","item":{"type":"agent_message","text":"<본문>"}}`
+/// - **FALLBACK(레거시/미래 호환)** — 래핑 형태:
+///   `{"type":"event","event":{"type":"item.completed","item":{"type":"agent_message","text":"<본문>"}}}`
 ///
-/// 이벤트 타입이 `item.completed` 이고 그 item.type 이 `"agent_message"` 면 `item.text` 를 반환한다.
+/// 두 형태 모두 `item.type == "agent_message"`이면 `item.text`를 반환한다.
 /// 그 외 이벤트(`thread.started`, `turn.started`, `turn.completed`, `item.completed` 이더라도
 /// item.type 이 reasoning 등 다른 경우)이거나 JSON 파싱 실패면 `None`(panic 없음, raw JSON 노출 없음).
 /// `parse_text_delta`(stream.rs:40-55)와 동일한 안전 계약.
 pub fn parse_codex_agent_message(line: &str) -> Option<String> {
     let value: Value = serde_json::from_str(line.trim()).ok()?;
 
-    if value.get("type")?.as_str()? != "event" {
-        return None;
-    }
-    let event = value.get("event")?;
-    if event.get("type")?.as_str()? != "item.completed" {
-        return None;
-    }
+    let event = codex_event_node(&value, "item.completed")?;
     let item = event.get("item")?;
     if item.get("type")?.as_str()? != "agent_message" {
         return None;
@@ -163,26 +181,17 @@ pub fn parse_codex_agent_message(line: &str) -> Option<String> {
 
 /// codex `--json` 라인이 `turn.completed` 이벤트(usage 포함 최종 종료 신호)인지 판정한다(순수, REQ-AI9-010).
 ///
-/// 대상 형태: `{"type":"event","event":{"type":"turn.completed","usage":{...}}}`
+/// 인정하는 라인 형태(우선순위 순, M8.1.3 GREEN — 결함 1 수정):
+/// - **PRIMARY(실측)** — FLAT: `{"type":"turn.completed","usage":{...}}`
+/// - **FALLBACK** — 래핑: `{"type":"event","event":{"type":"turn.completed","usage":{...}}}`
 ///
-/// `turn.completed` 면 `true`, 그 외 이벤트이거나 JSON 파싱 실패면 `false`(panic 없음).
+/// 둘 중 하나에 해당하면 `true`, 그 외 이벤트이거나 JSON 파싱 실패면 `false`(panic 없음).
+/// `usage` 필드의 존재 여부는 판정 조건이 아니다(있으면 참고, 없어도 `true`).
 pub fn parse_codex_turn_completed(line: &str) -> bool {
     let Ok(value) = serde_json::from_str::<Value>(line.trim()) else {
         return false;
     };
-    // m2 정정: 최상위 type=="event" 래퍼 검사(parse_codex_agent_message와 대칭).
-    // 비정상 래퍼{"type":"other",...}에 대한 오탐을 방지한다.
-    if value.get("type").and_then(|v| v.as_str()) != Some("event") {
-        return false;
-    }
-    let Some(event_type) = value
-        .get("event")
-        .and_then(|e| e.get("type"))
-        .and_then(|t| t.as_str())
-    else {
-        return false;
-    };
-    event_type == "turn.completed"
+    codex_event_node(&value, "turn.completed").is_some()
 }
 
 #[cfg(test)]
@@ -317,9 +326,43 @@ mod tests {
     }
 
     // --- SPEC-AI-009 codex JSONL 파싱 (REQ-AI9-009/010, AC-AI9-006) ---
+    // M8.1.1/M8.1.2 (RED): codex-cli 0.144.1 실측 캡처 4줄(acceptance.md AC-AI9-006).
+    // PRIMARY = event 래퍼 없는 FLAT 형태. FALLBACK = 래핑(event 래퍼) 형태.
+    // 아래 4개 상수는 실측 원문 그대로이며(날조 금지, Design Notes), 다른 fixture 조립에 사용하지 않는다.
+
+    const CODEX_CAPTURE_THREAD_STARTED: &str =
+        r#"{"type":"thread.started","thread_id":"019f9446-9070-7750-bcbe-798b7622ce1f"}"#;
+    const CODEX_CAPTURE_TURN_STARTED: &str = r#"{"type":"turn.started"}"#;
+    const CODEX_CAPTURE_AGENT_MESSAGE: &str =
+        r#"{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Hi"}}"#;
+    const CODEX_CAPTURE_TURN_COMPLETED: &str = r#"{"type":"turn.completed","usage":{"input_tokens":14976,"cached_input_tokens":4480,"output_tokens":5,"reasoning_output_tokens":0}}"#;
 
     #[test]
-    fn codex_extracts_text_from_agent_message_item_completed() {
+    fn codex_primary_flat_extracts_agent_message_text() {
+        // PRIMARY(실측, codex-cli 0.144.1) — event 래퍼 없는 FLAT 형태에서 text 추출.
+        assert_eq!(
+            parse_codex_agent_message(CODEX_CAPTURE_AGENT_MESSAGE),
+            Some("Hi".to_string())
+        );
+    }
+
+    #[test]
+    fn codex_primary_flat_returns_none_for_thread_started_and_turn_started() {
+        // PRIMARY 라인 중 agent_message 가 아닌 이벤트는 None(panic 없음).
+        assert_eq!(parse_codex_agent_message(CODEX_CAPTURE_THREAD_STARTED), None);
+        assert_eq!(parse_codex_agent_message(CODEX_CAPTURE_TURN_STARTED), None);
+    }
+
+    #[test]
+    fn codex_primary_flat_returns_none_for_non_agent_message_item_type() {
+        // FLAT item.completed 이더라도 item.type 이 reasoning 등 다른 경우 → None.
+        let line = r#"{"type":"item.completed","item":{"type":"reasoning","text":"..."}}"#;
+        assert_eq!(parse_codex_agent_message(line), None);
+    }
+
+    #[test]
+    fn codex_fallback_wrapped_extracts_agent_message_text() {
+        // FALLBACK(레거시/미래 호환) — event 래퍼가 있는 래핑 형태도 인정한다(사용자 확정 결정).
         let line = r#"{"type":"event","event":{"type":"item.completed","item":{"type":"agent_message","text":"AI 완성 본문"}}}"#;
         assert_eq!(
             parse_codex_agent_message(line),
@@ -406,13 +449,27 @@ mod tests {
     // --- parse_codex_turn_completed (REQ-AI9-010) ---
 
     #[test]
-    fn codex_turn_completed_true_for_turn_completed_event() {
+    fn codex_primary_flat_turn_completed_true() {
+        // PRIMARY(실측) — event 래퍼 없는 FLAT turn.completed 라인.
+        assert!(parse_codex_turn_completed(CODEX_CAPTURE_TURN_COMPLETED));
+    }
+
+    #[test]
+    fn codex_primary_flat_turn_completed_false_for_other_flat_events() {
+        assert!(!parse_codex_turn_completed(CODEX_CAPTURE_THREAD_STARTED));
+        assert!(!parse_codex_turn_completed(CODEX_CAPTURE_TURN_STARTED));
+        assert!(!parse_codex_turn_completed(CODEX_CAPTURE_AGENT_MESSAGE));
+    }
+
+    #[test]
+    fn codex_fallback_wrapped_turn_completed_true() {
+        // FALLBACK — event 래퍼가 있는 래핑 turn.completed 라인도 인정.
         let line = r#"{"type":"event","event":{"type":"turn.completed","usage":{"input_tokens":120,"output_tokens":80}}}"#;
         assert!(parse_codex_turn_completed(line));
     }
 
     #[test]
-    fn codex_turn_completed_false_for_other_events() {
+    fn codex_fallback_wrapped_turn_completed_false_for_other_events() {
         assert!(!parse_codex_turn_completed(
             r#"{"type":"event","event":{"type":"thread.started"}}"#
         ));

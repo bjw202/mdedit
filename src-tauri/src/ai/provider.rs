@@ -52,6 +52,12 @@ pub struct ProviderStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
     pub logged_in: bool,
+    /// 고급 티어 표시 문자열(SPEC-AI-009 REQ-AI9-051) — claude → `sonnet`, codex →
+    /// `gpt-5.5 · 높은 추론`. 중앙 매핑 함수(`AiModel::as_arg`/`codex_model_arg`/
+    /// `codex_reasoning_effort`)에서 파생되며, 어댑터의 `detect()` 가 채운다. `detect.rs` 의
+    /// 생성 지점은 매핑 지식이 새지 않도록 `None` 으로 둔다(REQ-AI9-052).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub advanced_model_label: Option<String>,
 }
 
 /// 프로바이더 능력 — M4 codex의 무스트리밍 분기를 위한 계약(REQ-AI-001).
@@ -165,6 +171,7 @@ mod tests {
                 installed: true,
                 version: Some("1.0.0".to_string()),
                 logged_in: true,
+                advanced_model_label: None,
             }
         }
         fn spawn(&self, _request: &AiRequest, _cwd: &Path) -> Result<Child, String> {
@@ -196,6 +203,7 @@ mod tests {
                 installed: self.installed,
                 version: (self.installed).then(|| "1.0.0".to_string()),
                 logged_in: self.logged_in,
+                advanced_model_label: None,
             }
         }
         fn spawn(&self, _request: &AiRequest, _cwd: &Path) -> Result<Child, String> {
@@ -284,6 +292,7 @@ mod tests {
             installed: true,
             version: Some("2.1.211".to_string()),
             logged_in: false,
+            advanced_model_label: None,
         };
         let json = serde_json::to_string(&status).unwrap();
         assert!(json.contains("\"loggedIn\":false"));
@@ -298,6 +307,7 @@ mod tests {
             installed: false,
             version: None,
             logged_in: false,
+            advanced_model_label: None,
         };
         let json = serde_json::to_string(&status).unwrap();
         assert!(!json.contains("version"));

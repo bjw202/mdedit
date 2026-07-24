@@ -284,6 +284,9 @@ pub fn detect_claude() -> ProviderStatus {
         installed,
         version,
         logged_in,
+        // SPEC-AI-009 REQ-AI9-051: 매핑 지식을 detect.rs 로 들이지 않는다 — 라벨은
+        // ClaudeProvider::detect()(claude_cli.rs)가 채운다.
+        advanced_model_label: None,
     }
 }
 
@@ -394,6 +397,9 @@ pub fn detect_codex() -> ProviderStatus {
         installed,
         version,
         logged_in,
+        // SPEC-AI-009 REQ-AI9-051: 매핑 지식을 detect.rs 로 들이지 않는다 — 라벨은
+        // CodexProvider::detect()(codex_cli.rs)가 채운다.
+        advanced_model_label: None,
     }
 }
 
