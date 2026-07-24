@@ -1,9 +1,9 @@
 ---
 id: SPEC-FS-003
-version: "0.0.3"
+version: "0.0.4"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-23"
+updated: "2026-07-24"
 author: "jw"
 priority: high
 issue_number: 0
@@ -15,6 +15,7 @@ issue_number: 0
 |---------|------|--------|---------|
 | 0.0.2 | 2026-07-22 | jw | plan-auditor 리뷰 반영 — `checkbox` 관련 DoD 항목 삭제(계약에서 제거). AC-002/AC-004의 코드 검토 성격 항목을 `[review]`로 명시 라벨링(jsdom은 스타일시트 미로드, 참조 부재는 테스트 불가). **AC-010에서 Rust 자동화 테스트 층 철회** — 런타임 없이 `CloseRequested`/`CloseRequestApi` 구성 불가, 순수 함수 추출 시 `prevent_close()`가 검증 범위 밖에 남음. diff 리뷰 + 모킹 테스트 + 수동 확인으로 정정하고 `cargo test` 게이트 주장 제거. AC-012에 새 문서·워처 트리거 시나리오 추가(REQ-024 커버리지 인플레 해소) + 워처 이벤트 폐기의 알려진 한계(재알림 없음) 명시. AC-013에서 REQ-027 참조 제거(요구 삭제됨). 신규 AC-018(INV-3 강제)·019(종료 승격 deadlock 부재)·020(AI 취소 + 부분 저장)·021(AI 고지 문구)·022(E2E 가상 FS 픽스처). 수동 체크리스트에 M6(승격 + 재종료) 추가. |
 | 0.0.3 | 2026-07-23 | jw | **REQ-018 V1 해소 연동**(spec.md v0.0.4) — AC-010에서 Rust `on_window_event` diff 리뷰 항목을 철회했다. V1 검증으로 프런트엔드 `onCloseRequested` + `preventDefault` 단독이 충분해 Rust를 사용하지 않으므로, AC-010은 프런트엔드 모킹 단위 테스트(`windowCloseGuard.test.tsx`) + 수동 체크리스트(M1~M6)만으로 검증한다. |
+| 0.0.4 | 2026-07-24 | jw | **Save As 다이얼로그 누락 결함 연동**(spec.md v0.0.5) — REQ-FS-003-041~044(Save As 무조건 다이얼로그 / Save 인플레이스 불변 / 신규 경로 추적 전환 / 취소 시 dirty 유지)에 대응하는 **AC-FS-003-023 신설**. `saveDocument.test.ts`가 `forceDialog` 분기·진입점별 전달 여부·경로 전환·취소 처리를 vitest로 검증한다. Tauri 런타임이 필요 없어(다이얼로그 IPC는 모킹) 수동 체크리스트에는 추가 항목이 없다. DoD에 AC-023·Save As 항목 추가. |
 | 0.0.1 | 2026-07-22 | jw | 최초 acceptance 작성 — Given-When-Then 시나리오 17건(AC-FS-003-001~017) + 품질 게이트 + 수동 검증 체크리스트. spec.md v0.0.2(REQ-001~035)와 1:1 정합하며 spec.md의 dangling `acceptance.md` 참조를 해소한다. 사용자 결정 3건 반영: 폴더 이동 허위 가드 제거(AC-014), 워처 모달 안전 선택지 기본 포커스(AC-016), `saveDocument` 기본 디렉터리 통일(AC-017). 윈도우 종료 가드(AC-010)는 Playwright로 검증 불가하므로 3층(Rust 테스트 + 모킹 단위 테스트 + 수동 체크리스트)으로 분리 명시. |
 
 # Acceptance Criteria — SPEC-FS-003 (미저장 변경 가드)
@@ -245,6 +246,24 @@ issue_number: 0
 - **And** 지원하지 않는 IPC 명령 호출 시 조용히 `null`을 반환하지 않고 실패하거나 경고를 남긴다(유령 통과 방지).
 - **And** 기존 `e2e/html-file-viewer.spec.ts`가 무변경으로 통과한다.
 
+### AC-FS-003-023: Save As 무조건 다이얼로그 / Save 인플레이스 구분 (REQ-041, 042, 043, 044)
+
+> 근인: `saveDocument()`가 다이얼로그 표시 여부를 `currentFilePath` 단독으로 판정해, 기존 파일이 열려 있으면 Save As가 다이얼로그를 건너뛰고 Save처럼 조용히 덮어썼다. Save와 Save As를 별개 동작으로 분리한다. 저장 다이얼로그 IPC(`save_file_as`)는 모킹하므로 Tauri 런타임이 필요 없다(vitest 검증).
+
+- **Given** `currentFilePath`가 설정되어(기존 파일이 열려) 있는 상태에서
+- **When** Save As를 실행하면(`handleSaveAs` / `Mod-Shift-s` / `saveFileAs` 중 어느 진입점이든 → `saveDocument({ forceDialog: true })`)
+- **Then** 네이티브 저장 다이얼로그가 개시된다(기존 경로로 직접 덮어쓰지 않는다).
+- **Given** `currentFilePath`가 `null`인(새/무제 문서) 상태에서
+- **When** Save As를 실행하면
+- **Then** 네이티브 저장 다이얼로그가 개시된다(기존 Save의 위임 경로와 동일하게 다이얼로그가 뜬다).
+- **Given** `currentFilePath`가 설정되어 있는 상태에서
+- **When** Save를 실행하면(`Mod-s` 또는 헤더 저장 버튼 → `saveDocument()`, `forceDialog` 미전달)
+- **Then** 다이얼로그 없이 해당 경로에 인플레이스로 덮어쓴다(REQ-009 의미 보존). Save 진입점은 `forceDialog`를 전달하지 않는다.
+- **When** Save As가 사용자가 선택한 새 경로에 기록을 완료하면
+- **Then** 문서의 추적 경로(`currentFilePath`)가 그 새 경로로 전환되어, 이후 Save가 새 경로를 재사용한다.
+- **When** Save As 네이티브 다이얼로그를 사용자가 취소하면(`save_file_as`가 null 반환)
+- **Then** 어떤 파일도 기록되지 않고 `editorStore.dirty`가 true로 유지된다(암묵적 데이터 손실 없음, REQ-017 정합).
+
 ## Quality Gate Criteria
 
 | 게이트 | 기준 |
@@ -272,8 +291,8 @@ issue_number: 0
 
 ## Definition of Done
 
-- [ ] AC-FS-003-001 ~ 022 전 시나리오에 대응하는 테스트가 존재하고 통과(AC-010은 모킹 단위 테스트 + 수동 체크리스트로 대체, `[review]` 항목은 리뷰 기록으로 대체)
-- [ ] REQ-FS-003-001 ~ 040(027 결번) 전 요구사항이 테스트 또는 diff 리뷰로 검증됨(spec.md AC 표 하단 REQ→AC 대조 참조)
+- [ ] AC-FS-003-001 ~ 023 전 시나리오에 대응하는 테스트가 존재하고 통과(AC-010은 모킹 단위 테스트 + 수동 체크리스트로 대체, `[review]` 항목은 리뷰 기록으로 대체)
+- [ ] REQ-FS-003-001 ~ 044(027 결번) 전 요구사항이 테스트 또는 diff 리뷰로 검증됨(spec.md AC 표 하단 REQ→AC 대조 참조)
 - [ ] `ConfirmDialog`가 spec.md 계약과 **문자 그대로** 일치하고 `checkbox` 관련 필드가 **존재하지 않으며**, SPEC-EXPORT-002의 계약 정의와 문자 단위로 동일함
 - [ ] 계약 불변식 INV-1/INV-2/INV-3이 구현·테스트됨(특히 INV-3 개발 빌드 콘솔 오류)
 - [ ] E2E 가상 FS 픽스처 완성 — 파일 트리가 렌더되고 파일 클릭 E2E가 실제로 실행됨(널 스텁 상태 탈출)
@@ -283,6 +302,7 @@ issue_number: 0
 - [ ] `openFile` 5개 분기 전부 `setDirty(false)` 호출 확인, 파일 열기 직후 재클릭 시 무모달 확인
 - [ ] `saveStatus`가 localStorage에 저장되지 않음 확인(재시작 후 stale `unsaved` 없음)
 - [ ] 저장 5중 중복이 단일 `saveDocument()`로 수렴, 4개 진입점 전부 `watchedPath` 전달 확인
+- [ ] Save As 3진입점(`handleSaveAs`/`Mod-Shift-s`/`saveFileAs`)이 `forceDialog: true`를 전달해 기존 파일에서도 다이얼로그 개시, Save(`Mod-s`/헤더)는 `forceDialog` 미전달로 인플레이스 덮어쓰기 확인; Save As 취소 시 무기록·dirty 유지 확인; `saveDocument.ts` `@MX:ANCHOR`/`@MX:REASON` 주석이 옵션 파라미터 반영으로 갱신됨
 - [ ] 폴더 이동 5경로 무가드 + 문서 무변경 확인(허위 가드 제거가 테스트로 고정됨)
 - [ ] 미저장 경고용 `window.confirm`/`onbeforeunload`/네이티브 다이얼로그 0건 확인
 - [ ] 모달 열린 동안 재진입 차단(파일 1개, 저장 1회) 확인

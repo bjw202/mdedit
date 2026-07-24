@@ -105,4 +105,62 @@ describe('saveDocument', () => {
 
     await act(async () => { resolveWrite!(); await promise; });
   });
+
+  describe('forceDialog (REQ-FS-003-041~044, Save As on existing file)', () => {
+    it('기존 파일 + forceDialog:true 이면 writeFile이 아니라 saveFileAs(다이얼로그)를 호출한다', async () => {
+      useEditorStore.setState({ content: '내용', currentFilePath: '/doc.md', dirty: true });
+      useFileStore.setState({ watchedPath: '/proj' } as never);
+      vi.mocked(ipc.saveFileAs).mockResolvedValue('/proj/doc.md');
+
+      const result = await saveDocument({ forceDialog: true });
+
+      expect(ipc.saveFileAs).toHaveBeenCalledWith('내용', '/proj');
+      expect(ipc.writeFile).not.toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it('기존 파일 + 옵션 없음(Save)이면 다이얼로그 없이 직접 writeFile로 덮어쓴다 (REQ-009 회귀 가드)', async () => {
+      useEditorStore.setState({ content: '내용', currentFilePath: '/doc.md', dirty: true });
+      vi.mocked(ipc.writeFile).mockResolvedValue(undefined);
+
+      const result = await saveDocument();
+
+      expect(ipc.writeFile).toHaveBeenCalledWith('/doc.md', '내용');
+      expect(ipc.saveFileAs).not.toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it('신규 파일(currentFilePath null) + 옵션 없음이면 다이얼로그를 호출한다 (기존 동작 불변)', async () => {
+      useEditorStore.setState({ content: '새 내용', currentFilePath: null, dirty: true });
+      vi.mocked(ipc.saveFileAs).mockResolvedValue('/proj/new.md');
+
+      const result = await saveDocument();
+
+      expect(ipc.saveFileAs).toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it('Save As로 새 경로에 저장하면 추적 경로가 새 경로로 전환된다', async () => {
+      useEditorStore.setState({ content: '내용', currentFilePath: '/old.md', dirty: true });
+      vi.mocked(ipc.saveFileAs).mockResolvedValue('/new/path.md');
+
+      const result = await saveDocument({ forceDialog: true });
+
+      expect(result).toBe(true);
+      expect(useEditorStore.getState().currentFilePath).toBe('/new/path.md');
+      expect(useFileStore.getState().currentFile).toBe('/new/path.md');
+    });
+
+    it('Save As 다이얼로그 취소(savedPath null) 시 쓰기가 발생하지 않고 dirty가 유지된다', async () => {
+      useEditorStore.setState({ content: '내용', currentFilePath: '/doc.md', dirty: true });
+      vi.mocked(ipc.saveFileAs).mockResolvedValue(null);
+
+      const result = await saveDocument({ forceDialog: true });
+
+      expect(ipc.writeFile).not.toHaveBeenCalled();
+      expect(result).toBe(false);
+      expect(useEditorStore.getState().dirty).toBe(true);
+      expect(useEditorStore.getState().currentFilePath).toBe('/doc.md');
+    });
+  });
 });
