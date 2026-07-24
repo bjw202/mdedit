@@ -4,6 +4,11 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-07-24
+
+### Fixed
+- **「다른 이름으로 저장」이 다이얼로그를 건너뛰던 문제 (SPEC-FS-003)**: 기존 파일을 편집하다 「다른 이름으로 저장」을 실행하면 네이티브 저장 다이얼로그 없이 현재 파일에 즉시 덮어써서 일반 저장처럼 동작하던 결함. 모든 저장 진입점을 합친 단일 `saveDocument()`가 다이얼로그를 `currentFilePath` 유무로만 분기해 "다른 이름으로 저장 = 항상 다이얼로그"라는 의미가 유실된 것이 원인. `forceDialog` 옵션을 추가해 Save As 진입점(헤더 버튼·Ctrl/Cmd+Shift+S·저장 훅)에서만 다이얼로그를 강제하고, 일반 저장(Ctrl/Cmd+S)은 기존대로 현재 파일에 덮어쓴다.
+
 ## [0.12.0] - 2026-07-23
 
 ### Added
