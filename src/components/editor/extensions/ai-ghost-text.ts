@@ -19,7 +19,7 @@ import type { AiRequestArgs } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
 import { resolveModel } from '@/components/settings/SettingsModal';
-import { getEffectiveAiEnabled } from '@/store/aiPolicy';
+import { getEffectiveAiEnabled, resolveProviderId } from '@/store/aiPolicy';
 import { WAIT_NOTICE_DELAY_MS, WAIT_NOTICE_TEXT } from '@/lib/ai/waitNotice';
 
 // ============================================================
@@ -451,7 +451,7 @@ export function reRequestGhost(view: EditorView): boolean {
   });
   armGhostWaitNotice(view);
 
-  void aiRequest({ requestId, ...lastGhostTrigger }).catch((e) =>
+  void aiRequest({ requestId, ...lastGhostTrigger, providerId: resolveProviderId() }).catch((e) =>
     useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
   );
   return true;
@@ -510,12 +510,14 @@ export const startSectionFillCommand: Command = (view) => {
   // 백엔드 계약(team-lead 확정): outline = 전체 헤딩 아웃라인, contextBefore = 커서 앞 본문 꼬리.
   // 1.5K자 상한 절단은 백엔드가 수행하므로 프론트는 커서 앞 원문을 그대로 넘긴다(설계 §7). presetKind·selection 없음.
   // 섹션 채우기는 continue 가 아니므로 length 를 싣지 않는다(REQ-AI6-014).
+  // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     model,
     outline: ctx.outline.join('\n'),
     contextBefore: view.state.sliceDoc(0, head),
+    providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
   void aiRequest({ requestId, ...requestArgs }).catch((e) =>
@@ -545,6 +547,7 @@ export const startContinueWritingCommand: Command = (view) => {
 
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   // SPEC-AI-006 REQ-AI6-013: 이어쓰기(continue) 발행부 — 지속 설정 길이를 실어 보낸다.
+  // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     presetKind: 'continue',
@@ -552,6 +555,7 @@ export const startContinueWritingCommand: Command = (view) => {
     outline: ctx.outline.join('\n'),
     contextBefore: ctx.contextBefore,
     length: useUIStore.getState().aiContinueLength,
+    providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
   void aiRequest({ requestId, ...requestArgs }).catch((e) =>
@@ -581,6 +585,7 @@ export const startFreeContinueWritingCommand: Command = (view) => {
 
   const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   // SPEC-AI-006 REQ-AI6-013: 이어쓰기(continue) 발행부 — 지속 설정 길이를 실어 보낸다.
+  // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     presetKind: 'continue',
@@ -589,6 +594,7 @@ export const startFreeContinueWritingCommand: Command = (view) => {
     contextBefore: ctx.contextBefore,
     contextAfter: ctx.contextAfter,
     length: useUIStore.getState().aiContinueLength,
+    providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
   void aiRequest({ requestId, ...requestArgs }).catch((e) =>

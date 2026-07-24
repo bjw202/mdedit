@@ -266,6 +266,97 @@ describe('SettingsModal: continue length toggle (SPEC-AI-006 REQ-AI6-012)', () =
   });
 });
 
+describe('SettingsModal: AI provider dropdown (SPEC-AI-009)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ aiNoticeAcknowledged: true, aiSelectedProvider: 'auto' });
+    localStorage.clear();
+  });
+
+  it('renders the AI provider dropdown with "자동 감지" option when available', async () => {
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const select = await screen.findByRole('combobox', { name: /AI 엔진/ });
+    expect(select).toBeInTheDocument();
+    // 기본값: 자동 감지
+    expect((select as HTMLSelectElement).value).toBe('auto');
+  });
+
+  it('selecting "codex" updates aiSelectedProvider immediately', async () => {
+    // codex 설치+로그인, claude 도 사용 가능 → 두 옵션 모두 활성
+    detectMock.mockResolvedValue([
+      { id: 'claude', installed: true, version: '2.1.211', loggedIn: true },
+      { id: 'codex', installed: true, version: '0.1.0', loggedIn: true },
+    ]);
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const select = await screen.findByRole('combobox', { name: /AI 엔진/ });
+    fireEvent.change(select, { target: { value: 'codex' } });
+    expect(useUIStore.getState().aiSelectedProvider).toBe('codex');
+  });
+
+  it('disables the codex option when codex is not installed', async () => {
+    detectMock.mockResolvedValue([
+      { id: 'claude', installed: true, version: '2.1.211', loggedIn: true },
+      { id: 'codex', installed: false, loggedIn: false },
+    ]);
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    await screen.findByRole('combobox', { name: /AI 엔진/ });
+    // codex 옵션이 비활성 상태이고 설치 필요 안내가 보인다.
+    const codexOption = screen.getByRole('option', { name: /codex.*설치 필요/ });
+    expect((codexOption as HTMLOptionElement).disabled).toBe(true);
+  });
+
+  it('disables the claude option with "로그인 필요" when claude is installed but not logged in', async () => {
+    detectMock.mockResolvedValue([
+      { id: 'claude', installed: true, loggedIn: false },
+      { id: 'codex', installed: true, version: '0.1.0', loggedIn: true },
+    ]);
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    await screen.findByRole('combobox', { name: /AI 엔진/ });
+    const claudeOption = screen.getByRole('option', { name: /Claude.*로그인 필요/ });
+    expect((claudeOption as HTMLOptionElement).disabled).toBe(true);
+  });
+
+  it('reflects a persisted "codex" selection as the dropdown value', async () => {
+    useUIStore.setState({ aiSelectedProvider: 'codex' });
+    detectMock.mockResolvedValue([
+      { id: 'claude', installed: true, version: '2.1.211', loggedIn: true },
+      { id: 'codex', installed: true, version: '0.1.0', loggedIn: true },
+    ]);
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const select = await screen.findByRole('combobox', { name: /AI 엔진/ });
+    expect((select as HTMLSelectElement).value).toBe('codex');
+  });
+
+  it('policy-locked disables the dropdown with a lock indicator', async () => {
+    policyMock.mockResolvedValue({ disabled: true, source: 'env' });
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const select = await screen.findByRole('combobox', { name: /AI 엔진/ });
+    expect((select as HTMLSelectElement).disabled).toBe(true);
+    expect(screen.getByText(/AI 엔진.*🔒/)).toBeInTheDocument();
+  });
+
+  it('shows available state when only codex is usable (claude not installed)', async () => {
+    // 다중 provider 감지 핵심 케이스: claude 가 없어도 codex 가 사용 가능하면 available 상태로
+    // 드롭다운이 노출되어야 한다.
+    detectMock.mockResolvedValue([
+      { id: 'claude', installed: false, loggedIn: false },
+      { id: 'codex', installed: true, version: '0.1.0', loggedIn: true },
+    ]);
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const select = await screen.findByRole('combobox', { name: /AI 엔진/ });
+    expect(select).toBeInTheDocument();
+    // 자동 감지 옵션은 활성, claude 옵션은 비활성
+    const autoOption = screen.getByRole('option', { name: /자동 감지/ });
+    expect((autoOption as HTMLOptionElement).disabled).toBeFalsy();
+  });
+});
+
 describe('SettingsModal: AI enabled toggle (SPEC-AI-005 T4)', () => {
   beforeEach(() => {
     useUIStore.setState({ aiNoticeAcknowledged: true, aiEnabled: true });

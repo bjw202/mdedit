@@ -178,6 +178,22 @@ describe('buildSelectionRequest: AiRequestArgs assembly + insertOnly metadata', 
     const req = buildSelectionRequest({ ...base, presetKind: 'polish', model: 'sonnet' });
     expect(req.args.model).toBe('sonnet');
   });
+
+  it('omits providerId by default (backward compat, SPEC-AI-009)', async () => {
+    const { buildSelectionRequest } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    const req = buildSelectionRequest({ ...base, presetKind: 'polish' });
+    expect(req.args.providerId).toBeUndefined();
+  });
+
+  it('carries providerId through when provided (SPEC-AI-009 REQ-AI9-003)', async () => {
+    const { buildSelectionRequest } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    const req = buildSelectionRequest({ ...base, presetKind: 'polish', providerId: 'codex' });
+    expect(req.args.providerId).toBe('codex');
+  });
 });
 
 describe('buildPresetMenuItems: guard-driven disable states by selection length', () => {

@@ -76,19 +76,29 @@ const panelStyle: React.CSSProperties = {
  * Esc·백드롭 클릭으로 닫힌다(TableGridPicker 팝오버 닫힘 관례).
  */
 export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Element | null {
-  const [provider, setProvider] = useState<AiProviderStatus>();
+  const [providers, setProviders] = useState<AiProviderStatus[]>([]);
+  const [provider, setProvider] = useState<AiProviderStatus | undefined>(undefined);
   const [policy, setPolicy] = useState<AiPolicyStatus>();
   const [showWizard, setShowWizard] = useState(false);
 
   const detect = useCallback(async (): Promise<void> => {
-    const [providers, pol] = await Promise.all([aiDetectProviders(), aiPolicyStatus()]);
-    setProvider(providers.find((p) => p.id === 'claude'));
+    const [providerList, pol] = await Promise.all([aiDetectProviders(), aiPolicyStatus()]);
+    setProviders(providerList);
+    // 자동 감지 우선순위(claude > codex)로 "유효 provider"를 결정한다. installed+loggedIn 인
+    // 첫 provider(레지스트리 순서 = 백엔드 first_available 와 동일)를, 없으면 claude, 그 외엔
+    // 첫 항목을 picking 한다. deriveConnectionState 는 이 단일 provider 를 기준으로 동작한다(호환성).
+    const effective =
+      providerList.find((p) => p.installed && p.loggedIn) ??
+      providerList.find((p) => p.id === 'claude') ??
+      providerList[0];
+    setProvider(effective);
     setPolicy(pol);
   }, []);
 
   // 열릴 때마다 상태를 비우고 재감지 — 미로그인/정책 변화를 첫 클릭 실패 없이 선반영한다.
   useEffect(() => {
     if (!open) return;
+    setProviders([]);
     setProvider(undefined);
     setPolicy(undefined);
     setShowWizard(false);
@@ -136,6 +146,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
             <AiSection
               state={state}
               provider={provider}
+              providers={providers}
               onStartOnboarding={() => setShowWizard(true)}
             />
           )}
@@ -148,11 +159,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
 interface AiSectionProps {
   state: AiConnectionState;
   provider: AiProviderStatus | undefined;
+  /** SPEC-AI-009: 다중 provider 감지 목록 — 드롭다운이 각 provider 의 설치/로그인 상태를 렌더한다. */
+  providers: AiProviderStatus[];
   onStartOnboarding: () => void;
 }
 
 /** 감지 상태별 AI 섹션 본문. */
-function AiSection({ state, provider, onStartOnboarding }: AiSectionProps): JSX.Element {
+function AiSection({ state, provider, providers, onStartOnboarding }: AiSectionProps): JSX.Element {
   const mutedRow: React.CSSProperties = { color: 'var(--md-text-muted)', fontSize: 13 };
 
   switch (state) {
@@ -170,6 +183,7 @@ function AiSection({ state, provider, onStartOnboarding }: AiSectionProps): JSX.
             </span>
           </p>
           <AiEnabledToggle disabled={false} />
+          <AiProviderSelect providers={providers} disabled={false} />
           <AdvancedModelToggle disabled={false} />
           <ContinueLengthToggle disabled={false} />
         </div>
@@ -205,6 +219,7 @@ function AiSection({ state, provider, onStartOnboarding }: AiSectionProps): JSX.
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--md-space-3)' }}>
           <p style={mutedRow}>조직 정책으로 AI 기능이 비활성화되어 있어요 (토글 잠금).</p>
           <AiEnabledToggle disabled />
+          <AiProviderSelect providers={providers} disabled />
           <AdvancedModelToggle disabled />
           <ContinueLengthToggle disabled />
         </div>
@@ -335,6 +350,83 @@ function ContinueLengthToggle({ disabled }: { disabled: boolean }): JSX.Element 
         onChange={(e) => setLength(e.target.checked ? 'short' : 'normal')}
       />
       이어쓰기 짧게 쓰기 (한두 문장만){disabled ? ' 🔒' : ''}
+    </label>
+  );
+}
+
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-002 REQ-AI9-003
+// @MX:NOTE: [AUTO] AI 엔진(provider) 선택 드롭다운. 다중 provider(claude/codex) 감지 결과를
+//   옵션으로 노출하고, 사용자가 선택한 provider(aiSelectedProvider)를 uiStore 에 영속화한다.
+//   - "자동 감지(권장)": 백엔드가 first_available() 로 자동 선택(claude > codex)
+//   - "Claude"/"codex": 해당 provider 강제. 설치+로그인된 provider 만 활성화되며,
+//     미설치/미로그인 항목은 disabled + 사유(설치 필요/로그인 필요) 표시.
+//   - 정책 잠금 시 disabled + 🔒(AdvancedModelToggle 선례와 동일한 정책 잠금 관례).
+//   - `--md-*` 토큰 전용(채팅앱풍 raw hex 금지, SPEC-AI-001 REQ-AI-010).
+/**
+ * AI 엔진 선택 드롭다운. 정책 잠금 시 disabled + 자물쇠 표기.
+ * 사용 가능한 provider 만 옵션으로 활성화되고, 미사용 항목은 사유와 함께 비활성화된다.
+ */
+function AiProviderSelect({
+  providers,
+  disabled,
+}: {
+  providers: AiProviderStatus[];
+  disabled: boolean;
+}): JSX.Element {
+  const selected = useUIStore((s) => s.aiSelectedProvider);
+  const setSelected = useUIStore((s) => s.setAiSelectedProvider);
+
+  // 감지 결과가 비었을 때도 드롭다운 모양을 유지하도록 기본 상태를 세팅한다(미감지 항목은 disabled).
+  const claude = providers.find((p) => p.id === 'claude');
+  const codex = providers.find((p) => p.id === 'codex');
+
+  /** provider 감지 결과 → 드롭다운 옵션 활성/비활성 상태 + 비활성 사유. */
+  const optionState = (p: AiProviderStatus | undefined): { disabled: boolean; reason: string } => {
+    if (!p) return { disabled: true, reason: '설치 필요' };
+    if (!p.installed) return { disabled: true, reason: '설치 필요' };
+    if (!p.loggedIn) return { disabled: true, reason: '로그인 필요' };
+    return { disabled: false, reason: '' };
+  };
+
+  const claudeState = optionState(claude);
+  const codexState = optionState(codex);
+
+  return (
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--md-space-2)',
+        fontSize: 13,
+        color: disabled ? 'var(--md-text-faint)' : 'var(--md-text-primary)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+    >
+      <span>AI 엔진{disabled ? ' 🔒' : ''}</span>
+      <select
+        aria-label="AI 엔진 선택"
+        value={selected}
+        disabled={disabled}
+        onChange={(e) => setSelected(e.target.value as 'auto' | 'claude' | 'codex')}
+        style={{
+          fontFamily: 'var(--md-font-ui)',
+          fontSize: 13,
+          color: 'var(--md-text-primary)',
+          background: 'var(--md-surface-raised)',
+          border: '1px solid var(--md-border)',
+          borderRadius: 'var(--md-radius-sm)',
+          padding: '2px 6px',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+        }}
+      >
+        <option value="auto">자동 감지 (권장)</option>
+        <option value="claude" disabled={claudeState.disabled}>
+          Claude{claudeState.reason ? ` (${claudeState.reason})` : ''}
+        </option>
+        <option value="codex" disabled={codexState.disabled}>
+          codex{codexState.reason ? ` (${codexState.reason})` : ''}
+        </option>
+      </select>
     </label>
   );
 }

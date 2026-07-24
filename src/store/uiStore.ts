@@ -59,6 +59,12 @@ interface UIState {
    * (SPEC-AI-005 REQ-AI5-001). 최초값(미설정 사용자)은 켜짐(true). 영속화 대상.
    */
   aiEnabled: boolean;
+  /**
+   * AI provider 선택 (SPEC-AI-009 REQ-AI9-003) — 'auto'(기본, 백엔드 자동 감지 claude>codex)
+   * | 'claude' | 'codex'. aiEnabled 토글과 독립적으로 동작하며, 정책 잠금 시 드롭다운이 비활성된다.
+   * 영속화 대상 — 사용자가 한 번 고른 provider 는 앱 재시작 후에도 유지되어야 한다.
+   */
+  aiSelectedProvider: 'auto' | 'claude' | 'codex';
   // Actions
   setSidebarWidth: (width: number) => void;
   setPreviewWidth: (width: number) => void;
@@ -86,6 +92,8 @@ interface UIState {
   setAiContinueLength: (length: 'short' | 'normal') => void;
   /** AI 기능 사용자 켜기/끄기 토글을 설정한다 (SPEC-AI-005 REQ-AI5-001/006). */
   setAiEnabled: (enabled: boolean) => void;
+  /** AI provider 선택을 설정한다 (SPEC-AI-009 REQ-AI9-003). */
+  setAiSelectedProvider: (provider: 'auto' | 'claude' | 'codex') => void;
 }
 
 // @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth 는 퍼센트로 저장하되 방어적
@@ -112,6 +120,7 @@ export const useUIStore = create<UIState>()(
       aiAdvancedModel: false,
       aiContinueLength: 'normal',
       aiEnabled: true,
+      aiSelectedProvider: 'auto',
       setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(600, width)) }),
       // 비정상 입력(NaN/Infinity)은 상태를 오염시키지 않도록 무시한다.
@@ -154,6 +163,8 @@ export const useUIStore = create<UIState>()(
       setAiAdvancedModel: (enabled: boolean) => set({ aiAdvancedModel: enabled }),
       setAiContinueLength: (length: 'short' | 'normal') => set({ aiContinueLength: length }),
       setAiEnabled: (enabled: boolean) => set({ aiEnabled: enabled }),
+      setAiSelectedProvider: (provider: 'auto' | 'claude' | 'codex') =>
+        set({ aiSelectedProvider: provider }),
     }),
     {
       name: 'mdedit-ui-store',

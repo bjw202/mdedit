@@ -56,13 +56,20 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
 
   // 시작 시 로그인·정책 상태를 1회 감지해 캐시한다 — ✨ "연결 필요" 게이팅의 소스(REQ-AI-012/015)이자
   // SPEC-AI-005 effectiveAiEnabled(REQ-AI5-013/014)의 정책 절반이다(getAiLoggedIn 세팅 지점 옆).
+  // SPEC-AI-009: 자동 감지 우선순위(claude > codex)를 반영한다. claude 가 사용 가능하면 claude,
+  // 아니면 codex 를 fallback 으로 삼고, 둘 다 없으면 claude 기준(기존 동작)을 유지한다 —
+  // 클라라가 없고 codex 만 설치+로그인된 사용자도 ✨ 툴바가 "연결 필요"로 막히지 않아야 한다.
   useEffect(() => {
     let cancelled = false;
     void Promise.all([aiDetectProviders(), aiPolicyStatus()])
       .then(([providers, policy]) => {
         if (cancelled) return;
         const claude = providers.find((p) => p.id === 'claude');
-        setAiLoggedIn(claude?.loggedIn ?? false);
+        const codex = providers.find((p) => p.id === 'codex');
+        const effective = claude?.installed && claude.loggedIn ? claude
+                        : codex?.installed && codex.loggedIn ? codex
+                        : claude;
+        setAiLoggedIn(effective?.loggedIn ?? false);
         setAiPolicyDisabled(policy.disabled);
       })
       .catch(() => undefined);

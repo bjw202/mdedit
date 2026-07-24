@@ -242,11 +242,22 @@ export interface AiRequestArgs {
    * 매핑되어 feature 가 diagram 일 때만 프롬프트에 종류 조각을 부착한다.
    */
   diagramType?: DiagramType;
+  /**
+   * SPEC-AI-009 REQ-AI9-003: AI provider 강제 라우팅. undefined/생략 시 백엔드가 자동 감지
+   * (claude > codex 우선, `ProviderRegistry::first_available()`). 'claude'/'codex' 명시 시
+   * 해당 provider 로 라우팅된다. camelCase IPC 계약: Rust `provider_id: Option<String>`
+   * (`#[serde(default)]`)와 짝을 이룬다.
+   */
+  providerId?: string;
 }
 
-/** ai_detect_providers 결과 항목 — 설치·버전 + 로그인 선제 판정(설계 §8.1, REQ-AI-012). */
+/**
+ * ai_detect_providers 결과 항목 — 설치·버전 + 로그인 선제 판정(설계 §8.1, REQ-AI-012).
+ * SPEC-AI-009: id 는 string — 백엔드가 claude/codex 등 어떤 id 드도 반환할 수 있어 리터럴
+ * 타입 제약을 풀었다(`ProviderStatus.id: String` 과 일치).
+ */
 export interface AiProviderStatus {
-  id: 'claude';
+  id: string;
   installed: boolean;
   version?: string;
   loggedIn: boolean;

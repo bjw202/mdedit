@@ -285,6 +285,46 @@ describe('uiStore: aiContinueLength (SPEC-AI-006)', () => {
   });
 });
 
+describe('uiStore: aiSelectedProvider (SPEC-AI-009)', () => {
+  beforeEach(() => {
+    useUIStore.setState({ aiSelectedProvider: 'auto' });
+    localStorage.removeItem('mdedit-ui-store');
+  });
+
+  it('defaults aiSelectedProvider to "auto" for an unset user (REQ-AI9-003)', () => {
+    expect(useUIStore.getState().aiSelectedProvider).toBe('auto');
+  });
+
+  it('sets aiSelectedProvider to "claude" via setAiSelectedProvider', () => {
+    const { setAiSelectedProvider } = useUIStore.getState();
+    act(() => setAiSelectedProvider('claude'));
+    expect(useUIStore.getState().aiSelectedProvider).toBe('claude');
+  });
+
+  it('sets aiSelectedProvider to "codex" via setAiSelectedProvider', () => {
+    const { setAiSelectedProvider } = useUIStore.getState();
+    act(() => setAiSelectedProvider('codex'));
+    expect(useUIStore.getState().aiSelectedProvider).toBe('codex');
+  });
+
+  it('sets aiSelectedProvider back to "auto"', () => {
+    useUIStore.setState({ aiSelectedProvider: 'codex' });
+    const { setAiSelectedProvider } = useUIStore.getState();
+    act(() => setAiSelectedProvider('auto'));
+    expect(useUIStore.getState().aiSelectedProvider).toBe('auto');
+  });
+
+  it('persists aiSelectedProvider to localStorage (round-trip)', () => {
+    const { setAiSelectedProvider } = useUIStore.getState();
+    act(() => setAiSelectedProvider('codex'));
+
+    const raw = localStorage.getItem('mdedit-ui-store');
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw as string);
+    expect(persisted.state.aiSelectedProvider).toBe('codex');
+  });
+});
+
 describe('uiStore: statusMessage (SPEC-UI-005)', () => {
   afterEach(() => {
     // 보류 중인 auto-clear 타이머 정리 (module-level ref 누적 방지)

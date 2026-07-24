@@ -17,7 +17,7 @@ import { DIAGRAM_ICON_INNER } from '@/components/icons/diagramIconMarkup';
 import { getClipBoundary, computeFlyoutOffset } from '@/lib/ui/menuPlacement';
 import { useAiStore } from '@/store/aiStore';
 import { useUIStore } from '@/store/uiStore';
-import { getEffectiveAiEnabled } from '@/store/aiPolicy';
+import { getEffectiveAiEnabled, resolveProviderId } from '@/store/aiPolicy';
 import { expandToSentenceBoundary, startSuggestionCard } from './ai-suggestion-card';
 
 export type { AiPresetKind } from './ai-length-guard';
@@ -83,6 +83,11 @@ export interface BuildSelectionRequestInput {
   originalText?: string;
   /** SPEC-AI-008: diagram 프리셋에서 고른 종류 제약. "자동"은 생략. */
   diagramType?: DiagramType;
+  /**
+   * SPEC-AI-009 REQ-AI9-003: AI provider 강제 라우팅. undefined → 백엔드 자동 감지.
+   * 생략 시 buildSelectionRequest 는 resolveProviderId() 로 채운다(단일 소스).
+   */
+  providerId?: string;
 }
 
 /** 문단 경계로 잘라낸 선택 + 앞뒤 컨텍스트(설계 §7 인라인 편집). */
@@ -187,6 +192,10 @@ export function buildSelectionRequest(input: BuildSelectionRequestInput): AiSele
   if (input.presetKind === 'diagram' && input.diagramType) {
     args.diagramType = input.diagramType;
   }
+  // SPEC-AI-009 REQ-AI9-003: providerId 는 단일 소스(resolveProviderId)에서 채운다.
+  //   input.providerId 가 명시된 경우(테스트 주입 등) 그 값을 우선하고, 그 외에는 현재
+  //   aiSelectedProvider 로 환원한다. undefined 면 백엔드가 자동 감지(claude > codex)한다.
+  args.providerId = input.providerId ?? resolveProviderId();
   const from = input.from ?? 0;
   const to = input.to ?? input.selection.length;
   return {

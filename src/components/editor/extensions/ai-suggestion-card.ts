@@ -14,6 +14,7 @@ import { aiRequest, aiCancel, ipcErrorMessage } from '@/lib/tauri/ipc';
 import type { AiModel, AiRequestArgs } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
 import type { AiErrorKind } from '@/store/aiStore';
+import { resolveProviderId } from '@/store/aiPolicy';
 import { buildFallbackDecision, validateMermaid, MERMAID_STRICT_CONFIG } from '@/lib/ai/mermaidValidate';
 import type { MermaidValidationResult } from '@/lib/ai/mermaidValidate';
 import { validateMarkdownTable } from '@/lib/ai/tableValidate';
@@ -1100,7 +1101,10 @@ function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode
  */
 function fireReRequest(originalArgs: AiRequestArgs, overrides: Partial<AiRequestArgs>): string {
   const requestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  const merged: AiRequestArgs = { ...originalArgs, ...overrides, requestId };
+  // SPEC-AI-009 REQ-AI9-003: providerId 는 항상 "현재" 선택값으로 재계산한다.
+  //   originalArgs.providerId 를 승계하면 사용자가 재요청 직전에 provider 를 바꾼 선택이 무시된다.
+  //   overrides.providerId 도 허용하지 않는다 — 호출부 커스텀 명령/모델/feature 만 덮어쓴다.
+  const merged: AiRequestArgs = { ...originalArgs, ...overrides, requestId, providerId: resolveProviderId() };
   const store = useAiStore.getState();
   store.startRequest(requestId, merged.feature);
   store.incrementCount();

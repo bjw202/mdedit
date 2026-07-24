@@ -336,3 +336,66 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
     expect(docText).toContain(listText);
   });
 });
+
+// @MX:SPEC: SPEC-AI-009 REQ-AI9-003
+// fireReRequest 가 원본 args.providerId 를 그대로 승계하지 않고, 항상 "현재" aiSelectedProvider 를
+// 반영하는 providerId 로 재계산해 보내는지 검증한다. 사용자가 최초 발행 후 설정에서 provider 를
+// 바꾼 경우, 재요청(자동 재시도/직접지시/목록폴백/↻)은 새 선택을 따라야 한다.
+describe('fireReRequest: providerId override (SPEC-AI-009)', () => {
+  let view: EditorView;
+
+  beforeEach(() => {
+    aiRequestMock.mockClear();
+    aiCancelMock.mockClear();
+    parseMock.mockReset();
+    clearCardRegistry();
+    useAiStore.setState({ requestState: 'idle', streamBuffer: '', requestId: null, errorInfo: null });
+    view = mountEditor('hello world');
+  });
+
+  afterEach(() => {
+    view.destroy();
+    setActiveEditorView(null);
+    clearCardRegistry();
+    document.body.innerHTML = '';
+  });
+
+  it('auto-retry uses the current aiSelectedProvider, not the original trigger selection', async () => {
+    // 준비: 사용자가 "claude" 로 발행했지만, 재요청 시점에 "codex" 로 바꾼 상태를 재현.
+    const { useUIStore } = await import('@/store/uiStore');
+    parseMock.mockImplementation((code: string) =>
+      code.includes('BADSYNTAX') ? Promise.reject(new Error('Parse error')) : Promise.resolve(true),
+    );
+
+    // 원본 발행 인자에는 providerId:'claude' 가 박혀 있다(발행 시점의 resolveProviderId() 결과).
+    startSuggestionCard({
+      args: {
+        requestId: 'orig-prv',
+        feature: 'diagram',
+        presetKind: 'diagram',
+        model: 'haiku',
+        selection: '접수 후 검토를 거쳐 승인한다',
+        contextBefore: '앞 문단',
+        contextAfter: '뒤 문단',
+        providerId: 'claude',
+      } as StartCardRequest['args'],
+      insertOnly: true,
+      range: { from: 0, to: 10 },
+      originalText: '접수 후 검토를 거쳐 승인한다',
+    });
+
+    // 설정을 'codex' 로 바꾼다 — 재요청은 이 값을 반영해야 한다.
+    useUIStore.setState({ aiSelectedProvider: 'codex' });
+
+    useAiStore.setState({ requestId: 'orig-prv', requestState: 'streaming', streamBuffer: '' });
+    useAiStore.setState({
+      requestId: 'orig-prv',
+      requestState: 'done',
+      streamBuffer: '```mermaid\nBADSYNTAX\n```',
+    });
+
+    await vi.waitFor(() => expect(aiRequestMock).toHaveBeenCalledTimes(1));
+    const sentArgs = aiRequestMock.mock.calls[0][0] as { providerId?: string };
+    expect(sentArgs.providerId).toBe('codex');
+  });
+});
