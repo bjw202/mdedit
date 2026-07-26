@@ -4,6 +4,8 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-27
+
 ### Added
 - **codex CLI를 두 번째 AI 프로바이더로 통합 (SPEC-AI-009)**: OpenAI `codex` CLI를 지원하는 두 번째 로컬 AI 프로바이더로 추가. `claude`와 `codex` 중 하나라도 설치·로그인되어 있으면 AI 글쓰기 도우미가 동작합니다. 설정 다이얼로그의 "AI 도구" 섹션은 두 provider를 형태가 동일한 라디오 행으로 대등하게 나열합니다(자동 감지 시 **claude가 우선**, 미사용 행은 사유를 행 안에 인라인으로 표시). codex는 빈 스크래치 작업 디렉터리 + `--ignore-user-config` + `--skip-git-repo-check` + `--ephemeral` + `--sandbox read-only` + stdin 차단(`Stdio::null()`)으로 격리하며, 사용자 홈의 `AGENTS.md` 자동 로딩은 차단됩니다. macOS GUI 환경(`cargo tauri dev`)은 PATH가 최소화돼 있어 node 스크립트인 codex를 못 찾는 문제가 있어, 로그인 셸에서 복원한 PATH를 codex 프로세스에만 주입합니다. codex `--json` JSONL의 `item.completed`(`agent_message`) 결과를 `ai://chunk`로 1회 emit하고 `turn.completed`에서 `ai://done`으로 마무리합니다. 「고급 모델 사용」 토글은 provider별로 모델·추론 강도를 함께 바꿉니다 — claude 고급 = sonnet(사고 예산은 CLI 기본값에 위임), codex 고급 = gpt-5.5 + 추론 강도 상향. 토글 라벨은 실제 인자를 조립하는 것과 동일한 백엔드 함수에서 파생된 문자열을 그대로 표시해(claude → `sonnet`, codex → `gpt-5.5 · 높은 추론`) 라벨과 실제 동작이 어긋날 수 없습니다. 기존 `claude` 경로(인자 조립·스트림 파싱·프롬프트·프론트엔드 IPC 계약)의 기본 티어 동작은 바이트 단위 회귀 스냅샷으로 보증됩니다. 초기 통합 후 발견된 결함도 함께 수정했습니다 — codex JSONL 파서가 실제 출력 형태(래퍼 없는 FLAT)를 인식하지 못해 매 요청이 실패하던 문제, AI 오류 카드가 다른 파일을 열어도 남아 있고 닫을 방법이 없던 문제(파일 전환 시 진행 중 요청·고스트·카드 자동 정리 + 모든 종결 상태 카드에 [닫기] 추가), 이어쓰기가 빈 응답으로 끝나면 "✨ 작성 중…" 상태로 고착되던 문제("더 쓸 내용을 찾지 못했어요" 안내 + [✕ 닫기]로 대체). 검증: cargo test 326 passed, vitest 1312 passed, tsc·eslint 통과.
 
