@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useAiStore } from '@/store/aiStore';
 import type { AiErrorKind } from '@/store/aiStore';
+import { dispatchAiChunk, dispatchAiDone, dispatchAiError } from '@/lib/ai/aiEventRouter';
 
 /** `ai://chunk` payload — 스트림 델타 조각(REQ-AI-004). */
 export interface AiChunkEvent {
@@ -49,18 +50,25 @@ export function useAiRelay(): void {
 
     const register = async (): Promise<void> => {
       const [offChunk, offDone, offError] = await Promise.all([
+        // SPEC-AI-010 REQ-AI10-012: 세 리스너 전부 **isCurrent 여부와 무관하게** 먼저
+        // 라우터로 발송한 뒤, 기존 스토어 릴레이 경로를 그대로 통과시킨다. 스토어의 단일
+        // 슬롯 게이트(isCurrent)는 한 글자도 바뀌지 않으므로 고스트·툴바·설정이 의존하는
+        // 계약은 보존되고, 슬롯 밖으로 밀려난 카드만 라우터를 통해 자기 이벤트를 계속 받는다.
         listen<AiChunkEvent>('ai://chunk', (event) => {
           const { requestId, text } = event.payload;
+          dispatchAiChunk(requestId, text);
           if (!isCurrent(requestId)) return;
           useAiStore.getState().appendChunk(text);
         }),
         listen<AiDoneEvent>('ai://done', (event) => {
           const { requestId, result, truncated } = event.payload;
+          dispatchAiDone(requestId, result, truncated ?? false);
           if (!isCurrent(requestId)) return;
           useAiStore.getState().completeRequest(result, truncated ?? false);
         }),
         listen<AiErrorEvent>('ai://error', (event) => {
           const { requestId, kind, message } = event.payload;
+          dispatchAiError(requestId, kind, message);
           if (!isCurrent(requestId)) return;
           useAiStore.getState().failRequest({ kind, message });
         }),

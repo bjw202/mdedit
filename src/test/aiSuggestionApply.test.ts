@@ -167,6 +167,89 @@ describe('applySuggestion: insert-below mode (설계 §4.2 C)', () => {
   });
 });
 
+// @MX:SPEC: SPEC-AI-010 REQ-AI10-018 REQ-AI10-020 REQ-AI10-021
+// AC-AI10-010 (a)(b)(c)(d) — insert-below 가 문서 맨 아래가 아니라 **마크다운 블록 바로
+// 다음**에 삽입한다. TDD RED phase(수정 전 작성): 현행 분기는 `docText.slice(ctx.to)
+// .indexOf('\n\n')` 로 문단 끝을 찾고 빈 줄이 없으면 `view.state.doc.length` 로 폴백하므로
+// (a)(b)(c) 세 케이스가 전부 문서 맨 끝으로 튄다. 위 기존 두 케이스는 무수정 통과해야 한다.
+describe('applySuggestion: insert-below 가 마크다운 블록 경계를 따른다 (SPEC-AI-010)', () => {
+  async function insertBelow(doc: string, from: number, to: number, suggestion: string) {
+    const { applySuggestion } = await import(
+      '@/components/editor/extensions/ai-suggestion-card'
+    );
+    const { view, getDoc } = createHistoryView(doc, from, to);
+    const result = applySuggestion(view, {
+      from,
+      to,
+      originalText: doc.slice(from, to),
+      suggestion,
+      mode: 'insert-below',
+    });
+    expect(result.applied).toBe(true);
+    return getDoc();
+  }
+
+  it('(a) 제목 + 단일 개행 목록: 삽입이 제목 줄 바로 다음이다', async () => {
+    const doc = '## 요약\n- 하나\n- 둘\n- 셋';
+    const out = await insertBelow(doc, 0, '## 요약'.length, '추가 문단');
+    expect(out).toBe('## 요약\n\n추가 문단\n- 하나\n- 둘\n- 셋');
+  });
+
+  it('(b) 표 영역: 삽입이 현재 표 행 바로 다음이며 문서 끝이 아니다', async () => {
+    const doc = '| a | b |\n|---|---|\n| 1 | 2 |';
+    const out = await insertBelow(doc, 0, '| a | b |'.length, '삽입 내용');
+    expect(out).toBe('| a | b |\n\n삽입 내용\n|---|---|\n| 1 | 2 |');
+  });
+
+  it('(c) 여러 줄 산문 문단: 삽입이 문단 전체 뒤이며 문장 사이가 아니다', async () => {
+    const doc = '첫 줄입니다\n둘째 줄입니다\n셋째 줄입니다\n## 다음 절';
+    const out = await insertBelow(doc, 0, '첫 줄입니다'.length, '삽입 내용');
+    expect(out).toBe('첫 줄입니다\n둘째 줄입니다\n셋째 줄입니다\n\n삽입 내용\n## 다음 절');
+  });
+
+  it('(d) 빈 줄 없이 EOF: 문서 끝에 삽입한다(현행 유지)', async () => {
+    const doc = '- 하나\n- 둘\n- 셋';
+    const out = await insertBelow(doc, '- 하나\n- 둘\n'.length, doc.length, '삽입 내용');
+    expect(out).toBe('- 하나\n- 둘\n- 셋\n\n삽입 내용');
+  });
+
+  it('삽입 후 undo 1회로 완전 복원된다(단일 트랜잭션 구조 보존)', async () => {
+    const { applySuggestion } = await import(
+      '@/components/editor/extensions/ai-suggestion-card'
+    );
+    const doc = '## 요약\n- 하나\n- 둘';
+    const { view, getDoc } = createHistoryView(doc, 0, '## 요약'.length);
+    applySuggestion(view, {
+      from: 0,
+      to: '## 요약'.length,
+      originalText: '## 요약',
+      suggestion: '추가 문단',
+      mode: 'insert-below',
+    });
+    expect(getDoc()).not.toBe(doc);
+    undo(view);
+    expect(getDoc()).toBe(doc);
+  });
+
+  it('원문 불일치면 insert-below 도 문서를 건드리지 않고 stale 을 반환한다', async () => {
+    const { applySuggestion } = await import(
+      '@/components/editor/extensions/ai-suggestion-card'
+    );
+    const doc = '## 요약\n- 하나\n- 둘';
+    const { view, getDoc } = createHistoryView(doc, 0, '## 요약'.length);
+    const result = applySuggestion(view, {
+      from: 0,
+      to: '## 요약'.length,
+      originalText: '다른 원문',
+      suggestion: '추가 문단',
+      mode: 'insert-below',
+    });
+    expect(result.applied).toBe(false);
+    if (!result.applied) expect(result.reason).toBe('stale');
+    expect(getDoc()).toBe(doc);
+  });
+});
+
 describe('applySuggestion: expanded-range revalidation', () => {
   it('applies against the previewed expanded range when its text still matches', async () => {
     const { applySuggestion, expandToSentenceBoundary } = await import(

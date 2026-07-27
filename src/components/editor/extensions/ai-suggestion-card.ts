@@ -18,7 +18,13 @@ import { resolveProviderId } from '@/store/aiPolicy';
 import { buildFallbackDecision, validateMermaid, MERMAID_STRICT_CONFIG } from '@/lib/ai/mermaidValidate';
 import type { MermaidValidationResult } from '@/lib/ai/mermaidValidate';
 import { validateMarkdownTable } from '@/lib/ai/tableValidate';
-import { WAIT_NOTICE_DELAY_MS, WAIT_NOTICE_TEXT } from '@/lib/ai/waitNotice';
+import { subscribeAiEvents } from '@/lib/ai/aiEventRouter';
+import {
+  WAIT_NOTICE_DELAY_MS,
+  WAIT_NOTICE_TEXT,
+  FRONTEND_BACKSTOP_DELAY_MS,
+  BACKSTOP_ERROR_TEXT,
+} from '@/lib/ai/waitNotice';
 
 // ============================================================
 // Card state machine (pure)
@@ -475,7 +481,81 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
 
 /** 문장 종결 부호(한/영). 문장 경계 확장 판정에 사용. */
 const SENTENCE_TERMINATORS = '.!?。';
+/**
+ * 삽입 구분자. **경계 탐색에는 더 이상 쓰지 않는다**(REQ-AI10-018) — 마크다운은 제목·목록
+ * 항목·표 행·인용을 단일 `\n` 으로 구분하므로 `'\n\n'` 유무로 문단 끝을 찾으면 빈 줄이 없는
+ * 문서에서 항상 문서 맨 끝으로 튄다. 삽입 **형태**(빈 줄 + 제안)는 그대로이므로 상수는 남긴다.
+ */
 const PARAGRAPH_SEP = '\n\n';
+
+// @MX:NOTE: [AUTO] "새 마크다운 블록을 시작하는 줄" 판정 정규식 7종. 들여쓰기 0~3칸까지만
+// 블록 시작으로 인정한다(4칸 이상은 CommonMark 의 들여쓴 코드). 표 행은 `|` 로 시작하는지만
+// 본다 — 목적은 표 파싱이 아니라 삽입 위치 결정이므로 구분 행까지 구별할 필요가 없다.
+// @MX:SPEC: SPEC-AI-010 REQ-AI10-017
+const BLOCK_START_PATTERNS: readonly RegExp[] = [
+  /^ {0,3}#{1,6}(\s|$)/, // ATX 제목
+  /^ {0,3}[-*+]\s/, // 순서 없는 목록
+  /^ {0,3}\d+[.)]\s/, // 순서 있는 목록
+  /^ {0,3}>/, // 인용
+  /^ {0,3}\|/, // 표 행
+  /^ {0,3}(```|~~~)/, // 코드 펜스
+  /^ {0,3}([-*_])(\s*\1){2,}\s*$/, // 구분선(---, ***, ___)
+];
+
+/** `-` 만 또는 `=` 만으로 이뤄진 줄 — 구분선과 setext 제목 밑줄이 형태상 겹치는 지점. */
+const SETEXT_UNDERLINE = /^ {0,3}(-+|=+)\s*$/;
+
+/** setext 예외를 제외한 순수 형태 판정(재귀를 피하기 위해 분리). */
+function matchesBlockStart(line: string): boolean {
+  return BLOCK_START_PATTERNS.some((re) => re.test(line));
+}
+
+// @MX:NOTE: [AUTO] setext 예외가 없으면 `제목 텍스트\n---` 사이에 제안이 삽입되어 제목이
+// 문단으로 무너진다 — `---` 는 구분선과 setext h2 밑줄이 형태상 완전히 같기 때문이다.
+// 판정 기준은 "바로 앞 줄이 산문인가" 하나뿐이다(CommonMark 의 setext 조건과 동일).
+// @MX:SPEC: SPEC-AI-010 REQ-AI10-017
+function isBlockStartLine(line: string, prevLine: string): boolean {
+  if (SETEXT_UNDERLINE.test(line)) {
+    const prevIsProse = prevLine.trim() !== '' && !matchesBlockStart(prevLine);
+    if (prevIsProse) return false; // setext 제목 밑줄 → 현재 블록의 연속
+  }
+  return matchesBlockStart(line);
+}
+
+// @MX:NOTE: [AUTO] findBlockEnd - 마크다운 블록 끝 판정(insert-below 위치 + 문장 경계 확장 상한).
+// 소비자가 둘이고 위험도가 다르다 — insert-below 는 비파괴적(잘못된 위치에
+//   추가할 뿐)이지만 expandToSentenceBoundary 의 산출은 replace 모드가 **파괴적으로 덮어쓰는**
+//   범위가 된다. 두 곳이 각자 판정 규칙을 복제하면 삽입 위치와 덮어쓰기 범위가 서서히 갈라진다
+//   — 같은 함수를 공유하는 것은 편의가 아니라 안전 요건이다. 반환값은 반드시 **개행 문자 앞**
+//   오프셋이어야 한다(개행을 포함하면 insert-below 가 `\n\n` 을 덧붙일 때 빈 줄이 하나 더 생긴다).
+// @MX:SPEC: SPEC-AI-010 REQ-AI10-016 REQ-AI10-017 REQ-AI10-020 REQ-AI10-021
+/**
+ * `from` 이 속한 마크다운 블록의 끝 오프셋을 찾는다(순수 — 문자열만으로 단위 테스트 가능).
+ *
+ * 규칙: (1) 스캔은 `from` 이 속한 줄의 **다음 줄**부터 한다(시작 줄 자신은 현재 블록의
+ * 일부다). (2) 빈 줄(공백만 있는 줄 포함)이거나 새 블록을 시작하는 줄을 만나면 **직전 줄의
+ * 끝**에서 멈춘다. (3) 그 외(산문 연속 줄)는 계속 전진한다 — 문단 내부의 줄바꿈은 블록
+ * 경계가 아니므로 여러 줄 문단이 중간에서 쪼개지지 않는다. (4) 문서 끝에 닿으면 `doc.length`.
+ *
+ * 알려진 한계(v1): 선택이 펜스 코드 블록 **내부**에 있으면 닫는 펜스 줄을 블록 시작으로
+ * 판정해 코드 본문과 닫는 펜스 사이에서 멈춘다. 펜스 열림/닫힘 추적은 이 함수를 줄 단위
+ * 순수 판정에서 상태 기계로 승격시키므로 v1 범위 밖이다.
+ */
+export function findBlockEnd(doc: string, from: number): number {
+  let lineEnd = doc.indexOf('\n', from);
+  if (lineEnd === -1) return doc.length;
+  let prevLine = doc.slice(doc.lastIndexOf('\n', from - 1) + 1, lineEnd);
+
+  for (;;) {
+    const nextStart = lineEnd + 1;
+    const nextEnd = doc.indexOf('\n', nextStart);
+    const line = doc.slice(nextStart, nextEnd === -1 ? doc.length : nextEnd);
+    if (line.trim() === '' || isBlockStartLine(line, prevLine)) return lineEnd;
+    if (nextEnd === -1) return doc.length;
+    prevLine = line;
+    lineEnd = nextEnd;
+  }
+}
 
 export interface ExpandedRange {
   from: number;
@@ -498,8 +578,10 @@ export function expandToSentenceBoundary(doc: string, from: number, to: number):
     return { from, to, expanded: false };
   }
 
-  const sepAfter = doc.slice(to).indexOf(PARAGRAPH_SEP);
-  const paraEnd = sepAfter === -1 ? doc.length : to + sepAfter;
+  // SPEC-AI-010 REQ-AI10-019: 상한은 문서 끝이 아니라 **블록 끝**이다. 종결 부호가 하나도
+  // 없는 제목·목록·표 영역에서 확장 범위가 문서 절반까지 넓어지면, 그 범위는 replace 모드가
+  // 파괴적으로 덮어쓰는 구간이자 카드가 "미리 보여준" 구간이 된다.
+  const paraEnd = findBlockEnd(doc, to);
   for (let i = to; i < paraEnd; i++) {
     if (SENTENCE_TERMINATORS.includes(doc[i])) {
       return { from, to: i + 1, expanded: i + 1 > to };
@@ -548,10 +630,9 @@ export function applySuggestion(view: ApplyView, ctx: ApplyContext): ApplyResult
     return { applied: true };
   }
 
-  // insert-below: 원문은 그대로 두고 선택이 속한 문단 끝 뒤에 빈 줄 + 제안을 삽입한다.
-  const docText = view.state.doc.toString();
-  const sepAfter = docText.slice(ctx.to).indexOf(PARAGRAPH_SEP);
-  const paraEnd = sepAfter === -1 ? view.state.doc.length : ctx.to + sepAfter;
+  // insert-below: 원문은 그대로 두고 선택이 속한 **마크다운 블록** 끝 뒤에 빈 줄 + 제안을
+  // 삽입한다(SPEC-AI-010 REQ-AI10-018). 삽입 내용의 형태와 아래 단일 dispatch 는 무변경이다.
+  const paraEnd = findBlockEnd(view.state.doc.toString(), ctx.to);
   view.dispatch({ changes: { from: paraEnd, insert: `${PARAGRAPH_SEP}${ctx.suggestion}` } });
   return { applied: true };
 }
@@ -802,12 +883,21 @@ export function getActiveCardController(): AiSuggestionCardController | null {
   return lastController;
 }
 
-/** 레지스트리·최근 컨트롤러·구독을 비운다(테스트 격리용). */
+// @MX:SPEC: SPEC-AI-010 REQ-AI10-014
+/**
+ * 레지스트리·최근 컨트롤러를 비운다(파일 전환/AI OFF 정리, 테스트 격리).
+ *
+ * Map 만 비우면 각 컨트롤러의 대기 안내·백스톱 타이머와 이벤트 구독이 살아남는다 —
+ * 이미 사라진 카드에 대해 타이머가 발화해 불필요한 재렌더를 유발하고 테스트 간 격리를 깬다.
+ * 그래서 비우기 **전에** 모든 컨트롤러의 `destroy()` 를 순회 호출한다. 3동작(취소/고스트
+ * 정리/레지스트리 비움)의 조건·순서·문서 무손상 계약은 그대로다(SPEC-AI-009 REQ-AI9-033~035).
+ */
 export function clearCardRegistry(): void {
+  for (const controller of cardRegistry.values()) {
+    controller.destroy();
+  }
   cardRegistry.clear();
   lastController = null;
-  activeCardUnsub?.();
-  activeCardUnsub = null;
   notifyActiveCard();
 }
 
@@ -846,6 +936,10 @@ export class AiSuggestionCardController {
   // 언마운트 시 즉시 clear한다(누수 없음).
   private waitNoticeTimer: ReturnType<typeof setTimeout> | null = null;
   private waitingLong = false;
+  // SPEC-AI-010 REQ-AI10-009/010: 프론트 백스톱 타이머 — 백엔드 하드 워치독(60초)의 종결
+  // 이벤트마저 이 카드에 닿지 않았을 때 스스로 error 로 종결시킨다. waitNoticeTimer 와 같은
+  // 규율(무장/재무장/해제/소멸)을 따르되 임계와 만료 동작만 다르다.
+  private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     public readonly model: SuggestionCardModel,
@@ -853,6 +947,7 @@ export class AiSuggestionCardController {
     private readonly options: CardControllerOptions = {},
   ) {
     this.armWaitNoticeTimer();
+    this.armWatchdogTimer();
   }
 
   private armWaitNoticeTimer(): void {
@@ -877,9 +972,54 @@ export class AiSuggestionCardController {
     }
   }
 
-  /** 카드가 레지스트리에서 제거될 때(적용/취소) 호출 — 대기 타이머 누수를 막는다. */
-  destroy(): void {
+  // @MX:WARN: [AUTO] 백스톱 만료 콜백은 "자기 카드 하나만" 건드려야 한다.
+  // @MX:REASON: [AUTO] 카드 하나의 정체가 문서 텍스트를 바꾸거나 다른 카드의 in-flight 를
+  //   취소하면, 멀쩡히 동작 중인 다른 카드까지 함께 무너진다(REQ-AI10-013). 여기서
+  //   aiCancel·dispatch·다른 컨트롤러 접근을 추가해서는 안 된다.
+  // @MX:SPEC: SPEC-AI-010 REQ-AI10-009 REQ-AI10-013
+  private armWatchdogTimer(): void {
+    this.clearWatchdogTimer();
+    this.watchdogTimer = setTimeout(() => {
+      this.watchdogTimer = null;
+      // 대기 안내 타이머는 이미 스스로 해제되었을 수 있으나, 종결이므로 확실히 닫는다.
+      this.clearWaitNoticeTimer();
+      this.waitingLong = false;
+      // 신규 errorKind 를 만들지 않고 기존 'other' 분기에 얹는다 → 재시도 + 닫기가 자동으로
+      // 따라온다(REQ-AI10-011). 문서·다른 카드는 건드리지 않는다.
+      this.commit({ type: 'fail', kind: 'other', message: BACKSTOP_ERROR_TEXT });
+    }, FRONTEND_BACKSTOP_DELAY_MS);
+  }
+
+  private clearWatchdogTimer(): void {
+    if (this.watchdogTimer !== null) {
+      clearTimeout(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+  }
+
+  /** 종결·소멸 사건에서 두 타이머를 함께 닫는다 — 해제 지점이 한 곳이라 누락이 생기지 않는다. */
+  private clearTimers(): void {
     this.clearWaitNoticeTimer();
+    this.clearWatchdogTimer();
+    this.waitingLong = false;
+  }
+
+  /** 카드가 레지스트리에서 제거될 때(적용/취소/닫기/정리) 호출 — 타이머 누수를 막는다. */
+  destroy(): void {
+    this.clearTimers();
+    this.unbind?.();
+    this.unbind = null;
+  }
+
+  /**
+   * 이벤트 구독 해제 함수(스토어 구독 + requestId 라우터 구독). 컨트롤러가 스스로 보유해
+   * `destroy()` 에서 해제한다 — 모듈 전역 단일 슬롯이 아니므로 새 카드가 생겨도 기존 카드의
+   * 구독이 끊기지 않는다(SPEC-AI-010 REQ-AI10-012).
+   */
+  private unbind: (() => void) | null = null;
+  setUnbind(fn: () => void): void {
+    this.unbind?.();
+    this.unbind = fn;
   }
 
   private commit(event: CardEvent): void {
@@ -889,6 +1029,15 @@ export class AiSuggestionCardController {
 
   getState(): CardState {
     return this.state;
+  }
+
+  /**
+   * SPEC-AI-010 REQ-AI10-012: 라우터 경로의 **원시 델타**를 잇는다. 스토어 경로(`onStream`)는
+   * 이미 누적된 버퍼를 통째로 주지만 라우터는 조각만 주므로, 누적 책임이 컨트롤러에 있다.
+   * 두 경로가 섞여도(슬롯을 뺏기기 전 스토어 누적분 + 그 뒤 라우터 델타) 이어 붙기만 하면 된다.
+   */
+  appendStreamDelta(delta: string): void {
+    this.onStream(this.streamBuffer + delta);
   }
 
   onStream(buffer: string): void {
@@ -901,8 +1050,7 @@ export class AiSuggestionCardController {
   }
 
   onComplete(finalText: string, opts?: { truncated?: boolean }): void {
-    this.clearWaitNoticeTimer();
-    this.waitingLong = false;
+    this.clearTimers();
     // 다이어그램은 삽입 전 strict 사전 검증(REQ-AI-023) 후 valid/자동재요청/목록폴백으로 분기.
     // BUG-6: 목록 폴백이 활성화된 뒤에는(재요청 응답이 목록 텍스트) 더 이상 이 분기를 타지
     // 않는다 — mermaid 검증에 넣으면 항상 실패해 diagram-fallback 으로 되돌아가 무한 루프가 된다.
@@ -962,25 +1110,29 @@ export class AiSuggestionCardController {
   }
 
   onError(errorInfo: { kind: AiErrorKind; message: string }): void {
-    this.clearWaitNoticeTimer();
-    this.waitingLong = false;
+    this.clearTimers();
     this.commit({ type: 'fail', kind: errorInfo.kind, message: errorInfo.message });
   }
 
-  /** 스트리밍/검토 중 대상 원문 편집(REQ-AI-036). */
+  /**
+   * 스트리밍/검토 중 대상 원문 편집(REQ-AI-036).
+   * SPEC-AI-010 REQ-AI10-010: 이 시점에 in-flight 는 사실상 끝났다 — 타이머를 남겨 두면
+   * 백스톱이 뒤늦게 발화해 "원문이 편집되어 멈췄어요" 배너를 의미 없는 오류로 덮어쓴다.
+   */
   intrude(): void {
+    this.clearTimers();
     this.commit({ type: 'intrude' });
   }
 
   /** in-flight 가 새 요청으로 취소됨(REQ-AI-006, 검토 카드는 무영향). */
   cancelByNew(): void {
-    this.clearWaitNoticeTimer();
-    this.waitingLong = false;
+    this.clearTimers();
     this.commit({ type: 'cancel-by-new' });
   }
 
-  /** 적용 직전 원문 불일치(REQ-AI-035). */
+  /** 적용 직전 원문 불일치(REQ-AI-035). intrude 와 같은 이유로 타이머를 함께 닫는다. */
   markStale(): void {
+    this.clearTimers();
     this.commit({ type: 'stale' });
   }
 
@@ -996,12 +1148,37 @@ export class AiSuggestionCardController {
    */
   enterListFallback(): void {
     this.listFallbackActive = true;
-    this.commit({ type: 'stream' });
+    // SPEC-AI-010 REQ-AI10-002: 버퍼를 비우지 않으면 직전 다이어그램 응답이 streaming 렌더에
+    // 그대로 남아 스켈레톤이 뜨지 않는다(사용자 개시 경로와 동일한 문제). 목록 폴백의
+    // listFallbackActive 플래그·재시도 카운터 궤적은 그대로다.
+    this.enterReRequest();
   }
 
   /** applyActiveCard 가 mermaid 펜스 삽입 여부를 판단할 때 사용(BUG-5/BUG-6). */
   isListFallbackActive(): boolean {
     return this.listFallbackActive;
+  }
+
+  // @MX:NOTE: [AUTO] enterReRequest - 사용자 개시 재요청 5종의 공통 진입 상태 전환.
+  // 이 호출이 없으면 카드는 첫 ai://chunk 가 도착할 때까지 done/error/
+  //   intruded phase 를 유지한다 — fireReRequest 가 store.startRequest 를 실행하는 시점의
+  //   zustand 구독은 boundRequestId 가 아직 "직전" id 라서 단락되고, 그 뒤로는 스토어가 다시
+  //   바뀔 계기가 없기 때문이다(실기기: ↻ 를 눌러도 화면이 그대로인 "얼어붙은 카드").
+  //   버퍼 리셋을 함께 하지 않으면 streaming 렌더가 직전 응답 본문을 그대로 보여주어 더
+  //   나빠진다(renderSuggestionCard 의 빈 버퍼 조건이 스켈레톤을 켜는 유일한 스위치다).
+  // @MX:SPEC: SPEC-AI-010 REQ-AI10-001 REQ-AI10-002 REQ-AI10-003 REQ-AI10-004 REQ-AI10-010
+  /**
+   * 재요청 발행 직전에 호출 — 카드를 즉시 streaming(글로우 + 3줄 스켈레톤)으로 되돌린다.
+   * 목록 폴백(`enterListFallback`)도 이 메서드를 재사용해 두 경로가 갈라지지 않게 한다.
+   * 하는 일은 셋뿐이다: (1) 스트림 버퍼 리셋, (2) 대기 안내·백스톱 타이머 재무장,
+   * (3) `stream` 전이 커밋(마지막에 두어 알림이 최종 상태를 본다). 새 phase·새 위젯·가짜
+   * 진행 지표를 도입하지 않는다 — 기존 streaming 렌더 분기를 그대로 재사용한다(REQ-AI10-005).
+   */
+  enterReRequest(): void {
+    this.streamBuffer = '';
+    this.rearmWaitNotice();
+    this.armWatchdogTimer();
+    this.commit({ type: 'stream' });
   }
 
   getRenderInput(): RenderCardInput {
@@ -1080,9 +1257,6 @@ export interface StartCardRequest {
   originalText: string;
 }
 
-/** 현재 카드 스트림 구독 해제 — 새 카드 시작 시 이전 구독을 정리한다. */
-let activeCardUnsub: (() => void) | null = null;
-
 /** 적용(바꾸기/아래삽입) — 등록된 뷰에 재검증 후 단일 트랜잭션. 불일치면 stale 카드로 전환. */
 function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode): void {
   const view = activeView;
@@ -1142,16 +1316,16 @@ function fireReRequest(originalArgs: AiRequestArgs, overrides: Partial<AiRequest
 // @MX:REASON: [AUTO] BUG-1 재발 방지 — 구독은 최초 requestId 가 아니라 boundRequestId(재요청마다
 //   갱신)를 따라가야 한다. done/error 에서 구독을 끊으면 fireReRequest 가 새로 스폰한 요청의
 //   스트림을 아무도 받지 못해 카드가 'streaming' 에 영원히 멈춘다(실기기 재현 완료). 구독은
-//   컨트롤러가 살아있는 동안(적용/취소로 레지스트리에서 제거되거나, 새 카드가 activeCardUnsub 를
-//   가로챌 때까지) 유지한다.
+//   컨트롤러가 살아있는 동안(적용/취소/닫기/정리로 destroy() 될 때까지) 유지되며, 해제 함수는
+//   **컨트롤러가 보유한다** — 모듈 전역 단일 슬롯을 두면 새 카드가 생길 때마다 직전 카드의
+//   구독이 끊겨 검토 대기 카드가 자기 이벤트를 못 받는다(SPEC-AI-010 REQ-AI10-012).
+// @MX:SPEC: SPEC-AI-001 REQ-AI-034 / SPEC-AI-010 REQ-AI10-012
 /**
  * 요청을 스트리밍 제안 카드로 바인딩한다(설계 §4.2). 활성 카드로 등록하고 aiStore 를 구독해
  * 스트리밍 버퍼/완료/오류를 컨트롤러로 흘려보낸다. aiRequest 스폰은 호출자(툴바 onRequest)가
  * 수행한다 — 이 함수는 카드 생성·바인딩만 담당해 단위 테스트가 Tauri 를 타지 않는다.
  */
 export function startSuggestionCard(request: StartCardRequest): AiSuggestionCardController {
-  activeCardUnsub?.();
-
   // §3/REQ-AI-034: 새 요청은 in-flight(streaming) 카드만 취소 표시하고, 검토(done 등) 카드는 유지한다.
   for (const existing of getCardControllers()) {
     if (existing.getState().phase === 'streaming') existing.cancelByNew();
@@ -1186,10 +1360,15 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       removeCardController(controller);
     },
     onReRequest: (instruction, useModel) => {
+      // SPEC-AI-010 REQ-AI10-001/003: 사용자 개시 재요청 5종(↻ / ↻ 다시 / ⚡ 고급 모델 /
+      // 다시 시도(error) / 다시 요청(intruded))이 전부 이 배선 하나로 수렴한다. 전이는
+      // fireReRequest **이전에** 수행해야 한다 — fireReRequest 안의 store.startRequest 가
+      // 구독을 동기 발화시키므로, 그 전에 카드가 이미 streaming 이어야 화면이 한 순간도
+      // 옛 제안(done)으로 보이지 않는다.
+      controller.enterReRequest();
       // BUG-2: 원본 args(selection/contextBefore/contextAfter)를 그대로 승계하고 지시/모델만 덮어쓴다.
       boundRequestId = fireReRequest(request.args, { customInstruction: instruction, model: useModel });
       lastHandledTerminal = null;
-      controller.rearmWaitNotice();
     },
     onListFallback: () => {
       // BUG-6: 목록 폴백 모드로 전환 — 이후 onComplete/applyActiveCard 가 더 이상 이 응답을
@@ -1203,7 +1382,6 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
         model: model.model,
       });
       lastHandledTerminal = null;
-      controller.rearmWaitNotice();
     },
     onOpenOnboarding: () => openOnboarding(),
     // REQ-AI9-038: 레지스트리 제거 1가지 부수효과만 — onCancel 과 달리 aiCancel IPC 를 발사하지
@@ -1220,7 +1398,7 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
   // BUG-1: done/error 에서도 구독을 끊지 않는다 — 재요청이 boundRequestId 를 갱신하면 같은
   // 구독이 새 요청의 스트림을 계속 받는다. 대신 done/error 재처리를 막기 위해 마지막으로
   // 처리한 terminal 상태를 기억한다.
-  activeCardUnsub = useAiStore.subscribe((s) => {
+  const storeUnsub = useAiStore.subscribe((s) => {
     if (s.requestId !== boundRequestId) return;
     if (s.requestState === 'streaming') {
       controller.onStream(s.streamBuffer);
@@ -1235,6 +1413,43 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       lastHandledTerminal = key;
       controller.onError(s.errorInfo);
     }
+  });
+
+  // SPEC-AI-010 REQ-AI10-012: 위 스토어 구독은 `aiStore` 의 **단일 슬롯**을 통과한 이벤트만
+  // 본다. 카드 A가 재요청으로 그 슬롯을 가져가면 카드 B의 이벤트는 `useAiRelay.isCurrent`
+  // 에서 스토어에 닿기도 전에 폐기되어 B가 영원히 멈춘다. 라우터 구독은 **스토어가 폐기한
+  // 이벤트만** 받아 그 구멍을 메운다 — 아래 `isStoreSlot` 가드가 정확히 `isCurrent` 와
+  // 상보적이므로, 카드가 현재 슬롯을 쥐고 있는 동안의 동작은 개정 전과 한 글자도 다르지 않다
+  // (고스트/툴바/설정이 의존하는 단일 슬롯 의미론 보존).
+  const isStoreSlot = (): boolean => useAiStore.getState().requestId === boundRequestId;
+  const routerUnsub = subscribeAiEvents(() => boundRequestId, {
+    onChunk: (text) => {
+      if (isStoreSlot()) return;
+      // 라우터는 원시 델타를 준다(스토어의 appendChunk 누적이 없다) — 컨트롤러가 직접 잇는다.
+      controller.appendStreamDelta(text);
+    },
+    onDone: (result, truncated) => {
+      if (isStoreSlot()) return;
+      const key = `${boundRequestId}:done`;
+      if (lastHandledTerminal === key) return;
+      lastHandledTerminal = key;
+      // result 는 권위 값 — 누적 버퍼를 덮어쓴다(reduceCompleteRequest 와 동일 의미론).
+      controller.onComplete(result, { truncated });
+    },
+    onError: (kind, message) => {
+      if (isStoreSlot()) return;
+      const key = `${boundRequestId}:error`;
+      if (lastHandledTerminal === key) return;
+      lastHandledTerminal = key;
+      controller.onError({ kind, message });
+    },
+  });
+
+  // 해제 함수는 컨트롤러가 보유한다 — 모듈 전역 단일 슬롯(activeCardUnsub)을 두면 새 카드가
+  // 만들어질 때마다 직전 카드의 구독이 끊겨 검토 대기 카드가 자기 이벤트를 못 받는다.
+  controller.setUnbind(() => {
+    storeUnsub();
+    routerUnsub();
   });
 
   return controller;
