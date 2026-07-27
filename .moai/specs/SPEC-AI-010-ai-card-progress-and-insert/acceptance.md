@@ -1,6 +1,6 @@
 ---
 id: SPEC-AI-010
-version: "0.0.1"
+version: "0.0.2"
 status: draft
 created: "2026-07-27"
 updated: "2026-07-27"
@@ -17,15 +17,18 @@ tags:
   - progress
   - watchdog
   - insert
+  - retry-limit
   - acceptance
 lifecycle: spec-anchored
 ---
 
-# SPEC-AI-010 Acceptance Criteria — AI 카드 재요청 진행 표시 · 종결 보장 · 블록 경계 삽입
+# SPEC-AI-010 Acceptance Criteria — AI 카드 재요청 진행 표시 · 종결 보장 · 블록 경계 삽입 · 재요청 소진 안내
 
-> 본 문서는 spec.md의 AC-AI10-001~012를 Given-When-Then 형식으로 전개한다. 각 AC는 매핑된 REQ-AI10-XXX를 검증한다. 검증 수단은 (a) Vitest + Testing Library 단위·통합 테스트(주 수단), (b) **코드 리뷰(diff)** — 자동 테스트가 판정할 수 없는 무변경·구조 보존 항목, (c) 로컬 수동 검증(체감 지연·실문서 삽입 위치)으로 삼원화한다.
+> 본 문서는 spec.md의 AC-AI10-001~019를 Given-When-Then 형식으로 전개한다. 각 AC는 매핑된 REQ-AI10-XXX를 검증한다. 검증 수단은 (a) Vitest + Testing Library 단위·통합 테스트(주 수단), (b) **코드 리뷰(diff)** — 자동 테스트가 판정할 수 없는 무변경·구조 보존 항목, (c) 로컬 수동 검증(체감 지연·실문서 삽입 위치)으로 삼원화한다.
 >
-> **TDD 순서 계약**(`quality.yaml` `development_mode: tdd`, `test_coverage_target: 85`): 각 AC의 **Then** 절은 그대로 실패하는 테스트의 단언이 된다. 다음 다섯 회귀 단언은 **현행 코드에서 반드시 실패**해야 한다 — AC-AI10-001, AC-AI10-005, AC-AI10-007, AC-AI10-010 (a)(b)(c), AC-AI10-011 전자. 실패하지 않으면 재현 시나리오가 결함을 담아내지 못한 것이므로 시나리오를 다시 잡는다.
+> **줄 번호 기준**: AC-AI10-001~012 의 줄 번호는 **M1~M3 구현 이전(v0.0.1 작성 시점)** 기준이고, AC-AI10-013~019 의 줄 번호는 **M1~M3 구현 이후(현재 브랜치)** 기준이다. 두 계열이 서로 다르므로 인용 시 유의한다.
+>
+> **TDD 순서 계약**(`quality.yaml` `development_mode: tdd`, `test_coverage_target: 85`): 각 AC의 **Then** 절은 그대로 실패하는 테스트의 단언이 된다. 다음 일곱 회귀 단언은 **현행 코드에서 반드시 실패**해야 한다 — AC-AI10-001, AC-AI10-005, AC-AI10-007, AC-AI10-010 (a)(b)(c), AC-AI10-011 전자, AC-AI10-013, AC-AI10-014. 실패하지 않으면 재현 시나리오가 결함을 담아내지 못한 것이므로 시나리오를 다시 잡는다.
 >
 > **단언 완화 금지**: "무수정 통과" 대상 테스트가 실패하면 범위를 벗어난 변경이 들어간 신호다. 테스트를 느슨하게 고쳐 통과시키는 것은 FAIL 로 간주한다.
 
@@ -39,8 +42,9 @@ lifecycle: spec-anchored
   - `src/test/aiCardWatchdog.test.ts` — AC-AI10-004·005·006
   - `src/test/aiCardCoexistence.test.ts` — AC-AI10-007·008
   - `src/test/aiBlockBoundary.test.ts` — AC-AI10-010(경계 함수 부분)·011
+  - `src/test/aiCardRetryLimit.test.ts` — AC-AI10-013·014·015·016·017·018·019
 - **수정 파일**: `src/test/aiSuggestionApply.test.ts` — AC-AI10-010(삽입 위치 4케이스). **신규 `describe` 추가만 허용하고 기존 케이스는 수정 금지**.
-- **무수정 통과 대상**: `aiSuggestionCardRerequest.test.ts`, `aiWaitNotice.test.ts`, `aiFileSwitchEffects.test.ts`, `aiSuggestionCard.test.ts`, `aiSuggestionCardRender.test.ts`, `aiSuggestionCardWidget.test.ts`, `aiRelay.test.ts`, `aiStore.test.ts`, `aiOffEffects.test.ts`
+- **무수정 통과 대상**: `aiSuggestionCardRerequest.test.ts`, `aiWaitNotice.test.ts`, `aiFileSwitchEffects.test.ts`, `aiSuggestionCard.test.ts`, `aiSuggestionCardRender.test.ts`, `aiSuggestionCardWidget.test.ts`, `aiRelay.test.ts`, `aiStore.test.ts`, `aiOffEffects.test.ts`, 그리고 **모듈 4 추가분** `aiIntegration.test.tsx`, `tableValidate.test.ts`(둘 다 `onReRequest` 를 2인자로 호출·mock 한다 — REQ-AI10-023 의 선택적 인자 계약이 이들 때문에 존재한다)
 - **타이머**: `vi.useFakeTimers()` / `vi.advanceTimersByTime()`. 8초 대기 안내와 프론트 백스톱 임계를 실시간으로 기다리지 않는다.
 - **mock 정책**: `aiRequest`/`aiCancel`(`@/lib/tauri/ipc`)과 `@tauri-apps/api/event` 의 `listen` 은 mock 으로 주입한다. 실제 Tauri 런타임 의존 금지 — 단위 테스트가 CI 에서 동작해야 한다. 기존 `aiSuggestionCardRerequest.test.ts`·`aiRelay.test.ts` 의 패턴을 차용한다.
 
@@ -55,7 +59,11 @@ lifecycle: spec-anchored
 | `applySuggestion` 무손상 구조 무변경 | REQ-AI10-022 | 원문 재검증(`:541-544`)의 위치·조건, dispatch 가 단일 `changes` 트랜잭션(`:547`·`:555`), `replace` 분기(`:546-549`) |
 | 임계 상수의 배치·파생 형태·백엔드 참조 주석 | REQ-AI10-007 | `src/lib/ai/waitNotice.ts` diff — 백스톱이 백엔드 미러 상수에서 **파생**되었는지(독립 리터럴이 아닌지), `src-tauri/src/ai/mod.rs:32` 참조 주석 유무 |
 | `aiStore.ts`·`src-tauri/` 무변경 | plan.md 채택안 C 계약 | 두 경로의 diff |
-| 회귀 가드 테스트 파일 변경 여부 | 전 REQ | 10개 파일 중 `aiSuggestionApply.test.ts` 만 **추가** 허용, 나머지 9개는 diff 0줄 |
+| 회귀 가드 테스트 파일 변경 여부 | 전 REQ | 10개 파일 중 `aiSuggestionApply.test.ts` 만 **추가** 허용, 나머지 9개는 diff 0줄. 모듈 4 추가분 `aiIntegration.test.tsx`·`tableValidate.test.ts` 도 diff 0줄 |
+| `onReRequest` 종류 인자가 **명시 전달**이며 지시 문자열 추론이 아님 | REQ-AI10-023 | `ai-suggestion-card.ts` diff — 8개 호출부(`:279`·`:290`·`:372`·`:391`·`:425`·`:1090`·`:1106` + `renderDoneControls` Enter 핸들러) 각각이 종류를 넘기는지, 인자가 **선택적**이고 기본값이 `exempt` 인지 |
+| `retry-exhausted` 분기에 `appendDismissButton` 미추가 | REQ-AI10-030 | `ai-suggestion-card.ts` diff — 소진 카드의 종료 성격 컨트롤이 `renderDoneControls` 의 `[✕ 취소]` 하나뿐인지 |
+| `MAX_RETRY`·`reduceCard` `'retry'` 케이스·`enterReRequest()` 무변경 | REQ-AI10-033 | `ai-suggestion-card.ts` diff — `const MAX_RETRY = 3`(`:75`) 줄, `case 'retry':` 블록(`:97-100`), `enterReRequest()` 본문(`:1177-1182`) 세 곳이 diff 에 나타나지 않는지 |
+| done 렌더가 소진 분기에 **복제**되지 않았는지 | REQ-AI10-029 | `ai-suggestion-card.ts` diff — 제안 본문·`truncated` 고지·`renderDoneControls` 호출이 한 곳에만 있는지(합류형), 두 벌로 늘어나지 않았는지 |
 
 ### 수동 검증 (로컬 실기기)
 
@@ -594,9 +602,283 @@ lifecycle: spec-anchored
 
 ---
 
+### AC-AI10-013 — blind 재요청 3회는 발행되고 4번째는 발행되지 않음 *(회귀)*
+
+**매핑**: REQ-AI10-024, REQ-AI10-028
+**테스트 파일**: `src/test/aiCardRetryLimit.test.ts`
+
+> **RED 확보 계약(HARD)**: 본 AC는 **현행 구현에서 반드시 실패**한다. 프로덕션 코드 어디에서도 `commit({ type: 'retry' })` 를 수행하지 않으므로(`grep` 결과 소비자는 `src/test/aiSuggestionCard.test.ts:55`·`:63` 리듀서 테스트 2건뿐) `retryCount`(`:51`)는 영원히 0 이고 4번째 클릭도 그냥 발행된다. 실패하지 않으면 재현 시나리오가 결함을 담아내지 못한 것이다.
+
+**공통 Given**: `startSuggestionCard` 로 카드를 만들고 `aiRequest`/`aiCancel` mock 을 주입한 뒤, `ai://done` 을 주어 카드를 `done` phase(제안 본문 `'이전 제안 본문입니다.'`)로 만든다. `aiRequest` mock 의 호출 횟수를 최초 1회(첫 요청)로 기록해 둔다.
+
+**Given** 카드가 `done` phase 이고 방향 지시 입력칸이 **비어 있으면**
+
+**When** `.mdedit-ai-retry`(`↻ 다시`)를 클릭하고, 매번 `ai://done` 으로 종결시켜 다시 `done` 으로 돌아오게 하는 사이클을 **3회** 반복하면
+
+**Then** 다음이 모두 참이다:
+1. `aiRequest` mock 이 최초 요청을 제외하고 **정확히 3회** 추가 호출되었다.
+2. `controller.getState().retryCount === 3` 이다.
+3. 3회 모두 카드가 `streaming` 으로 복귀했다(M1 계약 유지).
+4. 어느 시점에도 `phase === 'retry-exhausted'` 가 아니었다.
+
+> vitest 케이스명: `'blind re-request fires a request for each of the first three attempts'`
+
+**Given** 위 상태(=`retryCount === 3`, `done` phase, 제안 본문 보존)에서
+
+**When** `.mdedit-ai-retry` 를 **4번째로** 클릭하면
+
+**Then** 다음이 모두 참이다:
+1. `aiRequest` mock 의 호출 횟수가 **증가하지 않는다**(3회 그대로) — REQ-AI10-028 미발행.
+2. `controller.getState().phase === 'retry-exhausted'` 다.
+3. `controller.getState().suggestion` 이 `'이전 제안 본문입니다.'` **그대로**다(제안 보존).
+4. `controller.getState().retryCount` 가 `MAX_RETRY`(3)를 **넘지 않는다**.
+5. 카드가 `streaming` 으로 전이하지 **않았다** — 스켈레톤(`.mdedit-ai-skeleton-line`)이 존재하지 않는다(`enterReRequest()` 미호출).
+
+> vitest 케이스명: `'the fourth blind re-request does not fire and enters retry-exhausted with the suggestion intact'`
+
+---
+
+### AC-AI10-014 — 소진 카드는 done 카드를 증강하며 종료 컨트롤이 정확히 1개 *(회귀)*
+
+**매핑**: REQ-AI10-029, REQ-AI10-030
+**테스트 파일**: `src/test/aiCardRetryLimit.test.ts`
+
+> **RED 확보 계약(HARD)**: 본 AC는 **현행 구현에서 반드시 실패**한다. 현행 `retry-exhausted` 분기(`:418-430`)는 안내 문구(`msg`)와 `[⚡ 고급 모델로 다시 시도]`(`advanced`) **둘만** 붙이고 조기 반환하므로, 제안 본문·입력칸·적용 버튼·`[✕ 취소]` 가 전부 없다. 닫기 수단도 없어 현 상태로 도달 가능하게 만들면 **닫을 수 없는 카드**가 된다.
+
+**Given** AC-AI10-013 의 절차로 카드가 `retry-exhausted` phase 에 도달했으면
+
+**When** 카드 DOM 을 조회하면
+
+**Then** 다음이 모두 참이다:
+1. `.mdedit-ai-suggestion` 이 존재하고 그 텍스트가 `'이전 제안 본문입니다.'` 다(제안 본문 보존, REQ-AI10-029 (a)).
+2. `.mdedit-ai-direct-input` 이 존재한다(방향 지시 입력칸 — 안내 문구가 가리키는 대상).
+3. `.mdedit-ai-redo`(`↻`)와 `.mdedit-ai-retry`(`↻ 다시`)가 존재한다.
+4. `.mdedit-ai-apply` 가 **1개 이상** 존재한다(적용 경로 보존).
+5. `.mdedit-ai-cancel`(`✕ 취소`)이 존재한다.
+6. `.mdedit-ai-advanced`(`⚡ 고급 모델로 다시 시도`)가 존재한다.
+7. 안내 문구 요소가 존재한다.
+
+> vitest 케이스명: `'retry-exhausted renders the full done card plus the exhaustion notice and advanced-model offer'`
+
+**Given** 같은 소진 카드에서
+
+**When** 종료 성격 컨트롤을 조회하면
+
+**Then** 다음이 모두 참이다:
+1. `.mdedit-ai-dismiss` 가 **존재하지 않는다**(REQ-AI10-030 — `appendDismissButton` 미호출).
+2. 종료 성격 컨트롤은 `.mdedit-ai-cancel` **정확히 1개**다(중복 종료 컨트롤 부재).
+
+> vitest 케이스명: `'retry-exhausted has exactly one dismissal control and no duplicate dismiss button'`
+
+**Given** 같은 소진 카드에서
+
+**When** `.mdedit-ai-direct-input` 과 안내 문구 요소의 DOM 순서를 `compareDocumentPosition` 등으로 비교하면
+
+**Then** 입력칸이 안내 문구보다 **앞**에 온다 — 문구의 "(위 입력칸)"이 실제 배치와 일치한다(REQ-AI10-029 순서 계약).
+
+> vitest 케이스명: `'the direction input precedes the exhaustion notice so that "위 입력칸" is truthful'`
+
+**Given** 같은 소진 카드에서
+
+**When** `.mdedit-ai-cancel` 을 클릭하면
+
+**Then** 카드가 레지스트리에서 제거되고(`getCardControllers()` 에 부재) 편집기 문서 문자열이 **바이트 동일**하다(닫기가 실제로 동작하며 문서를 건드리지 않는다).
+
+> vitest 케이스명: `'the cancel control actually closes the exhausted card without touching the document'`
+
+---
+
+### AC-AI10-015 — directed 재요청이 연속을 끊고 카운터를 0으로 되돌림
+
+**매핑**: REQ-AI10-025, REQ-AI10-031
+**테스트 파일**: `src/test/aiCardRetryLimit.test.ts`
+
+**Given** blind 재요청을 **2회** 수행해 `retryCount === 2` 이고 카드가 `done` phase 이면
+
+**When** `.mdedit-ai-direct-input` 에 `'더 짧게'` 를 입력하고 `.mdedit-ai-redo` 를 클릭하면
+
+**Then** 다음이 모두 참이다:
+1. `aiRequest` mock 이 **호출되었다**(요청이 정상 발행됨).
+2. 발행된 지시가 `'더 짧게'` 다(기존 `buildRetryInstruction` 계약 보존).
+3. `controller.getState().retryCount === 0` 이다(연속이 끊김).
+4. 카드가 `streaming` 으로 복귀했다.
+
+> vitest 케이스명: `'a directed re-request fires and resets the consecutive blind counter to zero'`
+
+**Given** 위 상태에서 이어서(`retryCount === 0`)
+
+**When** blind 재요청을 다시 **3회** 반복하면
+
+**Then** 3회 모두 요청이 발행되고, **4번째**에 비로소 `phase === 'retry-exhausted'` 가 되며 그 4번째는 발행되지 않는다 — 리셋이 실제로 관측된다.
+
+> vitest 케이스명: `'after a directed reset three more blind attempts fire before exhaustion'`
+
+**Given** 카드가 `retry-exhausted` phase 이면
+
+**When** `.mdedit-ai-direct-input` 에 `'표로 정리해줘'` 를 입력하고 Enter 키를 누르면
+
+**Then** 요청이 **발행되고** `retryCount === 0` 이며 카드가 `streaming` 으로 복귀한다 — 소진 상태의 탈출구 (a)가 동작한다(REQ-AI10-031 (a)).
+
+> vitest 케이스명: `'a directed re-request escapes retry-exhausted and fires normally'`
+
+---
+
+### AC-AI10-016 — 고급 모델 폴백은 발행되며 카운터를 건드리지 않음
+
+**매핑**: REQ-AI10-026, REQ-AI10-031, REQ-AI10-032
+**테스트 파일**: `src/test/aiCardRetryLimit.test.ts`
+
+**Given** 카드가 `retry-exhausted` phase 이고 `retryCount === 3` 이면
+
+**When** `.mdedit-ai-advanced`(`⚡ 고급 모델로 다시 시도`)를 클릭하면
+
+**Then** 다음이 모두 참이다:
+1. `aiRequest` mock 이 **호출되었다** — 발행이 게이트에 막히지 않는다(REQ-AI10-032).
+2. 호출 인자의 `model` 이 `'sonnet'` 이다(기존 계약 `:425` 보존).
+3. `controller.getState().retryCount` 가 클릭 전후로 **3 그대로**다(`exempt` — 세지도 리셋하지도 않음).
+4. 카드가 `streaming` 으로 복귀했다(스켈레톤 3줄 존재).
+
+> vitest 케이스명: `'the advanced-model fallback fires a sonnet request and leaves the retry counter untouched'`
+
+**Given** 위 요청이 `ai://done` 으로 종결되어 카드가 다시 `done` phase 가 되면
+
+**When** `.mdedit-ai-retry`(blind)를 **1회** 클릭하면
+
+**Then** 카드가 **즉시** `retry-exhausted` 로 돌아간다(`retryCount` 가 3 에서 유지되었으므로) — 고급 모델 폴백이 카운터를 리셋하지도 않았음이 확인된다.
+
+> vitest 케이스명: `'the advanced-model fallback does not reset the counter either'`
+
+**Given** `retry-exhausted` 카드에서
+
+**When** `.mdedit-ai-advanced` 를 **연속 2회** 클릭하면
+
+**Then** 두 번 모두 요청이 발행된다 — 자기 자신을 카운트해 즉시 재소진시키는 일이 없다(REQ-AI10-032).
+
+> vitest 케이스명: `'repeated advanced-model attempts never self-exhaust'`
+
+---
+
+### AC-AI10-017 — error/intruded 재시도는 카운트되지 않으며 소진에 도달하지 않음
+
+**매핑**: REQ-AI10-026, REQ-AI10-027
+**테스트 파일**: `src/test/aiCardRetryLimit.test.ts`
+
+**Given** `controller.onError({ kind: 'other', message: '잠시 문제가 있었어요' })` 로 카드가 `error` phase 이면
+
+**When** `.mdedit-ai-retry`(`다시 시도`)를 클릭하고 매번 다시 오류로 종결시키는 사이클을 **4회 이상**(상한을 넘길 만큼) 반복하면
+
+**Then** 다음이 모두 참이다:
+1. 매 클릭마다 `aiRequest` mock 이 호출된다(4회 전부 발행 — 복구 동작은 막히지 않는다).
+2. `controller.getState().retryCount === 0` 이다(면제).
+3. 어느 시점에도 `phase === 'retry-exhausted'` 가 아니다(REQ-AI10-027 도달성 불변식).
+
+> vitest 케이스명: `'error-phase retries are exempt from the counter and never reach retry-exhausted'`
+
+**Given** `controller.intrude()` 로 카드가 `intruded` phase 이면
+
+**When** `.mdedit-ai-rerequest`(`다시 요청`)를 동일하게 **4회 이상** 반복하면
+
+**Then** 위와 동일한 3개 단언이 성립한다.
+
+> vitest 케이스명: `'intruded-phase re-requests are exempt from the counter and never reach retry-exhausted'`
+
+**Given** `retryCount` 가 이미 3 인 카드가 `error` phase 로 전이했으면
+
+**When** `.mdedit-ai-retry` 를 클릭하면
+
+**Then** 요청이 **발행된다** — 소진 게이트는 `blind` 재요청에만 적용되므로 복구 경로를 막지 않는다(REQ-AI10-026 #2 근거).
+
+> vitest 케이스명: `'the exhaustion gate never blocks an error-phase recovery retry'`
+
+---
+
+### AC-AI10-018 — 컨트롤러 내부 자동 재요청은 카운트되지 않음
+
+**매핑**: REQ-AI10-026, REQ-AI10-027
+**테스트 파일**: `src/test/aiCardRetryLimit.test.ts`
+
+**Given** 표 프리셋 카드에서 무효 표 응답이 도착해 자동 재요청(`ai-suggestion-card.ts:1090`)이 발생하면
+
+**When** `controller.getState()` 를 확인하면
+
+**Then** `retryCount === 0` 이고 `phase !== 'retry-exhausted'` 다.
+
+> vitest 케이스명: `'the table-validation auto re-request does not touch the retry counter'`
+
+**Given** 다이어그램 프리셋 카드에서 무효 mermaid 응답이 도착해 오류 동봉 자동 재시도(`:1106`)가 발생하면
+
+**When** 동일하게 확인하면
+
+**Then** `retryCount === 0` 이고 `phase !== 'retry-exhausted'` 다.
+
+> vitest 케이스명: `'the diagram auto-retry does not touch the retry counter'`
+
+**Given** `✓ 목록으로`(목록 폴백, `:1377-1384`)를 클릭해 재요청이 발행되면
+
+**When** 동일하게 확인하면
+
+**Then** `retryCount === 0` 이고 `phase !== 'retry-exhausted'` 다. 이 경로는 `onReRequest` 를 거치지 않고 `fireReRequest` 를 직접 호출하므로 **구조적으로** 카운터에 닿지 않는다 — 본 단언은 그 구조가 유지되었음을 관측으로 고정한다.
+
+> vitest 케이스명: `'the list-fallback re-request bypasses the counter entirely'`
+
+**Given** `src/test/tableValidate.test.ts` 를
+
+**When** **한 줄도 수정하지 않고** 실행하면
+
+**Then** 전수 통과한다 — 표 검증 재요청 횟수 단언(`:105`·`:117`·`:131`·`:134`·`:140`·`:151`)이 종류 인자 추가 후에도 동일하다.
+
+---
+
+### AC-AI10-019 — 3분류 계약과 기존 시그니처 호환성
+
+**매핑**: REQ-AI10-023, REQ-AI10-033
+**테스트 파일**: `src/test/aiCardRetryLimit.test.ts`
+
+**Given** 카드가 `done` phase 이고 `retryCount === 2` 이면
+
+**When** `controller.getRenderInput().callbacks.onReRequest('다시', 'haiku')` 를 **종류 인자 없이 2인자로** 직접 호출하면
+
+**Then** 다음이 모두 참이다:
+1. 요청이 발행된다(`aiRequest` mock 호출).
+2. `retryCount` 가 **2 그대로**다 — 증가하지도(`blind` 아님) 0 이 되지도(`directed` 아님) 않는다. 기본값이 `exempt` 임이 관측된다(REQ-AI10-023).
+
+> vitest 케이스명: `'onReRequest called without an explicit kind defaults to exempt'`
+
+**Given** 세 분류값 `blind`·`directed`·`exempt` 각각을
+
+**When** 테스트 스위트 전체에서 소비 지점을 확인하면
+
+**Then** 세 값 전부 최소 1건의 AC(013·015·016 중)에서 **실제로 소비된다** — 소비자 0인 값이 계약에 남아 있지 않다.
+
+> vitest 케이스명: `'all three re-request kinds have a real consumer'`
+
+**Given** `MAX_RETRY` 의 실효 경계를
+
+**When** blind 재요청 횟수를 늘려 가며 확인하면
+
+**Then** **3회까지 발행되고 4번째에 소진**된다 — `reduceCard` 의 `state.retryCount >= MAX_RETRY` 판정(`:98`)과 동일한 경계이며, SPEC-AI-001 AC-AI-011 의 "연속 3회 수행한 상태에서 3회가 소진되면"과 일치한다(REQ-AI10-033 (a), D8).
+
+> vitest 케이스명: `'the exhaustion boundary is exactly MAX_RETRY = 3 (fourth attempt exhausts)'`
+
+**Given** `src/test/aiSuggestionCard.test.ts` 의 리듀서 단언 2건(`:54-56` 카운터 증가, `:62-65` 상한 소진)을
+
+**When** **한 줄도 수정하지 않고** 실행하면
+
+**Then** 전수 통과한다 — `reduceCard` 의 기존 `'retry'` 전이 의미가 무변경이고, 리셋은 **신설 이벤트**로 표현되었음이 보증된다(REQ-AI10-033 (b), REQ-AI10-025).
+
+**Given** M1 이 출시한 `enterReRequest()`(`:1177-1182`)를
+
+**When** 재요청 경로 전반에서 관측하면
+
+**Then** 그 동작 — 버퍼 리셋 → 대기 안내 재무장 → 백스톱 재무장 → `commit({type:'stream'})` — 이 개정 전과 동일하다. `aiCardRerequestProgress.test.ts`·`aiCardWatchdog.test.ts` 가 **무수정 통과**한다(REQ-AI10-033 (c)).
+
+**코드 리뷰(diff)**: `MAX_RETRY` 의 **값과 이름**, `reduceCard` 의 `case 'retry':` 블록, `enterReRequest()` 본문 4줄이 PR diff 에 나타나지 않음을 사람이 확인한다. 8개 `onReRequest` 호출부가 종류를 **명시 전달**하고 지시 문자열에서 추론하지 않음도 diff 로 확인한다 — 테스트는 "동작이 맞다"를 보일 수 있지만 "추론으로 구현하지 않았다"는 diff 속성이다(REQ-AI10-023·033).
+
+---
+
 ## Edge Cases (Additional Coverage)
 
-> AC-AI10-001~012 외에 추가로 검증해야 할 경계 케이스.
+> AC-AI10-001~019 외에 추가로 검증해야 할 경계 케이스.
 
 ### EC-1 — 재요청 직후 즉시 오류가 도착
 
@@ -678,6 +960,46 @@ lifecycle: spec-anchored
 
 **Then** 사용자는 **백엔드의 분류된 timeout 오류**를 본다. 프론트 백스톱은 이미 해제되었으므로 문구를 덮어쓰지 않는다(REQ-AI10-008 계층 순서의 실효 확인).
 
+### EC-11 — 소진 카드에서 백스톱 임계가 지남
+
+**Given** 카드가 `retry-exhausted` phase 이면(REQ-AI10-028 에 따라 in-flight 요청이 **없다**)
+
+**When** 프론트 백스톱 임계를 경과시키면
+
+**Then** 카드가 `error` 로 전이하지 **않는다** — 소진 전이 시점에 두 타이머가 해제되어 있어야 한다(모듈 2 의 REQ-AI10-010 (c) 규율 연장). 발행하지 않은 요청에 대해 "응답이 오지 않았다"는 오류를 내는 것은 거짓이다.
+
+### EC-12 — `truncated` 제안이 소진 카드에 도달
+
+**Given** `ai://done{truncated:true}` 로 만들어진 `done` 카드에서 blind 재요청을 소진하면
+
+**When** 소진 카드를 검사하면
+
+**Then** 절단 고지(`'문서가 길어 일부만 참고했어요'`, `.mdedit-ai-truncated-note`)가 **여전히 렌더된다** — 증강 렌더는 done 렌더 구성 요소를 하나도 잃지 않는다(REQ-AI10-029 (b)).
+
+### EC-13 — 소진 카드에서 곧바로 적용
+
+**Given** 카드가 `retry-exhausted` phase 이면
+
+**When** `.mdedit-ai-apply`(바꾸기 또는 아래에 삽입)를 클릭하면
+
+**Then** 제안이 정상 적용되고(원문 재검증 통과 시) 카드가 사라진다 — 소진은 **적용을 막지 않는다**(REQ-AI10-031 (c)). 원문이 바뀌어 있으면 기존대로 `stale` 로 떨어진다.
+
+### EC-14 — 카드가 여러 개일 때 카운터의 독립성
+
+**Given** 카드 A 와 카드 B 가 공존하고 A 에서 blind 재요청을 3회 수행했으면
+
+**When** 카드 B 의 `retryCount` 를 확인하면
+
+**Then** **0** 이다 — 카운터는 컨트롤러 상태(`CardState.retryCount`)에 있으므로 카드마다 독립이다. B 에서 blind 를 처음 누르면 그때부터 1 이 된다(모듈 2 의 카드 독립성 계약과 일관).
+
+### EC-15 — 소진 직전 상태에서 방향을 주면
+
+**Given** `retryCount === 2` 인 카드에서
+
+**When** 방향 지시 입력칸에 내용을 넣고 `↻` 를 눌러 `directed` 로 발행한 뒤, 곧바로 blind 를 1회 누르면
+
+**Then** blind 는 **발행된다**(리셋 후 `retryCount` 가 0 → 1 이므로) — 리셋이 즉시 효력을 갖는다.
+
 ---
 
 ## Definition of Done
@@ -688,7 +1010,7 @@ lifecycle: spec-anchored
 
 - [ ] `npm run typecheck` 클린.
 - [ ] `npm run lint` 클린(이 저장소에서 lint 는 실질 게이트다 — `console.log` 잔존은 실패로 이어진다).
-- [ ] `npm test`(Vitest) 전수 통과 — 신규 4개 파일 + 회귀 가드 10개 파일 포함.
+- [ ] `npm test`(Vitest) 전수 통과 — 신규 **5개** 파일(`aiCardRerequestProgress` / `aiCardWatchdog` / `aiCardCoexistence` / `aiBlockBoundary` / `aiCardRetryLimit`) + 회귀 가드 **12개** 파일(기존 10개 + `aiIntegration.test.tsx` · `tableValidate.test.ts`) 포함.
 - [ ] `npm run test:e2e` 1회 실행(카드 렌더 변경의 영향 확인).
 - [ ] `cargo test` + `cargo clippy` 무경고 — M0.3 기준선과 **동일**(백엔드 무변경).
 - [ ] `cargo build --release` 성공.
@@ -696,20 +1018,22 @@ lifecycle: spec-anchored
 
 ### SPEC 요구사항 커버리지
 
-- [ ] REQ-AI10-001~022 전수(22건) 구현 및 매핑된 AC-AI10-001~012 전수(12건) 통과.
-- [ ] "사전 합의 설계 결정(재검토 금지)" 4가지가 코드에 정확히 반영(기존 streaming 렌더 재사용 / 프론트 워치독+다중 카드 구독 범위 / 마크다운 블록 경계 / 순수 export 경계 함수).
-- [ ] Exclusions 전 항목 준수(가짜 진행 표시 부재, 신규 phase 부재, `aiStore` 재설계 부재, 백엔드 무변경, 백스톱 순서 불변식, 파일 전환 정리 재구현 부재, 무손상 계약 무변경, 펜스 상태 추적 부재, `PARAGRAPH_SEP` 존치, IPC 무변경, 카드 영속화 부재).
+- [ ] REQ-AI10-001~033 전수(33건) 구현 및 매핑된 AC-AI10-001~019 전수(19건) 통과.
+- [ ] "사전 합의 설계 결정(재검토 금지)" 8가지가 코드에 정확히 반영(D1 기존 streaming 렌더 재사용 / D2 프론트 워치독+다중 카드 구독 범위 / D3 마크다운 블록 경계 / D4 순수 export 경계 함수 / D5 증강 렌더 / D6 3분류 카운터 / D7 소진 시 미발행 / D8 `MAX_RETRY` 존치).
+- [ ] Exclusions 전 항목 준수(가짜 진행 표시 부재, 신규 phase 부재, `aiStore` 재설계 부재, 백엔드 무변경, 백스톱 순서 불변식, 파일 전환 정리 재구현 부재, 무손상 계약 무변경, 펜스 상태 추적 부재, `PARAGRAPH_SEP` 존치, IPC 무변경, 카드 영속화 부재, **SPEC-AI-001 REQ-AI-025/AC-AI-011 문언 무개정, `MAX_RETRY` 값 무변경, error/intruded 재시도 버튼 무변경, 모듈 4의 `aiStore`·`src-tauri` 무변경, 소진 시 자동 승격 부재**).
 - [ ] **결함 1 수정 확인** — 5개 진입점 전부에서 재요청 즉시 streaming 렌더 + 스켈레톤 + 직전 본문 부재, 8초 대기 안내 재출현(AC-AI10-001·002·003).
 - [ ] **결함 2 수정 확인** — 세 임계 순서 불변식, 백스톱 만료 시 복구 가능한 error 카드, 타이머 7경로 해제, 카드 A 재요청이 카드 B를 굶기지 않음, `clearCardRegistry` 타이머 파괴(AC-AI10-004·005·006·007·008).
 - [ ] **결함 3 수정 확인** — insert-below 4케이스가 블록 바로 아래로, `expandToSentenceBoundary` 가 EOF 까지 확장하지 않음, 경계 함수 규칙 전수(AC-AI10-010·011).
-- [ ] **TDD 순서 준수** — AC-AI10-001·005·007·010 (a)(b)(c)·011 의 회귀 단언이 구현 **이전에** RED 로 관측됨. AC-AI10-006 의 `intrude`/`markStale` 경로 단언도 수정 전 실패해야 한다.
+- [ ] **결함 4 수정 확인** — blind 3회는 발행되고 4번째는 발행되지 않으며, 소진 카드가 제안 본문·입력칸·적용 버튼·`✕ 취소` 를 보존한 채 안내 문구와 고급 모델 제안을 덧붙이고 종료 컨트롤이 정확히 1개, directed 재요청이 카운터를 리셋, 고급 모델 폴백·error/intruded 재시도·내부 자동 재요청이 전부 면제(AC-AI10-013~019).
+- [ ] **TDD 순서 준수** — AC-AI10-001·005·007·010 (a)(b)(c)·011·**013**·**014** 의 회귀 단언이 구현 **이전에** RED 로 관측됨. AC-AI10-006 의 `intrude`/`markStale` 경로 단언도 수정 전 실패해야 한다.
 
 ### 회귀 보장
 
 - [ ] SPEC-AI-001 기존 AC 전수 통과 — 특히 REQ-AI-022/033/035 무손상 계약과 REQ-AI-034 검토 대기 카드 생존.
 - [ ] SPEC-AI-006 기존 AC 전수 통과 — 8초 대기 안내 계약(REQ-AI6-007/008)과 가짜 진행 표시 금지(REQ-AI6-009).
 - [ ] SPEC-AI-009 기존 AC 전수 통과 — 특히 REQ-AI9-033/034/035 파일 전환 정리와 REQ-AI9-036/037 종결 phase 닫기(AC-AI10-009).
-- [ ] 회귀 가드 10개 테스트 파일이 **무수정** 통과(`aiSuggestionApply.test.ts` 는 신규 `describe` 추가만). **단언 완화 부재** — 통과시키려고 기존 단언을 느슨하게 고친 흔적이 없다.
+- [ ] SPEC-AI-001 **REQ-AI-025 / AC-AI-011 이 처음으로 실제 충족됨** — 문언은 한 글자도 개정되지 않았고, 빠져 있던 배선이 채워져 소진 안내와 1회성 sonnet 인라인 제안이 실기기에서 도달 가능하다(AC-AI10-013·014·016).
+- [ ] 회귀 가드 **12개** 테스트 파일이 **무수정** 통과(`aiSuggestionApply.test.ts` 는 신규 `describe` 추가만). **단언 완화 부재** — 통과시키려고 기존 단언을 느슨하게 고친 흔적이 없다. 특히 `onReRequest` 종류 인자를 필수로 만들어 기존 2인자 호출부를 고치는 것은 **FAIL** 이다.
 
 ### 코드 리뷰(diff) 계층
 
@@ -720,22 +1044,27 @@ lifecycle: spec-anchored
 - [ ] `applySuggestion` 의 원문 재검증 위치·단일 트랜잭션 구조·`replace` 분기 무변경(REQ-AI10-022).
 - [ ] 프론트 백스톱이 백엔드 미러 상수에서 **파생**되고 독립 리터럴이 아니며, 미러 상수에 `src-tauri/src/ai/mod.rs:32` 참조 주석이 있음(REQ-AI10-007).
 - [ ] `src/store/aiStore.ts` diff 없음, `src-tauri/` diff 없음(plan.md 채택안 C 계약).
-- [ ] 회귀 가드 테스트 9개 파일 diff 0줄, `aiSuggestionApply.test.ts` 는 추가만.
+- [ ] 회귀 가드 테스트 11개 파일 diff 0줄, `aiSuggestionApply.test.ts` 는 추가만.
+- [ ] 8개 `onReRequest` 호출부가 재요청 종류를 **명시 전달**하고, 지시 문자열·모델 인자에서 추론하지 않음(REQ-AI10-023).
+- [ ] `retry-exhausted` 분기에 `appendDismissButton` 이 추가되지 않음(REQ-AI10-030).
+- [ ] `MAX_RETRY = 3` 의 값·이름, `reduceCard` 의 `case 'retry':` 블록, `enterReRequest()` 본문이 diff 에 나타나지 않음(REQ-AI10-033).
+- [ ] done 렌더 구성(제안 본문·`truncated` 고지·`renderDoneControls`)이 소진 분기에 **복제되지 않고** 합류형으로 공유됨(REQ-AI10-029).
 
 ### 수동 검증
 
 - [ ] **M4.4** — 실기기에서 `↻`·`↻ 다시`·`⚡ 고급 모델로 다시 시도` 클릭 즉시 카드가 스켈레톤/글로우로 복귀하고 옛 제안 본문이 사라진다. 8초 이상 걸리는 요청에서 대기 안내가 뜬다.
 - [ ] **M4.5** — 카드 A 검토 대기 + 카드 B 진행 중 상태에서 A 재요청 후 B가 정상 완료된다. 프로바이더 정지 시 백엔드 60초 오류가 먼저 오고, 그마저 없으면 프론트 백스톱이 복구 가능한 오류 카드를 낸다.
 - [ ] **M4.6** — 표/목록으로 끝나는 실제 문서에서 "아래에 삽입"이 문서 맨 아래가 아니라 현재 블록 바로 다음에 들어간다. 여러 줄 산문 문단 중간을 선택해도 문장 사이로 끼어들지 않는다.
+- [ ] **M4.7** — `[↻ 다시]` 를 3회까지는 매번 새 응답이 오고 4번째에는 요청이 나가지 않으며 소진 카드가 뜬다. 그 카드에서 (a) 직전 제안이 그대로 보이고, (b) 입력칸이 안내 문구 위에 있고, (c) `[✕ 취소]` 로 닫히며 닫기 버튼이 둘이 아니고, (d) 방향 입력 후 `↻` 가 다시 발행하고, (e) `[⚡ 고급 모델로 다시 시도]` 가 sonnet 요청을 발행하고 즉시 재소진되지 않는다. error 카드의 `[다시 시도]` 는 4회 이상 눌러도 소진 카드를 띄우지 않는다.
 
 ### 문서화
 
 - [ ] SPEC 디렉토리(`.moai/specs/SPEC-AI-010-ai-card-progress-and-insert/`)에 spec.md, plan.md, acceptance.md 3개 파일 존재.
 - [ ] PR 본문에 SPEC-ID 참조 및 주요 변경 사항 요약.
-- [ ] `@MX:SPEC: SPEC-AI-010` 태그가 신규 함수(`enterReRequest`·백스톱 타이머·`findBlockEnd`)와 변경된 `@MX:ANCHOR` 대상(`applySuggestion`·`startSuggestionCard`)에 부착됨(MX Tag Protocol). @MX 서술·`@MX:REASON` 은 `code_comments: ko` 설정에 따라 **한국어**로 작성.
+- [ ] `@MX:SPEC: SPEC-AI-010` 태그가 신규 함수(`enterReRequest`·백스톱 타이머·`findBlockEnd`·재요청 카운터 전이 메서드)와 변경된 `@MX:ANCHOR` 대상(`applySuggestion`·`startSuggestionCard`·`renderSuggestionCard`)에 부착됨(MX Tag Protocol). 모듈 4 의 배선 게이트에는 `SPEC-AI-001 REQ-AI-025` 를 함께 표기해 이 SPEC이 상위 요구를 **구현**한 것임을 남긴다. @MX 서술·`@MX:REASON` 은 `code_comments: ko` 설정에 따라 **한국어**로 작성.
 
 ---
 
-Version: 0.0.1 (draft)
+Version: 0.0.2 (draft)
 Classification: spec-anchored
 Last Updated: 2026-07-27

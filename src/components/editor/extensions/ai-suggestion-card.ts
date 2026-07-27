@@ -63,6 +63,10 @@ export type CardEvent =
   | { type: 'complete'; finalText: string; original: string; truncated?: boolean }
   | { type: 'fail'; message: string; kind?: AiErrorKind }
   | { type: 'retry' }
+  // SPEC-AI-010 REQ-AI10-025: 방향을 준 재요청이 "연속"을 끊는다. 기존 'retry' 케이스에 두 의미를
+  // 얹지 않고 전용 이벤트로 분리한다 — 하나의 이벤트가 증가와 리셋을 겸하면 리듀서 단위 테스트가
+  // 덮는 상한 전이 계약이 흔들린다.
+  | { type: 'retry-reset' }
   | { type: 'stale' }
   | { type: 'diagram-valid'; code: string }
   | { type: 'diagram-fallback' }
@@ -98,6 +102,10 @@ export function reduceCard(state: CardState, event: CardEvent): CardState {
       return state.retryCount >= MAX_RETRY
         ? { ...state, phase: 'retry-exhausted' }
         : { ...state, phase: 'streaming', retryCount: state.retryCount + 1 };
+    case 'retry-reset':
+      // phase 는 건드리지 않는다 — directed 재요청은 그 직후 enterReRequest() 가 stream 을
+      // 커밋하므로, 두 이벤트가 각각 한 가지 일만 한다.
+      return { ...state, retryCount: 0 };
     case 'stale':
       return { ...state, phase: 'stale' };
     case 'diagram-valid':
@@ -119,6 +127,16 @@ export function buildRetryInstruction(directed?: string): string {
   const trimmed = directed?.trim();
   return trimmed ? trimmed : '이전 제안과 다른 방식으로';
 }
+
+// @MX:NOTE: [AUTO] 재요청 3분류. 종류는 **호출부가 명시 전달**하며 지시 문자열이나 모델 인자에서
+// 추론하지 않는다 — buildRetryInstruction() 은 빈 입력에 기본 문구를 채워 주므로 반환값으로는
+// blind/directed 를 구별할 수 없고, 사용자가 우연히 같은 문구를 입력하면 조용히 오분류된다.
+//   - blind:    done 카드의 [↻ 다시], 그리고 입력칸이 **빈 상태**의 [↻]/Enter → 카운터 +1
+//   - directed: 입력칸에 내용이 있는 상태의 [↻]/Enter → 카운터 0 으로 리셋(연속이 끊김)
+//   - exempt:   error 의 [다시 시도], intruded 의 [다시 요청], [⚡ 고급 모델로 다시 시도],
+//               표 검증 자동 재요청, 다이어그램 오류 동봉 자동 재시도 → 세지도 리셋하지도 않음
+// @MX:SPEC: SPEC-AI-010 REQ-AI10-023 REQ-AI10-024 REQ-AI10-025 REQ-AI10-026
+export type ReRequestKind = 'blind' | 'directed' | 'exempt';
 
 // ============================================================
 // Apply-action derivation (pure)
@@ -195,8 +213,15 @@ export interface CardCallbacks {
   onApply: (mode: ApplyMode) => void;
   /** [✕ 취소] — 스트리밍 중 취소 또는 검토 카드 닫기. */
   onCancel: () => void;
-  /** ↻ 재요청(직접 지시/블라인드/고급 모델). model 은 이 시도에 쓸 모델. */
-  onReRequest: (instruction: string, model: AiModel) => void;
+  /**
+   * ↻ 재요청(직접 지시/블라인드/고급 모델). model 은 이 시도에 쓸 모델.
+   * `kind` 는 **선택적이며 기본값은 `exempt`** 다(SPEC-AI-010 REQ-AI10-023/033). 이는 의도된
+   * 호환성 결정이다 — 이 콜백을 2인자로 호출·mock 하는 기존 테스트가 다수이므로 필수 인자로
+   * 만들면 그 계약이 즉시 깨진다. 기본값이 `exempt` 라 2인자 호출은 세지도 리셋하지도 않는
+   * 현행 동작을 그대로 유지한다. 다만 **프로덕션 호출부는 기본값에 기대지 않고 전부 명시
+   * 전달한다** — 생략하면 그 컨트롤이 조용히 카운터를 비껴간다.
+   */
+  onReRequest: (instruction: string, model: AiModel, kind?: ReRequestKind) => void;
   /** [✓ 목록으로] — 다이어그램 실패 폴백(presetKind 'outline' 재요청). */
   onListFallback: () => void;
   /** [연결 안내 보기] — 로그인 만료 시 설정 온보딩 열기(REQ-AI-037). */
@@ -275,8 +300,15 @@ function renderDoneControls(input: RenderCardInput): HTMLElement {
   input$.className = 'mdedit-ai-direct-input';
   input$.placeholder = '✏️ 방향 지시... (예: 더 짧게, 존댓말로)';
   const redo = makeButton('mdedit-ai-redo', '↻');
+  // 종류 판정은 **자기 입력 요소를 보는 것**으로 끝난다(REQ-AI10-023) — 빈 입력이면 방향 없는
+  // 재요청이므로 blind, 내용이 있으면 directed 다. buildRetryInstruction 의 반환값으로는
+  // 이 둘을 구별할 수 없다(빈 입력에 기본 문구가 채워지므로).
   const fireDirected = (): void =>
-    input.callbacks.onReRequest(buildRetryInstruction(input$.value), model);
+    input.callbacks.onReRequest(
+      buildRetryInstruction(input$.value),
+      model,
+      input$.value.trim() === '' ? 'blind' : 'directed',
+    );
   redo.addEventListener('click', fireDirected);
   input$.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') fireDirected();
@@ -287,7 +319,7 @@ function renderDoneControls(input: RenderCardInput): HTMLElement {
   const btnRow = renderApplyButtons(input);
   const retry = makeButton('mdedit-ai-retry', '↻ 다시');
   retry.addEventListener('click', () =>
-    input.callbacks.onReRequest(buildRetryInstruction(), model),
+    input.callbacks.onReRequest(buildRetryInstruction(), model, 'blind'),
   );
   const cancel = makeButton('mdedit-ai-cancel', '✕ 취소');
   cancel.addEventListener('click', () => input.callbacks.onCancel());
@@ -368,8 +400,9 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     } else {
       msg.textContent = state.errorMessage ?? '잠시 문제가 있었어요';
       const retry = makeButton('mdedit-ai-retry', '다시 시도');
+      // exempt — 오류 복구 동작이지 품질 반복이 아니다(REQ-AI10-026).
       retry.addEventListener('click', () =>
-        callbacks.onReRequest(buildRetryInstruction(), input.model ?? 'haiku'),
+        callbacks.onReRequest(buildRetryInstruction(), input.model ?? 'haiku', 'exempt'),
       );
       card.appendChild(retry);
     }
@@ -387,8 +420,9 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     const ignore = makeButton('mdedit-ai-ignore', '무시');
     ignore.addEventListener('click', () => callbacks.onCancel());
     const rerequest = makeButton('mdedit-ai-rerequest', '다시 요청');
+    // exempt — 원문 편집으로 멈춘 제안의 복구 동작이다(REQ-AI10-026).
     rerequest.addEventListener('click', () =>
-      callbacks.onReRequest(buildRetryInstruction(), input.model ?? 'haiku'),
+      callbacks.onReRequest(buildRetryInstruction(), input.model ?? 'haiku', 'exempt'),
     );
     card.appendChild(msg);
     card.appendChild(ignore);
@@ -415,20 +449,6 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     return card;
   }
 
-  if (state.phase === 'retry-exhausted') {
-    const msg = document.createElement('div');
-    msg.className = 'mdedit-ai-notice';
-    msg.textContent = '방향을 알려주시면 더 정확해요 (위 입력칸)';
-    const advanced = makeButton('mdedit-ai-advanced', '⚡ 고급 모델로 다시 시도');
-    // REQ-AI-025: 1회성 sonnet 재요청.
-    advanced.addEventListener('click', () =>
-      callbacks.onReRequest(buildRetryInstruction(), 'sonnet'),
-    );
-    card.appendChild(msg);
-    card.appendChild(advanced);
-    return card;
-  }
-
   if (state.phase === 'diagram-fallback') {
     const msg = document.createElement('div');
     msg.className = 'mdedit-ai-notice';
@@ -443,7 +463,12 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     return card;
   }
 
-  // done | diagram-valid
+  // done | diagram-valid | retry-exhausted
+  // @MX:NOTE: [AUTO] retry-exhausted 는 done 렌더에 **합류**한다(복제 아님). 소진은 "제안이
+  // 나쁘다"가 아니라 "같은 방식의 재시도는 더 나아지지 않는다"이므로, 이미 손에 든 제안과 그
+  // 적용·닫기 수단을 빼앗을 이유가 없다. 복제하면 done 카드의 향후 변경이 소진 카드에
+  // 반영되지 않고 두 카드가 서서히 갈라진다.
+  // @MX:SPEC: SPEC-AI-010 REQ-AI10-029
   const body = document.createElement('div');
   body.className = 'mdedit-ai-suggestion';
   body.textContent = state.suggestion;
@@ -472,6 +497,25 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
   }
 
   card.appendChild(renderDoneControls(input));
+
+  if (state.phase === 'retry-exhausted') {
+    // 순서가 계약이다 — 안내 문구가 "(위 입력칸)"이라고 말하므로 renderDoneControls 의 방향
+    // 지시 입력칸이 문구보다 **앞**에 있어야 문구가 참이 된다(REQ-AI10-029).
+    const msg = document.createElement('div');
+    msg.className = 'mdedit-ai-notice';
+    msg.textContent = '방향을 알려주시면 더 정확해요 (위 입력칸)';
+    const advanced = makeButton('mdedit-ai-advanced', '⚡ 고급 모델로 다시 시도');
+    // REQ-AI-025: 1회성 sonnet 재요청. exempt 여야 한다 — 이 버튼은 소진 상태에서만 눌리므로
+    // 카운트되는 순간 상한을 다시 넘겨 자기 자신을 미발행 게이트에 걸리게 만든다(REQ-AI10-032).
+    advanced.addEventListener('click', () =>
+      callbacks.onReRequest(buildRetryInstruction(), 'sonnet', 'exempt'),
+    );
+    card.appendChild(msg);
+    card.appendChild(advanced);
+    // appendDismissButton 을 부르지 않는다 — renderDoneControls 가 이미 [✕ 취소]를 제공하므로
+    // 종료 성격 컨트롤은 정확히 1개여야 한다(REQ-AI10-030, streaming 분기와 같은 근거).
+  }
+
   return card;
 }
 
@@ -1087,7 +1131,8 @@ export class AiSuggestionCardController {
     if (this.tableAttempts > 1) return false;
     // 1회차 실패만 오류를 동봉해 자동 재요청. 발행은 wiring 콜백이 담당(다이어그램과 동일 채널).
     this.commit({ type: 'stream' });
-    this.callbacks.onReRequest(`이전 오류: ${validation.error}`, this.model.model);
+    // exempt — 사용자가 요청한 품질 반복이 아니라 컨트롤러가 스스로 거는 검증 재요청이다.
+    this.callbacks.onReRequest(`이전 오류: ${validation.error}`, this.model.model, 'exempt');
     return true;
   }
 
@@ -1103,7 +1148,8 @@ export class AiSuggestionCardController {
     } else if (outcome.kind === 'auto-retry') {
       // 오류를 동봉해 1회 자동 재요청(REQ-AI-024). 재요청 발행은 wiring 콜백이 담당.
       this.commit({ type: 'stream' });
-      this.callbacks.onReRequest(`이전 오류: ${outcome.error}`, this.model.model);
+      // exempt — 표 검증과 같은 이유로 카운터에 닿지 않는다(REQ-AI10-026).
+      this.callbacks.onReRequest(`이전 오류: ${outcome.error}`, this.model.model, 'exempt');
     } else {
       this.commit({ type: 'diagram-fallback' });
     }
@@ -1179,6 +1225,23 @@ export class AiSuggestionCardController {
     this.rearmWaitNotice();
     this.armWatchdogTimer();
     this.commit({ type: 'stream' });
+  }
+
+  // @MX:NOTE: [AUTO] applyReRequestKind - 재요청 종류를 카운터 전이로 옮기는 유일한 지점.
+  // 배선(onReRequest)은 commit 이 private 이라 리듀서에 직접 닿을 수 없으므로 이 메서드를 쓴다.
+  // 소진 여부는 여기서 판정하지 않는다 — reduceCard 의 기존 상한 판정이 만든 phase 를 배선이
+  // getState() 로 읽어 분기한다(판정을 두 곳에 두면 MAX_RETRY 변경 시 한쪽만 반영된다).
+  // @MX:SPEC: SPEC-AI-010 REQ-AI10-024 REQ-AI10-025 REQ-AI10-026
+  /**
+   * blind → 카운터 +1(상한 도달 시 `retry-exhausted`), directed → 카운터 0 리셋,
+   * exempt → 아무것도 하지 않는다. 소진 전이 시점에는 발행할 요청이 없으므로 두 타이머를
+   * 함께 닫는다 — 남겨 두면 백스톱이 뒤늦게 발화해, 애초에 나가지도 않은 요청에 대해
+   * "응답이 오지 않았어요" 라는 거짓 오류가 소진 카드를 덮는다.
+   */
+  applyReRequestKind(kind: ReRequestKind): void {
+    if (kind === 'exempt') return;
+    this.commit(kind === 'blind' ? { type: 'retry' } : { type: 'retry-reset' });
+    if (this.state.phase === 'retry-exhausted') this.clearTimers();
   }
 
   getRenderInput(): RenderCardInput {
@@ -1359,7 +1422,18 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       controller.destroy(); // 대기 안내 타이머 정리(REQ-AI6-008)
       removeCardController(controller);
     },
-    onReRequest: (instruction, useModel) => {
+    // @MX:NOTE: [AUTO] 재요청 소진 게이트. `retry-exhausted` 는 오직 **done 카드에서 출발한
+    // blind 재요청**으로만 도달 가능하다 — 다른 phase(error/intruded)의 재시도와 컨트롤러
+    // 내부 자동 재요청은 전부 exempt 라 카운터에 닿지 않는다. 이 불변식이 증강 렌더의 전제다:
+    // suggestion 이 없는 phase 에서 도달하면 본문 없는 껍데기 카드가 된다.
+    // 소진 판정은 여기서 다시 계산하지 않고 reduceCard 가 만든 phase 를 읽기만 한다.
+    // @MX:SPEC: SPEC-AI-010 REQ-AI10-024 REQ-AI10-026 REQ-AI10-027 REQ-AI10-028 / SPEC-AI-001 REQ-AI-025
+    onReRequest: (instruction, useModel, kind = 'exempt') => {
+      controller.applyReRequestKind(kind);
+      // 상한을 넘긴 blind 재요청은 **발행하지 않는다** — enterReRequest 도, fireReRequest 도,
+      // boundRequestId·lastHandledTerminal 갱신도 하지 않는다. 카드는 제안을 그대로 든 채
+      // 소진 안내로 전이한다(이미 가진 제안을 스켈레톤으로 덮지 않는다).
+      if (kind === 'blind' && controller.getState().phase === 'retry-exhausted') return;
       // SPEC-AI-010 REQ-AI10-001/003: 사용자 개시 재요청 5종(↻ / ↻ 다시 / ⚡ 고급 모델 /
       // 다시 시도(error) / 다시 요청(intruded))이 전부 이 배선 하나로 수렴한다. 전이는
       // fireReRequest **이전에** 수행해야 한다 — fireReRequest 안의 store.startRequest 가
