@@ -64,6 +64,15 @@ export function useGuard(): GuardApi | null {
   return useContext(GuardContext);
 }
 
+// @MX:ANCHOR: [AUTO] 가드 상태 머신의 단일 인스턴스 — App.tsx 가 한 번만 호출하고 AppLayout 이
+//   GuardContext 로 내려 FileTreeNode·MarkdownEditor·useWindowCloseGuard 가 소비한다(소비처 3+).
+//   불변식 2가지: (1) 보류 동작을 실행하기 전에 반드시 reset() 을 먼저 호출한다(onAction 의 모든 종료
+//   경로). (2) 다른 컴포넌트에서 이 훅을 두 번째로 호출하지 않는다 — 소비는 useGuard() 로만 한다.
+// @MX:REASON: [AUTO] (1)의 순서가 뒤집히면 pendingAction 이 실행되는 동안 open/busy 플래그가 살아 있어
+//   그 동작이 유발한 다음 가드 요청이 REQ-024/025 재진입 차단에 걸려 조용히 폐기된다(파일이 안 열림).
+//   (2)를 어기면 인스턴스마다 별도 open state 를 갖게 돼, 종료 승격(closePending, REQ-037)을 세운
+//   인스턴스와 모달을 띄운 인스턴스가 달라져 창이 영원히 닫히지 않는다.
+// @MX:SPEC: SPEC-FS-003
 export function useUnsavedChangesGuard(): UseUnsavedChangesGuardReturn {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<'unsaved' | 'watcher'>('unsaved');

@@ -248,6 +248,14 @@ pub fn resolve_claude_binary() -> Option<PathBuf> {
 }
 
 /// 해석한 claude 절대경로를 반환한다(첫 성공을 캐시, 미설치면 다음 호출에서 재시도).
+// @MX:ANCHOR: [AUTO] claude 실행 경로의 단일 해석 지점 — 감지와 스폰이 반드시 같은 절대경로를 쓴다
+// @MX:REASON: [AUTO] 프로덕션 호출부 2곳(detect_claude 의 --version 프로브, claude_cli::spawn_claude).
+//   어느 한쪽이라도 bare "claude" 로 Command::new 하면 터미널 실행에서는 통과하지만 macOS GUI(.app)의
+//   PATH 는 /usr/bin:/bin 뿐이라 ~/.local/bin·nvm 설치본을 못 찾는다 → 감지는 "미설치", 스폰은 실패.
+//   두 호출부가 서로 다른 경로를 쓰면 "설치됨으로 감지했는데 스폰은 실패" 하는 모순 상태가 된다.
+//   OnceLock 은 성공한 해석만 캐시해야 한다 — None 을 캐시하면 앱 실행 중 claude 를 설치해도
+//   재감지가 영구 불가해진다.
+// @MX:SPEC: SPEC-AI-001
 pub fn claude_binary() -> Option<PathBuf> {
     if let Some(cached) = CLAUDE_BINARY.get() {
         return Some(cached.clone());
@@ -349,6 +357,15 @@ pub fn resolve_codex_binary() -> Option<PathBuf> {
 
 /// 해석한 codex 절대경로를 반환한다(첫 성공을 캐시, 미설치면 다음 호출에서 재시도).
 /// `claude_binary`(detect.rs:251-258)와 대칭.
+// @MX:ANCHOR: [AUTO] codex 실행 경로의 단일 해석 지점 — 절대경로만으로는 부족하고 PATH 주입이 함께 필요하다
+// @MX:REASON: [AUTO] 프로덕션 호출부 2곳(detect_codex 의 --version 프로브, codex_cli::spawn_codex).
+//   codex 는 네이티브 바이너리가 아니라 `/usr/bin/env node` shebang 스크립트라, 절대경로로 실행해도
+//   PATH 에 node 가 없으면 "env: node: No such file or directory" 로 죽는다. macOS GUI 는 PATH 가
+//   최소라 nvm 으로 깐 node 가 안 보인다(SPEC-AI-009 실측 — 터미널에서만 되고 .app 에서는 한 번도
+//   안 되는 증상). 따라서 이 경로로 프로세스를 띄우는 모든 지점은 login_shell_path() 를 PATH 로
+//   주입해야 한다(detect_codex, codex_cli::build_codex_command). claude(네이티브 바이너리)에는
+//   없는 제약이라 claude 쪽 코드를 그대로 복사해 대칭 확장할 때 빠뜨리기 쉽다.
+// @MX:SPEC: SPEC-AI-009
 pub fn codex_binary() -> Option<PathBuf> {
     if let Some(cached) = CODEX_BINARY.get() {
         return Some(cached.clone());

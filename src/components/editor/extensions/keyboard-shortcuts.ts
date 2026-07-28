@@ -8,6 +8,12 @@ import type { EditorView } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 
+// @MX:ANCHOR: [AUTO] 인라인 서식의 공용 진입점 — 호출 지점 6곳(AppLayout.tsx 툴바 굵게/기울임/코드/
+//   링크 4곳 + 아래 markdownKeyBindings 의 Mod-b/Mod-i 2곳). 불변식 2가지: (1) 이미 감싸진 선택은
+//   다시 감싸지 않고 벗겨낸다(토글). (2) 어떤 분기에서도 true 를 반환한다.
+// @MX:REASON: [AUTO] (1)을 깨면 툴바 버튼과 단축키가 토글이 아닌 누적이 돼 `****굵게****` 가 쌓인다.
+//   (2)는 KeyBinding.run 계약 — false 를 반환하면 CodeMirror 가 처리되지 않은 것으로 보고 브라우저
+//   기본 동작(Cmd+B 등)으로 흘려보낸다. 반환값을 조건부로 바꾸지 말 것.
 /**
  * Wraps the current selection with the given prefix and suffix tokens.
  * If there is no selection, inserts the tokens with the cursor placed between them.
@@ -51,6 +57,12 @@ export function wrapSelection(view: EditorView, before: string, after: string): 
   return true;
 }
 
+// @MX:ANCHOR: [AUTO] 블록 서식의 공용 진입점 — 호출 지점 6곳(AppLayout.tsx 의 H1/H2/H3·목록·번호·
+//   인용). 불변식 2가지: (1) 줄이 이미 prefix 로 시작하면 붙이지 않고 떼어낸다(토글). (2) 반환하는
+//   EditorSelection 범위는 prefix 길이만큼 보정하되 line.from ~ 줄 끝 안으로 clamp 한다.
+// @MX:REASON: [AUTO] (1)을 깨면 H1 버튼 연타로 `# # # 제목` 이 쌓인다. (2)의 clamp 를 빼면 짧은 줄에서
+//   보정된 위치가 줄 밖으로 나가 CodeMirror 가 RangeError 로 문서 전체 디스패치를 거부한다 — 서식
+//   버튼 하나가 에디터를 멈추게 한다.
 /**
  * Prefixes the current line(s) with the given prefix string.
  * If the line already starts with the prefix, removes it (toggle behavior).

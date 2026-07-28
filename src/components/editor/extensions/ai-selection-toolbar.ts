@@ -165,11 +165,27 @@ export function presetToFeature(kind: AiPresetKind): AiFeature {
   return kind === 'diagram' ? 'diagram' : 'inline-edit';
 }
 
+// @MX:WARN: [AUTO] 이름 충돌 — 이 저장소에는 export 된 resolveModel 이 두 개 있고 시그니처가 다르다.
+//   · 여기(ai-selection-toolbar.ts): resolveModel(uiState: AiToolbarUiState) — ✨ 툴바 전용, 호출처 1곳(아래 fire()).
+//   · src/components/settings/SettingsModal.tsx: resolveModel(advanced: boolean) — ai-ghost-text.ts 가
+//     import 해 3곳에서 호출한다.
+//   두 함수는 서로 import 관계가 없다. 이름만 보고 한쪽을 고치면 다른 쪽은 그대로 남아 고스트/툴바의
+//   모델 선택이 갈라진다. 통합·개명은 하지 말고(호출 계약이 다름) 양쪽을 함께 확인할 것.
+// @MX:REASON: [AUTO] grep 한 번으로 두 정의의 호출처가 합산돼 fan_in 이 부풀고, 한쪽만 수정하면
+//   나머지 경로는 조용히 옛 동작을 유지한다 — 타입이 달라 컴파일 오류로도 드러나지 않는다.
 /** 고급 모델 토글 → 모델(REQ-AI-016). */
 export function resolveModel(uiState: AiToolbarUiState): AiModel {
   return uiState.advancedModel ? 'sonnet' : 'haiku';
 }
 
+// @MX:ANCHOR: [AUTO] Rust 쪽 ai_request 로 넘어가는 인자 조립 지점 — 프런트/백엔드 경계의 단일 통로다.
+//   불변식 3가지: (1) input.selection 은 절대 절단하지 않고 그대로 args.selection 에 싣는다(REQ-AI-027).
+//   (2) range/originalText 는 카드가 [바꾸기] 직전 문서와 대조할 스냅샷이므로 선택 시점 값이어야 한다
+//   (REQ-AI-035). (3) providerId 는 resolveProviderId() 단일 소스로만 채운다(REQ-AI9-003).
+// @MX:REASON: [AUTO] (1)을 깨면 잘린 문장이 프롬프트에 실려 AI가 문맥 없는 답을 낸다. (2)를 깨면
+//   요청 중 사용자가 편집한 문서에 옛 범위를 그대로 덮어써 남의 문장이 지워진다. (3)을 우회해 직접
+//   지정하면 SPEC-AI-009 프로바이더 전환이 이 경로만 빠져 claude/codex 가 섞여 나간다.
+// @MX:SPEC: SPEC-AI-001 SPEC-AI-009
 /**
  * 선택 요청 서술자를 조립한다. customInstruction 은 custom 프리셋에서만 실린다.
  * insertOnly 는 선택 길이 가드(§4.4)에서 파생된다. 선택 텍스트는 그대로 담는다(절단 금지).
@@ -856,6 +872,13 @@ const defaultOnRequest = (req: AiSelectionRequest): void => {
   );
 };
 
+// @MX:ANCHOR: [AUTO] ✨ 데코레이션의 유일한 생성 지점(플러그인 생성자·update 두 경로가 모두 여기로
+//   수렴). 불변식: 위젯을 만들기 전에 반드시 getUiState().enabled === false 를 먼저 검사해 조기 반환한다
+//   (REQ-AI5-007). enabled 가 undefined 인 경우에만 하위호환으로 활성 취급한다(REQ-AI5-015).
+// @MX:REASON: [AUTO] 이 게이트는 AI 비활성(사용자 토글 또는 정책 차단) 상태에서 AI 진입점을 화면에서
+//   완전히 없애는 유일한 수단이다. 위젯 내부에서 늦게 검사하도록 옮기면 정책상 AI가 금지된 환경에서도
+//   ✨ 가 렌더돼 클릭 한 번으로 요청이 나간다 — 숨김이 아니라 미렌더여야 한다.
+// @MX:SPEC: SPEC-AI-005
 /** 선택 끝(to)에 side:1 위젯 하나를 배치. collapsed 이면 데코 없음. */
 export function buildToolbarDecorations(
   view: EditorView,
