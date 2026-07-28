@@ -43,6 +43,13 @@ type DocxChild = Paragraph | Table;
  * @param options - Export options
  * @returns 저장 경로(string)를 반환. 사용자가 다이얼로그를 취소하면 null.
  */
+// @MX:ANCHOR: [AUTO] DOCX 내보내기의 유일한 진입점이자 외부 시스템(Tauri IPC) 경계.
+//   불변식: exportSaveDialog 가 null(사용자 취소)을 주면 즉시 null 을 반환하고 writeBinaryFile 을
+//   포함한 어떤 부수효과도 실행하지 않는다(REQ-007 취소절/REQ-017). 성공 시에는 반드시 저장 경로
+//   문자열을 반환한다 — void 나 boolean 으로 되돌리지 말 것.
+// @MX:REASON: [AUTO] 취소 경로에서 조기 반환이 사라지면 사용자가 취소했는데도 파일이 만들어지거나
+//   빈 경로로 쓰기가 시도된다. 반환값은 호출자(AppLayout.tsx)가 "내보내기 완료" 모달에서 열기·폴더
+//   표시에 그대로 쓰는 값이라, 경로를 잃으면 완료 모달이 동작 불능이 된다(exportToHtml 과 동형 계약).
 // @MX:NOTE: [AUTO] SPEC-EXPORT-002 (REQ-007) 반환 계약 — 과거 Promise<void> 에서
 //   Promise<string | null> 로 확장. 완료 모달이 저장 경로를 필요로 함. exportToHtml 과 동형.
 //   후보 A 선택: 프로덕션 호출자(AppLayout.tsx:174)가 폐기하므로 회귀 없음(progress.md T2).
