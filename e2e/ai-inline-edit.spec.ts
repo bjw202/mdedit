@@ -260,6 +260,14 @@ test.describe('AI 인라인 편집 여정 (SPEC-AI-001)', () => {
     const scroller = aiPage.locator('.cm-scroller');
     const scrollTopBefore = await scroller.evaluate((el) => el.scrollTop);
 
+    // 이 테스트가 보는 대상은 "스트리밍 중" 카드의 위치다. 기본 'success' 시나리오는 스트림이
+    // 곧바로 완주해 .mdedit-ai-card-streaming 이 제안 카드로 전이돼 버리는데, 그 전이 시점은
+    // 머신 속도에 좌우된다 — 로컬에서는 잡히지만 느린 CI 러너에서는 첫 폴링 전에 이미 끝나
+    // 카드를 놓친다(실제로 CI 에서 재현: 카드는 뷰포트 안에 정상 배치돼 있었고 상태만 제안
+    // 카드였다). 'hang' 은 스트림을 보내지 않아 카드가 스트리밍 상태에 머물므로 위치 단언이
+    // 머신 속도와 무관해진다.
+    await setScenario(aiPage, 'hang');
+
     await aiPage.locator('.mdedit-ai-sparkle-btn').click();
     await aiPage
       .locator('.mdedit-ai-preset-menu .mdedit-ai-preset-item', { hasText: '다듬기' })
