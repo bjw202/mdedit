@@ -61,7 +61,9 @@ test.describe('AI 인라인 편집 여정 (SPEC-AI-001)', () => {
     expect(payload.args.presetKind).toBe('polish');
 
     // 바꾸기 적용 → 에디터 본문이 제안으로 교체됨
-    await aiPage.locator('.mdedit-ai-apply').click();
+    // df31109 이후 모든 프리셋이 "바꾸기"/"아래에 삽입" 버튼을 함께 렌더하므로(둘 다 의도된 UI),
+    // data-mode 로 명시적으로 지정해야 한다 — .mdedit-ai-apply 단독은 이제 2개 매치된다.
+    await aiPage.locator('.mdedit-ai-apply[data-mode="replace"]').click();
     await expect(aiPage.locator('.cm-content')).toContainText('다듬은 결과 문장이에요.', {
       timeout: 3_000,
     });
@@ -185,9 +187,20 @@ test.describe('AI 인라인 편집 여정 (SPEC-AI-001)', () => {
     await openEditorWithSelection(aiPage);
     await setScenario(aiPage, 'diagram-fenced-then-valid');
     await aiPage.locator('.mdedit-ai-sparkle-btn').click();
-    await aiPage
-      .locator('.mdedit-ai-preset-menu .mdedit-ai-preset-item', { hasText: '다이어그램으로' })
-      .click();
+
+    // SPEC-AI-008: "다이어그램으로" 는 더 이상 즉시 발행 프리셋이 아니라 종류 플라이아웃
+    // 트리거다 — mouseenter 가 서브메뉴를 열고, 실제 요청은 서브메뉴 항목 클릭으로만 발행된다.
+    // 주의(알려진 UI 결함, 이 SPEC 범위 밖): 트리거 자체를 click() 하면 mouseenter 가 연 서브메뉴를
+    // 곧이어 click 핸들러가 토글해 닫아버려 no-op 이 된다. 그래서 여기서는 트리거를 hover() 만 하고
+    // click() 하지 않는다 — 다음에 이 시퀀스를 "단순화"해서 단일 클릭으로 되돌리지 말 것.
+    const diagramTrigger = aiPage.locator(
+      '.mdedit-ai-preset-menu .mdedit-ai-preset-item[data-preset="diagram"]'
+    );
+    await diagramTrigger.hover();
+    const diagramSubmenu = aiPage.locator('.mdedit-ai-diagram-submenu');
+    await expect(diagramSubmenu).toBeVisible({ timeout: 3_000 });
+    // "자동 (AI 판단)" 항목 — diagramType 없이 발행되어 기존 단일 클릭 시절의 "auto" 의미를 유지한다.
+    await diagramSubmenu.locator('[data-diagram-auto="true"]').click();
 
     const card = aiPage.locator('.mdedit-ai-card');
     await expect(card).toBeVisible({ timeout: 5_000 });
