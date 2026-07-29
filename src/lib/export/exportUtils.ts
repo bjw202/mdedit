@@ -127,21 +127,42 @@ body {
   margin-bottom: 1rem;
 }
 
+/* @MX:WARN: [AUTO] 이 규칙은 src/index.css의 .preview-content ul/ol/li 리스트 규칙과
+   동등한 렌더 결과를 유지해야 한다(SPEC-PREVIEW-011 REQ-002/008).
+   @MX:REASON: 자동 테스트가 두 파일(Tailwind @apply vs 평문 CSS 문자열)의 동등성을
+   검증하지 않는다 — Playwright는 앱 프리뷰만 렌더하고 내보내기 CSS 문자열은 렌더 대상이
+   아니므로, 한쪽만 수정하면 화면과 HTML/PDF 내보내기 출력이 조용히 어긋난다. 수정 시
+   반드시 src/index.css의 대응 규칙과 나란히 diff 리뷰할 것.
+   list-style-position은 outside로 두어 loose list(<li> > <p>)에서 마커와 텍스트가
+   분리되는 결함을 막고, 마커 공간은 padding-left: 1.5rem으로 확보한다. li의 좌측
+   여백(margin-left)은 삭제한다 — padding과 합산되면 중첩 리스트 인덴트가 과도해진다(D3).
+   항목 간격은 프리뷰의 space-y-1과 메커니즘이 다르지만(li 상단 margin이 아니라 하단
+   margin) 기존 출력물과의 차이를 최소화하기 위해 margin-bottom: 0.25rem을 유지한다
+   (plan.md 표현 차이 표 참조). */
 .preview-content ul {
   list-style-type: disc;
-  list-style-position: inside;
+  list-style-position: outside;
+  padding-left: 1.5rem;
   margin-bottom: 1rem;
 }
 
 .preview-content ol {
   list-style-type: decimal;
-  list-style-position: inside;
+  list-style-position: outside;
+  padding-left: 1.5rem;
   margin-bottom: 1rem;
 }
 
 .preview-content li {
-  margin-left: 0.5rem;
   margin-bottom: 0.25rem;
+}
+
+/* loose list 항목 간격을 tight list와 동일하게 정규화한다. li의 margin-bottom과
+   <li> 내부 마지막 <p>의 margin-bottom(1rem)이 합산되면 loose list 간격이 tight list
+   보다 넓어진다(REQ-007). 마지막 문단에만 적용해야 다문단 항목의 문단 간 간격이
+   보존된다(REQ-009). */
+.preview-content li > p:last-child {
+  margin-bottom: 0;
 }
 
 .preview-content blockquote {

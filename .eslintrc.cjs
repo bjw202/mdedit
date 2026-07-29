@@ -56,6 +56,11 @@ module.exports = {
     'src-tauri',
     // video/ 는 자체 tsconfig 를 쓰는 독립 Remotion 프로젝트다.
     'video',
+    // Playwright 가 생성하는 리포트·트레이스 번들. .gitignore 대상이지만 eslint 는
+    // .gitignore 를 읽지 않으므로 여기 명시하지 않으면 e2e 를 한 번이라도 돌린 뒤
+    // 린트 게이트가 번들된 서드파티 코드에서 항상 실패한다.
+    'playwright-report',
+    'test-results',
     '*.config.js',
     '*.config.ts',
     '.eslintrc.cjs',

@@ -26,3 +26,52 @@ graph TD
 ```typescript
 const veryLongFunctionNameForTestingHorizontalScrollBehavior = (param1: string, param2: number, param3: boolean): Promise<{ result: string; count: number }> => Promise.resolve({ result: param1, count: param2 });
 ```
+
+## 리스트 렌더링 테스트 (SPEC-PREVIEW-011)
+
+### Tight 목록
+
+- tight 항목 1
+- tight 항목 2
+- tight 항목 3
+
+### Loose 목록
+
+- loose 항목 1
+
+- loose 항목 2
+
+- loose 항목 3
+
+### Loose 순서 목록
+
+1. loose 순서 항목 1
+
+2. loose 순서 항목 2
+
+3. loose 순서 항목 3
+
+### 중첩 목록
+
+- 부모 항목 1
+  - 자식 항목 1-1
+  - 자식 항목 1-2
+- 부모 항목 2
+  1. 자식 순서 항목 2-1
+  2. 자식 순서 항목 2-2
+
+### 태스크 표기 목록
+
+- [x] 완료된 작업
+- [ ] 미완료 작업
+- 일반 항목
+
+### 다문단 항목
+
+- 다문단 항목의 첫 번째 문단입니다.
+
+  다문단 항목의 두 번째 문단입니다. 여러 문단으로 구성된 리스트 항목의 문단 간 간격이 유지되는지 확인합니다.
+
+### 긴 줄바꿈 항목
+
+- 이 리스트 항목은 뷰포트 폭 안에서 반드시 두 줄 이상으로 줄바꿈되어야 하는 아주 긴 문장을 담고 있습니다. 행잉 인덴트가 올바르게 적용되면 줄바꿈된 두 번째 줄 이후의 텍스트도 첫 번째 줄과 동일한 좌측 정렬선에서 시작해야 하며, 마커 아래쪽으로 흘러내리듯 들여써지면 안 됩니다. 이 문장은 그 조건을 검증하기 위해 충분히 길게 작성되었습니다.
