@@ -17,7 +17,7 @@
 - [ ] AC-E2E-007: `getComputedStyle(td).borderRightWidth === '1px'`
 - [ ] AC-E2E-008: `getComputedStyle(td).borderBottomWidth === '1px'`
 - [ ] AC-E2E-009: `getComputedStyle(th).borderRightWidth === '1px'`
-- [ ] AC-E2E-010: `.table-scroll-wrapper`의 `overflow-x`가 `auto`임
+- [ ] AC-E2E-010: 수평 스크롤 소유 요소는 플랫폼별로 다르다 — Windows/WebView2에서는 `.table-scroll-wrapper`의 `overflow-x`가 `auto`/`scroll`이고, macOS/WKWebView에서는 `.table-scroll-wrapper`가 아니라 부모 `.preview-scroll`이 `overflow-x`를 소유(`auto`/`scroll`)한다
 
 ## Smoke Test (REQ-E2E-004)
 
