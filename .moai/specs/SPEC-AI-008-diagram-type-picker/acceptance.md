@@ -1,6 +1,6 @@
 ---
 id: SPEC-AI-008
-version: "0.0.3"
+version: "0.0.4"
 status: draft
 created: "2026-07-22"
 updated: "2026-07-30"
@@ -14,6 +14,7 @@ priority: medium
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.0.2 | 2026-07-22 | jw | 최초 acceptance 작성(run-entry, 관측 O3) — spec.md v0.0.2(plan-auditor review-2 PASS 0.96)의 인라인 AC 표(AC-AI-008-001~014)를 독립 Given-When-Then 14건으로 추출. spec.md AC 표·REQ→AC 대조표(001–025)와 1:1 정합. UI-008 acceptance.md 구조 준용(시나리오 + Quality Gate Criteria + Definition of Done). D1(자동=조립 결과 바이트 동일)·D2(비-diagram 5기능 회귀 스냅샷)·D3(UI-008 JSX 아이콘 렌더 무변경) 반영. 검증 스택: vitest + jsdom(`aiSelectionToolbar.test.ts` 명령형 DOM 선례) + Rust `#[cfg(test)]` 스냅샷(prompt.rs/mod.rs). 게이트에 `cargo test`/`cargo clippy` 포함. |
+| 0.0.4 | 2026-07-30 | jw | **AC-AI-008-009의 방향키·포커스 진입 시나리오 철회(0.0.3 개정 (e)의 되돌림).** SPEC-AI-011 후속 조사에서 서브메뉴 키보드 내비게이션이 실제 macOS WKWebView 앱에서 도달 불가능함이 확인되어(메뉴 루트 `tabIndex=-1` + 포커스 이동 코드 없음, Tab은 에디터의 `indentWithTab`이 소비, WebKit은 버튼 클릭 시 포커스를 주지 않음 — 상세는 SPEC-AI-011 spec.md HISTORY v1.1.0) 해당 요구가 SPEC-AI-011에서 철회되었다. 방향키 래핑 순환 항목과 "트리거 활성화 → 첫 항목 포커스 진입" 항목을 제거하고 실제 구현(Tab 순회 + Enter/Space 선택 + Esc 복귀 + role 부여)만 남겼다. spec.md v0.0.4와 1:1 정합. `role="menu"`/`role="menuitem"`은 방향키와 무관한 접근성 표기이므로 유지. |
 | 0.0.3 | 2026-07-30 | jw | **SPEC-AI-011로 REQ-006/007 충돌 해소 반영 — 클릭 열기 전용으로 개정.** AC-AI-008-001의 "클릭(no-hover/터치/키보드) → 토글" 시나리오를 "클릭(포인터·키보드 어느 경로든) → 열림, 이미 열려 있으면 무변경"으로 개정. AC-AI-008-009에 방향키 래핑 순환 + 포커스 진입(트리거 활성화 → 첫 항목)/복귀(Esc → 트리거) + `role="menu"`/`role="menuitem"` 시나리오를 추가. spec.md v0.0.3과 1:1 정합. 구현·검증은 SPEC-AI-011 참조. |
 
 # Acceptance Criteria — SPEC-AI-008 (AI 다이어그램 종류 선택 플라이아웃)
@@ -80,11 +81,11 @@ priority: medium
 
 ### AC-AI-008-009: 키보드 조작 (REQ-AI-008-013, SPEC-AI-011)
 
+> v0.0.4: 방향키 래핑 순환과 "트리거 활성화 → 첫 항목 포커스 진입" 시나리오를 **철회**했다(0.0.3 개정 (e)의 되돌림). 실제 macOS WKWebView 앱에서 포커스가 툴바에 들어가지 않아 도달 불가로 확인됐다 — 상세는 SPEC-AI-011 spec.md HISTORY v1.1.0. spec.md v0.0.4와 1:1 정합. 아래는 실제 구현만 서술한다.
+
 - **Given** 다이어그램 서브메뉴가 열려 있을 때
 - **When** Tab으로 항목 간 이동 후 Enter 또는 Space를 누르면
 - **Then** 포커스가 8개 항목 간 이동하고 포커스된 항목이 선택된다(기존 프리셋 항목과 동일한 네이티브 `<button>` 시맨틱).
-- **And** 방향키(ArrowDown/ArrowUp)는 8개 항목 사이에서 포커스를 **래핑 순환** 이동시킨다(마지막→첫, 첫→마지막).
-- **And** 트리거에 포커스가 있는 상태에서 Enter/Space로 활성화하거나 닫힌 트리거에서 ArrowDown/ArrowUp을 누르면 서브메뉴가 열리고 첫 항목(ArrowUp은 마지막 항목)으로 포커스가 진입한다.
 - **And** Escape는 서브메뉴만 닫고 트리거로 포커스를 복귀시킨다.
 - **And** 서브메뉴 컨테이너는 `role="menu"`를, 8개 항목은 각각 `role="menuitem"`을 갖는다.
 

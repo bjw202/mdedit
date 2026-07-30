@@ -520,39 +520,11 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     }
   };
 
-  /** 열린 서브메뉴의 항목에 포커스를 넣는다(rAF 배치 측정과의 경합 대비 preventScroll, R5). */
-  const focusDiagramItem = (position: 'first' | 'last'): void => {
-    if (!diagramSubmenu) return;
-    const items = diagramSubmenu.querySelectorAll<HTMLButtonElement>(
-      '.mdedit-ai-diagram-submenu-item',
-    );
-    const target = position === 'first' ? items[0] : items[items.length - 1];
-    target?.focus({ preventScroll: true });
-  };
-
   const openDiagramSubmenu = (): void => {
     if (diagramSubmenu || !diagramTrigger) return;
     const sub = document.createElement('div');
     sub.className = 'mdedit-ai-diagram-submenu';
     sub.setAttribute('role', 'menu');
-    // @MX:NOTE: [AUTO] 방향키 래핑 순환 + Enter/Space 단일 선택(EditorToolbar.tsx:316-330 선례와
-    //   동형). Escape 는 여기서 소비하지 않고 그대로 버블링시켜 dom 의 기존 keydown 핸들러(위
-    //   handleKeyDown, Esc 전용)가 처리하게 둔다(D6, R3) — stopPropagation 을 추가하지 말 것.
-    // @MX:SPEC: SPEC-AI-011
-    sub.addEventListener('keydown', (event) => {
-      const subItems = sub.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
-      const activeIndex = Array.from(subItems).indexOf(document.activeElement as HTMLButtonElement);
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        event.preventDefault();
-        const delta = event.key === 'ArrowDown' ? 1 : -1;
-        const next = (activeIndex + delta + subItems.length) % subItems.length;
-        subItems[next]?.focus({ preventScroll: true });
-      } else if ((event.key === 'Enter' || event.key === ' ') && activeIndex >= 0) {
-        event.preventDefault();
-        const item = subItems[activeIndex];
-        callbacks.onSelectPreset('diagram', (item.dataset.diagramType as DiagramType) ?? undefined);
-      }
-    });
     DIAGRAM_SUBMENU_DEFS.forEach((def) => {
       const item = document.createElement('button');
       item.type = 'button';
@@ -631,34 +603,15 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
           diagramTrigger = btn;
           // @MX:WARN: [AUTO] click 을 다시 토글(열림↔닫힘)로 되돌리지 말 것 — 실제 포인터 클릭은
           //   mouseenter → click 순으로 발화하므로, 열기(hover) + 토글(click) 조합은 매 클릭이
-          //   열자마자 닫히는 no-op 이 된다(SPEC-AI-011 결함 재발). click 리스너 자체의 삭제도
-          //   금지 — 키보드 Enter/Space 가 도달하는 유일한 이벤트다(REQ-017).
+          //   열자마자 닫히는 no-op 이 된다(SPEC-AI-011 결함 재발). click 리스너는 mouseenter 가
+          //   닿지 않는 경로(트랙패드/터치 등 hover 없는 포인터 입력)에서 열기 진입점으로 남는다.
           // @MX:REASON: [AUTO] 열기 전용 멱등 의미론만이 hover 와 click 이 같은 제스처에서 연달아
           //   발화해도 결과가 항상 "열림"으로 수렴함을 보장한다. 토글을 재도입하면 REQ-001/002가
-          //   깨지고, click 삭제는 REQ-017(키보드 회귀)을 깬다.
+          //   깨진다. 키보드 경로는 SPEC-AI-011에서 도달 불가로 확인되어 철회되었다(포커스가
+          //   실제 macOS 웹뷰에서 메뉴/버튼에 들어가지 않음) — 이 click 은 순수 포인터 이벤트다.
           // @MX:SPEC: SPEC-AI-011
           btn.addEventListener('mouseenter', () => openDiagramSubmenu());
-          // 실제 포인터 클릭은 mouseenter 가 선행해 이 시점에 이미 열려 있으므로(wasOpen=true)
-          // 포커스를 옮기지 않는다(REQ-002 무변경). 키보드 Enter/Space 는 mouseenter 없이 이
-          // click 만 도달하므로(wasOpen=false) 열림과 동시에 첫 항목으로 포커스를 이동한다(REQ-007).
-          btn.addEventListener('click', () => {
-            const wasOpen = diagramSubmenu !== null;
-            openDiagramSubmenu();
-            if (!wasOpen) focusDiagramItem('first');
-          });
-          // 닫힌 상태의 트리거에서 방향키로 진입한다(REQ-008). 이미 열려 있으면 개입하지 않는다.
-          btn.addEventListener('keydown', (event) => {
-            if (diagramSubmenu) return;
-            if (event.key === 'ArrowDown') {
-              event.preventDefault();
-              openDiagramSubmenu();
-              focusDiagramItem('first');
-            } else if (event.key === 'ArrowUp') {
-              event.preventDefault();
-              openDiagramSubmenu();
-              focusDiagramItem('last');
-            }
-          });
+          btn.addEventListener('click', () => openDiagramSubmenu());
         }
         list.appendChild(wrap);
         return;
