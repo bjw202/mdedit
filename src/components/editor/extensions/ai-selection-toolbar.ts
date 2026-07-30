@@ -486,10 +486,12 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
 
   let mode: 'presets' | 'custom-input' = 'presets';
 
-  // @MX:NOTE: [AUTO] SPEC-AI-008: 다이어그램 플라이아웃 서브메뉴 상태(명령형 DOM). diagram 항목
-  // hover/클릭이 이 서브메뉴를 열고, Esc 는 서브메뉴만 닫아 목록으로 복귀한다. 외부 mousedown/
-  // 메뉴 파기(destroy)는 위젯 경로가 dom 을 제거하므로 서브메뉴도 함께 사라진다(리스너 누수 없음).
-  // @MX:SPEC: SPEC-AI-008
+  // @MX:NOTE: [AUTO] SPEC-AI-011: 다이어그램 플라이아웃 서브메뉴 상태(명령형 DOM). diagram 항목의
+  // hover·클릭은 모두 열기 전용(open-only) 멱등 연산이다 — 닫혀 있으면 열고, 이미 열려 있으면
+  // 무변경(클릭이 닫지 않는다). Esc 는 서브메뉴만 닫아 목록으로 복귀하고, 다른 프리셋 항목으로
+  // 포인터가 이동하면 닫힌다(REQ-013). 외부 mousedown/메뉴 파기(destroy)는 위젯 경로가 dom 을
+  // 제거하므로 서브메뉴도 함께 사라진다(리스너 누수 없음).
+  // @MX:SPEC: SPEC-AI-008 SPEC-AI-011
   let diagramSubmenu: HTMLElement | null = null;
   let diagramTrigger: HTMLButtonElement | null = null;
 
@@ -518,14 +520,44 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     }
   };
 
+  /** 열린 서브메뉴의 항목에 포커스를 넣는다(rAF 배치 측정과의 경합 대비 preventScroll, R5). */
+  const focusDiagramItem = (position: 'first' | 'last'): void => {
+    if (!diagramSubmenu) return;
+    const items = diagramSubmenu.querySelectorAll<HTMLButtonElement>(
+      '.mdedit-ai-diagram-submenu-item',
+    );
+    const target = position === 'first' ? items[0] : items[items.length - 1];
+    target?.focus({ preventScroll: true });
+  };
+
   const openDiagramSubmenu = (): void => {
     if (diagramSubmenu || !diagramTrigger) return;
     const sub = document.createElement('div');
     sub.className = 'mdedit-ai-diagram-submenu';
+    sub.setAttribute('role', 'menu');
+    // @MX:NOTE: [AUTO] 방향키 래핑 순환 + Enter/Space 단일 선택(EditorToolbar.tsx:316-330 선례와
+    //   동형). Escape 는 여기서 소비하지 않고 그대로 버블링시켜 dom 의 기존 keydown 핸들러(위
+    //   handleKeyDown, Esc 전용)가 처리하게 둔다(D6, R3) — stopPropagation 을 추가하지 말 것.
+    // @MX:SPEC: SPEC-AI-011
+    sub.addEventListener('keydown', (event) => {
+      const subItems = sub.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
+      const activeIndex = Array.from(subItems).indexOf(document.activeElement as HTMLButtonElement);
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const delta = event.key === 'ArrowDown' ? 1 : -1;
+        const next = (activeIndex + delta + subItems.length) % subItems.length;
+        subItems[next]?.focus({ preventScroll: true });
+      } else if ((event.key === 'Enter' || event.key === ' ') && activeIndex >= 0) {
+        event.preventDefault();
+        const item = subItems[activeIndex];
+        callbacks.onSelectPreset('diagram', (item.dataset.diagramType as DiagramType) ?? undefined);
+      }
+    });
     DIAGRAM_SUBMENU_DEFS.forEach((def) => {
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'mdedit-ai-diagram-submenu-item';
+      item.setAttribute('role', 'menuitem');
       item.setAttribute('aria-label', def.label);
       if (def.type === null) {
         item.dataset.diagramAuto = 'true';
@@ -548,11 +580,6 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     diagramSubmenu = sub;
     // 좁은 창에서 오른쪽/아래로 잘리면 왼쪽 열림·위로 끌어올림으로 뒤집는다(다음 프레임 측정).
     scheduleSubmenuFlipMeasurement(sub, diagramTrigger);
-  };
-
-  const toggleDiagramSubmenu = (): void => {
-    if (diagramSubmenu) closeDiagramSubmenu();
-    else openDiagramSubmenu();
   };
 
   const renderPresets = (): void => {
@@ -602,13 +629,45 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
         wrap.appendChild(btn);
         if (!item.disabled) {
           diagramTrigger = btn;
-          // hover 시 열림(REQ-006), 클릭 토글(REQ-007) — 클릭은 즉시 발행하지 않는다.
+          // @MX:WARN: [AUTO] click 을 다시 토글(열림↔닫힘)로 되돌리지 말 것 — 실제 포인터 클릭은
+          //   mouseenter → click 순으로 발화하므로, 열기(hover) + 토글(click) 조합은 매 클릭이
+          //   열자마자 닫히는 no-op 이 된다(SPEC-AI-011 결함 재발). click 리스너 자체의 삭제도
+          //   금지 — 키보드 Enter/Space 가 도달하는 유일한 이벤트다(REQ-017).
+          // @MX:REASON: [AUTO] 열기 전용 멱등 의미론만이 hover 와 click 이 같은 제스처에서 연달아
+          //   발화해도 결과가 항상 "열림"으로 수렴함을 보장한다. 토글을 재도입하면 REQ-001/002가
+          //   깨지고, click 삭제는 REQ-017(키보드 회귀)을 깬다.
+          // @MX:SPEC: SPEC-AI-011
           btn.addEventListener('mouseenter', () => openDiagramSubmenu());
-          btn.addEventListener('click', () => toggleDiagramSubmenu());
+          // 실제 포인터 클릭은 mouseenter 가 선행해 이 시점에 이미 열려 있으므로(wasOpen=true)
+          // 포커스를 옮기지 않는다(REQ-002 무변경). 키보드 Enter/Space 는 mouseenter 없이 이
+          // click 만 도달하므로(wasOpen=false) 열림과 동시에 첫 항목으로 포커스를 이동한다(REQ-007).
+          btn.addEventListener('click', () => {
+            const wasOpen = diagramSubmenu !== null;
+            openDiagramSubmenu();
+            if (!wasOpen) focusDiagramItem('first');
+          });
+          // 닫힌 상태의 트리거에서 방향키로 진입한다(REQ-008). 이미 열려 있으면 개입하지 않는다.
+          btn.addEventListener('keydown', (event) => {
+            if (diagramSubmenu) return;
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              openDiagramSubmenu();
+              focusDiagramItem('first');
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              openDiagramSubmenu();
+              focusDiagramItem('last');
+            }
+          });
         }
         list.appendChild(wrap);
         return;
       }
+
+      // SPEC-AI-011 REQ-013: 다른 프리셋 항목으로 포인터가 이동하면 열려 있던 다이어그램
+      // 서브메뉴를 닫는다. 트리거 자체의 mouseleave 가 아니라 "다른 항목 진입"을 기준으로 삼아
+      // SUBMENU_GAP 간극을 지나는 중 조기에 닫히는 문제를 피한다(D4 후보 i, R2).
+      btn.addEventListener('mouseenter', () => closeDiagramSubmenu());
 
       btn.addEventListener('click', () => {
         if (item.disabled) return;

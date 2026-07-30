@@ -1,9 +1,9 @@
 ---
 id: SPEC-AI-008
-version: "0.0.2"
+version: "0.0.3"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-07-30"
 author: "jw"
 issue_number: 0
 priority: medium
@@ -14,6 +14,7 @@ priority: medium
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.0.2 | 2026-07-22 | jw | 최초 acceptance 작성(run-entry, 관측 O3) — spec.md v0.0.2(plan-auditor review-2 PASS 0.96)의 인라인 AC 표(AC-AI-008-001~014)를 독립 Given-When-Then 14건으로 추출. spec.md AC 표·REQ→AC 대조표(001–025)와 1:1 정합. UI-008 acceptance.md 구조 준용(시나리오 + Quality Gate Criteria + Definition of Done). D1(자동=조립 결과 바이트 동일)·D2(비-diagram 5기능 회귀 스냅샷)·D3(UI-008 JSX 아이콘 렌더 무변경) 반영. 검증 스택: vitest + jsdom(`aiSelectionToolbar.test.ts` 명령형 DOM 선례) + Rust `#[cfg(test)]` 스냅샷(prompt.rs/mod.rs). 게이트에 `cargo test`/`cargo clippy` 포함. |
+| 0.0.3 | 2026-07-30 | jw | **SPEC-AI-011로 REQ-006/007 충돌 해소 반영 — 클릭 열기 전용으로 개정.** AC-AI-008-001의 "클릭(no-hover/터치/키보드) → 토글" 시나리오를 "클릭(포인터·키보드 어느 경로든) → 열림, 이미 열려 있으면 무변경"으로 개정. AC-AI-008-009에 방향키 래핑 순환 + 포커스 진입(트리거 활성화 → 첫 항목)/복귀(Esc → 트리거) + `role="menu"`/`role="menuitem"` 시나리오를 추가. spec.md v0.0.3과 1:1 정합. 구현·검증은 SPEC-AI-011 참조. |
 
 # Acceptance Criteria — SPEC-AI-008 (AI 다이어그램 종류 선택 플라이아웃)
 
@@ -21,12 +22,12 @@ priority: medium
 
 ## Given-When-Then Scenarios
 
-### AC-AI-008-001: "다이어그램으로" 항목 → 서브메뉴 열림/토글 (REQ-AI-008-005, 006, 007)
+### AC-AI-008-001: "다이어그램으로" 항목 → 서브메뉴 열림(open-only) (REQ-AI-008-005, 006, 007)
 
 - **Given** AI 프리셋 메뉴(`createPresetMenu`)가 열려 있고 "🧜 다이어그램으로" 항목이 렌더된 상태일 때
 - **When** (hover 가능 환경에서) 포인터가 해당 항목에 올라오면
 - **Then** 플라이아웃 서브메뉴가 열리고 트리거 항목의 `aria-expanded`가 `true`가 된다.
-- **And** (hover 불가/터치/키보드 환경에서) 해당 항목을 클릭·활성화하면 서브메뉴가 토글(열림↔닫힘)되며, 이 클릭은 다이어그램 요청을 즉시 발행하지 않는다(오늘의 즉시 `fire('diagram')` 동작과의 차이).
+- **And** (포인터·키보드 어느 경로든) 해당 항목을 클릭·활성화하면 서브메뉴가 **연다. 이미 열려 있으면 상태를 바꾸지 않는다**(open-only, SPEC-AI-011) — 이 클릭은 다이어그램 요청을 즉시 발행하지 않는다(오늘의 즉시 `fire('diagram')` 동작과의 차이).
 - **And** 트리거 항목은 `aria-haspopup="true"`를 유지한다.
 
 ### AC-AI-008-002: 8항목 구조 + 자동 우선 + 라벨 (REQ-AI-008-001, 004)
@@ -77,11 +78,15 @@ priority: medium
 - **When** 툴바 래퍼(`.mdedit-ai-toolbar`) 외부에 mousedown이 발생하면
 - **Then** 서브메뉴와 상위 프리셋 메뉴가 함께 닫힌다(기존 위젯 `onOutsideMouseDown`, ai-selection-toolbar.ts:622 경로 재사용).
 
-### AC-AI-008-009: 키보드 조작 (REQ-AI-008-013)
+### AC-AI-008-009: 키보드 조작 (REQ-AI-008-013, SPEC-AI-011)
 
 - **Given** 다이어그램 서브메뉴가 열려 있을 때
 - **When** Tab으로 항목 간 이동 후 Enter 또는 Space를 누르면
 - **Then** 포커스가 8개 항목 간 이동하고 포커스된 항목이 선택된다(기존 프리셋 항목과 동일한 네이티브 `<button>` 시맨틱).
+- **And** 방향키(ArrowDown/ArrowUp)는 8개 항목 사이에서 포커스를 **래핑 순환** 이동시킨다(마지막→첫, 첫→마지막).
+- **And** 트리거에 포커스가 있는 상태에서 Enter/Space로 활성화하거나 닫힌 트리거에서 ArrowDown/ArrowUp을 누르면 서브메뉴가 열리고 첫 항목(ArrowUp은 마지막 항목)으로 포커스가 진입한다.
+- **And** Escape는 서브메뉴만 닫고 트리거로 포커스를 복귀시킨다.
+- **And** 서브메뉴 컨테이너는 `role="menu"`를, 8개 항목은 각각 `role="menuitem"`을 갖는다.
 
 ### AC-AI-008-010: 재요청 종류 승계 + 종류 불일치 비-게이트 (REQ-AI-008-014, 017)
 

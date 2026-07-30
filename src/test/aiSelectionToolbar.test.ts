@@ -923,13 +923,31 @@ describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
     menu.destroy();
   });
 
-  it('click toggles the submenu open then closed (AC-001, REQ-007)', async () => {
+  it('repeated clicks on an already-open submenu leave it open, not toggled closed (AC-001, REQ-001/002)', async () => {
     const { trigger, menu } = await build();
     trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    // SPEC-AI-011: 트리거 클릭은 열기 전용(open-only) — 이미 열린 서브메뉴는 클릭으로 닫히지 않는다.
     trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    menu.destroy();
+  });
+
+  // SPEC-AI-011 REQ-001/002: 실제 포인터 클릭은 mouseenter → click 순으로 발화한다(jsdom 은 이를
+  // 자동 재현하지 않으므로 여기서 명시적으로 순서대로 dispatch 한다 — 브라우저 동작의 증명이 아니라
+  // 가정의 문서화임을 인정한다. 실질 가드는 Playwright 계층, e2e/ai-inline-edit.spec.ts 다이어그램 테스트).
+  it('real pointer click sequence (mouseenter then click) leaves the submenu open, not no-op (AC-001, REQ-001/002/003)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    // 추가 클릭 2회도 여전히 열린 채로 남는다(멱등).
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    expect(callbacks.onSelectPreset).not.toHaveBeenCalled();
     menu.destroy();
   });
 
@@ -1005,6 +1023,152 @@ describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
       expect(callbacks.onSelectPreset).toHaveBeenCalledWith('diagram', type);
       menu.destroy();
     }
+  });
+
+  it('submenu container has role="menu" and all 8 items have role="menuitem" (AC-003, REQ-005)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const sub = menu.dom.querySelector('.mdedit-ai-diagram-submenu')!;
+    expect(sub.getAttribute('role')).toBe('menu');
+    const items = sub.querySelectorAll('.mdedit-ai-diagram-submenu-item');
+    expect(items.length).toBe(8);
+    for (const item of items) {
+      expect(item.getAttribute('role')).toBe('menuitem');
+    }
+    menu.destroy();
+  });
+
+  it('keyboard activation (bare click, no preceding mouseenter) opens and focuses the first item (AC-004, REQ-007)', async () => {
+    const { trigger, menu } = await build();
+    trigger.focus();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const firstItem = menu.dom.querySelector<HTMLButtonElement>('[data-diagram-auto="true"]');
+    expect(document.activeElement).toBe(firstItem);
+    menu.destroy();
+  });
+
+  it('a real pointer click (mouseenter already opened it) does not steal focus (REQ-002 no-op on already-open)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(document.activeElement).not.toBe(
+      menu.dom.querySelector('[data-diagram-auto="true"]'),
+    );
+    menu.destroy();
+  });
+
+  it('ArrowDown on the closed trigger opens and focuses the first item (AC-005, REQ-008)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    );
+    const items = menu.dom.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
+    expect(items.length).toBe(8);
+    expect(document.activeElement).toBe(items[0]);
+    menu.destroy();
+  });
+
+  it('ArrowUp on the closed trigger opens and focuses the last item (AC-005, REQ-008)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }),
+    );
+    const items = menu.dom.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
+    expect(document.activeElement).toBe(items[7]);
+    menu.destroy();
+  });
+
+  it('ArrowDown/ArrowUp wrap-cycle focus among the 8 open submenu items, preventDefault (AC-005, REQ-009)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const sub = menu.dom.querySelector<HTMLElement>('.mdedit-ai-diagram-submenu')!;
+    const items = sub.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
+
+    items[7].focus();
+    const evDown = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+    sub.dispatchEvent(evDown);
+    expect(document.activeElement).toBe(items[0]);
+    expect(evDown.defaultPrevented).toBe(true);
+
+    items[0].focus();
+    const evUp = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+    sub.dispatchEvent(evUp);
+    expect(document.activeElement).toBe(items[7]);
+    expect(evUp.defaultPrevented).toBe(true);
+    menu.destroy();
+  });
+
+  it('Enter on a focused submenu item selects it exactly once, with preventDefault (AC-006, REQ-010)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const sub = menu.dom.querySelector<HTMLElement>('.mdedit-ai-diagram-submenu')!;
+    const items = sub.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
+    items[3].focus(); // gantt (auto=0, flowchart=1, sequenceDiagram=2, gantt=3)
+    const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    sub.dispatchEvent(ev);
+    expect(callbacks.onSelectPreset).toHaveBeenCalledTimes(1);
+    expect(callbacks.onSelectPreset).toHaveBeenCalledWith('diagram', 'gantt');
+    expect(ev.defaultPrevented).toBe(true);
+    menu.destroy();
+  });
+
+  it('Space on a focused submenu item selects it exactly once, with preventDefault (AC-006, REQ-010)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const sub = menu.dom.querySelector<HTMLElement>('.mdedit-ai-diagram-submenu')!;
+    const items = sub.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
+    items[0].focus(); // "자동"
+    const ev = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    sub.dispatchEvent(ev);
+    expect(callbacks.onSelectPreset).toHaveBeenCalledTimes(1);
+    expect(callbacks.onSelectPreset).toHaveBeenCalledWith('diagram', undefined);
+    expect(ev.defaultPrevented).toBe(true);
+    menu.destroy();
+  });
+
+  it('Escape while focus is on a submenu item still closes only the submenu and returns focus to the trigger (AC-007, REQ-011)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const sub = menu.dom.querySelector<HTMLElement>('.mdedit-ai-diagram-submenu')!;
+    const items = sub.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
+    items[0].focus();
+    sub.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    menu.destroy();
+  });
+
+  it('disabled trigger ignores hover/click/Enter/ArrowDown — no submenu is ever created (AC-010, REQ-014)', async () => {
+    const { trigger, menu } = await build(4001);
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    trigger.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    );
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
+    menu.destroy();
+  });
+
+  it('hovering another preset item closes the open diagram submenu (AC-009, REQ-013)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
+    polish.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    menu.destroy();
+  });
+
+  it('other preset items remain clickable while the diagram submenu is open, no blocking backdrop (AC-008, REQ-012/015)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
+    polish.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(callbacks.onSelectPreset).toHaveBeenCalledWith('polish');
+    expect(document.querySelector('.mdedit-ai-backdrop')).toBeNull();
+    menu.destroy();
   });
 
   it('Escape closes only the submenu and keeps the preset list (AC-007)', async () => {
