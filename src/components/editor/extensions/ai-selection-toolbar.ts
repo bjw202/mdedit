@@ -486,10 +486,12 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
 
   let mode: 'presets' | 'custom-input' = 'presets';
 
-  // @MX:NOTE: [AUTO] SPEC-AI-008: 다이어그램 플라이아웃 서브메뉴 상태(명령형 DOM). diagram 항목
-  // hover/클릭이 이 서브메뉴를 열고, Esc 는 서브메뉴만 닫아 목록으로 복귀한다. 외부 mousedown/
-  // 메뉴 파기(destroy)는 위젯 경로가 dom 을 제거하므로 서브메뉴도 함께 사라진다(리스너 누수 없음).
-  // @MX:SPEC: SPEC-AI-008
+  // @MX:NOTE: [AUTO] SPEC-AI-011: 다이어그램 플라이아웃 서브메뉴 상태(명령형 DOM). diagram 항목의
+  // hover·클릭은 모두 열기 전용(open-only) 멱등 연산이다 — 닫혀 있으면 열고, 이미 열려 있으면
+  // 무변경(클릭이 닫지 않는다). Esc 는 서브메뉴만 닫아 목록으로 복귀하고, 다른 프리셋 항목으로
+  // 포인터가 이동하면 닫힌다(REQ-013). 외부 mousedown/메뉴 파기(destroy)는 위젯 경로가 dom 을
+  // 제거하므로 서브메뉴도 함께 사라진다(리스너 누수 없음).
+  // @MX:SPEC: SPEC-AI-008 SPEC-AI-011
   let diagramSubmenu: HTMLElement | null = null;
   let diagramTrigger: HTMLButtonElement | null = null;
 
@@ -533,9 +535,10 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     const sub = document.createElement('div');
     sub.className = 'mdedit-ai-diagram-submenu';
     sub.setAttribute('role', 'menu');
-    // SPEC-AI-011 REQ-009/010: 방향키 래핑 순환 + Enter/Space 단일 선택(EditorToolbar.tsx:316-330
-    // 선례와 동형). Escape 는 여기서 소비하지 않고 그대로 버블링시켜 dom 의 기존 핸들러(:662)가
-    // 처리하게 둔다(D6, R3) — stopPropagation 을 추가하지 않는다.
+    // @MX:NOTE: [AUTO] 방향키 래핑 순환 + Enter/Space 단일 선택(EditorToolbar.tsx:316-330 선례와
+    //   동형). Escape 는 여기서 소비하지 않고 그대로 버블링시켜 dom 의 기존 keydown 핸들러(위
+    //   handleKeyDown, Esc 전용)가 처리하게 둔다(D6, R3) — stopPropagation 을 추가하지 말 것.
+    // @MX:SPEC: SPEC-AI-011
     sub.addEventListener('keydown', (event) => {
       const subItems = sub.querySelectorAll<HTMLButtonElement>('.mdedit-ai-diagram-submenu-item');
       const activeIndex = Array.from(subItems).indexOf(document.activeElement as HTMLButtonElement);
@@ -626,7 +629,14 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
         wrap.appendChild(btn);
         if (!item.disabled) {
           diagramTrigger = btn;
-          // SPEC-AI-011: hover 도 클릭도 열기 전용(open-only) — 이미 열려 있으면 무변경(REQ-001/002).
+          // @MX:WARN: [AUTO] click 을 다시 토글(열림↔닫힘)로 되돌리지 말 것 — 실제 포인터 클릭은
+          //   mouseenter → click 순으로 발화하므로, 열기(hover) + 토글(click) 조합은 매 클릭이
+          //   열자마자 닫히는 no-op 이 된다(SPEC-AI-011 결함 재발). click 리스너 자체의 삭제도
+          //   금지 — 키보드 Enter/Space 가 도달하는 유일한 이벤트다(REQ-017).
+          // @MX:REASON: [AUTO] 열기 전용 멱등 의미론만이 hover 와 click 이 같은 제스처에서 연달아
+          //   발화해도 결과가 항상 "열림"으로 수렴함을 보장한다. 토글을 재도입하면 REQ-001/002가
+          //   깨지고, click 삭제는 REQ-017(키보드 회귀)을 깬다.
+          // @MX:SPEC: SPEC-AI-011
           btn.addEventListener('mouseenter', () => openDiagramSubmenu());
           // 실제 포인터 클릭은 mouseenter 가 선행해 이 시점에 이미 열려 있으므로(wasOpen=true)
           // 포커스를 옮기지 않는다(REQ-002 무변경). 키보드 Enter/Space 는 mouseenter 없이 이
