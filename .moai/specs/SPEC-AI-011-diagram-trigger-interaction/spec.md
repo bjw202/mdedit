@@ -1,6 +1,6 @@
 ---
 id: SPEC-AI-011
-version: "1.0.0"
+version: "1.1.0"
 status: draft
 created: "2026-07-30"
 updated: "2026-07-30"
@@ -30,6 +30,7 @@ lifecycle: spec-anchored
 |---------|------|--------|---------|
 | 1.0.0 | 2026-07-30 | jw | 최초 SPEC 작성 — AI 선택 툴바 "🧜 다이어그램으로" 트리거의 **hover/click 충돌** 해소. 원인은 확정 진단됨: 실제 포인터 클릭은 `mouseenter` → `click` 순으로 발화하므로, `ai-selection-toolbar.ts:606-607`에 각각 바인딩된 `openDiagramSubmenu()`와 `toggleDiagramSubmenu()`가 연달아 실행되어 **열자마자 닫힌다**(포인터 사용자에게 트리거 클릭은 순 no-op). 이는 단순 코딩 실수가 아니라 **SPEC-AI-008의 명세 충돌**이다 — REQ-AI-008-006(hover 시 연다)과 REQ-AI-008-007(클릭 토글)은 포인터 입력에서 동시에 만족될 수 없다. 비대칭성 주의: 키보드 활성화(Tab → Enter/Space)는 `mouseenter` 없이 `click`만 발화하므로 **키보드 경로는 현재 정상 동작하고 포인터 경로만 깨져 있다**. 사용자 확정 결정: (1) 트리거 클릭을 **열기 전용**(open-only)으로 — 닫힌 상태면 열고, 이미 열려 있으면 무시(닫지 않음), (2) 서브메뉴 **키보드 내비게이션 범위 포함**(방향키·role·포커스 이동 — 현재 전무), (3) 타 팝오버 동일 충돌 감사 완료(결과: 해당 없음 — Popover Audit 절). |
 | 1.0.0 | 2026-07-30 | jw | **SPEC-AI-008 개정 필요 사항 기록(후속 액션, 본 SPEC은 AI-008 파일을 수정하지 않는다)**: (a) `REQ-AI-008-007`의 "플라이아웃 서브메뉴를 **토글(열림↔닫힘)**"을 "**연다. 이미 열려 있으면 상태를 바꾸지 않는다**"로 개정, (b) `REQ-AI-008-006`을 "hover 가능 포인터 진입 시 연다(클릭과 상호 배타적이지 않음 — 두 경로 모두 열기 전용)"로 명확화, (c) `REQ-AI-008-013`의 "Tab / Enter / Space"를 "Tab / 방향키 / Enter / Space"로 확장하고 role 요구를 추가, (d) `AC-AI-008-001`의 "클릭(no-hover) → 토글"을 "클릭 → 열림(재클릭 무해)"으로 개정, (e) `AC-AI-008-009`를 방향키 순환 포함으로 확장. **이 5건과 AI-008의 version/updated/HISTORY 갱신은 run 단계 구현 순서의 마지막 작업으로 편입하여 본 SPEC 구현과 같은 PR에 포함한다**(두 SPEC이 모순 상태로 공존하는 기간을 0으로 만들기 위함 — REQ-AI-011-023, R7). 단 plan 단계인 현 시점에서는 AI-008 파일을 편집하지 않는다. `status: draft`는 저장소 관례상 유지한다. |
+| 1.1.0 | 2026-07-30 | jw | **키보드 내비게이션 요구 WITHDRAWN(철회)** — REQ-AI-011-007(트리거 Enter/Space 시 첫 항목 포커스 진입), REQ-AI-011-008(ArrowDown/ArrowUp 진입), REQ-AI-011-009(방향키 래핑 순환), REQ-AI-011-010(Enter/Space 단일 선택)을 철회한다. 원인: 실제 macOS WKWebView 앱에서 포커스가 서브메뉴에 **결코 도달하지 않는다** — (1) 프리셋 메뉴 루트 `dom.tabIndex = -1`이고 메뉴/버튼을 열 때 아무도 focus()를 호출하지 않음, (2) Tab은 `markdown-extensions.ts:120`의 `indentWithTab`이 소비해 CodeMirror 밖으로 포커스가 나가지 않음, (3) macOS WebKit은 `<button>` 클릭 시 포커스를 주지 않음. 결과적으로 모든 keydown이 툴바가 아니라 CodeMirror로 간다 — 사용자가 실기기에서 방향키·Tab이 무반응이고 Enter가 선택 텍스트를 파괴함을 확인했다. 이 도달 불가성은 jsdom/Playwright(Chromium)가 클릭 시 버튼에 포커스를 주는 반면 실제 macOS 웹뷰는 그렇지 않기 때문에 **단위·E2E 테스트 모두 초록이었음에도** 놓쳤다 — Verification Strategy 표의 수동 점검 행(R6, B-5 항목)이 이 차이를 잡아냈어야 했으나 머지 시점에 미검증 상태로 남아 있었다. 사용자 결정: 키보드 내비게이션은 애초에 원하지 않았고 마우스 상호작용으로 충분하다 — 죽은 코드를 남기지 않고 제거한다(REQ-005/006의 ARIA role 요구는 스크린리더 등 키 입력 무관 보조기술에 유효하므로 그대로 유지). 관련 `ai-selection-toolbar.ts`의 `focusDiagramItem`, 서브메뉴 `keydown` 리스너, 트리거 `keydown` 리스너를 삭제하고 `@MX:WARN`을 실제 근거(포인터 전용 click 유지 사유)로 재작성했다. |
 
 ## Summary
 
@@ -157,10 +158,10 @@ REQ-007의 전제절은 "hover 불가 환경"이지만, **구현이 그 전제�
 
 ### Event-Driven Requirements
 
-- **REQ-AI-011-007**: **WHEN** 트리거에 포커스가 있는 상태에서 Enter 또는 Space로 활성화되면, **the system shall** 서브메뉴를 열고 **첫 번째 항목("자동 (AI 판단)")으로 포커스를 이동**시킨다. (현재는 열리기만 하고 포커스가 트리거에 남아 있어, 키보드 사용자가 서브메뉴에 도달할 명시적 수단이 없다.)
-- **REQ-AI-011-008**: **WHEN** 서브메뉴가 닫힌 상태에서 트리거에 포커스가 있고 ArrowDown이 눌리면, **the system shall** 서브메뉴를 열고 첫 항목으로 포커스를 이동시킨다. ArrowUp이 눌리면 서브메뉴를 열고 **마지막 항목**으로 포커스를 이동시킨다.
-- **REQ-AI-011-009**: **WHEN** 서브메뉴가 열린 상태에서 포커스가 서브메뉴 항목에 있고 ArrowDown 또는 ArrowUp이 눌리면, **the system shall** 기본 스크롤 동작을 막고(`preventDefault`) 8개 항목 사이에서 포커스를 **래핑 순환** 이동시킨다(마지막에서 ArrowDown → 첫 항목, 첫 항목에서 ArrowUp → 마지막 항목).
-- **REQ-AI-011-010**: **WHEN** 서브메뉴 항목에 포커스가 있는 상태에서 Enter 또는 Space가 눌리면, **the system shall** 해당 항목을 **정확히 한 번** 선택 발행한다 — 네이티브 `<button>`의 기본 활성화와 커스텀 키 핸들러가 이중 발화하지 않아야 한다(`EditorToolbar.tsx:326-329` 선례와 동형).
+- **[WITHDRAWN v1.1.0 — 도달 불가 확인, HISTORY 참조] REQ-AI-011-007**: **WHEN** 트리거에 포커스가 있는 상태에서 Enter 또는 Space로 활성화되면, **the system shall** 서브메뉴를 열고 **첫 번째 항목("자동 (AI 판단)")으로 포커스를 이동**시킨다. (현재는 열리기만 하고 포커스가 트리거에 남아 있어, 키보드 사용자가 서브메뉴에 도달할 명시적 수단이 없다.)
+- **[WITHDRAWN v1.1.0 — 도달 불가 확인, HISTORY 참조] REQ-AI-011-008**: **WHEN** 서브메뉴가 닫힌 상태에서 트리거에 포커스가 있고 ArrowDown이 눌리면, **the system shall** 서브메뉴를 열고 첫 항목으로 포커스를 이동시킨다. ArrowUp이 눌리면 서브메뉴를 열고 **마지막 항목**으로 포커스를 이동시킨다.
+- **[WITHDRAWN v1.1.0 — 도달 불가 확인, HISTORY 참조] REQ-AI-011-009**: **WHEN** 서브메뉴가 열린 상태에서 포커스가 서브메뉴 항목에 있고 ArrowDown 또는 ArrowUp이 눌리면, **the system shall** 기본 스크롤 동작을 막고(`preventDefault`) 8개 항목 사이에서 포커스를 **래핑 순환** 이동시킨다(마지막에서 ArrowDown → 첫 항목, 첫 항목에서 ArrowUp → 마지막 항목).
+- **[WITHDRAWN v1.1.0 — 도달 불가 확인, HISTORY 참조] REQ-AI-011-010**: **WHEN** 서브메뉴 항목에 포커스가 있는 상태에서 Enter 또는 Space가 눌리면, **the system shall** 해당 항목을 **정확히 한 번** 선택 발행한다 — 네이티브 `<button>`의 기본 활성화와 커스텀 키 핸들러가 이중 발화하지 않아야 한다(`EditorToolbar.tsx:326-329` 선례와 동형).
 - **REQ-AI-011-011**: **WHEN** 서브메뉴가 열린 상태에서 Escape가 눌리면, **the system shall** 서브메뉴만 닫고 트리거로 포커스를 복귀시키며 상위 프리셋 메뉴와 툴바는 유지한다(현행 `:662-669` 동작 보존).
 - **REQ-AI-011-012**: **WHEN** 서브메뉴가 열린 상태에서 툴바 래퍼(`.mdedit-ai-toolbar`) 외부에 mousedown이 발생하면, **the system shall** 서브메뉴를 상위 메뉴와 함께 닫는다(현행 위젯 `onOutsideMouseDown` 경로 보존).
 - **REQ-AI-011-013**: **WHEN** 포인터가 다이어그램 트리거와 서브메뉴를 모두 벗어나 같은 프리셋 목록의 **다른 항목** 위로 이동하면, **the system shall** 서브메뉴를 닫는다.

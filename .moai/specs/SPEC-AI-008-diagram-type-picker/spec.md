@@ -1,6 +1,6 @@
 ---
 id: SPEC-AI-008
-version: "0.0.3"
+version: "0.0.4"
 status: draft
 created: "2026-07-22"
 updated: "2026-07-30"
@@ -32,6 +32,7 @@ lifecycle: spec-anchored
 | 0.0.1 | 2026-07-22 | jw | 최초 SPEC 작성 — AI 선택 툴바(✨)의 "🧜 다이어그램으로" 프리셋에 다이어그램 종류 플라이아웃 서브메뉴 추가. 8항목(자동 + 7종). 사용자 확정 결정 반영: (1) 진입점 = `ai-selection-toolbar.ts`의 프리셋 메뉴에서 `{ kind:'diagram' }` 항목을 즉시 발행 대신 플라이아웃 서브메뉴 열림으로 변경(명령형 DOM, `createPresetMenu` 선례 재사용), (2) 서브메뉴 = "자동 (AI 판단)"(첫 항목·기본, 오늘 동작 유지) + 7종 프리셋(flowchart/sequenceDiagram/gantt/classDiagram/stateDiagram/pie/mindmap), 각 종류 항목은 SPEC-UI-008 스켈레톤 아이콘 형상 + 한글 라벨을 재사용, (3) 종류 선택 = AI 다이어그램 생성 프롬프트에 해당 mermaid 종류를 강제하는 제약 조각(fragment) 주입(Rust `prompt.rs`), "자동" = 기존 프롬프트 무변경(바이트 동일), (4) 다운스트림(스트리밍·`mermaidValidate` 파싱·제안 카드·재요청 UX; SPEC-AI-003/004/006 계보) 무변경 — 프롬프트만 종류 제약을 얻는다. 조사 근거: 프롬프트 조립은 100% Rust(REQ-AI-003), IPC는 `feature`/`presetKind`/`customInstruction` 전달; 재요청은 `fireReRequest`가 원본 args를 스프레드하므로 종류 필드가 자동 승계됨. |
 | 0.0.2 | 2026-07-22 | jw | plan-audit 리뷰(SPEC-AI-008-review-1, FAIL 0.80) 반영 — 결함 5건 수정: **D1**(major) "자동=바이트 동일" 불변식(REQ-018/AC-004/Summary)을 잘못된 아티팩트(`Diagram.system_prompt()` 단독)에서 실제 조립 결과(`build_inline_prompt` 산출 = `system_prompt()` + `\n\n` + INLINE_SCOPE)로 재앵커. **D2**(major) Diagram 전용 조립 분기가 없고 공유 `build_inline_prompt`(비-diagram 5기능과 INLINE_SCOPE 공유)를 탄다는 사실 반영 — REQ-010/Delta를 "공유 경로 내 diagram 전용 게이팅"으로 정정하고, 비-diagram 5기능(polish/outline/table/shorten/custom) 프롬프트 바이트 동일 회귀 가드로 신규 **REQ-025 + AC-014** 추가. **D3**(minor) icons.tsx 추출 리팩터 후 UI-008 JSX 아이콘 7종 렌더 SVG 무변경 가드를 AC-014에 추가하고 REQ-023의 "단일 소스"를 "양쪽 소비자 렌더 path 문자열 동일"로 이진화. **D4**(minor) REQ-006의 "짧은 지연 후"를 정규 요구에서 제거(이진화: "hover 시 연다"), 지연은 Design Notes로 이관. **D5**(minor) REQ-017의 긍정 단언을 근거절/Design Notes로 분리해 순수 shall-not로. REQ 24→25, AC 13→14, 커버리지 대조표·Delta·Fragments 인트로 갱신. |
 | 0.0.3 | 2026-07-30 | jw | **SPEC-AI-011로 REQ-006/007 충돌 해소 — 클릭 열기 전용으로 개정.** REQ-AI-008-007의 "hover 불가 환경에서 클릭 시 토글(열림↔닫힘)"을 "포인터·키보드 어느 경로든 클릭 시 연다. 이미 열려 있으면 상태를 바꾸지 않는다"(open-only)로 개정 — 전제절 "hover 불가 환경에서"는 런타임에 판별 불가능해 삭제. REQ-AI-008-006에 "hover 열림과 클릭 열림은 상호 배타적이지 않으며 둘 다 멱등 열기 연산" 명확화를 추가. REQ-AI-008-013을 "Tab / 방향키 / Enter / Space"로 확장하고 `role="menu"`/`role="menuitem"` 요구를 추가. AC-AI-008-001의 "클릭(no-hover) → 토글"을 "클릭 → 열림(이미 열려 있으면 무변경)"으로, AC-AI-008-009를 방향키 래핑 순환 + 포커스 진입/복귀 포함으로 확장. 근거: 실제 포인터 클릭은 mouseenter → click 순으로 발화해 REQ-006(hover 열림)과 REQ-007(클릭 토글)이 포인터 입력에서 동시 만족 불가능했다(코딩 실수가 아니라 명세 충돌). 구현·검증은 SPEC-AI-011 참조. |
+| 0.0.4 | 2026-07-30 | jw | **REQ-AI-008-013/AC-AI-008-009의 방향키 확장을 되돌림(0.0.3의 개정 (c) 철회).** SPEC-AI-011 후속 조사에서 서브메뉴 방향키 내비게이션이 실제 macOS WKWebView 앱에서 도달 불가능함이 확인되어(포커스가 메뉴/버튼에 결코 들어가지 않음 — 상세는 SPEC-AI-011 spec.md HISTORY v1.1.0) 해당 키보드 요구가 SPEC-AI-011에서 철회되었다. 이에 따라 본 SPEC의 REQ-AI-008-013을 "Tab / 방향키 / Enter / Space"에서 방향키를 제거해 "Tab / Enter / Space"로, AC-AI-008-009를 방향키 래핑 순환과 "포커스 진입(트리거 활성화 → 첫 항목)"을 제거해 실제 구현(Tab 포커스 순회 + Enter/Space 선택 + Esc 복귀 + role 부여)만 서술하도록 되돌렸다. `role="menu"`/`role="menuitem"` 요구는 방향키와 무관한 접근성 표기이므로 그대로 유지한다. |
 
 ## Summary
 
@@ -98,7 +99,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 - **REQ-AI-008-010**: **WHEN** 다이어그램 요청이 종류(`diagramType`)를 실어 도착하면, **the system shall** 공유 `build_inline_prompt` 경로 안에서 **feature가 Diagram일 때만** "Diagram Type Prompt Fragments" 표의 해당 제약 조각을 조립되는 시스템 프롬프트에 덧붙여, 출력이 정확히 그 mermaid 종류가 되도록 강제한다(diagram 전용 게이팅 — 다른 인라인 기능 경로에는 조각이 실리지 않는다).
 - **REQ-AI-008-011**: **WHEN** 서브메뉴가 열린 상태에서 Escape가 눌리면, **the system shall** 서브메뉴만 닫고 상위 프리셋 목록으로 포커스를 복귀시킨다(툴바 전체를 닫지 않는다 — 기존 custom-input의 Esc→목록 복귀 선례와 동형).
 - **REQ-AI-008-012**: **WHEN** 서브메뉴가 열린 상태에서 툴바 래퍼(`.mdedit-ai-toolbar`) 외부에 mousedown이 발생하면, **the system shall** 서브메뉴를 상위 메뉴와 함께 닫는다(기존 위젯 `onOutsideMouseDown` 경로 재사용).
-- **REQ-AI-008-013**: **WHEN** 사용자가 서브메뉴 내부를 키보드(Tab / **방향키** / Enter / Space)로 조작하면, **the system shall** 8개 항목 간 포커스를 이동시키고(방향키는 래핑 순환) Enter/Space로 포커스된 항목을 선택 가능하게 한다(기존 프리셋 항목과 동일한 네이티브 `<button>` 시맨틱). 서브메뉴 컨테이너는 `role="menu"`를, 8개 항목은 각각 `role="menuitem"`을 갖는다(SPEC-AI-011).
+- **REQ-AI-008-013**: **WHEN** 사용자가 서브메뉴 내부를 키보드(Tab / Enter / Space)로 조작하면, **the system shall** 8개 항목 간 포커스를 이동시키고 Enter/Space로 포커스된 항목을 선택 가능하게 한다(기존 프리셋 항목과 동일한 네이티브 `<button>` 시맨틱). 서브메뉴 컨테이너는 `role="menu"`를, 8개 항목은 각각 `role="menuitem"`을 갖는다(SPEC-AI-011). (v0.0.4: 방향키 래핑 순환 요구는 도달 불가로 확인되어 철회 — HISTORY 참조)
 
 ### State-Driven Requirements
 
@@ -175,7 +176,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 | AC-AI-008-006 | REQ-AI-008-010 | `diagram_type` 실린 요청 → 공유 경로의 diagram 게이팅으로 조립 프롬프트에 해당 종류 제약 조각 + 첫 줄 키워드(표) 포함; 7종 각각 서로 다른 키워드 명시 |
 | AC-AI-008-007 | REQ-AI-008-011, 015 | 서브메뉴 열림 상태 Esc → 서브메뉴만 닫히고 프리셋 목록 복귀(툴바 유지); 메뉴 닫힘 시 서브메뉴/리스너 정리 |
 | AC-AI-008-008 | REQ-AI-008-012 | 서브메뉴 열림 상태에서 툴바 외부 mousedown → 서브메뉴 + 상위 메뉴 함께 닫힘 |
-| AC-AI-008-009 | REQ-AI-008-013 | Tab 포커스 순회 + 방향키 래핑 순환 + Enter/Space로 포커스 항목 선택(네이티브 `<button>`); 포커스 진입(트리거 활성화 → 첫 항목)/복귀(Esc → 트리거) 포함; 서브메뉴 `role="menu"` + 항목 `role="menuitem"`(SPEC-AI-011) |
+| AC-AI-008-009 | REQ-AI-008-013 | Tab 포커스 순회 + Enter/Space로 포커스 항목 선택(네이티브 `<button>`); 복귀(Esc → 트리거) 포함; 서브메뉴 `role="menu"` + 항목 `role="menuitem"`(SPEC-AI-011). (v0.0.4: 방향키 래핑 순환·포커스 진입 요구는 철회 — HISTORY 참조) |
 | AC-AI-008-010 | REQ-AI-008-014, 017 | 종류 실은 초기 요청의 자동 재요청(feature='diagram')이 `diagramType` 승계(`fireReRequest` 스프레드); 종류 불일치는 검증 실패로 취급되지 않음(`decideDiagramOutcome`/`buildFallbackDecision` 무변경); 목록 폴백은 종류 버림 |
 | AC-AI-008-011 | REQ-AI-008-016 | AI 토글 OFF(`enabled:false`) → `buildToolbarDecorations`가 데코 0건 → 툴바/서브메뉴 미노출 |
 | AC-AI-008-012 | REQ-AI-008-003 | 신규 서브메뉴 CSS·아이콘이 `--md-*`/`.mdedit-*` 토큰·`currentColor`만 사용, raw hex 없음 |

@@ -83,7 +83,7 @@ npm test -- aiSelectionToolbar
 
 ---
 
-### AC-AI-011-004: 키보드 활성화 → 열림 + 첫 항목 포커스
+### [WITHDRAWN v1.1.0 — 도달 불가 확인, spec.md HISTORY 참조] AC-AI-011-004: 키보드 활성화 → 열림 + 첫 항목 포커스
 
 ```bash
 npm test -- aiSelectionToolbar
@@ -98,7 +98,7 @@ grep -n "addEventListener('click'" src/components/editor/extensions/ai-selection
 
 ---
 
-### AC-AI-011-005: 방향키 열기 및 래핑 순환
+### [WITHDRAWN v1.1.0 — 도달 불가 확인, spec.md HISTORY 참조] AC-AI-011-005: 방향키 열기 및 래핑 순환
 
 ```bash
 npm test -- aiSelectionToolbar
@@ -115,7 +115,7 @@ npm test -- aiSelectionToolbar
 
 ---
 
-### AC-AI-011-006: Enter/Space 단일 발화
+### [WITHDRAWN v1.1.0 — 도달 불가 확인, spec.md HISTORY 참조] AC-AI-011-006: Enter/Space 단일 발화
 
 ```bash
 npm test -- aiSelectionToolbar
@@ -271,7 +271,7 @@ git diff --stat -- .moai/specs/SPEC-AI-008-diagram-type-picker/
 - [ ] **B-2 Enter/Space 이중 발화 확인** — 서브메뉴 항목에 포커스를 두고 Enter를 **한 번** 누른다. AI 요청이 **1회만** 발행되는지 카드/네트워크 활동으로 확인한다(2회 발행 시 비용 있는 중복 요청). → REQ-010 (AC-006의 jsdom 한계 보완)
 - [ ] **B-3 트리거→서브메뉴 포인터 이동** — 트리거에 hover해 연 뒤, 포인터를 서브메뉴 항목 위로 **천천히** 옮긴다. 4px 간극을 지나는 동안 서브메뉴가 조기에 닫히지 **않는다**. → REQ-013 / R2
 - [ ] **B-4 다른 프리셋으로 이동 시 닫힘** — 트리거에 hover해 연 뒤 포인터를 "다듬기" 등 다른 프리셋으로 옮기면 서브메뉴가 닫힌다. → REQ-013
-- [ ] **B-5 물리 키보드 도달성 (macOS)** — Tab으로 프리셋 항목들을 순회해 다이어그램 트리거에 도달할 수 있는지 확인한다. 도달 불가라면 macOS 시스템 설정의 "키보드 탐색"(전체 키보드 접근) 상태를 함께 기록한다 — WKWebView 특성이며 본 SPEC 범위 밖의 플랫폼 이슈다. 도달 후 ArrowDown / Enter 경로는 명시적 `.focus()`로 동작하므로 이 설정과 무관하게 작동해야 한다. → REQ-007, 008 / R6
+- [x] **B-5 물리 키보드 도달성 (macOS)** — **v1.1.0: 미검증이 아니라 실패로 확정.** Tab으로 프리셋 항목을 순회해도 다이어그램 트리거에 도달하지 못한다 — 원인 3가지가 실기기에서 확인됨: (1) 프리셋 메뉴 루트 `dom.tabIndex = -1`이고 메뉴/버튼을 열 때 아무도 focus()하지 않음, (2) Tab은 `markdown-extensions.ts:120`의 `indentWithTab`이 소비해 CodeMirror 밖으로 나가지 않음, (3) macOS WebKit은 `<button>` 클릭 시 포커스를 주지 않아 ✨ 클릭 이후에도 포커스가 에디터에 남는다. 즉 이 항목은 머지 시점에 **미검증**으로 남아 있던 것이 실제로는 **설계상 항상 실패**했던 것으로 드러났다 — 이 B-5를 머지 전에 실행했다면 결함을 잡았을 것이다. REQ-007, 008은 이 결과에 따라 spec.md v1.1.0에서 WITHDRAWN 처리했다. → REQ-007, 008 / R6 (철회)
 - [ ] **B-6 Escape 복귀** — 서브메뉴가 열린 상태에서 Escape → 서브메뉴만 닫히고 프리셋 목록이 남으며, 다시 Escape → 툴바가 닫힌다. → REQ-011
 - [ ] **B-7 다크/라이트 테마** — 두 테마에서 서브메뉴 포커스 링(`:focus-visible`, `mdedit-components.css:462`)이 보이는지 확인한다(키보드 내비게이션이 새로 실질화되므로 포커스 가시성이 중요해진다).
 - [ ] **B-8 Windows 스모크** (가능한 경우) — WebView2에서 B-1, B-3만 재확인.
