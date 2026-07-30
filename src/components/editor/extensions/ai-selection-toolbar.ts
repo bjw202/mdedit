@@ -522,10 +522,12 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     if (diagramSubmenu || !diagramTrigger) return;
     const sub = document.createElement('div');
     sub.className = 'mdedit-ai-diagram-submenu';
+    sub.setAttribute('role', 'menu');
     DIAGRAM_SUBMENU_DEFS.forEach((def) => {
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'mdedit-ai-diagram-submenu-item';
+      item.setAttribute('role', 'menuitem');
       item.setAttribute('aria-label', def.label);
       if (def.type === null) {
         item.dataset.diagramAuto = 'true';

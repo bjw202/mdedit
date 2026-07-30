@@ -1025,6 +1025,19 @@ describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
     }
   });
 
+  it('submenu container has role="menu" and all 8 items have role="menuitem" (AC-003, REQ-005)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const sub = menu.dom.querySelector('.mdedit-ai-diagram-submenu')!;
+    expect(sub.getAttribute('role')).toBe('menu');
+    const items = sub.querySelectorAll('.mdedit-ai-diagram-submenu-item');
+    expect(items.length).toBe(8);
+    for (const item of items) {
+      expect(item.getAttribute('role')).toBe('menuitem');
+    }
+    menu.destroy();
+  });
+
   it('Escape closes only the submenu and keeps the preset list (AC-007)', async () => {
     const { trigger, callbacks, menu } = await build();
     trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
