@@ -550,11 +550,6 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     scheduleSubmenuFlipMeasurement(sub, diagramTrigger);
   };
 
-  const toggleDiagramSubmenu = (): void => {
-    if (diagramSubmenu) closeDiagramSubmenu();
-    else openDiagramSubmenu();
-  };
-
   const renderPresets = (): void => {
     // 재렌더는 이전 서브메뉴 DOM/참조를 버린다 — 상태를 초기화하고 트리거를 새로 바인딩한다.
     diagramSubmenu = null;
@@ -602,9 +597,9 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
         wrap.appendChild(btn);
         if (!item.disabled) {
           diagramTrigger = btn;
-          // hover 시 열림(REQ-006), 클릭 토글(REQ-007) — 클릭은 즉시 발행하지 않는다.
+          // SPEC-AI-011: hover 도 클릭도 열기 전용(open-only) — 이미 열려 있으면 무변경(REQ-001/002).
           btn.addEventListener('mouseenter', () => openDiagramSubmenu());
-          btn.addEventListener('click', () => toggleDiagramSubmenu());
+          btn.addEventListener('click', () => openDiagramSubmenu());
         }
         list.appendChild(wrap);
         return;

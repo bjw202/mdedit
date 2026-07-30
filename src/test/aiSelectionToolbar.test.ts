@@ -923,13 +923,31 @@ describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
     menu.destroy();
   });
 
-  it('click toggles the submenu open then closed (AC-001, REQ-007)', async () => {
+  it('repeated clicks on an already-open submenu leave it open, not toggled closed (AC-001, REQ-001/002)', async () => {
     const { trigger, menu } = await build();
     trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    // SPEC-AI-011: 트리거 클릭은 열기 전용(open-only) — 이미 열린 서브메뉴는 클릭으로 닫히지 않는다.
     trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    menu.destroy();
+  });
+
+  // SPEC-AI-011 REQ-001/002: 실제 포인터 클릭은 mouseenter → click 순으로 발화한다(jsdom 은 이를
+  // 자동 재현하지 않으므로 여기서 명시적으로 순서대로 dispatch 한다 — 브라우저 동작의 증명이 아니라
+  // 가정의 문서화임을 인정한다. 실질 가드는 Playwright 계층, e2e/ai-inline-edit.spec.ts 다이어그램 테스트).
+  it('real pointer click sequence (mouseenter then click) leaves the submenu open, not no-op (AC-001, REQ-001/002/003)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    // 추가 클릭 2회도 여전히 열린 채로 남는다(멱등).
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    expect(callbacks.onSelectPreset).not.toHaveBeenCalled();
     menu.destroy();
   });
 
