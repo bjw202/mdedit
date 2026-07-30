@@ -1,0 +1,90 @@
+name: Frontend Quality Gates
+
+# 프런트엔드 4대 품질 게이트: lint, typecheck, unit(vitest), e2e(Playwright webkit)
+# 범위 의도적 제한: src-tauri/(Rust)는 별도 SPEC에서 다룸 — 이 워크플로우에 cargo 스텝을 추가하지 말 것.
+# Rust 게이트가 필요해지면 별도 job으로 추가(예: jobs.rust-gates)하면 되고, 이 job의 구조는 그대로 둔다.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 같은 PR/브랜치에 연속 push 시 이전 실행은 취소하여 CI 분(Actions minutes) 낭비 방지
+concurrency:
+  group: frontend-gates-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gates:
+    name: Lint · Typecheck · Unit · E2E (webkit)
+    # macOS 러너 선택 이유:
+    #  1) 이 저장소는 public repo라 macOS 러너 분(minute)도 무료 한도 내에서 사용 가능
+    #  2) e2e 스펙(예: table-border.spec.ts, mermaid-subgraph-label.spec.ts)은
+    #     3px 단위의 픽셀 지오메트리 단언을 macOS WebKit 기준으로 측정·튜닝했음.
+    #     ubuntu-latest의 WebKit(GTK 포트)은 폰트 렌더링이 달라 동일 단언이
+    #     허위 실패(false failure)할 위험이 있어 배제함.
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # package-lock.json에 고정된 @playwright/test 버전을 캐시 키에 사용.
+      # 버전이 올라가면 키가 바뀌어 캐시가 자동으로 무효화되고 새 브라우저가 설치됨.
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: |
+          echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: playwright-webkit-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      # playwright.config.ts의 유일한 project가 webkit이므로 webkit만 설치(전체 브라우저 설치 불필요)
+      - name: Install Playwright webkit browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install webkit
+
+      - name: Lint (eslint --max-warnings 0)
+        run: npm run lint
+
+      # 앞 스텝이 실패해도 나머지 게이트 결과를 한 번에 확인할 수 있도록 `!cancelled()` 사용.
+      # (job 4개로 쪼개 매번 npm ci를 반복하는 대신, 의존성 설치는 1회만 하고
+      #  각 게이트의 pass/fail 가시성만 개별 스텝으로 확보하는 절충안)
+      - name: Typecheck (tsc --noEmit)
+        if: ${{ !cancelled() }}
+        run: npm run typecheck
+
+      - name: Unit tests (vitest, 1405 tests)
+        if: ${{ !cancelled() }}
+        run: npm test
+
+      # playwright.config.ts의 webServer가 `npm run dev-vite`를 직접 기동/종료하므로
+      # 여기서 별도 빌드/dev-server 스텝을 추가하지 않는다.
+      # (e2e는 프로덕션 빌드가 아니라 Vite dev 서버를 대상으로 실행되도록 설계됨)
+      - name: E2E tests (Playwright webkit, 56 tests)
+        if: ${{ !cancelled() }}
+        run: npm run test:e2e
+
+      # e2e 실패 시에만 리포트 업로드 — 로컬 재현 없이 실패를 진단할 수 있도록 함
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
