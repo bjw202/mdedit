@@ -228,7 +228,12 @@ test-results/
 # state/ 는 통째로 무시하고 공유가 필요한 파일만 되살린다. 세션 중에도 새 런타임
 # 파일이 생기므로(harness/, lessons-inbox.jsonl 등) 개별 나열보다 안전하다.
 # 주의: 앞으로 .moai/state/ 에 공유해야 할 파일이 생기면 아래에 ! 로 명시해야 한다.
-.moai/state/*
+# `.moai/state/*` 는 슬래시를 포함하므로 저장소 루트만 막았다. 도구가 실행 위치에 따라
+# <아무폴더>/.moai/state/ 를 만들면 그대로 통과해, 실제로 SPEC 폴더 안의
+# context-usage.json 이 두 번 커밋됐다(SPEC-AI-009, SPEC-AI-011). 위치와 무관하게 막는다.
+# 디렉터리(`**/.moai/state/`)가 아니라 그 안의 파일(`/*`)을 제외해야 아래 ! 예외가 살아남는다
+# — git 은 부모 디렉터리가 제외되면 안쪽 파일을 되살릴 수 없다.
+**/.moai/state/*
 !.moai/state/.gitkeep
 !.moai/state/session-memo.md
 .moai/harness/
