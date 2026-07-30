@@ -189,15 +189,18 @@ test.describe('AI 인라인 편집 여정 (SPEC-AI-001)', () => {
     await aiPage.locator('.mdedit-ai-sparkle-btn').click();
 
     // SPEC-AI-008: "다이어그램으로" 는 더 이상 즉시 발행 프리셋이 아니라 종류 플라이아웃
-    // 트리거다 — mouseenter 가 서브메뉴를 열고, 실제 요청은 서브메뉴 항목 클릭으로만 발행된다.
-    // 주의(알려진 UI 결함, 이 SPEC 범위 밖): 트리거 자체를 click() 하면 mouseenter 가 연 서브메뉴를
-    // 곧이어 click 핸들러가 토글해 닫아버려 no-op 이 된다. 그래서 여기서는 트리거를 hover() 만 하고
-    // click() 하지 않는다 — 다음에 이 시퀀스를 "단순화"해서 단일 클릭으로 되돌리지 말 것.
+    // 트리거다 — mouseenter/클릭 어느 쪽도 서브메뉴를 열고, 실제 요청은 서브메뉴 항목 클릭으로만
+    // 발행된다. SPEC-AI-011: 트리거 클릭은 열기 전용(open-only)이 되어 hover·click 양쪽 모두
+    // 유효하다 — locator.click()은 실제 마우스 이동 + 클릭을 주입하므로 mouseenter → click이
+    // 브라우저에 의해 자연 발화되고, 서브메뉴는 열린 채로 유지된다(클릭-토글로 되돌리지 말 것).
     const diagramTrigger = aiPage.locator(
       '.mdedit-ai-preset-menu .mdedit-ai-preset-item[data-preset="diagram"]'
     );
-    await diagramTrigger.hover();
+    await diagramTrigger.click();
     const diagramSubmenu = aiPage.locator('.mdedit-ai-diagram-submenu');
+    await expect(diagramSubmenu).toBeVisible({ timeout: 3_000 });
+    // 같은 트리거를 한 번 더 클릭해도 서브메뉴가 열린 채로 남는다(토글 닫힘 회귀 가드, REQ-002).
+    await diagramTrigger.click();
     await expect(diagramSubmenu).toBeVisible({ timeout: 3_000 });
     // "자동 (AI 판단)" 항목 — diagramType 없이 발행되어 기존 단일 클릭 시절의 "auto" 의미를 유지한다.
     await diagramSubmenu.locator('[data-diagram-auto="true"]').click();
