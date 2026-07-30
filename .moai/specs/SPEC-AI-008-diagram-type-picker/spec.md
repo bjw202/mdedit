@@ -1,9 +1,9 @@
 ---
 id: SPEC-AI-008
-version: "0.0.2"
+version: "0.0.3"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-07-30"
 author: "jw"
 priority: medium
 issue_number: 0
@@ -31,6 +31,7 @@ lifecycle: spec-anchored
 |---------|------|--------|---------|
 | 0.0.1 | 2026-07-22 | jw | 최초 SPEC 작성 — AI 선택 툴바(✨)의 "🧜 다이어그램으로" 프리셋에 다이어그램 종류 플라이아웃 서브메뉴 추가. 8항목(자동 + 7종). 사용자 확정 결정 반영: (1) 진입점 = `ai-selection-toolbar.ts`의 프리셋 메뉴에서 `{ kind:'diagram' }` 항목을 즉시 발행 대신 플라이아웃 서브메뉴 열림으로 변경(명령형 DOM, `createPresetMenu` 선례 재사용), (2) 서브메뉴 = "자동 (AI 판단)"(첫 항목·기본, 오늘 동작 유지) + 7종 프리셋(flowchart/sequenceDiagram/gantt/classDiagram/stateDiagram/pie/mindmap), 각 종류 항목은 SPEC-UI-008 스켈레톤 아이콘 형상 + 한글 라벨을 재사용, (3) 종류 선택 = AI 다이어그램 생성 프롬프트에 해당 mermaid 종류를 강제하는 제약 조각(fragment) 주입(Rust `prompt.rs`), "자동" = 기존 프롬프트 무변경(바이트 동일), (4) 다운스트림(스트리밍·`mermaidValidate` 파싱·제안 카드·재요청 UX; SPEC-AI-003/004/006 계보) 무변경 — 프롬프트만 종류 제약을 얻는다. 조사 근거: 프롬프트 조립은 100% Rust(REQ-AI-003), IPC는 `feature`/`presetKind`/`customInstruction` 전달; 재요청은 `fireReRequest`가 원본 args를 스프레드하므로 종류 필드가 자동 승계됨. |
 | 0.0.2 | 2026-07-22 | jw | plan-audit 리뷰(SPEC-AI-008-review-1, FAIL 0.80) 반영 — 결함 5건 수정: **D1**(major) "자동=바이트 동일" 불변식(REQ-018/AC-004/Summary)을 잘못된 아티팩트(`Diagram.system_prompt()` 단독)에서 실제 조립 결과(`build_inline_prompt` 산출 = `system_prompt()` + `\n\n` + INLINE_SCOPE)로 재앵커. **D2**(major) Diagram 전용 조립 분기가 없고 공유 `build_inline_prompt`(비-diagram 5기능과 INLINE_SCOPE 공유)를 탄다는 사실 반영 — REQ-010/Delta를 "공유 경로 내 diagram 전용 게이팅"으로 정정하고, 비-diagram 5기능(polish/outline/table/shorten/custom) 프롬프트 바이트 동일 회귀 가드로 신규 **REQ-025 + AC-014** 추가. **D3**(minor) icons.tsx 추출 리팩터 후 UI-008 JSX 아이콘 7종 렌더 SVG 무변경 가드를 AC-014에 추가하고 REQ-023의 "단일 소스"를 "양쪽 소비자 렌더 path 문자열 동일"로 이진화. **D4**(minor) REQ-006의 "짧은 지연 후"를 정규 요구에서 제거(이진화: "hover 시 연다"), 지연은 Design Notes로 이관. **D5**(minor) REQ-017의 긍정 단언을 근거절/Design Notes로 분리해 순수 shall-not로. REQ 24→25, AC 13→14, 커버리지 대조표·Delta·Fragments 인트로 갱신. |
+| 0.0.3 | 2026-07-30 | jw | **SPEC-AI-011로 REQ-006/007 충돌 해소 — 클릭 열기 전용으로 개정.** REQ-AI-008-007의 "hover 불가 환경에서 클릭 시 토글(열림↔닫힘)"을 "포인터·키보드 어느 경로든 클릭 시 연다. 이미 열려 있으면 상태를 바꾸지 않는다"(open-only)로 개정 — 전제절 "hover 불가 환경에서"는 런타임에 판별 불가능해 삭제. REQ-AI-008-006에 "hover 열림과 클릭 열림은 상호 배타적이지 않으며 둘 다 멱등 열기 연산" 명확화를 추가. REQ-AI-008-013을 "Tab / 방향키 / Enter / Space"로 확장하고 `role="menu"`/`role="menuitem"` 요구를 추가. AC-AI-008-001의 "클릭(no-hover) → 토글"을 "클릭 → 열림(이미 열려 있으면 무변경)"으로, AC-AI-008-009를 방향키 래핑 순환 + 포커스 진입/복귀 포함으로 확장. 근거: 실제 포인터 클릭은 mouseenter → click 순으로 발화해 REQ-006(hover 열림)과 REQ-007(클릭 토글)이 포인터 입력에서 동시 만족 불가능했다(코딩 실수가 아니라 명세 충돌). 구현·검증은 SPEC-AI-011 참조. |
 
 ## Summary
 
@@ -90,14 +91,14 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 
 ### Event-Driven Requirements
 
-- **REQ-AI-008-006**: **WHEN** hover 가능 포인터가 "다이어그램으로" 항목 위에 올라오면, **the system shall** 플라이아웃 서브메뉴를 연다. (hover intent 지연 값은 이진 수용 기준이 아니며 Design Notes에서 다룬다.)
-- **REQ-AI-008-007**: **WHEN** hover 불가(터치/키보드) 환경에서 "다이어그램으로" 항목이 클릭·활성화되면, **the system shall** 플라이아웃 서브메뉴를 토글(열림↔닫힘)한다. 이 항목의 활성화는 즉시 다이어그램 요청을 발행하지 않는다(오늘 동작과의 차이).
+- **REQ-AI-008-006**: **WHEN** hover 가능 포인터가 "다이어그램으로" 항목 위에 올라오면, **the system shall** 플라이아웃 서브메뉴를 연다. (hover intent 지연 값은 이진 수용 기준이 아니며 Design Notes에서 다룬다.) hover 열림과 클릭 열림(REQ-007)은 상호 배타적이지 않으며, 둘 다 멱등 열기 연산이므로 같은 제스처에서 연달아 실행되어도 결과가 동일하다(SPEC-AI-011).
+- **REQ-AI-008-007**: **WHEN** "다이어그램으로" 항목이 클릭·활성화되면(포인터·키보드 어느 경로든), **the system shall** 플라이아웃 서브메뉴를 **연다. 이미 열려 있으면 상태를 바꾸지 않는다**(open-only, SPEC-AI-011). 이 항목의 활성화는 어느 경로에서도 즉시 다이어그램 요청을 발행하지 않는다(오늘 동작과의 차이).
 - **REQ-AI-008-008**: **WHEN** 사용자가 "자동 (AI 판단)"을 선택하면, **the system shall** 다이어그램 요청을 **종류 필드 없이**(`diagramType` 생략) 발행하고 서브메뉴와 프리셋 메뉴를 닫는다.
 - **REQ-AI-008-009**: **WHEN** 사용자가 7종 종류 항목 중 하나를 선택하면, **the system shall** 다이어그램 요청에 선택한 종류(`diagramType`)를 실어 발행하고 서브메뉴와 프리셋 메뉴를 닫는다.
 - **REQ-AI-008-010**: **WHEN** 다이어그램 요청이 종류(`diagramType`)를 실어 도착하면, **the system shall** 공유 `build_inline_prompt` 경로 안에서 **feature가 Diagram일 때만** "Diagram Type Prompt Fragments" 표의 해당 제약 조각을 조립되는 시스템 프롬프트에 덧붙여, 출력이 정확히 그 mermaid 종류가 되도록 강제한다(diagram 전용 게이팅 — 다른 인라인 기능 경로에는 조각이 실리지 않는다).
 - **REQ-AI-008-011**: **WHEN** 서브메뉴가 열린 상태에서 Escape가 눌리면, **the system shall** 서브메뉴만 닫고 상위 프리셋 목록으로 포커스를 복귀시킨다(툴바 전체를 닫지 않는다 — 기존 custom-input의 Esc→목록 복귀 선례와 동형).
 - **REQ-AI-008-012**: **WHEN** 서브메뉴가 열린 상태에서 툴바 래퍼(`.mdedit-ai-toolbar`) 외부에 mousedown이 발생하면, **the system shall** 서브메뉴를 상위 메뉴와 함께 닫는다(기존 위젯 `onOutsideMouseDown` 경로 재사용).
-- **REQ-AI-008-013**: **WHEN** 사용자가 서브메뉴 내부를 키보드(Tab / Enter / Space)로 조작하면, **the system shall** 8개 항목 간 포커스를 이동시키고 Enter/Space로 포커스된 항목을 선택 가능하게 한다(기존 프리셋 항목과 동일한 네이티브 `<button>` 시맨틱).
+- **REQ-AI-008-013**: **WHEN** 사용자가 서브메뉴 내부를 키보드(Tab / **방향키** / Enter / Space)로 조작하면, **the system shall** 8개 항목 간 포커스를 이동시키고(방향키는 래핑 순환) Enter/Space로 포커스된 항목을 선택 가능하게 한다(기존 프리셋 항목과 동일한 네이티브 `<button>` 시맨틱). 서브메뉴 컨테이너는 `role="menu"`를, 8개 항목은 각각 `role="menuitem"`을 갖는다(SPEC-AI-011).
 
 ### State-Driven Requirements
 
@@ -138,7 +139,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 > 아래는 요구사항이 아니며(AC 없음), Run phase의 설계 참고 사항이다.
 
 - **아이콘 공유 소스(REQ-AI-008-023 구현 힌트)**: 명령형 서브메뉴는 JSX를 마운트할 수 없으므로, 7종 아이콘의 SVG inner 마크업을 문자열 단일 소스(예: `icons.tsx` 옆의 상수 모듈)로 추출해 (a) 기존 JSX 컴포넌트와 (b) 명령형 서브메뉴(`innerHTML` 또는 SVG 노드 생성)가 함께 소비하도록 상정한다. path 데이터를 서브메뉴에 다시 타이핑하지 말 것. 정확한 추출 형태는 Run phase 재량.
-- **hover intent 지연(REQ-AI-008-006 힌트)**: 작은 지연(예: ~120ms)으로 우발적 hover 열림을 억제하되, 이진 수용 기준이 아닌 설계 목표다. 이진 검증 대상은 "hover 시 열림 / 클릭 토글 / Esc 복귀 / 외부 클릭 닫힘"에 한한다.
+- **hover intent 지연(REQ-AI-008-006 힌트)**: 작은 지연(예: ~120ms)으로 우발적 hover 열림을 억제하되, 이진 수용 기준이 아닌 설계 목표다(SPEC-AI-011 Rejected Alternatives (e) — 타이밍 의존 동작은 검증 불가로 기각되었으므로 미구현 상태를 유지한다). 이진 검증 대상은 "hover 시 열림 / 클릭 시 열림(open-only) / Esc 복귀 / 외부 클릭 닫힘"에 한한다.
 - **자동 항목 아이콘**: "자동 (AI 판단)"은 종류 아이콘 대신 라벨만 두거나 별도 auto 글리프를 쓸 수 있다(Run 재량). 종류 아이콘 재사용 요구(REQ-AI-008-002)는 7종 항목에 한정된다.
 - **IPC 필드명**: `diagramType`(camelCase) → Rust `diagram_type: Option<String>`(`#[serde(default)]`). 값은 프론트 union 키(`flowchart` 등)와 문자 동일하게 상정한다. Rust는 미지의 값에 관대하게(무시 → 자동과 동일) 처리하거나 명시적 매핑 실패를 자동으로 폴백하는 방향을 권장한다.
 - **fire 시그니처 확장 힌트**: `fire(presetKind, customInstruction)`에 종류 인자를 더해 `buildSelectionRequest`가 `args.diagramType`을 채우는 방식을 상정한다. `presetToFeature`/`feature='diagram'` 매핑은 무변경.
@@ -166,7 +167,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 
 | AC ID | Requirement | Summary |
 |-------|-------------|---------|
-| AC-AI-008-001 | REQ-AI-008-005, 006, 007 | "다이어그램으로" 항목 hover(hover 환경) → 서브메뉴 열림; 클릭(no-hover) → 토글; `aria-haspopup`/`aria-expanded` 반영; 클릭이 즉시 요청을 발행하지 않음 |
+| AC-AI-008-001 | REQ-AI-008-005, 006, 007 | "다이어그램으로" 항목 hover → 서브메뉴 열림; 클릭 → 열림(이미 열려 있으면 무변경, SPEC-AI-011); `aria-haspopup`/`aria-expanded` 반영; 클릭이 즉시 요청을 발행하지 않음 |
 | AC-AI-008-002 | REQ-AI-008-001, 004 | 서브메뉴가 정확히 8항목, "자동 (AI 판단)"이 첫 항목; 7종 순서(flowchart→…→mindmap); 각 항목 개별 `aria-label` + 한글 라벨 |
 | AC-AI-008-003 | REQ-AI-008-002, 023 | 7종 항목 아이콘이 `<svg>` + `stroke="currentColor"` 상속으로 렌더; 서브메뉴 렌더 path 문자열이 SPEC-UI-008 JSX 아이콘의 렌더 path 문자열과 종류별로 동일(단일 소스, 중복 없음) |
 | AC-AI-008-004 | REQ-AI-008-008, 018 | "자동" 선택 → 요청에 `diagramType` 미포함; `diagram_type=None`으로 `build_inline_prompt`가 산출하는 Diagram 시스템 프롬프트 == 현행 조립 결과(`system_prompt()` + `\n\n` + INLINE_SCOPE) 스냅샷과 바이트 동일 |
@@ -174,7 +175,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 | AC-AI-008-006 | REQ-AI-008-010 | `diagram_type` 실린 요청 → 공유 경로의 diagram 게이팅으로 조립 프롬프트에 해당 종류 제약 조각 + 첫 줄 키워드(표) 포함; 7종 각각 서로 다른 키워드 명시 |
 | AC-AI-008-007 | REQ-AI-008-011, 015 | 서브메뉴 열림 상태 Esc → 서브메뉴만 닫히고 프리셋 목록 복귀(툴바 유지); 메뉴 닫힘 시 서브메뉴/리스너 정리 |
 | AC-AI-008-008 | REQ-AI-008-012 | 서브메뉴 열림 상태에서 툴바 외부 mousedown → 서브메뉴 + 상위 메뉴 함께 닫힘 |
-| AC-AI-008-009 | REQ-AI-008-013 | Tab 포커스 순회 + Enter/Space로 포커스 항목 선택(네이티브 `<button>`) |
+| AC-AI-008-009 | REQ-AI-008-013 | Tab 포커스 순회 + 방향키 래핑 순환 + Enter/Space로 포커스 항목 선택(네이티브 `<button>`); 포커스 진입(트리거 활성화 → 첫 항목)/복귀(Esc → 트리거) 포함; 서브메뉴 `role="menu"` + 항목 `role="menuitem"`(SPEC-AI-011) |
 | AC-AI-008-010 | REQ-AI-008-014, 017 | 종류 실은 초기 요청의 자동 재요청(feature='diagram')이 `diagramType` 승계(`fireReRequest` 스프레드); 종류 불일치는 검증 실패로 취급되지 않음(`decideDiagramOutcome`/`buildFallbackDecision` 무변경); 목록 폴백은 종류 버림 |
 | AC-AI-008-011 | REQ-AI-008-016 | AI 토글 OFF(`enabled:false`) → `buildToolbarDecorations`가 데코 0건 → 툴바/서브메뉴 미노출 |
 | AC-AI-008-012 | REQ-AI-008-003 | 신규 서브메뉴 CSS·아이콘이 `--md-*`/`.mdedit-*` 토큰·`currentColor`만 사용, raw hex 없음 |
