@@ -1149,6 +1149,28 @@ describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
     menu.destroy();
   });
 
+  it('hovering another preset item closes the open diagram submenu (AC-009, REQ-013)', async () => {
+    const { trigger, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
+    polish.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    menu.destroy();
+  });
+
+  it('other preset items remain clickable while the diagram submenu is open, no blocking backdrop (AC-008, REQ-012/015)', async () => {
+    const { trigger, callbacks, menu } = await build();
+    trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeTruthy();
+    const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
+    polish.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(callbacks.onSelectPreset).toHaveBeenCalledWith('polish');
+    expect(document.querySelector('.mdedit-ai-backdrop')).toBeNull();
+    menu.destroy();
+  });
+
   it('Escape closes only the submenu and keeps the preset list (AC-007)', async () => {
     const { trigger, callbacks, menu } = await build();
     trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));

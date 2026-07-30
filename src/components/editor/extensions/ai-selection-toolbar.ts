@@ -654,6 +654,11 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
         return;
       }
 
+      // SPEC-AI-011 REQ-013: 다른 프리셋 항목으로 포인터가 이동하면 열려 있던 다이어그램
+      // 서브메뉴를 닫는다. 트리거 자체의 mouseleave 가 아니라 "다른 항목 진입"을 기준으로 삼아
+      // SUBMENU_GAP 간극을 지나는 중 조기에 닫히는 문제를 피한다(D4 후보 i, R2).
+      btn.addEventListener('mouseenter', () => closeDiagramSubmenu());
+
       btn.addEventListener('click', () => {
         if (item.disabled) return;
         if (item.kind === 'custom') {
