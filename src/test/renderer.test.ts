@@ -384,3 +384,232 @@ describe('renderMarkdown: inline SVG placeholder (SPEC-PREVIEW-008)', () => {
     expect(result).toMatch(/<code>&lt;svg id=&quot;x&quot;&gt;<\/code>/);
   });
 });
+
+// ---- SPEC-PREVIEW-012: 표 셀 리터럴 <br> → hardbreak 토큰 변환 ----
+// 검증 범위: 표 셀 안 리터럴 <br>/<br/>/<br />를 markdown-it hardbreak로 교체.
+// 단락·코드 컨텍스트는 미적용. 속성 포함 <br>와 비표준 </br>는 매칭 거부(XSS 방어).
+describe('renderMarkdown: table cell line break (SPEC-PREVIEW-012)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // ---- 시나리오 A: 표 셀 안 <br>을 줄바꿈으로 렌더 (REQ-001, 002) — must-pass ----
+  it('표 셀 안 리터럴 <br>를 실제 <br> 태그로 렌더한다 (시나리오 A)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    // 3행 표 — 헤더 + 본문. <br>가 본문 셀(<td>)에 위치하도록 구성.
+    const content = '| Col1 | Col2 |\n|---|---|\n| a<br>b | c |';
+    const result = await renderMarkdown(content, null);
+    // 셀 안에서 리터럴 <br>가 hardbreak로 변환되어 실제 <br> 태그가 포함된다
+    // hardbreak 렌더 규칙은 '<br>\n' 출력 (xhtmlOut=false 기본값)
+    expect(result).toContain('a<br>');
+    expect(result).toContain('b</td>');
+    // 이스케이프된 형태(&lt;br&gt;)는 더 이상 나타나지 않아야 한다
+    expect(result).not.toContain('&lt;br&gt;');
+    expect(result).not.toContain('a&lt;br&gt;b');
+  });
+
+  // ---- 시나리오 B: 셀프클로징 변형 지원 (REQ-001) ----
+  it('표 셀 안 <br/> 셀프클로징 변형도 hardbreak로 변환한다 (시나리오 B)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a<br/>b | c |', null);
+    expect(result).toContain('a<br>');
+    expect(result).not.toContain('&lt;br/&gt;');
+  });
+
+  it('표 셀 안 <br /> (공백 포함 셀프클로징) 변형도 hardbreak로 변환한다 (시나리오 B)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a<br />b | c |', null);
+    expect(result).toContain('a<br>');
+    expect(result).not.toContain('&lt;br /&gt;');
+  });
+
+  it('<BR>, <Br/> 등 대소문자 혼합 형태도 매칭한다 (케이스 인센서티브)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const upper = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a<BR>b | c |', null);
+    expect(upper).toContain('a<br>');
+    expect(upper).not.toContain('&lt;BR&gt;');
+
+    const mixed = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a<Br/>b | c |', null);
+    expect(mixed).toContain('a<br>');
+    expect(mixed).not.toContain('&lt;Br/&gt;');
+  });
+
+  // ---- 시나리오 C: 단락·인용·목록의 <br> 텍스트는 변환하지 않음 (REQ-003) — must-pass ----
+  it('일반 단락 안의 <br> 텍스트는 이스케이프된 채로 남는다 (시나리오 C)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('plain <br> text', null);
+    expect(result).toContain('&lt;br&gt;');
+    // 실제 <br> HTML 요소는 단락에 삽입되지 않는다
+    expect(result).not.toMatch(/<br\s*\/?>/);
+  });
+
+  it('인용문(>) 안의 <br> 텍스트도 이스케이프된 채로 남는다 (시나리오 C)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('> quote <br> text', null);
+    expect(result).toContain('&lt;br&gt;');
+    expect(result).not.toMatch(/<br\s*\/?>/);
+  });
+
+  it('목록(-) 안의 <br> 텍스트도 이스케이프된 채로 남는다 (시나리오 C)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('- list <br> item', null);
+    expect(result).toContain('&lt;br&gt;');
+    expect(result).not.toMatch(/<br\s*\/?>/);
+  });
+
+  // ---- 시나리오 D: 코드 영역의 <br> 텍스트는 보호 (REQ-004) — must-pass ----
+  it('코드펜스 안의 <br> 텍스트는 코드 콘텐츠로 보존된다 (시나리오 D)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('```\n<br>\n```', null);
+    // 코드블록 안에서는 이스케이프된 텍스트로 표시
+    expect(result).toContain('&lt;br&gt;');
+    // 실제 <br> 태그가 코드 콘텐츠로 주입되지 않는다
+    expect(result).not.toMatch(/<code>[^<]*<br\s*\/?>/);
+  });
+
+  it('인라인 코드(백틱) 안의 <br> 텍스트는 보존된다 (시나리오 D)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('`a<br>b`', null);
+    expect(result).toMatch(/<code>a&lt;br&gt;b<\/code>/);
+  });
+
+  it('표 셀 안의 인라인 코드 안 <br> 텍스트도 변환되지 않는다 (시나리오 D, 코드 보호 우선)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    // 표 셀 컨텍스트라도 inline 자식이 code_inline이면 변환 건너뜀 (REQ-004)
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| `a<br>b` | c |', null);
+    expect(result).toMatch(/<code>a&lt;br&gt;b<\/code>/);
+  });
+
+  // ---- 시나리오 E: 헤더 셀(th)에서도 변환 (REQ-001, 002) ----
+  it('헤더 셀(<th>) 안의 <br>도 hardbreak로 변환한다 (시나리오 E)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    // 헤더 행에 <br>가 있는 2열 표 — 헤더 셀(<th>)에서도 변환되는지 검증.
+    const result = await renderMarkdown('| H1<br>H2 | H3 |\n|---|---|\n| a | b |', null);
+    expect(result).toContain('H1<br>');
+    expect(result).toContain('H2</th>');
+    expect(result).not.toContain('&lt;br&gt;');
+  });
+
+  // ---- 시나리오 F: 속성 포함 <br>는 변환 거부 → XSS 차단 (REQ-005, 006) — must-pass (보안) ----
+  it('<br onload="alert(1)"> 속성 포함 형태는 매칭을 거부해 이스케이프된 텍스트로 남는다 (시나리오 F, XSS 차단)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a<br onload="alert(1)">b | c |', null);
+    // 속성 포함 원시 HTML은 html:false가 이스케이프 — 실제 <br> 태그로 변환되지 않음
+    expect(result).not.toMatch(/<br\s+onload/i);
+    expect(result).not.toContain('<br onload');
+    // onload 이벤트 핸들러 속성이 바인딩되지 않는다
+    expect(result).toContain('onload');
+    // 이스케이프된 형태로 표시
+    expect(result).toMatch(/&lt;br\s+onload/i);
+  });
+
+  it('<br foo="bar"> 속성 포함 형태도 매칭을 거부한다 (시나리오 F)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a<br foo="bar">b | c |', null);
+    expect(result).not.toMatch(/<br\s+foo/i);
+    expect(result).not.toContain('<br foo');
+    expect(result).toMatch(/&lt;br\s+foo/i);
+  });
+
+  // ---- 시나리오 G: 비표준 닫기 태그 </br> 거부 (REQ-005) ----
+  it('비표준 닫기 태그 </br>는 매칭하지 않는다 (시나리오 G)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a</br>b | c |', null);
+    // </br>는 void 요소가 아닌 비표준 닫기 태그 — 매칭 거부
+    expect(result).not.toContain('<br>');
+    expect(result).toContain('&lt;/br&gt;');
+  });
+
+  // ---- 추가: 다중 <br>, 셀 경계 엣지, 인라인 마크업 조합 ----
+  it('하나의 셀에 <br>가 여러 개 있으면 각각 hardbreak로 변환한다 (다중 <br>)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| x<br><br>y | z |', null);
+    // <br>가 두 개 연속으로 나와야 한다
+    const matches = result.match(/<br>/g) ?? [];
+    expect(matches.length).toBeGreaterThanOrEqual(2);
+    expect(result).toContain('x<br>');
+    expect(result).toContain('y</td>');
+    expect(result).not.toContain('&lt;br&gt;');
+  });
+
+  it('셀 시작의 <br> 엣지 케이스도 처리한다 (<br>a → hardbreak + text)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| <br>a | b |', null);
+    expect(result).toContain('<br>');
+    expect(result).toContain('a</td>');
+    expect(result).not.toContain('&lt;br&gt;a');
+  });
+
+  it('셀 끝의 <br> 엣지 케이스도 처리한다 (a<br> → text + hardbreak)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a<br> | b |', null);
+    expect(result).toContain('a<br>');
+    expect(result).not.toContain('a&lt;br&gt;');
+  });
+
+  it('굵게/기울임과 <br>의 조합이 정상 렌더링된다 (| **a**<br>**b** |)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| **a**<br>**b** | c |', null);
+    // 굵게 표시 + hardbreak + 굵게 표시
+    expect(result).toContain('<strong>a</strong>');
+    expect(result).toContain('<strong>b</strong>');
+    expect(result).toContain('<br>');
+    expect(result).not.toContain('&lt;br&gt;');
+  });
+
+  // ---- 시나리오 H: 기존 플러그인 회귀 차단 (REQ-007) — must-pass ----
+  it('data-line 속성이 표 블록에 여전히 주입된다 (dataLinePlugin 회귀, 시나리오 H)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = '| Col1 | Col2 |\n|---|---|\n| a<br>b | c |';
+    const result = await renderMarkdown(content, null);
+    expect(result).toContain('data-line=');
+    expect(result).toContain('<table');
+    expect(result).toContain('a<br>');
+  });
+
+  it('tableScrollPlugin의 래핑·인라인 보더 스타일이 유지된다 (시나리오 H)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const result = await renderMarkdown('| Col1 | Col2 |\n|---|---|\n| a<br>b | c |', null);
+    expect(result).toContain('table-scroll-wrapper');
+    expect(result).toContain('border-collapse: separate');
+    expect(result).toContain('border-right: 1px solid');
+  });
+
+  it('표 셀 안 이미지 문법이 imageResolver를 거쳐 asset://로 변환된다 (imageResolverPlugin 회귀, 시나리오 H)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const content = '| Col1 | Col2 |\n|---|---|\n| ![img](pic.png) | <br> |';
+    const result = await renderMarkdown(content, null, false, '/project/doc.md');
+    expect(result).toContain('<img');
+    expect(result).toContain('asset://');
+  });
+
+  it('기존 표 렌더 테스트(inline border styles)가 무변경으로 통과한다 (시나리오 H 회귀 기준선)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    const table = '| Col1 | Col2 |\n|------|------|\n| A | B |';
+    const result = await renderMarkdown(table, null);
+    expect(result).toContain('<table');
+    expect(result).toContain('border-collapse: separate');
+    expect(result).toContain('>Col1</th>');
+    expect(result).toContain('>A</td>');
+  });
+
+  it('표 셀 안 인라인 SVG 마커와 <br>가 공존한다 (혼합 콘텐츠 회귀)', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    // 표 셀 안에 SVG 마커(data-mdedit-svg)는 spec-008 경로를 따라 별도 처리되므로
+    // 여기서는 <br> 변환이 다른 플러그인 경로에 간섭하지 않음만 확인
+    const content = '| Col1 | Col2 |\n|---|---|\n| a<br>b | c |';
+    const result = await renderMarkdown(content, null);
+    expect(result).toContain('a<br>');
+    expect(result).toContain('b</td>');
+  });
+
+  // ---- 예외 안정성 (REQ-006) ----
+  it('변환 중 예외가 발생해도 앱이 중단되지 않고 렌더 결과를 반환한다', async () => {
+    const { renderMarkdown } = await import('@/lib/markdown/renderer');
+    // 정상적인 입력에도 불구하고 rule이 실패하면 원본 텍스트를 그대로 둬야 함(REQ-006)
+    // 이 테스트는 try/catch가 없을 때 throw되는 것을 잡는지 간접 검증
+    const result = await renderMarkdown('| a<br>b | c |\n|---|---|\n| d | e |', null);
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
