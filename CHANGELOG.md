@@ -4,6 +4,9 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **이미지 아이콘 버튼·드래그-앤-드롭이 Image 모드 설정을 무시하던 문제 (SPEC-IMG-MODE-002)**: 헤더의 Image 모드 토글을 **Inline**으로 둔 상태에서 툴바의 이미지 아이콘으로 이미지를 선택하거나 에디터로 이미지를 끌어다 놓으면, 마크다운 파일과 **다른 폴더**에 있는 이미지가 미리보기에 나오지 않았습니다 — Inline 모드는 base64로 문서에 바로 임베드하므로 폴더 위치가 상관없어야 하는데도 불구하고요. 반대로 **File** 모드로 두어도 토글과 무관하게 항상 `./images/`로 복사하려 시도했기 때문에, 모드 설정 자체가 두 진입점에서는 아무 효과가 없었습니다. 원인을 찾아보니 세 개의 이미지 삽입 진입점 중 **클립보드 붙여넣기(`Cmd/Ctrl+V`) 하나만** `imageInsertMode`를 읽어 분기하고 있었고, 이미지 아이콘 다이얼로그(`insertImageFromDialog`)와 드래그-앤-드롭(`handleImageDrop`)은 모드와 무관하게 무조건 `copyImageToFolder`만 호출하고 있었습니다 — 클립보드 경로만 올바르고 나머지 둘은 모드를 무시하던 비대칭 상태였습니다. 다이얼로그·드롭 양쪽에 클립보드 경로와 동일한 `imageInsertMode` 분기를 적용했습니다 — **Inline 모드**에서는 `readImageAsBase64`/`fileToBase64`로 바이트를 읽어 data URI로 문서에 직접 임베드(타 폴더 이미지도 정상 렌더링, `./images/` 복사 없음), **File 모드**에서는 기존 동작(`./images/`로 복사 후 상대경로 링크)을 그대로 유지합니다. 사용자에게 가장 체감되는 효과는 Inline 모드에서 **다른 폴더의 이미지를 선택해도 이제 제대로 보인다**는 점입니다 — 이전에는 `copyImageToFolder`가 Tauri FS 스코프 밖 원본을 복사하려다 실패하거나 무효 상대경로를 만들어 조용히 렌더링이 깨졌습니다. `insertImageFile`(클립보드 붙여넣기)와 `imageInsertMode` 토글 UI·`html:false` 렌더러 설정은 손대지 않았습니다. 모드 인지가 반전된 것이므로 기존 단위 테스트(UT-6)는 삭제하고, UT-7~12 신규 테스트로 교체했습니다.
+
 ## [0.13.2] - 2026-07-30
 
 ### Fixed

@@ -1,11 +1,12 @@
 // @MX:ANCHOR: [AUTO] Image insertion handlers for clipboard paste, drag-and-drop, and file dialog
 // @MX:REASON: Public API boundary for all image insertion operations from editor (fan_in >= 3)
-// @MX:SPEC: SPEC-IMG-001, SPEC-IMG-MODE-001
+// @MX:SPEC: SPEC-IMG-001, SPEC-IMG-MODE-001, SPEC-IMG-MODE-002
 
 import type { EditorView } from '@codemirror/view';
 import {
   saveImageFromClipboard,
   copyImageToFolder,
+  readImageAsBase64,
   openImageDialog,
 } from '@/lib/tauri/ipc';
 import { useUIStore } from '@/store/uiStore';
@@ -137,7 +138,11 @@ export async function insertImageFile(
 
 /**
  * Handles image files dropped onto the editor.
- * Copies each image file to the images/ folder and inserts markdown links.
+ * 드롭된 각 이미지 파일을 현재 `imageInsertMode` 에 맞춰 처리한다.
+ *
+ * - `inline-blob`: 네이티브 path 가 있으면 `readImageAsBase64` 로 data URI 를 읽고,
+ *   없으면 `fileToBase64` 로 직접 data URI 를 조립한다. Tauri FS 쓰기는 발생하지 않는다.
+ * - `file-save`: 기존 동작 — `./images/` 폴더로 복사하거나 base64 폴백으로 상대경로를 만든다.
  *
  * @returns true if images were handled, false otherwise
  */
@@ -157,20 +162,36 @@ export async function handleImageDrop(
   // Get drop position
   const dropPos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
 
+  // SPEC-IMG-MODE-002: 루프 진입 전 모드를 한 번만 읽는다 (클립보드 경로와 동일 패턴)
+  const { imageInsertMode } = useUIStore.getState();
+
   let currentPos = dropPos;
   for (const file of imageFiles) {
-    // For drag-and-drop from native file manager, use the file path via copy
-    // For drag-and-drop from other sources, the path might not be available
-    // In Tauri, dropped files have a path property
+    // Tauri 네이티브 드롭은 File 객체에 path 속성을 노출한다. DOM 소스 드롭은 path 가 없다.
     const filePath = (file as File & { path?: string }).path;
     let relativePath: string;
 
-    if (filePath) {
-      relativePath = await copyImageToFolder(filePath, mdFilePath);
+    if (imageInsertMode === 'inline-blob') {
+      // REQ-IMG-MODE-2-003 / REQ-IMG-MODE-2-006: data URI 로 임베드 (Tauri FS 쓰기 없음)
+      if (filePath) {
+        // OD-2: 경로 검증 거부 등 IPC 실패 시 이 파일은 조용히 건너뛴다 (사용자 합의)
+        try {
+          relativePath = await readImageAsBase64(filePath);
+        } catch {
+          continue;
+        }
+      } else {
+        const base64 = await fileToBase64(file);
+        relativePath = `data:${file.type};base64,${base64}`;
+      }
     } else {
-      // Fallback: read as base64 and save
-      const base64 = await fileToBase64(file);
-      relativePath = await saveImageFromClipboard(mdFilePath, base64);
+      // REQ-IMG-MODE-2-004: file-save 모드 — 기존 동작 유지
+      if (filePath) {
+        relativePath = await copyImageToFolder(filePath, mdFilePath);
+      } else {
+        const base64 = await fileToBase64(file);
+        relativePath = await saveImageFromClipboard(mdFilePath, base64);
+      }
     }
 
     const altText = file.name.replace(/\.[^.]+$/, '') || 'image';
@@ -185,8 +206,13 @@ export async function handleImageDrop(
 }
 
 /**
- * Opens a file dialog, copies the selected image to images/ folder,
- * and inserts a markdown image link at the cursor position.
+ * 이미지 다이얼로그를 열어 선택된 파일을 현재 `imageInsertMode` 에 맞춰 삽입한다.
+ *
+ * - 다이얼로그 취소(null): no-op.
+ * - `inline-blob`: `readImageAsBase64` 로 data URI 를 읽어 삽입. Tauri FS 복사 없음.
+ * - `file-save`: 기존 동작 — `./images/` 폴더로 복사 후 상대경로 삽입.
+ *
+ * `mdFilePath` 인자는 inline-blob 분기에서는 쓰이지 않지만 기존 호출부 계약을 유지한다.
  */
 export async function insertImageFromDialog(
   view: EditorView,
@@ -195,13 +221,26 @@ export async function insertImageFromDialog(
   const selectedPath = await openImageDialog();
   if (!selectedPath) return;
 
-  const relativePath = await copyImageToFolder(selectedPath, mdFilePath);
-
   // Extract filename without extension for alt text
   const filename = selectedPath.split(/[/\\]/).pop() ?? 'image';
   const altText = filename.replace(/\.[^.]+$/, '');
 
-  insertImageMarkdown(view, relativePath, altText);
+  const { imageInsertMode } = useUIStore.getState();
+
+  if (imageInsertMode === 'inline-blob') {
+    // REQ-IMG-MODE-2-001: 선택한 파일을 base64 data URI 로 임베드
+    // OD-2: IPC 실패(경로 검증 거부 등) 시 조용히 no-op — 다이얼로그 취소와 동일 취급
+    try {
+      const dataUri = await readImageAsBase64(selectedPath);
+      insertImageMarkdown(view, dataUri, altText);
+    } catch {
+      // 의도적 swallow — 사용자 합의 (Non-Goal #7)
+    }
+  } else {
+    // REQ-IMG-MODE-2-002: file-save 모드 — 기존 동작 (./images/로 복사)
+    const relativePath = await copyImageToFolder(selectedPath, mdFilePath);
+    insertImageMarkdown(view, relativePath, altText);
+  }
 }
 
 /**
