@@ -1,5 +1,5 @@
 import MarkdownIt from 'markdown-it';
-import type Token from 'markdown-it/lib/token.mjs';
+import Token from 'markdown-it/lib/token.mjs';
 import { mermaidPlugin } from './mermaidPlugin';
 import markdownItKatex from '@traptitech/markdown-it-katex';
 import type { ShikiHighlighter } from './codeHighlight';
@@ -7,7 +7,7 @@ import { resolveImageSrc } from '@/lib/image/imageResolver';
 
 // @MX:ANCHOR: [AUTO] Core markdown rendering function - used by usePreview, exportHtml, exportDocx
 // @MX:REASON: [AUTO] Public API boundary for all markdown-to-HTML conversion (fan_in >= 3)
-// @MX:SPEC: SPEC-PREVIEW-001
+// @MX:SPEC: SPEC-PREVIEW-001 SPEC-PREVIEW-012
 
 // @MX:WARN: [AUTO] html: false is MANDATORY for XSS prevention - do NOT set to true
 // @MX:REASON: [AUTO] User-supplied markdown must never render raw HTML to prevent XSS attacks
@@ -86,6 +86,99 @@ function tableScrollPlugin(md: MarkdownIt): void {
     tokens[idx].attrSet('style', existing ? `${existing} ${border}` : border);
     return self.renderToken(tokens, idx, options);
   };
+}
+
+// @MX:NOTE: [AUTO] SPEC-PREVIEW-012 — html:false를 유지한 채 표 셀 리터럴 <br>를 hardbreak 토큰으로 교체.
+// 단락·코드 컨텍스트는 미적용(REQ-PREVIEW012-002~004). 출력의 <br>는 markdown-it 자체
+// hardbreak 렌더 규칙이 만들어내므로 사용자가 쓴 원시 <br> 텍스트는 출력에 도달하지 않는다
+// (REQ-PREVIEW012-006). 이 경로는 DOMPurify와 무관하게 안전하다(DP3).
+// @MX:WARN: [AUTO] 정규식은 반드시 속성 거부 패턴(/<br\s*\/?>/i)을 유지해야 한다.
+// @MX:REASON: [AUTO] 속성을 허용하는 패턴으로 완화하면 <br onload="alert(1)">이 매칭되어
+//   XSS 벡터가 된다. 매칭 거부 형태(<br foo>, </br>)는 시나리오 F·G 테스트로 고정한다.
+// @MX:SPEC: SPEC-PREVIEW-012 REQ-PREVIEW012-001 REQ-PREVIEW012-005 REQ-PREVIEW012-006
+
+/**
+ * 표 셀 안에서만 매칭되는 <br> 정규식 (속성 거부 패턴, 대소문자 무시).
+ *
+ * 매칭 형태: `<br>`, `<br/>`, `<br />`, `<BR>`, `<Br/>` (옵션 공백 + 옵션 `/` + `>`).
+ * 거부 형태:
+ *   - `<br foo="bar">`, `<br onload=...>` — 속성이 들어가면 `>`가 바로 오지 않아 매칭 실패.
+ *   - `</br>` — `<` 다음 `/`가 와서 `<br` 리터럴이 성립하지 않음. void 요소 비표준 닫기 태그.
+ *   - `<brr>`, `<brr>` 등 — `<br` 뒤 `>` 또는 `/`가 아니면 매칭 안 함.
+ */
+const TABLE_CELL_BR_TEST_RE = /<br\s*\/?>/i;
+
+/**
+ * 단일 inline text 토큰을 <br> 매치 기준으로 잘라 [text, hardbreak, text, ...] 배열로 분할한다.
+ * 빈 문자열 조각은 토큰을 만들지 않아 셀 시작/끝의 <br> 엣지 케이스도 자연스럽게 처리한다.
+ *
+ * 새 Token을 생성할 때 markdown-it의 Token 생성자 시그니처(new Token(type, tag, nesting))를
+ * 그대로 사용한다. 표준 hardbreak 토큰 생성자를 재사용하므로 커스텀 렌더 규칙은 불필요하다(D6).
+ */
+function splitTextOnHardbreak(text: string): Token[] {
+  const result: Token[] = [];
+  const re = /<br\s*\/?>/gi;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      const before = new Token('text', '', 0);
+      before.content = text.slice(lastIndex, match.index);
+      result.push(before);
+    }
+    result.push(new Token('hardbreak', 'br', 0));
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    const after = new Token('text', '', 0);
+    after.content = text.slice(lastIndex);
+    result.push(after);
+  }
+  return result;
+}
+
+/**
+ * inline 자식 배열을 순회하며 text 토큰 안의 <br>를 hardbreak로 교체한다.
+ * code_inline·strong·em 등 text 이외의 자식은 그대로 둬 코드 컨텍스트를 보호한다(REQ-004).
+ * 원본 children 배열을 변경하지 않고 새 배열을 반환한다 — 중간 예외 시 원본이 유지된다.
+ */
+function splitCellChildrenOnHardbreak(children: Token[]): Token[] {
+  const result: Token[] = [];
+  for (const child of children) {
+    if (child.type === 'text' && TABLE_CELL_BR_TEST_RE.test(child.content)) {
+      result.push(...splitTextOnHardbreak(child.content));
+    } else {
+      result.push(child);
+    }
+  }
+  return result;
+}
+
+/**
+ * SPEC-PREVIEW-012 플러그인: 표 셀(td/th) 안의 inline 텍스트에서 리터럴 `<br>`/`<br/>`/`<br />`를
+ * 찾아 markdown-it 표준 hardbreak 토큰으로 교체한다. core.ruler 체인에 등록되며 data_line 직후
+ * 실행된다(D4). 블록 토큰의 data-line 속성·map 정보는 건드리지 않아 기존 플러그인과 무간섭(REQ-007).
+ */
+function tableCellLineBreakPlugin(md: MarkdownIt): void {
+  md.core.ruler.push('table_cell_br', (state) => {
+    try {
+      const tokens = state.tokens;
+      let inCell = false;
+      for (const token of tokens) {
+        if (token.type === 'td_open' || token.type === 'th_open') {
+          inCell = true;
+        } else if (token.type === 'td_close' || token.type === 'th_close') {
+          inCell = false;
+        } else if (inCell && token.type === 'inline' && token.children) {
+          token.children = splitCellChildrenOnHardbreak(token.children);
+        }
+      }
+    } catch {
+      // 변환 중 예외 시 원본 토큰을 그대로 둬 앱 중단을 방지한다(REQ-PREVIEW012-006).
+    }
+    return false;
+  });
 }
 
 // @MX:NOTE: [AUTO] SPEC-PREVIEW-008 D4 — 인라인 <svg> placeholder-and-restore 전처리.
@@ -326,6 +419,11 @@ export async function renderMarkdown(
 
   // Register data-line plugin for scroll sync
   md.use(dataLinePlugin);
+
+  // SPEC-PREVIEW-012: 표 셀 리터럴 <br> → hardbreak 토큰 변환.
+  // @MX:NOTE: [AUTO] core.ruler 체인에서 data_line 직후 실행되도록 등록. inline 자식만 조작하고
+  //   블록 토큰의 data-line 속성·map은 건드리지 않는다(무간섭, REQ-PREVIEW012-007).
+  md.use(tableCellLineBreakPlugin);
 
   const rendered = md.render(preprocessed);
 
