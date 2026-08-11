@@ -4,6 +4,9 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Added
+- **표 셀 안에서 여러 줄 쓰기 (SPEC-PREVIEW-012)**: 표 셀 안에 `<br>`, `<br/>`, `<br />`를 적으면 미리보기에서 줄바꿈으로 렌더됩니다 — GitHub·GitLab·Bitbucket과 같은 문법입니다. 지금까지는 표 셀에 두 줄 이상의 콘텐츠를 넣을 방법이 아예 없었습니다. 마크다운 파이프라인이 XSS 방어를 위해 원시 HTML을 아예 끄고 있어(`html: false`, renderer.ts:292), 사용자가 `<br>`를 적어도 `&lt;br&gt;`로 이스케이프되어 글자 그대로만 찍혔던 것입니다. 이 제약을 안전하게 풀기 위해, 마크다운-it의 `core.ruler` 토큰 체인에서 표 셀 컨텍스트(td/th) 안의 inline 텍스트 토큰만 순회하며 리터럴 `<br>` 문자열을 찾아내어 표준 `hardbreak` 토큰으로 교체하는 플러그인을 추가했습니다. 출력의 `<br>`는 사용자 원시 HTML이 아니라 markdown-it 자체 `hardbreak` 렌더 규칙이 만들어냅니다 — 사용자가 쓴 `<br>` 텍스트는 렌더 파이프라인 안에서 제거되어 출력에 도달하지 않으므로, DOMPurify에 의존하지 않고도 안전합니다(메인 HTML 경로는 애초에 DOMPurify를 거치지 않습니다). 변환 범위는 표 셀 내부로 한정됩니다 — 단락·목록·인용·헤딩의 `<br>`는 기존대로 이스케이프된 텍스트로, 코드펜스·인라인 코드의 `<br>`는 코드 콘텐츠 그대로 보존됩니다. 속성을 가진 형태(`<br style="...">`, `<br onload="alert(1)">`)와 비표준 닫기 태그(`</br>`)는 매칭하지 않습니다 — 정규식 `/<br\s*\/?>/i`가 속성 거부 패턴으로 고정되어 있어, `<br>` 허용을 빌미로 속성 주입 공격이 들어올 수 없습니다(`html:false` 위에 추가 방어막). HTML·PDF 내보내기도 같은 `renderMarkdown` 공용 함수를 쓰므로 별도 처리 없이 동일하게 적용됩니다. 검증: tsc·eslint 클린, vitest 1435 통과, renderer.ts 커버리지 98.3%.
+
 ## [0.13.2] - 2026-07-30
 
 ### Fixed
