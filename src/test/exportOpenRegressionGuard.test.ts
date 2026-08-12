@@ -64,9 +64,11 @@ describe('SPEC-EXPORT-002 regression guard', () => {
       .filter((m): m is string => typeof m === 'string' && m.length > 0)
       .map((s) => s.replace(/,$/, ''));
     // 기준선(본 SPEC 착수 시점) — 신규 command 가 추가되면 이 단언이 실패한다.
+    // SPEC-IMG-LOAD-001 (2026-08-12): file_ops::read_file_size 추가 (Group B 신규 IPC).
     expect(commands).toEqual([
       'file_ops::read_file',
       'file_ops::write_file',
+      'file_ops::read_file_size',
       'file_ops::create_file',
       'file_ops::delete_file',
       'file_ops::rename_file',

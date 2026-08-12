@@ -276,7 +276,7 @@ mod tests {
         let src_file = test_dir.join("source.png");
         let md_file = test_dir.join("doc.md");
         fs::create_dir_all(&test_dir).unwrap();
-        fs::write(&src_file, &[0x89, 0x50, 0x4E, 0x47]).unwrap(); // PNG header
+        fs::write(&src_file, [0x89, 0x50, 0x4E, 0x47]).unwrap(); // PNG header
         fs::write(&md_file, "# Test").unwrap();
 
         let result = copy_image_to_folder(
@@ -302,9 +302,9 @@ mod tests {
         let md_file = test_dir.join("doc.md");
         let images_dir = test_dir.join("images");
         fs::create_dir_all(&images_dir).unwrap();
-        fs::write(&src_file, &[0x89, 0x50, 0x4E, 0x47]).unwrap();
+        fs::write(&src_file, [0x89, 0x50, 0x4E, 0x47]).unwrap();
         fs::write(&md_file, "# Test").unwrap();
-        fs::write(images_dir.join("photo.png"), &[0x89]).unwrap(); // Existing file
+        fs::write(images_dir.join("photo.png"), [0x89]).unwrap(); // Existing file
 
         let result = copy_image_to_folder(
             src_file.to_str().unwrap().to_string(),
@@ -368,7 +368,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_image_as_base64_jpg() {
         let test_file = temp_path("test_read_img_b64_img001.jpg");
-        fs::write(&test_file, &[0xFF, 0xD8, 0xFF]).unwrap();
+        fs::write(&test_file, [0xFF, 0xD8, 0xFF]).unwrap();
 
         let result = read_image_as_base64(test_file.to_str().unwrap().to_string()).await;
         assert!(result.is_ok());

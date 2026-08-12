@@ -45,6 +45,10 @@ pub async fn read_file(path: String) -> Result<String, String> {
 }
 
 /// Writes UTF-8 content to a file, creating parent directories as needed.
+/// Overwrites existing file content.
+// @MX:SPEC: SPEC-IMG-LOAD-001 REQ-IMG-LOAD-B-002
+// @MX:NOTE: [AUTO] 원자적 쓰기 — 임시 파일 작성 + fsync + rename (POSIX 원자 교체).
+//   크래시/전원 손실 시 대상 경로는 (a) 기존 콘텐츠 전체 또는 (b) 새 콘텐츠 전체 중 하나만 갖는다.
 #[tauri::command]
 pub async fn write_file(path: String, content: String) -> Result<(), String> {
     let path_buf = validate_path(&path)?;
@@ -54,8 +58,71 @@ pub async fn write_file(path: String, content: String) -> Result<(), String> {
                 .map_err(|e| format!("Failed to create parent directories: {}", e))?;
         }
     }
-    std::fs::write(&path_buf, content.as_bytes())
-        .map_err(|e| format!("Failed to write file: {}", e))
+    atomic_write(&path_buf, content.as_bytes())
+}
+
+/// Builds a temp-file path adjacent to the destination (same directory → POSIX rename is atomic).
+fn atomic_temp_path(dest: &Path) -> PathBuf {
+    let mut name = dest
+        .file_name()
+        .map(|s| s.to_os_string())
+        .unwrap_or_default();
+    name.push(format!(".mdedit-tmp-{}", std::process::id()));
+    dest.with_file_name(name)
+}
+
+/// Writes content to the temp file and fsyncs (does NOT touch the destination yet).
+/// A crash after this step leaves the destination with its prior complete content.
+fn write_to_temp(tmp: &Path, content: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let mut file = std::fs::File::create(tmp)
+        .map_err(|e| format!("Failed to create temp file: {}", e))?;
+    file.write_all(content)
+        .map_err(|e| format!("Failed to write temp file: {}", e))?;
+    file.sync_all()
+        .map_err(|e| format!("Failed to fsync temp file: {}", e))?;
+    Ok(())
+}
+
+/// Atomically replaces the destination with the temp file (POSIX rename).
+/// After this returns Ok, the destination holds the complete new content.
+#[cfg(unix)]
+fn atomic_replace(tmp: &Path, dest: &Path) -> Result<(), String> {
+    std::fs::rename(tmp, dest).map_err(|e| format!("Failed to rename temp file: {}", e))
+}
+
+/// Windows variant: std::fs::rename fails when the destination exists, so pre-remove it.
+/// This is best-effort — fully atomic Windows replacement would require the ReplaceFile Win32 API.
+/// Automated Windows CI is out of scope; verified via manual smoke (SPEC-IMG-LOAD-001 AC-B2).
+#[cfg(not(unix))]
+fn atomic_replace(tmp: &Path, dest: &Path) -> Result<(), String> {
+    let _ = std::fs::remove_file(dest);
+    std::fs::rename(tmp, dest).map_err(|e| format!("Failed to rename temp file: {}", e))
+}
+
+/// Atomic write pipeline: write_to_temp → atomic_replace.
+fn atomic_write(dest: &Path, content: &[u8]) -> Result<(), String> {
+    let tmp_path = atomic_temp_path(dest);
+    write_to_temp(&tmp_path, content)?;
+    atomic_replace(&tmp_path, dest)?;
+    Ok(())
+}
+
+/// Returns file size in bytes without loading file content.
+/// Used by useFileSystem.openFile to pre-check large files when FileNode.size is
+/// unavailable (collapsed folder scenario). See SPEC-IMG-LOAD-001 REQ-B-004.
+#[tauri::command]
+pub async fn read_file_size(path: String) -> Result<u64, String> {
+    let path_buf = validate_path(&path)?;
+    if !path_buf.exists() {
+        return Err(format!("File not found: {}", path_buf.display()));
+    }
+    if path_buf.is_dir() {
+        return Err(format!("Path is a directory, not a file: {}", path_buf.display()));
+    }
+    let metadata = std::fs::metadata(&path_buf)
+        .map_err(|e| format!("Failed to read file metadata: {}", e))?;
+    Ok(metadata.len())
 }
 
 /// Creates an empty file. Returns error if file already exists.
@@ -349,6 +416,152 @@ mod tests {
     #[tokio::test]
     async fn test_write_file_path_traversal_prevention() {
         let result = write_file("../secret.txt".to_string(), "data".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("traversal"));
+    }
+
+    // --- SPEC-IMG-LOAD-001 CT-B2: 원자적 쓰기 + 크래시 복구 (REQ-IMG-LOAD-B-002) ---
+
+    #[test]
+    fn test_atomic_temp_path_is_adjacent() {
+        let dest = PathBuf::from("/tmp/doc.md");
+        let tmp = atomic_temp_path(&dest);
+        assert_eq!(tmp.parent(), dest.parent(), "temp must live in the same directory");
+        let name = tmp.file_name().unwrap().to_string_lossy().to_string();
+        assert!(name.starts_with("doc.md.mdedit-tmp-"), "temp name prefix: {}", name);
+    }
+
+    #[test]
+    fn test_atomic_write_temp_step_leaves_destination_unchanged() {
+        // 크래시 복구 속성 (CT-B2): write_to_temp 이후 atomic_replace 이전에 프로세스가
+        // 중단되면 대상 파일은 기존 콘텐츠 전체를 유지해야 한다 (잘린 부분 쓰기 금지).
+        let dest = temp_file_path("test_atomic_crash_fs001.txt");
+        fs::write(&dest, "old content").unwrap();
+
+        let tmp = atomic_temp_path(&dest);
+        // 1단계: 임시 파일에 새 콘텐츠 작성 + fsync (rename 전)
+        write_to_temp(&tmp, b"new content").expect("write_to_temp must succeed");
+
+        // 대상은 여전히 기존 콘텐츠 전체 (crash 시나리오 검증)
+        assert_eq!(
+            fs::read_to_string(&dest).unwrap(),
+            "old content",
+            "destination must retain complete old content before atomic_replace"
+        );
+        // 임시 파일에는 새 콘텐츠가 완전히 기록되어 있음
+        assert_eq!(fs::read_to_string(&tmp).unwrap(), "new content");
+
+        fs::remove_file(&dest).ok();
+        fs::remove_file(&tmp).ok();
+    }
+
+    #[test]
+    fn test_atomic_replace_swaps_completely() {
+        // CT-B2 속성: atomic_replace 이후 대상은 새 콘텐츠 전체로 교체되고 임시 파일은 사라진다.
+        let dest = temp_file_path("test_atomic_replace_fs001.txt");
+        fs::write(&dest, "old content").unwrap();
+        let tmp = atomic_temp_path(&dest);
+        write_to_temp(&tmp, b"new content").unwrap();
+
+        atomic_replace(&tmp, &dest).expect("atomic_replace must succeed");
+
+        assert_eq!(
+            fs::read_to_string(&dest).unwrap(),
+            "new content",
+            "destination must hold complete new content"
+        );
+        assert!(!tmp.exists(), "temp file must be gone after rename");
+
+        fs::remove_file(&dest).ok();
+    }
+
+    #[tokio::test]
+    async fn test_write_file_atomic_no_temp_residue() {
+        // 통합: write_file 성공 후 대상 경로에 임시 파일 잔존이 없어야 한다.
+        let dest = temp_file_path("test_write_atomic_no_residue_fs001.txt");
+        write_file(dest.to_str().unwrap().to_string(), "data".to_string())
+            .await
+            .expect("write_file must succeed");
+        assert_eq!(fs::read_to_string(&dest).unwrap(), "data");
+        // 임시 파일이 같은 디렉토리에 남아 있으면 안 된다
+        let parent = dest.parent().unwrap();
+        let residue = fs::read_dir(parent)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .find(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .contains("test_write_atomic_no_residue_fs001.txt.mdedit-tmp-")
+            });
+        assert!(residue.is_none(), "temp file must not linger after write_file");
+        fs::remove_file(&dest).ok();
+    }
+
+    #[tokio::test]
+    async fn test_write_file_atomic_overwrite_preserves_integrity() {
+        // 대용량 콘텐츠 원자 교체 — 기존 파일 위에 쓸 때 부분 쓰기가 아니라 완전 교체.
+        let dest = temp_file_path("test_atomic_overwrite_fs001.txt");
+        fs::write(&dest, "old").unwrap();
+        let big = "X".repeat(100_000);
+        write_file(dest.to_str().unwrap().to_string(), big.clone())
+            .await
+            .expect("write_file must succeed");
+        let written = fs::read_to_string(&dest).unwrap();
+        assert_eq!(written.len(), 100_000);
+        assert!(written.chars().all(|c| c == 'X'));
+        fs::remove_file(&dest).ok();
+    }
+
+    // --- read_file_size tests (SPEC-IMG-LOAD-001 Group B) ---
+
+    #[tokio::test]
+    async fn test_read_file_size_success() {
+        let test_file = temp_file_path("test_read_size_fs001.bin");
+        let data: Vec<u8> = vec![0u8; 1024];
+        fs::write(&test_file, &data).unwrap();
+
+        let size = read_file_size(test_file.to_str().unwrap().to_string())
+            .await
+            .expect("read_file_size must succeed");
+        assert_eq!(size, 1024);
+
+        fs::remove_file(&test_file).ok();
+    }
+
+    #[tokio::test]
+    async fn test_read_file_size_zero_byte_file() {
+        let test_file = temp_file_path("test_read_size_empty_fs001.bin");
+        fs::write(&test_file, b"").unwrap();
+
+        let size = read_file_size(test_file.to_str().unwrap().to_string())
+            .await
+            .expect("read_file_size must succeed on empty file");
+        assert_eq!(size, 0);
+
+        fs::remove_file(&test_file).ok();
+    }
+
+    #[tokio::test]
+    async fn test_read_file_size_not_found() {
+        let result = read_file_size("/nonexistent/size_fs001.bin".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_read_file_size_directory_rejected() {
+        let dir = temp_file_path("test_read_size_dir_fs001");
+        fs::create_dir_all(&dir).unwrap();
+
+        let result = read_file_size(dir.to_str().unwrap().to_string()).await;
+        assert!(result.is_err());
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn test_read_file_size_path_traversal_prevention() {
+        let result = read_file_size("../../../etc/passwd".to_string()).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("traversal"));
     }

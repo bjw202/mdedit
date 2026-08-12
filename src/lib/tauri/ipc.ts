@@ -27,6 +27,15 @@ export async function writeFile(path: string, content: string): Promise<void> {
 }
 
 /**
+ * Reads file size in bytes without loading file content.
+ * Used by useFileSystem.openFile to pre-check large files when FileNode.size is
+ * unavailable (collapsed folder scenario). See SPEC-IMG-LOAD-001 REQ-B-004.
+ */
+export async function readFileSize(path: string): Promise<number> {
+  return invoke<number>('read_file_size', { path });
+}
+
+/**
  * Creates an empty file at the given path.
  * Throws if the file already exists.
  */
