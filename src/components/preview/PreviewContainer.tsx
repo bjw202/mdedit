@@ -5,6 +5,7 @@
 // @MX:SPEC: SPEC-PREVIEW-004 REQ-PREVIEW004-001, SPEC-PREVIEW-005 REQ-PREVIEW005-001
 // @MX:SPEC: SPEC-PREVIEW-007 REQ-PREVIEW007-003 REQ-PREVIEW007-004 REQ-PREVIEW007-005 REQ-PREVIEW007-007
 // @MX:SPEC: SPEC-PREVIEW-008 REQ-PREVIEW008-001 REQ-PREVIEW008-004 REQ-PREVIEW008-008
+// @MX:SPEC: SPEC-IMG-LOAD-001 REQ-IMG-LOAD-B-001
 
 import type { RefObject } from 'react';
 import { useFileStore } from '@/store/fileStore';
@@ -49,6 +50,14 @@ export function getFileViewType(
 
   // 1순위: .html 분기 — SPEC-PREVIEW-004 동작 무변경
   if (lower.endsWith('.html')) return 'html';
+
+  // SPEC-IMG-LOAD-001 REQ-IMG-LOAD-B-001 + D1: too-large 재배치는 .md/.markdown 에만 적용.
+  // 종전 의사코드처럼 모든 확장자 앞에 too-large 를 두면 .html/.json/래스터/SVG 까지
+  // unsupported 로 재라우팅되어 SPEC-PREVIEW-008 래스터/SVG 보호(Non-Goal #8)를 위반한다.
+  // 비-.md 확장자 분기 순서는 현행 유지 — D1 회귀 가드(UT-B5)가 자동 단언.
+  if (previewStatus === 'too-large' && (lower.endsWith('.md') || lower.endsWith('.markdown'))) {
+    return 'unsupported';
+  }
 
   // 2순위: 마크다운 확장자 명시적 체크 — previewStatus보다 반드시 앞에 위치해야 함
   // openFile이 .md를 읽으면 previewStatus='text'로 설정하지만,

@@ -9,6 +9,7 @@ vi.mock('@/lib/tauri/ipc', () => ({
   openDirectoryDialog: vi.fn(),
   readDirectory: vi.fn(),
   readFile: vi.fn(),
+  readFileSize: vi.fn().mockResolvedValue(undefined),
   writeFile: vi.fn().mockResolvedValue(undefined),
   createFile: vi.fn(),
   deleteFile: vi.fn(),

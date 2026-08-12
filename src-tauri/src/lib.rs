@@ -48,6 +48,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             file_ops::read_file,
             file_ops::write_file,
+            file_ops::read_file_size,
             file_ops::create_file,
             file_ops::delete_file,
             file_ops::rename_file,
