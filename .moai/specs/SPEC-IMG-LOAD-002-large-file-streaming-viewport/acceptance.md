@@ -1,10 +1,12 @@
 # Acceptance Criteria: SPEC-IMG-LOAD-002
 
-> **범위**: Axis A(뷰포트/폴딩)·B(스트리밍)·C(Worker)·D(임계값) 전체 인수 조건 + WIDGET-001 회귀 가드. 각 AC는 마일스톤(M1~M4)에 대응한다.
+> **범위**: Axis A(뷰포트/폴딩)·B(스트리밍)·C(Worker)·D(임계값) 전체 인수 조건 + WIDGET-001 회귀 가드.
+> **Phase 1 (RUN scope — Milestone 1)**: Axis A + Axis D. PT-A1-006b(linchpin)가 Phase 2 활성화 여부를 GATE 한다.
+> **Phase 2 (Conditional — Milestone 3)**: Axis B + Axis C. PT-A1-006b PASS 시 무기한 연기, FAIL 시에도 Lezer 동결 해소 불가(신규 SPEC 필요 — plan.md Run-Phase Decision Rule 참조).
 
 ## Test Scenarios (Gherkin Given/When/Then)
 
-### Axis A — 뷰포트 렌더링 + 라인 폴딩 (Milestone 1)
+### Axis A — 뷰포트 렌더링 + 라인 폴딩 (Milestone 1 — Phase 1 RUN scope)
 
 #### AC-2-A1: 위젯 데코레이션 뷰포트 한정 (REQ-A-001)
 
@@ -79,7 +81,27 @@ And 사용자가 추가 입력을 계속할 수 있다
 
 **자동화**: PT-A1-006 (Playwright — must-pass. 4MB fixture 오픈 후 타이핑, 5초 이내 keydown→paint 단언. CI에서는 warning-only 허용 — OD-1)
 
-### Axis B — chunked 스트리밍 읽기 (Milestone 3)
+#### AC-2-A6b: 거대 base64 라인 뷰포트 진입 시 동결 (linchpin — REQ-A-006 잔여 위험)
+
+```gherkin
+Given 4MB 마크다운 파일의 첫 화면은 일반 텍스트이다
+And 거대 base64 이미지 라인(2MB)이 첫 화면 바로 아래(폴드 너머)에 존재한다
+When 사용자가 스크롤하여 base64 라인이 뷰포트로 진입하게 한다
+And 글자 한 자를 입력한다
+Then time-to-first-paint를 측정한다
+And INPUT_RESPONSIVENESS_BUDGET_MS(5초) 이내에 첫 paint가 발생한다
+And 메인 스레드가 동결하지 않는다
+```
+
+**자동화**: PT-A1-006b (Playwright — must-pass. **linchpin GATE 테스트** — Phase 2(B/C) 활성화 여부를 결정. base64 라인 스크롤인 후 타이핑, 5초 이내 keydown→paint 단언. CI에서는 warning-only.)
+
+**런 phase 의사 규칙 (Re-planning Gate — plan.md 본문 및 spec.md "Residual Freeze Risk" 참조)**:
+- **PT-A1-006b PASS** → Phase 1(A+D)만으로 충분. Phase 2(B/C)는 무기한 연기(perf optimization으로만 가치).
+- **PT-A1-006b FAIL** → 런 에이전트는 **반드시 정지하고 보고**. Phase 2(B/C)는 Lezer 편집기 토크나이제이션 동결을 해소하지 않는다 — 스트리밍(B)은 로드 타이밍, Worker(C)는 프리뷰 파싱 비용이며 Lezer parse-ahead(`viewport.to + 100000`)와 무관. 대신 **신규 후속 SPEC**(`SPEC-IMG-LOAD-003` 또는 `SPEC-CM-LEZER-VIEWPORT-001` — 뷰포트 바운디드/증분 Lezer 파싱)이 필요 (plan.md Milestone 2 Conditional).
+
+> 본 AC는 Phase 1의 REQ-A-001(full-doc copy 제거)이 일반 케이스 동결을 해소함을 검증하되, **Lezer parse-ahead 잔여 동결**(base64 라인이 뷰포트로 스크롤인 시)을 직접 측정하여 M2/M3 분기를 결정한다. jsdom은 동결을 잡지 못하므로 Playwright must-pass — [feedback-jsdom-pointer-blindspot].
+
+### Axis B — chunked 스트리밍 읽기 (Milestone 3 — Phase 2 Conditional)
 
 #### AC-2-B1: 청크 단위 읽기 IPC (REQ-B-001)
 
@@ -159,7 +181,7 @@ And 001 Group B의 read_file 현행 동작(전체 거부 또는 동일한 U+FFFD
 
 **자동화**: CT-B1-006 (cargo — 비-UTF-8 입력 fixture, 크래시 없음 + U+FFFD/에러 단언)
 
-### Axis C — markdown-it Web Worker (Milestone 4)
+### Axis C — markdown-it Web Worker (Milestone 3 — Phase 2 Conditional)
 
 #### AC-2-C1: Worker 마크다운 렌더링 (REQ-C-001)
 
@@ -248,7 +270,7 @@ And Worker 리소스가 누수되지 않는다
 
 **자동화**: UT-C1-007 (단위 — lazy spawn 시점 + 파일 닫기 시 terminate 단언)
 
-### Axis D — 임계값 정책 (Milestone 2)
+### Axis D — 임계값 정책 (Milestone 1 — Phase 1 RUN scope)
 
 #### AC-2-D1: SOFT_THRESHOLD 명명 상수 (REQ-D-001)
 
@@ -309,17 +331,6 @@ And 에디터가 잠긴다 (001 Group B 동작과 정합)
 
 **자동화**: UT-D1-005 (단위 — 150MB 파일 라우팅 단언, 001 Group B 정합)
 
-#### AC-2-D6: per-line 임계값 초과 자동 폴딩 (REQ-D-006)
-
-```gherkin
-Given 문서에 1.5MB 단일 라인이 있다 (LINE_FOLD_THRESHOLD 1MB 초과)
-When 문서가 로드되거나 편집될 때
-Then 해당 라인이 자동 fold된다 (REQ-A-003과 결합)
-And LINE_FOLD_THRESHOLD 상수가 fold 트리거 기준으로 사용된다
-```
-
-**자동화**: UT-D1-006 (단위 — 임계값 상수와 fold 트리거의 결합 단언, A-003과 정책 일치)
-
 #### AC-2-D7: 래스터/SVG 크기 가드 제외 (REQ-D-007)
 
 ```gherkin
@@ -377,9 +388,9 @@ Then WIDGET-001의 모든 REQ가 여전히 충족된다:
 
 ## Quality Gate Criteria
 
-- **단위 테스트**: `npx vitest run` — UT-A1-001/003/005, UT-D1-001~005/007, UT-B1-001/005, UT-C1-001~004/006/007, UT-REG-W1..W7 신규 통과 + 기존 전체 green 유지
-- **Rust 테스트**: `cargo test` — CT-B1-001~003/006(D4 포함) 신규 통과 + 기존 `file_ops`/`image_ops`/`directory_ops` green 유지
-- **Playwright**: `npx playwright test` — PT-A1-002/004/006, PT-B1-005, PT-C1-001/003, PT-D1-004 must-pass. 포인터(폴드 토글)·동결·점진적 렌더는 jsdom에 잡히지 않으므로 Playwright를 게이트로 ([feedback-jsdom-pointer-blindspot])
+- **단위 테스트**: `npx vitest run` — Phase 1: UT-A1-001/003/005, UT-D1-001~005/007, UT-REG-W1..W7 신규 통과 + 기존 전체 green 유지. Phase 2 (Conditional): UT-B1-001/005, UT-C1-001~004/006/007
+- **Rust 테스트**: `cargo test` — Phase 2 (Conditional): CT-B1-001~003/006(D4 포함) 신규 통과 + 기존 `file_ops`/`image_ops`/`directory_ops` green 유지
+- **Playwright**: `npx playwright test` — Phase 1: PT-A1-002/004/006, **PT-A1-006b (linchpin GATE)**, PT-D1-004 must-pass. Phase 2 (Conditional, user opt-in): PT-B1-005, PT-C1-001/003. 포인터(폴드 토글)·동결·점진적 렌더는 jsdom에 잡히지 않으므로 Playwright를 게이트로 ([feedback-jsdom-pointer-blindspot])
 - **TypeScript**: `npx tsc --noEmit` — 0 에러
 - **ESLint**: `npx eslint` 수정 파일 전부 — 0 에러, 0 경고
 - **커버리지**: 수정된 프런트엔드 파일 85%+ 유지 (`quality.yaml test_coverage_target: 85`). Rust 파일 커버리지는 기존 기준 유지
@@ -409,6 +420,8 @@ Then WIDGET-001의 모든 REQ가 여전히 충족된다:
 | REQ-A-004 (fold 토글 클릭) | — | PT-A1-004 (must-pass) | — | — |
 | REQ-A-005 (삽입 시 fold 힌트) | UT-A1-005 | — | — | — |
 | REQ-A-006 (대용량 편집 동결 없음) | — | PT-A1-006 (must-pass) | — | AC-2-A6 (실기기) |
+| REQ-A-006 잔여 (base64 라인 뷰포트 진입 Lezer 동결 — linchpin) | — | PT-A1-006b (must-pass, GATE) | — | AC-2-A6b |
+| **Phase 2 (Conditional) — 아래 REQ-B/C 행은 PT-A1-006b PASS 후 user opt-in 시에만 활성화** | — | — | — | — |
 | REQ-B-001 (chunked IPC) | UT-B1-001 + CT-B1-001 | — | — | — |
 | REQ-B-002 (UTF-8 경계) | CT-B1-002 (cargo) | — | — | — |
 | REQ-B-003 (무한 루프 금지, D4) | CT-B1-003 (cargo) | — | — | — |
@@ -425,7 +438,6 @@ Then WIDGET-001의 모든 REQ가 여전히 충족된다:
 | REQ-D-001~003 (임계값 상수) | UT-D1-001~003 | — | — | — |
 | REQ-D-004 (SOFT 초과 편집 허용) | UT-D1-004 | PT-D1-004 | — | — |
 | REQ-D-005 (HARD 초과 거부) | UT-D1-005 | — | — | — |
-| REQ-D-006 (per-line fold 결합) | UT-D1-006 | — | — | — |
 | REQ-D-007 (래스터/SVG 제외) | UT-D1-007 | — | — | — |
 | WIDGET-001 REQ-1..7 회귀 | UT-REG-W1..W7 | — | — | — |
 | `FILE_SIZE_THRESHOLD` alias 유지 (OD-2) | 기존 SPEC-PREVIEW-007 테스트 | — | O (consumer 전환) | — |
@@ -437,23 +449,38 @@ Then WIDGET-001의 모든 REQ가 여전히 충족된다:
 
 ## Definition of Done
 
-- [ ] **OD 해소 (run phase 개시 전)**: OD-1(임계값·상수값), OD-2(`FILE_SIZE_THRESHOLD` alias), OD-3(chunked vs Channel), OD-A(폴딩 전략), OD-B(Shiki 소유권), OD-C(Worker spawn 시점)가 사용자에 의해 명시적으로 확정됨
-- [ ] **RED (Axis A)**: UT-A1-001/003/005, PT-A1-006 신규 추가, 현재 구현에서 실패 확인
+### Phase 1 (RUN scope — Milestone 1: Axis A + Axis D)
+
+- [x] **OD 해소 (v1.1.0 완료)**: OD-1(임계값·상수값), OD-2(`FILE_SIZE_THRESHOLD` alias), OD-3(chunked vs Channel), OD-A(폴딩 전략, foldEffect constraint), OD-B(Shiki 소유권), OD-C(Worker spawn 시점) 모두 decided — plan.md "Decided Decisions" 참조
+- [ ] **Precondition Gate**: `SPEC-IMG-LOAD-001` (PR #61)이 main에 머지됨을 확인 (plan.md Precondition Gate)
 - [ ] **WIDGET-001 회귀 가드 baseline (Axis A 사전)**: UT-REG-W1..W7을 먼저 작성하여 green 확인 (Axis A 구현 전 WIDGET-001 동작 고정)
-- [ ] **GREEN (Axis A)**: `image-widget.ts`(뷰포트 한정), `markdown-extensions.ts`(폴딩), `imageHandler.ts`(삽입 힌트), `previewLimits.ts`(`LINE_FOLD_THRESHOLD`) 구현, UT-A1-001/003/005 통과, UT-REG-W1..W7 green 유지
-- [ ] **Playwright (Axis A)**: PT-A1-002/004/006 통과 (특히 PT-A1-006 — 4MB 파일 오픈 후 5초 이내 입력 응답)
+- [ ] **RED (Axis A)**: UT-A1-001/003/005, PT-A1-006, **PT-A1-006b (linchpin)** 신규 추가, 현재 구현에서 실패 확인
+- [ ] **GREEN (Axis A)**: `image-widget.ts`(뷰포트 한정 — REQ-A-001 full-doc copy 제거), `markdown-extensions.ts`(폴딩 — foldEffect dispatch, D2), `imageHandler.ts`(삽입 힌트), `previewLimits.ts`(`LINE_FOLD_THRESHOLD`) 구현, UT-A1-001/003/005 통과, UT-REG-W1..W7 green 유지
 - [ ] **RED (Axis D)**: UT-D1-001~005/007 신규 추가, 실패 확인
-- [ ] **GREEN (Axis D)**: `previewLimits.ts`(SOFT/HARD/LINE_FOLD + alias), `useFileSystem.ts`(분기), `AppLayout.tsx`(HARD 전용 잠금) 구현, UT-D1-001~007 통과
-- [ ] **A+D 릴리즈 게이트**: 이 시점에서 사용자가 대용량 파일(5~30MB)을 열고 편집할 수 있음을 PT-A1-006 + PT-D1-004로 확인
-- [ ] **RED (Axis B)**: CT-B1-001~003/006, UT-B1-001/005, PT-B1-005 신규 추가, 실패 확인
-- [ ] **GREEN (Axis B)**: `file_ops.rs`(`read_file_chunk` + `trim_to_utf8_boundary`), `ipc.ts`(`readFileChunk`), `MarkdownEditor.tsx`(append dispatch), `useFileSystem.ts`(스트리밍 라우팅) 구현, CT/UT/PT 통과
+- [ ] **GREEN (Axis D)**: `previewLimits.ts`(SOFT/HARD/LINE_FOLD + `FILE_SIZE_THRESHOLD` deprecated alias), `useFileSystem.ts`(분기), `AppLayout.tsx`(HARD 전용 잠금) 구현, UT-D1-001~005/007 통과
+- [ ] **Playwright (Phase 1)**: PT-A1-002/004/006 통과 (특히 PT-A1-006 — 4MB 파일 오픈 후 5초 이내 입력 응답). **PT-A1-006b (linchpin GATE) 실행 — 결과 기록 (PASS/FAIL 어느 쪽이든 M1 머지를 차단하지 않음)**
+
+### Phase 1 머지 게이트 (A+D 독립 머지)
+
+- [ ] **A+D 릴리즈 게이트**: 이 시점에서 사용자가 대용량 파일(5~30MB)을 열고 편집할 수 있음을 PT-A1-006 + PT-D1-004로 확인. UT-REG-W1..W7 green + 001 Group B/PREVIEW-007/008 회귀 green.
+- [ ] **Run-Phase Decision Rule 분기**: PT-A1-006b 결과에 따라 — **PASS** → 본 SPEC 종료 (Phase 2 무기한 연기); **FAIL** → 정지+보고, M2(신규 Lezer-viewport SPEC)로 분기 (plan.md Run-Phase Decision Rule 및 본 파일 AC-2-A6b 시나리오 하단 의사 규칙 참조)
+
+### Phase 2 (Conditional — Milestone 3: Axis B + Axis C, user opt-in only)
+
+> PT-A1-006b PASS 후 사용자가 명시적으로 opt-in할 때만, 또는 M2 신규 SPEC이 Lezer 동결을 해소한 후 부가 완화가 필요할 때만 진행. PT-A1-006b FAIL 시에는 본 단계를 진행하지 않는다 (Lezer 동결 해소 불가).
+
+- [ ] **RED (Axis B)**: CT-B1-001~003/006, UT-B1-001/005 (dirty 가드 포함 — REQ-B-005), PT-B1-005 신규 추가, 실패 확인
+- [ ] **GREEN (Axis B)**: `file_ops.rs`(`read_file_chunk` + `trim_to_utf8_boundary`), `ipc.ts`(`readFileChunk`), `MarkdownEditor.tsx`(append dispatch, dirty 가드 선행), `useFileSystem.ts`(스트리밍 라우팅) 구현, CT/UT/PT 통과
 - [ ] **cargo (Axis B, D4)**: CT-B1-003(truncated/malformed tail 유한 종료) 반드시 통과 — 001 v1.1.0 D4 잔여 인수
 - [ ] **RED (Axis C)**: UT-C1-001~004/006/007, PT-C1-001/003 신규 추가, 실패 확인
-- [ ] **GREEN (Axis C)**: `renderWorker.ts`(신규), `renderer.ts`(폴백 동기 경로), `codeHighlight.ts`(Worker용 Shiki), `usePreview.ts`(generation + onerror) 구현, UT/PT 통과
+- [ ] **GREEN (Axis C)**: `renderWorker.ts`(신규), `renderer.ts`(폴백 동기 경로), `codeHighlight.ts`(Worker용 Shiki), `usePreview.ts`(generation + onerror + lazy spawn at first preview render — D11) 구현, UT/PT 통과
+
+### 공통 (양 Phase)
+
 - [ ] **REFACTOR**: 전체 `npx vitest run`, `cargo test`, `npx tsc --noEmit`, `npx eslint`, `npx playwright test` 통과
-- [ ] **수동 스모크**: AC-2-A6(4MB 편집 응답), AC-2-B5(점진적 렌더), AC-2-C3(Worker 크래시 폴백, 150MB) 실기기 확인
-- [ ] **회귀**: `SPEC-IMG-LOAD-001`(Group A+B), `SPEC-IMG-WIDGET-001`(REQ-1..7), `SPEC-PREVIEW-007/008`, `SPEC-FS-001/003`, `SPEC-PREVIEW-001/003/005/012`, Shiki 소비자(usePreview/exportHtml/CodeFileViewer) 기존 테스트 green 유지
-- [ ] **@MX 갱신**: 수정된 파일 `image-widget.ts`, `markdown-extensions.ts`, `imageHandler.ts`, `previewLimits.ts`, `useFileSystem.ts`, `AppLayout.tsx`, `file_ops.rs`, `ipc.ts`, `MarkdownEditor.tsx`, `renderer.ts`, `codeHighlight.ts`, `usePreview.ts`, 신규 `renderWorker.ts`의 `@MX:SPEC` 주석에 `SPEC-IMG-LOAD-002` 추가
+- [ ] **수동 스모크**: AC-2-A6(4MB 편집 응답), **AC-2-A6b(base64 라인 스크롤인 응답 — linchpin)**; Phase 2 opt-in 시 AC-2-B5(점진적 렌더), AC-2-C3(Worker 크래시 폴백, 150MB) 실기기 확인
+- [ ] **회귀**: `SPEC-IMG-LOAD-001`(Group A+B — UT-B1/B5, CT-B2, PT-B4 포함), `SPEC-IMG-WIDGET-001`(REQ-1..7 — UT-REG-W1..W7), `SPEC-PREVIEW-007/008`(UT-D1-007), `SPEC-FS-001/003`, `SPEC-PREVIEW-001/003/005/012`, Shiki 소비자(usePreview/exportHtml/CodeFileViewer) 기존 테스트 green 유지
+- [ ] **@MX 갱신**: 수정된 파일 `image-widget.ts`, `markdown-extensions.ts`, `imageHandler.ts`, `previewLimits.ts`, `useFileSystem.ts`, `AppLayout.tsx`, (Phase 2) `file_ops.rs`, `ipc.ts`, `MarkdownEditor.tsx`, `renderer.ts`, `codeHighlight.ts`, `usePreview.ts`, 신규 `renderWorker.ts`의 `@MX:SPEC` 주석에 `SPEC-IMG-LOAD-002` 추가
 - [ ] **@MX 유지**: `imageHandler.ts`의 `insertImageFromDialog` 시그니처 영역, `image_ops.rs`(`MAX_IMAGE_SIZE`), `PreviewRenderer.tsx`(DOMPurify/mermaid)의 기존 `@MX:SPEC` 주석은 유지 (해당 파일은 본 SPEC에서 무변경 또는 최소 변경)
 
 ## Traceability
@@ -466,6 +493,7 @@ Then WIDGET-001의 모든 REQ가 여전히 충족된다:
 | AC-2-A4 | REQ-A-004 | — | PT-A1-004 | Playwright must-pass |
 | AC-2-A5 | REQ-A-005 | UT-A1-005 | — | Unit |
 | AC-2-A6 | REQ-A-006 | — | PT-A1-006 | Playwright must-pass + Smoke |
+| AC-2-A6b | REQ-A-006 (잔여) | — | PT-A1-006b | Playwright must-pass (linchpin GATE) |
 | AC-2-B1 | REQ-B-001 | UT-B1-001 + CT-B1-001 | — | Unit + cargo |
 | AC-2-B2 | REQ-B-002 | CT-B1-002 | — | cargo |
 | AC-2-B3 | REQ-B-003 | CT-B1-003 | — | cargo (D4) |
@@ -484,6 +512,5 @@ Then WIDGET-001의 모든 REQ가 여전히 충족된다:
 | AC-2-D3 | REQ-D-003 | UT-D1-003 | — | Unit |
 | AC-2-D4 | REQ-D-004 | UT-D1-004 | PT-D1-004 | Unit + Playwright |
 | AC-2-D5 | REQ-D-005 | UT-D1-005 | — | Unit |
-| AC-2-D6 | REQ-D-006 | UT-D1-006 | — | Unit |
 | AC-2-D7 | REQ-D-007 | UT-D1-007 | — | Unit (PREVIEW-008 회귀 가드) |
 | AC-2-REG | WIDGET-001 REQ-1..7 | UT-REG-W1..W7 | — | Unit (회귀 가드) |

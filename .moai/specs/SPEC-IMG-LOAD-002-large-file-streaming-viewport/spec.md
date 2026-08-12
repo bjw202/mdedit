@@ -1,7 +1,7 @@
 ---
 id: SPEC-IMG-LOAD-002
 title: 대용량 마크다운 뷰포트 렌더링 + 스트리밍 읽기 + 렌더러 Worker (Group C)
-version: 1.0.0
+version: 1.1.0
 status: Planned
 created: 2026-08-12
 updated: 2026-08-12
@@ -19,7 +19,11 @@ related:
   - "SPEC-IMG-WIDGET-001 REQ-1..REQ-7 — 본 SPEC이 image-widget.ts를 EXTEND하며 회귀 테스트로 보존"
   - "SPEC-PREVIEW-007 REQ-PREVIEW007-005 (FILE_SIZE_THRESHOLD=5MB) — 본 SPEC이 SOFT/HARD/per-line 3계층으로 재정의(OD-2 deprecated alias 경유)"
   - "SPEC-PREVIEW-008 (래스터/SVG 뷰어) — 본 SPEC의 임계값 변경은 래스터/SVG에 적용하지 않는다(Non-Goal)"
-  - "SPEC-FS-001 (read_file/write_file) — 본 SPEC이 read_file_chunk 신규 IPC 추가, 기존 시그니처는 유지"
+  - "SPEC-FS-001 (read_file/write_file) — 본 SPEC이 read_file_chunk 신규 IPC 추가(Phase 2), 기존 시그니처는 유지"
+phase_1_scope: [A, D]
+phase_2_conditional: [B, C]
+preconditions:
+  - "SPEC-IMG-LOAD-001 (PR #61) MUST be merged to main before run phase starts. Delta Map file:line은 post-001-merge 베이스라인 기준이다."
 follow_ups: []
 ---
 
@@ -27,6 +31,15 @@ follow_ups: []
 
 ## HISTORY
 
+- **2026-08-12 v1.1.0 (RUN 범위 축소 + 감사 결함 4건 수정 + linchpin 테스트 추가)**:
+  - **RUN 범위 축소**: Group A(뷰포트 위젯 바운딩 + 라인 폴딩) + Group D(임계값 3계층)만 RUN 게이트로 확정. Group B(스트리밍) + Group C(Worker)는 "Phase 2 (Conditional)"로 이관 — PT-A1-006b 결과에 따라서만 구현 여부 결정. frontmatter `phase_1_scope: [A, D]`, `phase_2_conditional: [B, C]`, `preconditions` 추가.
+  - **D1 (critical) 수정 — 폴딩 과잉 주장 철회**: 폴딩이 "라인 단위 Lezer 토크나이제이션 비용 제거"를 한다는 v1.0.0 주장을 철회. 독립 감사(`node_modules/@codemirror/language/dist/index.js:612-625`)가 `Decoration.fold`는 뷰 계층 전용이며 Lezer 파싱은 `state.doc` 전체를 `vpTo + 100000`까지 독립적으로 수행함을 확인. **REQ-A-001(뷰포트 위젯 바운딩 — `view.state.doc.toString()` full-doc copy 제거)이 실제 동결 제거 주체**이며, REQ-A-003(폴딩)은 디스플레이 비용 절감용으로만 작용. Goal·Assumptions·Quality Notes·Risks 업데이트.
+  - **D2 (major) 수정 — 폴드 메커니즘**: `longLineFoldField` StateField 의사코드(`EditorView.decorations.from(f)` always-on)를 `foldEffect` dispatch 패턴으로 교체 — `@codemirror/language` `foldState`와 통합되어 REQ-A-004(토글)가 작동. `imageHandler.ts:18-29`의 폴딩 힌트와 일관성 확보(둘 다 `foldEffect.of({from, to})` 사용). OD-A 하이브리드 APPROVED with foldEffect constraint.
+  - **D3 (major) 수정 — Buffer 미존재**: `Buffer.byteLength(chunk, 'utf-8')`(Node.js 전용, 브라우저에 없음) → `new TextEncoder().encode(chunk).length`(브라우저 네이티브). Axis B Design Notes(Phase 2)에서 정정.
+  - **PT-A1-006b (linchpin) 추가**: 거대 base64 라인이 뷰포트로 스크롤인 시 Lezer 토크나이제이션 동결을 직접 측정. 실패 시 "Phase 2 (B/C)로 해결 불가" → 신규 후속 SPEC(`SPEC-IMG-LOAD-003` 또는 `SPEC-CM-LEZER-VIEWPORT-001` — 뷰포트 바운디드/증분 Lezer 파싱) 필요를 런 에이전트가 보고하도록 Re-planning Gate 명시. acceptance.md·plan.md 마일스톤 업데이트.
+  - **D4 preconditions 명시**: SPEC-IMG-LOAD-001 (PR #61)이 main에 머지되어 있어야 run phase 개시 — Delta Map file:line이 post-001-merge 베이스라인 기준임을 frontmatter `preconditions`에 명시.
+  - **비차단 정리(D5-D11, REQ-B-005)**: D5 — REQ-D-006 → REQ-A-003 서브로 강등(UT-A1-003이 커버, Traceability에서 제거); D6 — REQ-A-005 "2 UI gesture → 4 call site" 명확화; D7 — REQ-D-001/002/003 행동만 서술(명명 상수 정의는 Threshold Constants 표); D8 — REQ-A-006 긍정형 재작성("결함으로 간주한다" 제거); D10 — Delta Map file:line post-001-merge 베이스라인 재확인; D11 — REQ-C-007 lazy spawn 트리거 단일화(첫 프리뷰 렌더); REQ-B-005 — dirty/unsaved-changes 가드 체크 추가(SPEC-FS-003 회귀 방어).
+  - **OD finalize**: OD-1/2/3/B/C APPROVED (30/100/1MB/256KB/5s; `FILE_SIZE_THRESHOLD` deprecated alias 유지; chunked pull; Shiki-in-Worker; lazy spawn at first preview render). OD-A 하이브리드 APPROVED with foldEffect constraint (D2).
 - **2026-08-12 v1.0.0**: 최초 작성. `SPEC-IMG-LOAD-001` v1.1.0에서 이월된 Group C 범위를 4축(A/B/C/D)으로 전개.
   - **이월 배경**: 001 v1.0.0 감사(N1)에서 "base64 data URI로 인한 거대 단일 라인을 CodeMirror가 라인 단위로 토크나이즈하는 비용은 스트리밍 + Worker만으로 해결되지 않는다"가 확인되어 001은 Group A(다이얼로그 순서) + Group B(안전망)로 범위 축소. 본 SPEC이 4축을 모두 인수한다.
   - **4축 구성 근거**: (A) 뷰포트 렌더링 + 라인 폴딩 — 사용자 가시 증상(UI 동결)의 직접 원인(N1) 제거, `SPEC-IMG-WIDGET-001`이 자체 spec.md:165에 선언했으나 미구현한 뷰포트 한정을 최초로 구현. (B) Rust 스트리밍 읽기 — 단일 `read_file` 호출 회피, 점진적 로딩. (C) markdown-it Web Worker — 메인 스레드 파싱 비용 제거(Shiki 포함). (D) 임계값 정책 — 5MB 단일 하드 블록을 SOFT/HARD/per-line 3계층으로 재정의.
@@ -53,7 +66,7 @@ follow_ups: []
 | Lezer 라인 단위 토크나이제이션 | `@codemirror/lang-markdown` ^6.5.0 (Lezer, per-line) | 거대 base64 단일 라인을 라인 단위로 토크나이즈 → 뷰포트 안에 있으면 동결 |
 | 5MB 편집 불가 | `previewLimits.ts:10` (`FILE_SIZE_THRESHOLD = 5MB`), `useFileSystem.ts:215` (consumer), `AppLayout.tsx:373-374` (`isViewOnly` 게이트) | 5MB 초과 `.md`는 `previewStatus='too-large'` + `setContent('')` → 에디터 잠금 placeholder |
 
-**목표**: 4축을 통해 (A) 뷰포트 한정 + 라인 폴딩으로 편집 동결 제거, (B) 스트리밍 읽기로 오픈 동결 제거, (C) Worker로 렌더 동결 제거, (D) 임계값 재정의로 편집 가능 상한을 5MB에서 SOFT(30MB 제안)로 상향. **A+D만으로도 폴딩이 라인 단위 비용을 제거하여 대용량 파일 편집이 가능해진다** — B/C는 동결 추가 완화를 위한 성능 최적화 위치로 단계적 도입한다(plan.md 마일스톤 참조).
+**목표**: (A) 뷰포트 위젯 바운딩(REQ-A-001 — `view.state.doc.toString()` full-doc copy 제거)이 `docChanged`마다 발생하는 동기 복사 비용을 제거하여 편집 동결의 주범을 직접 제거한다. 라인 폴딩(REQ-A-003)은 디스플레이 비용 절감(거대 base64 라인 시각적 축소)만 담당하며 **Lezer 토크나이제이션 비용은 감소시키지 않는다**(독립 감사 확증 — `node_modules/@codemirror/language/dist/index.js:612-625`). (D) 임계값 재정의로 편집 가능 상한을 5MB에서 SOFT(30MB)로 상향. **A+D만으로도 사용자가 보고한 동결(REQ-A-001이 full-doc copy 비용을 제거)이 해소된다** — B(스트리밍)/C(Worker)는 Phase 2 조건부 최적화 위치이며, PT-A1-006b 결과에 따라서만 구현 여부가 결정된다(plan.md 마일스톤 참조).
 
 ## Decision: SPEC-ID 및 4축 통합 근거
 
@@ -65,7 +78,7 @@ follow_ups: []
 
 1. **동인 결합**: 4축 모두 "base64 data URI로 bloat된 대용량 마크다운 파일"이라는 동일 사용자 워크플로우에서 발생한다. 001과 동일 촉발 시나리오이므로 시리즈 추적성을 위해 `IMG-LOAD-002`로 둔다.
 2. **001 Follow-up 명시적 인수**: 001 v1.1.0이 Follow-up 섹션에 "Group C deferred → SPEC-IMG-LOAD-002"로 명시했으므로, 본 SPEC이 그 약속을 이행한다. 분할 시 001의 follow_ups 참조가 깨진다.
-3. **A+D 단독 가치**: 폴딩(A) + 임계값 재정의(D)만으로도 사용자가 대용량 파일을 열고 편집할 수 있다(plan.md 마일스톤 순서의 근거). B/C는 독립적 성능 최적화이므로 본 SPEC 안에서 마일스톤으로 단계화한다.
+3. **A+D 단독 가치**: 뷰포트 위젯 바운딩(REQ-A-001 — full-doc copy 제거) + 임계값 재정의(D)만으로도 사용자가 대용량 파일을 열고 편집할 수 있다. 폴딩(REQ-A-003)은 디스플레이 비용 절감으로 부가적이며 Lezer 토크나이제이션 비용은 감소시키지 않는다(D1 수정). B/C는 Phase 2 (Conditional) 성능 최적화이므로 본 SPEC 안에서 마일스톤으로 단계화하되, PT-A1-006b 결과에 따라서만 활성화된다.
 4. **WIDGET-001 EXTEND**: Axis A는 `image-widget.ts`의 미구현 제약(spec.md:165)을 최초로 구현하므로, WIDGET-001 REQ-1..REQ-7 회귀 테스트를 본 SPEC 인수 조건에 명시적으로 포함한다. 신규 위젯 데코레이션을 만들지 않고 기존 것을 고친다.
 
 ## Environment
@@ -82,12 +95,24 @@ follow_ups: []
 ## Assumptions
 
 - `inline-blob` 모드 사용자는 `.md` 파일 크기 증가를 감수한다(001 가정과 동일). 본 SPEC은 모드 정책을 변경하지 않는다(Non-Goal).
-- CodeMirror 6의 `codeFolding()` + `defaultLanguageFolding`(또는 커스텀 fold 트리거)이 거대 단일 라인을 폴딩할 수 있으며, 폴딩된 라인은 뷰포트 렌더·디스플레이 토크나이제이션 비용에서 제외된다. 이 가정은 plan.md 마일스톤 1(RED 단계)에서 먼저 검증한다.
+- CodeMirror 6의 `codeFolding()` + 커스텀 fold 트리거(`foldEffect` dispatch)가 거대 단일 라인을 폴딩할 수 있으며, 폴딩된 라인은 디스플레이 파이프라인(렌더링·페인트) 비용에서 제외된다. **단, Lezer 파스트리 토크나이제이션 비용은 감소시키지 않는다** — Lezer는 데코레이션과 무관하게 `state.doc`을 `viewport.to + 100000`까지 파싱한다(`node_modules/@codemirror/language/dist/index.js:612-625`에서 검증). 이 한계는 본 SPEC이 REQ-A-001(뷰포트 위젯 바운딩)을 **실제 동결 제거 주체**로 지정하는 근거다 — `view.state.doc.toString()` full-doc copy 비용(`image-widget.ts:155-170`)이야말로 `docChanged`마다 발생하는 동결의 주범이다. PT-A1-006b가 잔여 Lezer 동결(base64 라인이 뷰포트로 스크롤인 시)을 측정한다.
 - `@codemirror/language` ^6.12.1이 폴딩 API를 별도 패키지 추가 없이 제공한다(`package.json` 확인 완료).
 - Rust `std::fs::File`의 `read` + `seek` 조합으로 chunk 단위 읽기가 가능하며, UTF-8 멀티바이트 경계 처리는 프런트엔드(또는 Rust 측 유틸리티)에서 안전하게 수행할 수 있다.
 - Shiki 싱글턴(`codeHighlight.ts`)은 Worker 컨텍스트에서도 `createHighlighter`로 재초기화 가능하다(Worker 안에서 lazy init). Shiki가 Worker 전용 인스턴스를 가지더라도 메인 스레드 기존 소비자(renderer.ts 이외에 usePreview, exportHtml, CodeFileViewer — fan_in >= 4)는 영향받지 않는다.
 - 001 Group A+B는 본 SPEC 구현 개시 전에 main에 머지되어 있다( Delta Map의 file:line은 post-001-merge 베이스라인을 기준).
 - `embedPreviewImages`(`usePreview.ts:55`)의 `readImageAsBase64` IPC는 메인 스레드에서만 동작하므로 Worker 외부에 유지한다(DOM/IPC-bound 작업은 Worker 부적합).
+
+## Residual Freeze Risk (잔여 동결 위험 — D1 수정에 따른 공리)
+
+> v1.0.0가 암시했던 "폴딩이 Lezer 토크나이제이션 비용을 제거한다"는 주장은 부정확하다. 다음 시나리오는 REQ-A-001(뷰포트 위젯 바운딩) + REQ-A-003(폴딩)으로도 해소되지 않는 잔여 동결이다.
+
+**시나리오**: 4MB `.md` 파일의 첫 화면은 일반 텍스트이고, 화면 하단 근처에 거대 base64 라인(2MB)이 존재한다. 사용자가 스크롤하여 base64 라인이 뷰포트로 진입하면 Lezer parse-ahead 윈도우(`viewport.to + 100000`)가 그 라인을 덮어 토크나이제이션을 시도한다. 이때 메인 스레드 동결이 발생할 수 있다.
+
+**PT-A1-006b (linchpin test)**: 위 시나리오를 직접 재현하여 time-to-first-paint를 측정. `INPUT_RESPONSIVENESS_BUDGET_MS`(5초) 초과 시 실패. acceptance.md AC-2-A6b 참조.
+
+**런 phase 의사 규칙 (Re-planning Gate)**:
+- **PT-A1-006b PASS** → Phase 1(A+D)만으로 충분. Phase 2(B/C)는 무기한 연기(perf optimization으로만 가치 있음).
+- **PT-A1-006b FAIL** → 런 에이전트는 **반드시 정지하고 보고**. **Phase 2(B/C)는 이 동결을 해소하지 않는다** — 스트리밍(B)은 로드 타이밍, Worker(C)는 프리뷰 파싱이며, 어느 쪽도 Lezer 편집기 토크나이제이션과 무관하다. 대신 **신규 후속 SPEC**(`SPEC-IMG-LOAD-003` 또는 `SPEC-CM-LEZER-VIEWPORT-001` — 뷰포트 바운디드/증분 Lezer 파싱)이 필요하다. plan.md Milestone 2 (Conditional) 참조.
 
 ## Delta Map (브라운필드 변경 범위)
 
@@ -120,11 +145,14 @@ follow_ups: []
 > 각 REQ는 falsifiable한 단일 테스트와 매핑된다(Traceability 참조). "무변경" 속성은 REQ 본문에서 제외하고 acceptance.md Test Strategy Layer에서 "코드 리뷰(diff)" 행으로 분리한다([feedback-spec-verifiable-requirements] 패턴 2).
 > REQ ID 규칙: `REQ-IMG-LOAD-2-{A|B|C|D}-NNN`. 001과 충돌 회피를 위해 가운데 `2`를 둔다.
 
-### Group A — 뷰포트 렌더링 + 라인 폴딩 (핵심 가치)
+> **RUN scope (Phase 1)**: Group A + Group D만이 `/moai run` 구현 대상이다 (frontmatter `phase_1_scope: [A, D]`).
+> **Phase 2 (Conditional)**: Group B + Group C는 PT-A1-006b 결과에 따라서만 활성화 (frontmatter `phase_2_conditional: [B, C]`). 본 섹션 하단의 "Phase 2 (Conditional)" 래퍼 참조.
+
+### Group A — 뷰포트 렌더링 + 라인 폴딩 (RUN scope)
 
 #### REQ-IMG-LOAD-2-A-001 (State-Driven): 위젯 데코레이션 뷰포트 한정
 
-**WHILE** CodeMirror 에디터가 활성 상태이고 문서에 data URI 이미지가 포함된 경우, 시스템은 위젯 데코레이션 계산을 visible viewport 범위로 한정한다. **AND** 시스템은 `view.state.doc.toString()` 호출로 전체 문서를 복사하지 않는다. **AND** 글로벌 정규식 매칭은 visible 라인에 대해서만 수행한다. (WIDGET-001 spec.md:165 미구현 제약의 최초 이행.)
+**WHILE** CodeMirror 에디터가 활성 상태이고 문서에 data URI 이미지가 포함된 경우, 시스템은 위젯 데코레이션 계산을 visible viewport 범위로 한정한다. **AND** 시스템은 `view.state.doc.toString()` 호출로 전체 문서를 복사하지 않는다. **AND** 글로벌 정규식 매칭은 visible 라인에 대해서만 수행한다. (WIDGET-001 spec.md:165 미구현 제약의 최초 이행. **본 REQ가 실제 동결 제거 주체** — `docChanged`마다 `image-widget.ts:155-170`에서 발생하는 full-doc copy 비용 제거. D1 수정.)
 
 #### REQ-IMG-LOAD-2-A-002 (Event-Driven): 뷰포트 변경 시 데코레이션 갱신
 
@@ -132,7 +160,7 @@ follow_ups: []
 
 #### REQ-IMG-LOAD-2-A-003 (State-Driven): 거대 라인 자동 폴딩
 
-**WHILE** 문서의 단일 라인 길이가 `LINE_FOLD_THRESHOLD`를 초과하는 경우, 시스템은 해당 라인을 자동으로 fold하여 시각적으로 축소한다. **AND** 폴드된 라인은 클릭 가능한 축소 표시(예: "…N lines folded")로 표시된다. (N1 — 거대 base64 단일 라인 토크나이제이션 비용 — 의 직접 완화.)
+**WHILE** 문서의 단일 라인 길이가 `LINE_FOLD_THRESHOLD`를 초과하는 경우, 시스템은 해당 라인을 자동으로 fold하여 시각적으로 축소한다. **AND** 폴드된 라인은 클릭 가능한 축소 표시(예: "…N lines folded")로 표시된다. **AND** fold 트리거 기준이 `LINE_FOLD_THRESHOLD` 상수와 결합됨을 정책으로 선언한다(구 REQ-D-006 흡수 — D5; UT-A1-003이 커버). (디스플레이 비용 절감 전용 — D1 수정: Lezer 토크나이제이션 비용은 감소시키지 않는다. 폴딩은 뷰 계층 전용이다.)
 
 #### REQ-IMG-LOAD-2-A-004 (Event-Driven): 폴드 토글
 
@@ -140,13 +168,45 @@ follow_ups: []
 
 #### REQ-IMG-LOAD-2-A-005 (Event-Driven): 이미지 삽입 시 폴딩 힌트
 
-**WHEN** `insertImageMarkdown` 경유로 data URI 이미지가 삽입된 경우(`imageHandler.ts:18-29`, 4개 호출부), **THEN** 시스템은 삽입된 라인이 `LINE_FOLD_THRESHOLD`를 초과하면 즉시 fold 트리거한다. **AND** 두 진입점(툴바, `Cmd+Shift+I`)에 동일한 폴딩 힌트가 적용된다(001 REQ-IMG-LOAD-A-004 대칭).
+**WHEN** `insertImageMarkdown` 경유로 data URI 이미지가 삽입된 경우, **THEN** 시스템은 삽입된 라인이 `LINE_FOLD_THRESHOLD`를 초과하면 즉시 fold 트리거한다. **AND** 2개 UI 진입점(툴바 버튼·`Cmd+Shift+I` 단축키)이 4개 호출부(paste/drop×2/dialog)로 funnel되며, 모두 동일한 폴딩 힌트를 받는다(001 REQ-IMG-LOAD-A-004 대칭). (D6 명확화 — `imageHandler.ts:18-29`.)
 
-#### REQ-IMG-LOAD-2-A-006 (Ubiquitous + Unwanted): 대용량 파일 편집 시 동결 없음
+#### REQ-IMG-LOAD-2-A-006 (Ubiquitous): 대용량 파일 편집 시 입력 응답 보장
 
-**WHEN** 파일 크기가 `FILE_SIZE_THRESHOLD` 이하이고 거대 base64 라인을 포함한 마크다운 파일을 열거나 편집하는 경우, 시스템은 메인 스레드 동결 없이 입력에 응답한다. **IF** 사용자가 입력 후 `INPUT responsiveness budget` 이내에 첫 paint가 발생하지 않는 경우, **THEN** 이는 결함으로 간주한다. (jsdom은 동결을 잡지 못하므로 Playwright must-pass로 둔다.)
+**WHEN** 파일 크기가 `HARD_CEILING` 이하이고 거대 base64 라인을 포함한 마크다운 파일을 열거나 편집하는 경우, 시스템은 메인 스레드 동결 없이 입력에 응답한다. **AND** 시스템은 사용자 입력 후 `INPUT_RESPONSIVENESS_BUDGET_MS` 이내에 첫 paint를 수행한다. (동결 실패는 AC-2-A6 / PT-A1-006 / PT-A1-006b가 잡는다. jsdom은 동결을 잡지 못하므로 Playwright must-pass — [feedback-jsdom-pointer-blindspot]. D8 긍정형 재작성 — "결함으로 간주한다" 제거.)
 
-### Group B — Rust 스트리밍 읽기 (chunked)
+### Group D — 임계값 정책 (RUN scope)
+
+#### REQ-IMG-LOAD-2-D-001 (Ubiquitous): SOFT_THRESHOLD 명명 상수
+
+시스템은 `SOFT_THRESHOLD`라는 명명된 상수를 정의하고, 이 값을 초과하는 `.md`/`.markdown` 파일에 대해 점진적 로딩 + 라인 폴딩을 활성화한다. (값은 OD-1에서 사용자 확정 — 제안 30MB.)
+
+#### REQ-IMG-LOAD-2-D-002 (Ubiquitous): HARD_CEILING 명명 상수
+
+시스템은 `HARD_CEILING`이라는 명명된 상수를 정의하고, 이 값을 초과하는 파일은 `UnsupportedFileViewer`로 라우팅하여 로드를 거부한다. (값은 OD-1에서 사용자 확정 — 제안 100MB.)
+
+#### REQ-IMG-LOAD-2-D-003 (Ubiquitous): LINE_FOLD_THRESHOLD 명명 상수
+
+시스템은 `LINE_FOLD_THRESHOLD`라는 명명된 상수를 정의하고, 단일 라인 길이가 이 값을 초과하면 자동 폴딩을 트리거한다(REQ-IMG-LOAD-2-A-003과 연동). (값은 OD-1에서 사용자 확정 — 제안 1MB. N1 직접 완화.)
+
+#### REQ-IMG-LOAD-2-D-004 (State-Driven): SOFT 초과 — 점진적 로딩 + 폴딩
+
+**WHILE** 파일 크기가 `SOFT_THRESHOLD`를 초과하고 `HARD_CEILING` 이하인 경우, 시스템은 편집을 허용한다. **AND** 점진적 로딩(REQ-IMG-LOAD-2-B-005, Axis B 머지 후)과 라인 폴딩(REQ-IMG-LOAD-2-A-003)을 활성화한다. **AND** 에디터 잠금 placeholder를 표시하지 않는다.
+
+#### REQ-IMG-LOAD-2-D-005 (State-Driven): HARD 초과 — 로드 거부
+
+**WHILE** 파일 크기가 `HARD_CEILING`을 초과하는 경우, 시스템은 `UnsupportedFileViewer`를 렌더링하고 에디터를 잠근다. **AND** content를 `''`로 세팅하고 `previewStatus='too-large'`로 라우팅한다(001 Group B 동작과 정합).
+
+#### REQ-IMG-LOAD-2-D-007 (Unwanted): 래스터/SVG 크기 가드 제외
+
+**IF** 파일 확장자가 래스터 이미지(`.png`/`.jpg`/...) 또는 `.svg`인 경우, **THEN** 시스템은 본 SPEC의 SOFT/HARD/LINE_FOLD 임계값 변경을 적용하지 않는다. **AND** `SPEC-PREVIEW-008` 래스터/SVG 뷰어의 현행 라우팅과 내부 크기 처리는 유지된다. (001 Non-Goal #8 계승.)
+
+### Phase 2 (Conditional) — Group B + Group C
+
+> **활성화 게이트**: 본 두 그룹은 Phase 1(A+D) 머지 후 PT-A1-006b(linchpin) 결과에 따라 활성화 여부가 결정된다.
+> - **PT-A1-006b PASS** → Phase 1(A+D)만으로 사용자 동결이 해소됨. 본 두 그룹은 무기한 연기(순수 perf optimization으로만 가치).
+> - **PT-A1-006b FAIL** → 본 두 그룹을 구현하더라도 Lezer 편집기 토크나이제이션 동결은 해소되지 않는다 — 스트리밍(B)은 로드 타이밍, Worker(C)는 프리뷰 파싱 비용만 다룬다. 신규 후속 SPEC(`SPEC-IMG-LOAD-003` 또는 `SPEC-CM-LEZER-VIEWPORT-001` — 뷰포트 바운디드/증분 Lezer 파싱)이 별도로 필요하다. 런 의사 규칙은 본 파일 "Residual Freeze Risk" 섹션 및 plan.md Milestone 2 (Conditional) 참조.
+
+### Group B — Rust 스트리밍 읽기 (Phase 2 — Conditional)
 
 #### REQ-IMG-LOAD-2-B-001 (Event-Driven): 청크 단위 읽기 IPC
 
@@ -166,17 +226,17 @@ follow_ups: []
 
 #### REQ-IMG-LOAD-2-B-005 (Event-Driven): 점진적 append dispatch
 
-**WHEN** 스트리밍 청크가 도착하는 경우, **THEN** 시스템은 전체 content를 한 번에 dispatch하지 않고 CodeMirror에 청크를 append하는 방식으로 dispatch한다. **AND** 사용자는 청크 도착과 함께 점진적으로 렌더링되는 문서를 본다.
+**WHEN** 스트리밍 청크가 도착하는 경우, **THEN** 시스템은 전체 content를 한 번에 dispatch하지 않고 CodeMirror에 청크를 append하는 방식으로 dispatch한다. **AND** 사용자는 청크 도착과 함께 점진적으로 렌더링되는 문서를 본다. **AND** 스트리밍 append dispatch는 첫 청크 이전에 dirty/unsaved-changes 가드(SPEC-FS-003)를 점검하여, 사용자의 저장되지 않은 변경사항이 스트리밍 로드에 의해 덮어쓰기되지 않도록 한다. (Gap D — REQ-B-005 정정: 스트리밍 append는 기존 dirty state를 존중. `useFileSystem.ts` 와쳐 충돌 모달·dirty-state guard 회귀 방어.)
 
 #### REQ-IMG-LOAD-2-B-006 (Unwanted): 비-UTF-8 파일 우아한 저하
 
 **IF** 파일이 유효한 UTF-8이 아닌 경우(바이너리·인코딩 불일치), **THEN** 시스템은 현행 `read_file`(001 Group B 회귀)과 정합하게 처리한다 — 전체 거부(`Result<String,String>` 에러)하거나 U+FFFD로 대체한다. **AND** chunked 경로가 비-UTF-8 파일에서 크래시하지 않는다. (SPEC-FS-001 UTF-8 계약 준수.)
 
-### Group C — markdown-it Web Worker
+### Group C — markdown-it Web Worker (Phase 2 — Conditional)
 
 #### REQ-IMG-LOAD-2-C-001 (Event-Driven): Worker 마크다운 렌더링
 
-**WHEN** 프리뷰 content가 변경되는 경우(300ms 디바운스 이후), **THEN** 시스템은 마크다운 파싱을 Web Worker에서 수행하고, 완성된 HTML 문자열(`data-mdedit-svg` 마커 포함)을 메인 스레드에 반환한다. **AND** 메인 스레드는 파싱 중에 입력에 응답한다. (고통 1 — 이중 markdown-it + Shiki 동기 실행 — 해소.)
+**WHEN** 프리뷰 content가 변경되는 경우(300ms 디바운스 이후), **THEN** 시스템은 마크다운 파싱을 Web Worker에서 수행하고, 완성된 HTML 문자열(`data-mdedit-svg` 마커 포함)을 메인 스레드에 반환한다. **AND** 메인 스레드는 파싱 중에도 입력에 응답한다. (고통 1 — 이중 markdown-it + Shiki 동기 실행 — 해소.)
 
 #### REQ-IMG-LOAD-2-C-002 (State-Driven): generation counter (stale 결과 폐기)
 
@@ -200,37 +260,7 @@ follow_ups: []
 
 #### REQ-IMG-LOAD-2-C-007 (State-Driven): Worker lifecycle (lazy spawn + 정리)
 
-**WHILE** 세션이 활성 상태인 경우, 시스템은 Worker를 lazy하게(첫 SOFT 초과 파일 또는 첫 프리뷰 렌더 시) 생성한다. **AND** 파일 닫기·세션 종료 시 Worker를 정리한다(메모리 누수 방지). (OD-C 권장안 — lazy.)
-
-### Group D — 임계값 정책 (3계층)
-
-#### REQ-IMG-LOAD-2-D-001 (Ubiquitous): SOFT_THRESHOLD 명명 상수
-
-시스템은 `SOFT_THRESHOLD`라는 명명된 상수를 정의하고, 이 값을 초과하는 `.md`/`.markdown` 파일에 대해 점진적 로딩 + 라인 폴딩을 활성화한다. (값은 OD-1에서 사용자 확정 — 제안 30MB.)
-
-#### REQ-IMG-LOAD-2-D-002 (Ubiquitous): HARD_CEILING 명명 상수
-
-시스템은 `HARD_CEILING`이라는 명명된 상수를 정의하고, 이 값을 초과하는 파일은 `UnsupportedFileViewer`로 라우팅하여 로드를 거부한다. (값은 OD-1에서 사용자 확정 — 제안 100MB.)
-
-#### REQ-IMG-LOAD-2-D-003 (Ubiquitous): LINE_FOLD_THRESHOLD 명명 상수
-
-시스템은 `LINE_FOLD_THRESHOLD`라는 명명된 상수를 정의하고, 단일 라인 길이가 이 값을 초과하면 자동 폴딩을 트리거한다(REQ-IMG-LOAD-2-A-003과 연동). (값은 OD-1에서 사용자 확정 — 제안 1MB. N1 직접 완화.)
-
-#### REQ-IMG-LOAD-2-D-004 (State-Driven): SOFT 초과 — 점진적 로딩 + 폴딩
-
-**WHILE** 파일 크기가 `SOFT_THRESHOLD`를 초과하고 `HARD_CEILING` 이하인 경우, 시스템은 편집을 허용한다. **AND** 점진적 로딩(REQ-IMG-LOAD-2-B-005, Axis B 머지 후)과 라인 폴딩(REQ-IMG-LOAD-2-A-003)을 활성화한다. **AND** 에디터 잠금 placeholder를 표시하지 않는다.
-
-#### REQ-IMG-LOAD-2-D-005 (State-Driven): HARD 초과 — 로드 거부
-
-**WHILE** 파일 크기가 `HARD_CEILING`을 초과하는 경우, 시스템은 `UnsupportedFileViewer`를 렌더링하고 에디터를 잠근다. **AND** content를 `''`로 세팅하고 `previewStatus='too-large'`로 라우팅한다(001 Group B 동작과 정합).
-
-#### REQ-IMG-LOAD-2-D-006 (State-Driven): per-line 임계값 초과 자동 폴딩
-
-**WHILE** 문서 내 단일 라인 길이가 `LINE_FOLD_THRESHOLD`를 초과하는 경우, 시스템은 해당 라인을 자동으로 fold한다(REQ-IMG-LOAD-2-A-003의 정책 선언 버전 — 임계값 상수와의 결합을 명시). (N1 직접 완화.)
-
-#### REQ-IMG-LOAD-2-D-007 (Unwanted): 래스터/SVG 크기 가드 제외
-
-**IF** 파일 확장자가 래스터 이미지(`.png`/`.jpg`/...) 또는 `.svg`인 경우, **THEN** 시스템은 본 SPEC의 SOFT/HARD/LINE_FOLD 임계값 변경을 적용하지 않는다. **AND** `SPEC-PREVIEW-008` 래스터/SVG 뷰어의 현행 라우팅과 내부 크기 처리는 유지된다. (001 Non-Goal #8 계승.)
+**WHILE** 세션이 활성 상태인 경우, 시스템은 Worker를 lazy하게 **첫 프리뷰 렌더 시점에** 생성한다(OD-C — 단일 트리거). **AND** 파일 닫기·세션 종료 시 Worker를 정리한다(메모리 누수 방지). (D11 정정 — v1.0.0의 이중 옵션 "첫 SOFT 초과 파일 또는 첫 프리뷰 렌더"를 "첫 프리뷰 렌더" 단일 옵션으로 통합. lazy spawn 트리거 단일화.)
 
 ## Threshold Constants (명명된 상수 — 구현 drift 방지)
 
@@ -376,9 +406,10 @@ async function streamFileIntoEditor(view: EditorView, path: string) {
     if (chunk.length === 0) break;
     const docLen = view.state.doc.length;
     view.dispatch({ changes: { from: docLen, to: docLen, insert: chunk } });
-    offset += Buffer.byteLength(chunk, 'utf-8');  // 바이트 오프셋 전진
+    const byteLen = new TextEncoder().encode(chunk).length;  // 브라우저 네이티브 (D3 정정 — Buffer는 Node 전용)
+    offset += byteLen;  // 바이트 오프셋 전진
     // chunk가 chunkSize보다 짧으면 EOF
-    if (Buffer.byteLength(chunk, 'utf-8') < chunkSize) break;
+    if (byteLen < chunkSize) break;
   }
 }
 ```
@@ -494,7 +525,6 @@ renderGeneration++;  // 모든 in-flight 결과 폐기
 | REQ-IMG-LOAD-2-D-003 | UT-D1-003 | Unit (`LINE_FOLD_THRESHOLD` 상수) | AC-2-D3 |
 | REQ-IMG-LOAD-2-D-004 | UT-D1-004 + PT-D1-004 | Unit (SOFT 초과 편집 허용) + Playwright (placeholder 미표시) | AC-2-D4 |
 | REQ-IMG-LOAD-2-D-005 | UT-D1-005 | Unit (HARD 초과 unsupported 라우팅 — 001 Group B 회귀 정합) | AC-2-D5 |
-| REQ-IMG-LOAD-2-D-006 | UT-D1-006 | Unit (per-line 초과 fold — A-003과 정책 결합) | AC-2-D6 |
 | REQ-IMG-LOAD-2-D-007 | UT-D1-007 | Unit (래스터/SVG 임계값 제외 — PREVIEW-008 회귀 가드) | AC-2-D7 |
 | (WIDGET-001 회귀 가드) | UT-REG-W1..W7 | Unit (WIDGET-001 REQ-1..7 보존 — source 보존/data-URI-only/click→cursor 등) | AC-2-REG |
 | (001 Group B 회귀 가드) | 기존 UT-B1/B5, CT-B2, PT-B4 | 기존 (001 인수 — 본 SPEC 변경 후에도 green 유지) | (001 인수) |
