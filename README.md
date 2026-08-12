@@ -54,7 +54,7 @@ mdedit의 AI는 로컬에 설치된 **Claude Code CLI(`claude`)** 또는 **codex
 | `.svg` | SVG 뷰어(렌더 ↔ 소스 토글, DOMPurify 정화) |
 | `.py` `.js` `.mjs` `.cjs` `.ts` `.json` `.jsonl` `.yaml` `.yml` `.toml` `.sh` `.bash` `.css` | 코드 뷰어(Shiki 구문 강조) |
 | 기타 텍스트 파일 | 평문 표시 + 편집 가능 |
-| 바이너리·읽기 불가 / 5MB 초과 | "미리보기 불가" / "미리보기 건너뜀" 플레이스홀더 |
+| 바이너리·읽기 불가 / 100MB 초과 | "미리보기 불가" / "미리보기 건너뜀" 플레이스홀더 |
 
 ---
 

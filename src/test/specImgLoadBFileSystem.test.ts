@@ -9,7 +9,7 @@ import { act, renderHook } from '@testing-library/react';
 import { useFileSystem } from '@/hooks/useFileSystem';
 import { useFileStore } from '@/store/fileStore';
 import { useEditorStore } from '@/store/editorStore';
-import { FILE_SIZE_THRESHOLD } from '@/lib/preview/previewLimits';
+import { HARD_CEILING } from '@/lib/preview/previewLimits';
 
 const { mockReadFile, mockReadFileSize } = vi.hoisted(() => ({
   mockReadFile: vi.fn().mockResolvedValue('# content'),
@@ -53,9 +53,11 @@ describe('SPEC-IMG-LOAD-001 REQ-B-004 (UT-B4): 접힌 폴더 보호 + N6 fast pa
     });
   });
 
-  it('UT-B4a: 접힌 폴더(findFileNodeSize=undefined) + 대용량 → readFileSize 사전 호출, too-large 라우팅', async () => {
+  it('UT-B4a: 접힌 폴더(findFileNodeSize=undefined) + 대용량(>HARD_CEILING) → readFileSize 사전 호출, too-large 라우팅', async () => {
     // fileTree 가 비어있으므로 findFileNodeSize 는 undefined 반환 (접힌 폴더 시나리오)
-    mockReadFileSize.mockResolvedValue(6 * 1024 * 1024); // 6MB > FILE_SIZE_THRESHOLD(5MB)
+    // SPEC-IMG-LOAD-002 REQ-D-005: 임계값이 5MB(FILE_SIZE_THRESHOLD) → 100MB(HARD_CEILING) 로 이동.
+    // 본 UT 의 인텐트 (readFileSize 사전 조회 + too-large 라우팅) 는 보존하되 값만 HARD_CEILING+1 로 갱신.
+    mockReadFileSize.mockResolvedValue(HARD_CEILING + 1); // > HARD_CEILING(100MB)
 
     const { result } = renderHook(() => useFileSystem());
 
@@ -87,7 +89,8 @@ describe('SPEC-IMG-LOAD-001 REQ-B-004 (UT-B4): 접힌 폴더 보호 + N6 fast pa
 
   it('UT-B4c: 펼쳐진 폴더(nodeSize !== undefined) → readFileSize 미호출 (N6 fast path 회귀 가드)', async () => {
     // fileTree 에 size 가 있는 노드를 직접 넣는다 (펼쳐진 폴더 시나리오)
-    const largeSize = FILE_SIZE_THRESHOLD + 1;
+    // SPEC-IMG-LOAD-002 REQ-D-005: 임계값 5MB → 100MB(HARD_CEILING) 이동 반영.
+    const largeSize = HARD_CEILING + 1;
     useFileStore.setState({
       fileTree: [
         { name: 'big.md', path: '/project/big.md', isDirectory: false, size: largeSize },

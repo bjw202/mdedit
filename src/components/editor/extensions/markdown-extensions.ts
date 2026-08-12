@@ -8,11 +8,13 @@ import { lineNumbers, highlightActiveLine, drawSelection, EditorView, keymap } f
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { searchKeymap } from '@codemirror/search';
 import { indentWithTab } from '@codemirror/commands';
+import { codeFolding, foldGutter, foldKeymap } from '@codemirror/language';
 import { Compartment } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 import { markdownSyntaxHighlighting } from './syntax-highlighting';
 import { markdownKeyboardShortcuts } from './keyboard-shortcuts';
 import { imageWidgetExtension } from './image-widget';
+import { longLineAutoFoldExtension } from './long-line-fold';
 import { createAiGhostText } from './ai-ghost-text';
 import { createAiSelectionToolbar } from './ai-selection-toolbar';
 import { createAiSuggestionCard, getAiLoggedIn, openOnboarding } from './ai-suggestion-card';
@@ -117,7 +119,18 @@ export function createMarkdownExtensions(): Extension[] {
     history(),
 
     // Default keymap (includes standard editing keys)
-    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
+    // SPEC-IMG-LOAD-002 REQ-A-004: foldKeymap 포함 (Ctrl-Q / Cmd-Option-[ 토글 단축키).
+    //   foldKeymap 은 foldState(codeFolding 제공) 에게 unfold/fold effect 를 발행한다.
+    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...foldKeymap, indentWithTab]),
+
+    // SPEC-IMG-LOAD-002 REQ-A-003/004 (D2 — foldEffect dispatch against foldState):
+    //   codeFolding() 이 foldState 를 제공하고, longLineAutoFoldExtension() 이
+    //   LINE_FOLD_THRESHOLD 초과 라인을 감지해 foldEffect.of({from,to}) 를 dispatch 한다.
+    //   foldGutter() 는 좌측 여백에 fold marker 를 렌더 — 클릭 시 unfold (REQ-A-004).
+    //   defaultKeymap 보다 뒤에 배치되어야 fold 단축키가 다른 키와 충돌하지 않는다.
+    codeFolding(),
+    foldGutter(),
+    longLineAutoFoldExtension(),
 
     // Image widget decoration (data URI images → thumbnail widgets)
     imageWidgetExtension(),

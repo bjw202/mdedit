@@ -220,37 +220,43 @@ describe('ImageWidget', () => {
 // TASK-003: ViewPlugin + DecorationSet (mocked CM6)
 // ============================================================
 
+// ============================================================
+// TASK-003: ViewPlugin + DecorationSet (mocked CM6)
+// ============================================================
+//
+// SPEC-IMG-LOAD-002 REQ-A-001: buildDecorations 는 view.state.doc.toString() (full-doc copy) 를
+// 호출하지 않고 view.visibleRanges 기반 부분 스캔을 수행한다. 테스트 mock 도 visibleRanges 와
+// sliceString(to) 를 제공해야 한다. toString 스파이는 미호출 단언용이다.
+
+/** visibleRanges 한 개가 full doc 을 덮는 mock (단순 케이스). toString 스파이 포함. */
+function fullVisibleMock(text: string) {
+  return {
+    visibleRanges: [{ from: 0, to: text.length }] as const,
+    state: {
+      doc: {
+        length: text.length,
+        sliceString: (from: number, to: number) => text.slice(from, to),
+        toString: () => text,
+      },
+    },
+  };
+}
+
 describe('buildDecorations', () => {
   it('returns empty range set for document with no images', async () => {
     const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
-    // Minimal mock for EditorView
-    const mockView = {
-      state: {
-        doc: {
-          toString: () => 'Hello world, no images here.',
-          length: 28,
-        },
-      },
-    };
+    const text = 'Hello world, no images here.';
+    const mockView = fullVisibleMock(text);
     const result = buildDecorations(mockView as unknown as Parameters<typeof buildDecorations>[0]);
-    // Should be a valid range set (no decorations)
     expect(result).toBeDefined();
   });
 
   it('creates decorations for data URI images in document', async () => {
     const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
     const imgText = '![alt](data:image/png;base64,iVBORw0KGgo=)';
-    const mockView = {
-      state: {
-        doc: {
-          toString: () => imgText,
-          length: imgText.length,
-        },
-      },
-    };
+    const mockView = fullVisibleMock(imgText);
     const result = buildDecorations(mockView as unknown as Parameters<typeof buildDecorations>[0]);
     expect(result).toBeDefined();
-    // Verify it's not empty by checking the range set has content
     let count = 0;
     result.between(0, imgText.length, () => { count++; });
     expect(count).toBe(1);
@@ -259,14 +265,7 @@ describe('buildDecorations', () => {
   it('does NOT decorate regular URL images', async () => {
     const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
     const imgText = '![alt](https://example.com/img.png)';
-    const mockView = {
-      state: {
-        doc: {
-          toString: () => imgText,
-          length: imgText.length,
-        },
-      },
-    };
+    const mockView = fullVisibleMock(imgText);
     const result = buildDecorations(mockView as unknown as Parameters<typeof buildDecorations>[0]);
     let count = 0;
     result.between(0, imgText.length, () => { count++; });
@@ -276,18 +275,121 @@ describe('buildDecorations', () => {
   it('creates multiple decorations for multiple data URI images', async () => {
     const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
     const text = '![a](data:image/png;base64,aaa=) text ![b](data:image/jpeg;base64,bbb=)';
-    const mockView = {
-      state: {
-        doc: {
-          toString: () => text,
-          length: text.length,
-        },
-      },
-    };
+    const mockView = fullVisibleMock(text);
     const result = buildDecorations(mockView as unknown as Parameters<typeof buildDecorations>[0]);
     let count = 0;
     result.between(0, text.length, () => { count++; });
     expect(count).toBe(2);
+  });
+});
+
+// ============================================================
+// SPEC-IMG-LOAD-002 REQ-A-001 (UT-A1-001): 뷰포트 위젯 바운딩
+//   buildDecorations 가 view.visibleRanges 만 스캔하고 view.state.doc.toString() 을
+//   호출하지 않음을 검증. 본 REQ 가 D1 수정에서 지정한 "실제 동결 제거 주체" 이다.
+// ============================================================
+
+describe('SPEC-IMG-LOAD-002 REQ-A-001 (UT-A1-001): 뷰포트 위젯 바운딩', () => {
+  it('view.state.doc.toString() 은 호출되지 않는다 (full-doc copy 회피)', async () => {
+    const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
+    const text = '![a](data:image/png;base64,aaa=) middle ![b](data:image/jpeg;base64,bbb=)';
+    let toStringCalls = 0;
+    const mockView = {
+      visibleRanges: [{ from: 0, to: text.length }] as const,
+      state: {
+        doc: {
+          length: text.length,
+          sliceString: (from: number, to: number) => text.slice(from, to),
+          toString: () => { toStringCalls++; return text; },
+        },
+      },
+    };
+    buildDecorations(mockView as never);
+    expect(toStringCalls).toBe(0);
+  });
+
+  it('visible 범위 밖의 data URI 는 위젯 생성 안 함', async () => {
+    const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
+    const visible = '![visible](data:image/png;base64,vv=)';
+    const hidden = ' ![hidden](data:image/jpeg;base64,hh=)';
+    const full = visible + hidden;
+    const mockView = {
+      visibleRanges: [{ from: 0, to: visible.length }] as const,  // visible 구간만
+      state: {
+        doc: {
+          length: full.length,
+          sliceString: (f: number, t: number) => full.slice(f, t),
+          toString: () => full,
+        },
+      },
+    };
+    const result = buildDecorations(mockView as never);
+    let count = 0;
+    result.between(0, full.length, () => { count++; });
+    expect(count).toBe(1);  // visible 1개만
+  });
+
+  it('여러 visibleRanges 분할 — 각 범위를 독립 스캔', async () => {
+    const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
+    const text = '![a](data:image/png;base64,aa=) X ![b](data:image/jpeg;base64,bb=)';
+    const aEnd = text.indexOf(' X ');
+    const bStart = aEnd + 3;
+    const mockView = {
+      visibleRanges: [
+        { from: 0, to: aEnd },
+        { from: bStart, to: text.length },
+      ] as const,
+      state: {
+        doc: {
+          length: text.length,
+          sliceString: (f: number, t: number) => text.slice(f, t),
+          toString: () => text,
+        },
+      },
+    };
+    const result = buildDecorations(mockView as never);
+    let count = 0;
+    result.between(0, text.length, () => { count++; });
+    expect(count).toBe(2);
+  });
+
+  it('빈 문서 (visibleRanges 빈) → 위젯 0개, 예외 없음', async () => {
+    const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
+    const mockView = {
+      visibleRanges: [] as const,
+      state: {
+        doc: {
+          length: 0,
+          sliceString: () => '',
+          toString: () => '',
+        },
+      },
+    };
+    const result = buildDecorations(mockView as never);
+    expect(result).toBeDefined();
+  });
+});
+
+// ============================================================
+// SPEC-IMG-LOAD-002 REQ-A-002 (UT-A1-002): viewportChanged 갱신
+//   ViewPlugin.update 가 docChanged 또는 viewportChanged 시 재계산한다.
+//   shouldRecomputeDecorations 순수 함수로 분리해 테스트 가능하게 노출.
+// ============================================================
+
+describe('SPEC-IMG-LOAD-002 REQ-A-002 (UT-A1-002): viewportChanged 갱신', () => {
+  it('shouldRecomputeDecorations(viewportChanged=true) → true', async () => {
+    const { shouldRecomputeDecorations } = await import('@/components/editor/extensions/image-widget');
+    expect(shouldRecomputeDecorations({ docChanged: false, viewportChanged: true })).toBe(true);
+  });
+
+  it('shouldRecomputeDecorations(docChanged=true) → true', async () => {
+    const { shouldRecomputeDecorations } = await import('@/components/editor/extensions/image-widget');
+    expect(shouldRecomputeDecorations({ docChanged: true, viewportChanged: false })).toBe(true);
+  });
+
+  it('shouldRecomputeDecorations(both false) → false', async () => {
+    const { shouldRecomputeDecorations } = await import('@/components/editor/extensions/image-widget');
+    expect(shouldRecomputeDecorations({ docChanged: false, viewportChanged: false })).toBe(false);
   });
 });
 

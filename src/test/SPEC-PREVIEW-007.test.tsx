@@ -180,12 +180,18 @@ describe('useFileSystem.openFile — 파일 분류 (SPEC-PREVIEW-007)', () => {
   });
 
   // ── 시나리오 E: 대용량 파일 ───────────────────────────────────────────────
+  //
+  // SPEC-IMG-LOAD-002 REQ-D-004/005 로 임계값이 5MB(FILE_SIZE_THRESHOLD) → 100MB(HARD_CEILING) 로
+  // 이동했다. 본 시나리오는 "size > HARD_CEILING → too-large routing" 인텐트를 보존하되,
+  // 값만 HARD_CEILING+1 로 갱신했다. FILE_SIZE_THRESHOLD deprecated alias 는 SvgFileViewer 등
+  // 타 consumer 용으로 previewLimits.ts 에 계속 존재한다 (OD-2).
 
-  it('시나리오 E: size > 임계값 → readFile 호출되지 않고, previewStatus="too-large"', async () => {
+  it('시나리오 E: size > HARD_CEILING → readFile 호출되지 않고, previewStatus="too-large"', async () => {
     const { useFileSystem } = await import('@/hooks/useFileSystem');
+    const { HARD_CEILING } = await import('@/lib/preview/previewLimits');
     useFileStore.setState({
       fileTree: [
-        { name: 'bigfile.bin', path: '/project/bigfile.bin', isDirectory: false, size: FILE_SIZE_THRESHOLD + 1 },
+        { name: 'bigfile.bin', path: '/project/bigfile.bin', isDirectory: false, size: HARD_CEILING + 1 },
       ],
       currentFile: null,
       expandedDirs: new Set(),
