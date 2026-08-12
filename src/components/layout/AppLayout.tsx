@@ -306,9 +306,19 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
         prefixLine(view, '> ');
         break;
       case 'image': {
+        // @MX:SPEC: SPEC-IMG-LOAD-001 REQ-A-001/002/003/004
+        // @MX:NOTE: [AUTO] 모드 인지 호출부 — MarkdownEditor Mod-Shift-i 와 동일 분기(REQ-A-004 대칭).
+        //   inline-blob + 미저장 → Save-As 스킵 (insertImageFromDialog inline-blob 분기는 mdFilePath 미사용).
+        //   file-save + 미저장 → 기존 Save-As 게이트 유지 (copyImageToFolder 가 mdFilePath 필요).
+        //   경로 존재 → 모드 무관 직접 호출.
         const filePath = useEditorStore.getState().currentFilePath;
+        const { imageInsertMode } = useUIStore.getState();
+        if (!filePath && imageInsertMode === 'inline-blob') {
+          void insertImageFromDialog(view, '');
+          break;
+        }
         if (!filePath) {
-          // Unsaved file - Save As first, then insert image
+          // file-save 모드 + 미저장 — Save As 게이트 유지 (REQ-A-002)
           const docContent = view.state.doc.toString();
           saveFileAsIpc(docContent).then((savedPath) => {
             if (savedPath) {
