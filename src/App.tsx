@@ -10,13 +10,10 @@ import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { useWindowCloseGuard } from '@/hooks/useWindowCloseGuard';
-import { readFile } from '@/lib/tauri/ipc';
 
 function App(): JSX.Element {
   const currentFilePath = useEditorStore((s) => s.currentFilePath);
-  const setContent = useEditorStore((s) => s.setContent);
-  const setDirty = useEditorStore((s) => s.setDirty);
-  const { openFolderPath } = useFileSystem();
+  const { openFolderPath, openFile } = useFileSystem();
 
   // SPEC-FS-003: 가드 상태 머신. 루트에서 인스턴스화 — AppLayout(ConfirmDialog 렌더)과
   // 워처 콜백(REQ-022 충돌 모달)이 단일 인스턴스를 공유한다.
@@ -47,17 +44,19 @@ function App(): JSX.Element {
     onFileChanged: (event) => {
       if (event.kind !== 'Modified' || event.path !== currentFilePath) return;
       const { dirty } = useEditorStore.getState();
+      // @MX:SPEC: SPEC-IMG-LOAD-001 REQ-IMG-LOAD-B-003
+      // @MX:NOTE: [AUTO] 워쳐 reload 를 openFile 경로(크기 가드 포함)로 위임한다.
+      //   종전 readFile 직접 호출은 크기 가드를 우회해 대용량 파일 로드 시 UI 동결을 유발했다.
+      //   openFile 은 setCurrentFile/setContent/setCurrentFilePath/previewStatus 를
+      //   일관되게 갱신하므로 setContent/setDirty 직접 호출을 대체한다(OD-5: openFile 재사용 채택).
       if (!dirty) {
         // REQ-021: dirty=false → 자동 재로드
-        void readFile(event.path).then((content) => setContent(content));
+        void openFile(event.path);
         return;
       }
-      // REQ-022/023: dirty=true → 충돌 모달. 'reload'는 디스크 내용으로 덮어쓰기 + dirty false.
+      // REQ-022/023: dirty=true → 충돌 모달. 'reload'는 디스크 내용으로 덮어쓰기.
       guard.requestWatcherConflict(() => {
-        void readFile(event.path).then((content) => {
-          setContent(content);
-          setDirty(false);
-        });
+        void openFile(event.path);
       });
     },
   });

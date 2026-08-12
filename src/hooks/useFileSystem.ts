@@ -6,6 +6,7 @@ import {
   openDirectoryDialog,
   readDirectory,
   readFile,
+  readFileSize,
   createFile as ipcCreateFile,
   deleteFile as ipcDeleteFile,
   renameFile as ipcRenameFile,
@@ -195,8 +196,23 @@ export function useFileSystem(): FileSystemHook {
     // 3순위: 대용량 파일 가드 — FileNode.size로 열기 전에 판정
     // fileStore tree에서 해당 경로의 노드를 찾아 크기를 확인한다 (SPEC-PREVIEW-008: ImageFileViewer/
     // SvgFileViewer와 동일한 findFileNodeSize 유틸을 공유하도록 리팩토링)
+    //
+    // @MX:SPEC: SPEC-IMG-LOAD-001 REQ-IMG-LOAD-B-004
+    // @MX:NOTE: [AUTO] 접힌 폴더 보호 + N6 fast path.
+    //   findFileNodeSize === undefined (접힌 폴더 내 파일) → readFileSize IPC 로 사전 크기 조회.
+    //   findFileNodeSize !== undefined (펼쳐진 폴더) → 기존 size 그대로 사용, IPC 없이 fast path 유지.
+    //   readFileSize IPC 실패 시 size 를 알 수 없으므로 too-large 가드를 적용하지 않고 readFile 시도.
     const nodeSize = findFileNodeSize(useFileStore.getState().fileTree, path);
-    if (nodeSize !== undefined && nodeSize > FILE_SIZE_THRESHOLD) {
+    let size: number | undefined = nodeSize;
+    if (size === undefined) {
+      try {
+        size = await readFileSize(path);
+      } catch {
+        // IPC 실패 — size 미확정 상태로 readFile 시도 (가드 우회가 아닌 정상 fallback)
+        size = undefined;
+      }
+    }
+    if (size !== undefined && size > FILE_SIZE_THRESHOLD) {
       setCurrentFile(path);
       setContent('');
       setCurrentFilePath(path);
