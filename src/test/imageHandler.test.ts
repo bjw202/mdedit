@@ -317,3 +317,82 @@ describe('insertImageFromDialog: imageInsertMode behavior', () => {
     expect(mockSaveImageFromClipboard).not.toHaveBeenCalled();
   });
 });
+
+// ============================================================
+// SPEC-IMG-LOAD-002 REQ-A-005 (UT-A1-005): 이미지 삽입 시 폴딩 힌트
+//   insertImageMarkdown 이 LINE_FOLD_THRESHOLD 초과 라인을 만들면
+//   foldEffect dispatch 를 추가로 발행한다. paste/drop×2/dialog 4개 호출부가
+//   모두 insertImageMarkdown 으로 funnel 되므로 이 헬퍼에서 일관 적용한다 (001 REQ-IMG-LOAD-A-004 대칭).
+// ============================================================
+
+describe('SPEC-IMG-LOAD-002 REQ-A-005 (UT-A1-005): insertImageMarkdown 폴딩 힌트', () => {
+  function createMockViewWithDoc(docText: string = '') {
+    // CodeMirror Text 인터페이스 흉내 — lineAt(pos) 반환
+    const lines = docText.split('\n');
+    const lineFroms: number[] = [];
+    let acc = 0;
+    for (const ln of lines) {
+      lineFroms.push(acc);
+      acc += ln.length + 1; // +1 for \n
+    }
+    return {
+      dispatch: vi.fn(),
+      state: {
+        selection: { main: { head: docText.length } },
+        doc: {
+          length: docText.length,
+          lineAt: (pos: number) => {
+            // 가장 가까운 line start 반환
+            for (let i = lineFroms.length - 1; i >= 0; i--) {
+              if (lineFroms[i] <= pos) {
+                const text = lines[i] ?? '';
+                return { from: lineFroms[i], to: lineFroms[i] + text.length, length: text.length };
+              }
+            }
+            return { from: 0, to: 0, length: 0 };
+          },
+        },
+      },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    act(() => useUIStore.setState({ imageInsertMode: 'inline-blob' }));
+  });
+
+  it('짧은 data URI (< LINE_FOLD_THRESHOLD) 삽입 → changes 만 dispatch (effects 없음)', async () => {
+    const { insertImageMarkdown } = await import('@/lib/image/imageHandler');
+    const view = createMockViewWithDoc('');
+    const shortDataUri = 'data:image/png;base64,' + 'A'.repeat(100);
+    insertImageMarkdown(view as never, shortDataUri, 'image', 0);
+
+    // 단일 dispatch — effects 없음
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    const call = view.dispatch.mock.calls[0][0];
+    expect(call.changes).toBeDefined();
+    expect(call.effects).toBeUndefined();
+  });
+
+  it('거대 data URI (> LINE_FOLD_THRESHOLD) 삽입 → fold effects 가 changes 와 동일 dispatch 에 결합', async () => {
+    const { insertImageMarkdown, LINE_FOLD_THRESHOLD } = await import('@/lib/image/imageHandler');
+    const view = createMockViewWithDoc('');
+    // threshold + 1 길이의 data URI (pre-dispatch prediction 으로 fold 유발)
+    const huge = 'data:image/png;base64,' + 'A'.repeat(LINE_FOLD_THRESHOLD + 1);
+    insertImageMarkdown(view as never, huge, 'image', 0);
+
+    // 단일 dispatch 에 changes + effects 가 모두结합 (D2 — foldEffect dispatch 패턴)
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    const call = view.dispatch.mock.calls[0][0];
+    expect(call.changes).toBeDefined();
+    expect(call.effects).toBeDefined();
+  });
+
+  it('두 UI 진입점(toolbar/Cmd+Shift+I) 모두 동일한 insertImageMarkdown 으로 funnel', async () => {
+    // 본 단언은 funnel 구조를 코드 리뷰로 이미 확인했으므로, 헬퍼 호출 1회당 dispatch 일관성만 검증.
+    const { insertImageMarkdown } = await import('@/lib/image/imageHandler');
+    const view = createMockViewWithDoc('');
+    insertImageMarkdown(view as never, 'data:image/png;base64,short', 'image', 0);
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+  });
+});

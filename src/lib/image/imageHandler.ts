@@ -1,8 +1,9 @@
 // @MX:ANCHOR: [AUTO] Image insertion handlers for clipboard paste, drag-and-drop, and file dialog
 // @MX:REASON: Public API boundary for all image insertion operations from editor (fan_in >= 3)
-// @MX:SPEC: SPEC-IMG-001, SPEC-IMG-MODE-001, SPEC-IMG-MODE-002
+// @MX:SPEC: SPEC-IMG-001, SPEC-IMG-MODE-001, SPEC-IMG-MODE-002, SPEC-IMG-LOAD-002
 
 import type { EditorView } from '@codemirror/view';
+import { foldEffect } from '@codemirror/language';
 import {
   saveImageFromClipboard,
   copyImageToFolder,
@@ -11,9 +12,28 @@ import {
 } from '@/lib/tauri/ipc';
 import { useUIStore } from '@/store/uiStore';
 import type { ImageInsertMode } from '@/store/uiStore';
+import { LINE_FOLD_THRESHOLD } from '@/lib/preview/previewLimits';
+
+/**
+ * SPEC-IMG-LOAD-002 REQ-A-005: 삽입 힌트용 LINE_FOLD_THRESHOLD 를 외부 테스트가 참조 가능하도록 export.
+ * insertImageMarkdown 이 이 값 초과 라인을 만들면 foldEffect 를 추가 dispatch 한다.
+ */
+export { LINE_FOLD_THRESHOLD };
 
 /**
  * Inserts a markdown image link at the given position (or cursor position).
+ *
+ * SPEC-IMG-LOAD-002 REQ-A-005 (D6 — 2 UI gesture → 4 call site 대칭):
+ *   4개 호출부(paste / drop×2 / dialog)는 모두 본 함수로 funnel 되므로, 여기서만
+ *   fold 힌트를 추가하면 모든 진입점이 동일한 폴딩 정책을 받는다 (001 REQ-IMG-LOAD-A-004 대칭).
+ *
+ *   삽입 *직전* 에 view.state.doc.lineAt(insertPos) 로 현재 라인 경계를 읽고,
+ *   (line.length + markdown.length) 로 삽입 후 라인 길이를 예측하여 LINE_FOLD_THRESHOLD 초과 시
+ *   foldEffect.of({from, to}) 를 changes 와 동일 dispatch 에 effect 로 묶어 보낸다.
+ *   단일 dispatch 로 visual flash 없이 첫 paint 부터 축소 상태로 렌더된다.
+ *
+ *   foldEffect 는 codeFolding() 의 foldState 가 처리 — D2 (foldEffect dispatch 패턴) 준수.
+ *   view.state.doc 이 없거나 lineAt 미지원(mock 테스트 등)이면 fold 힌트는 조용히 건너뛴다.
  */
 export function insertImageMarkdown(
   view: EditorView,
@@ -23,8 +43,24 @@ export function insertImageMarkdown(
 ): void {
   const insertPos = pos ?? view.state.selection.main.head;
   const markdown = `![${altText}](${relativePath})`;
+
+  // REQ-A-005: pre-dispatch fold prediction. 단일 dispatch 로 changes + effects 결합.
+  type FoldRange = { from: number; to: number };
+  let foldRange: FoldRange | null = null;
+  const doc = view.state?.doc as { lineAt?: (pos: number) => { from: number; to: number; length: number } } | undefined;
+  if (doc && typeof doc.lineAt === 'function') {
+    const line = doc.lineAt(insertPos);
+    const predictedLineLength = line.length + markdown.length;
+    if (predictedLineLength > LINE_FOLD_THRESHOLD) {
+      // line.from 은 불변 (삽입이 line.from 이후에 일어나므로).
+      // line.to 는 markdown.length 만큼 우측 이동.
+      foldRange = { from: line.from, to: line.to + markdown.length };
+    }
+  }
+
   view.dispatch({
     changes: { from: insertPos, to: insertPos, insert: markdown },
+    ...(foldRange ? { effects: foldEffect.of(foldRange) } : {}),
   });
 }
 

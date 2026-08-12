@@ -150,7 +150,9 @@ async function seedCollapsedLargeFile(page: Page): Promise<void> {
           return Promise.resolve(tree);
         case 'read_file_size': {
           (window as unknown as { __READ_FILE_SIZE_CALLS__: Array<Record<string, unknown>> }).__READ_FILE_SIZE_CALLS__.push(args);
-          return Promise.resolve(6 * 1024 * 1024); // 6MB > FILE_SIZE_THRESHOLD
+          // SPEC-IMG-LOAD-002 REQ-D-005: 임계값이 5MB(FILE_SIZE_THRESHOLD) → 100MB(HARD_CEILING) 로 이동.
+          // PT-B4 인텐트 (접힌 폴더 + 대용량 → UnsupportedFileViewer) 보존을 위해 150MB 로 갱신.
+          return Promise.resolve(150 * 1024 * 1024); // 150MB > HARD_CEILING(100MB)
         }
         case 'read_file': {
           (window as unknown as { __READ_FILE_CALLS__: Array<Record<string, unknown>> }).__READ_FILE_CALLS__.push(args);

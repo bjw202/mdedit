@@ -17,7 +17,7 @@ import { saveDocument } from '@/lib/save/saveDocument';
 import { useFileStore } from '@/store/fileStore';
 import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
-import { FILE_SIZE_THRESHOLD } from '@/lib/preview/previewLimits';
+import { HARD_CEILING } from '@/lib/preview/previewLimits';
 import { isRasterImagePath, isSvgPath } from '@/lib/preview/mediaExtensions';
 import { findFileNodeSize } from '@/lib/preview/fileTreeUtils';
 
@@ -197,11 +197,17 @@ export function useFileSystem(): FileSystemHook {
     // fileStore tree에서 해당 경로의 노드를 찾아 크기를 확인한다 (SPEC-PREVIEW-008: ImageFileViewer/
     // SvgFileViewer와 동일한 findFileNodeSize 유틸을 공유하도록 리팩토링)
     //
-    // @MX:SPEC: SPEC-IMG-LOAD-001 REQ-IMG-LOAD-B-004
+    // @MX:SPEC: SPEC-IMG-LOAD-001 REQ-IMG-LOAD-B-004, SPEC-IMG-LOAD-002 REQ-IMG-LOAD-2-D-004/005
     // @MX:NOTE: [AUTO] 접힌 폴더 보호 + N6 fast path.
     //   findFileNodeSize === undefined (접힌 폴더 내 파일) → readFileSize IPC 로 사전 크기 조회.
     //   findFileNodeSize !== undefined (펼쳐진 폴더) → 기존 size 그대로 사용, IPC 없이 fast path 유지.
     //   readFileSize IPC 실패 시 size 를 알 수 없으므로 too-large 가드를 적용하지 않고 readFile 시도.
+    //
+    // SPEC-IMG-LOAD-002 REQ-D-004/005 (임계값 3계층):
+    //   - size > HARD_CEILING (100MB) → too-large (UnsupportedFileViewer + 에디터 잠금)
+    //   - SOFT_THRESHOLD (30MB) < size <= HARD_CEILING → 편집 허용 (라인 폴딩 활성화)
+    //   - size <= SOFT_THRESHOLD → 기존 단일 readFile 경로 유지 (회귀 없음)
+    //   FILE_SIZE_THRESHOLD (5MB deprecated alias) 는 SvgFileViewer 등 기존 consumer 용으로 유지.
     const nodeSize = findFileNodeSize(useFileStore.getState().fileTree, path);
     let size: number | undefined = nodeSize;
     if (size === undefined) {
@@ -212,7 +218,7 @@ export function useFileSystem(): FileSystemHook {
         size = undefined;
       }
     }
-    if (size !== undefined && size > FILE_SIZE_THRESHOLD) {
+    if (size !== undefined && size > HARD_CEILING) {
       setCurrentFile(path);
       setContent('');
       setCurrentFilePath(path);
