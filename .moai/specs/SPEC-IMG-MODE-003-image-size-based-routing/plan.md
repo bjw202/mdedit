@@ -51,7 +51,8 @@
   - UT-R-001f: 다이얼로그 + 대형 + inline-blob → `copyImageToFolder` 호출
   - UT-R-002: 3 진입점이 동일한 라우팅 결정을 내림을 단언 (대형 이미지로 3경로 모두 file-save)
   - UT-R-003a: 붙여넣기/드롭은 `file.size`를 읽고 `readFileSize`를 호출하지 않음
-  - UT-R-003b: 다이얼로그는 `readFileSize`를 호출함
+  - UT-R-003b: 다이얼로그는 `readFileSize`를 호출함 (성공 시 크기 기반 라우팅)
+  - UT-R-003c (v1.1.0, BD-1): 다이얼로그 + `readFileSize` IPC 거부 + 대형 fixture + inline-blob 모드 → 시스템은 `copyImageToFolder`로 라우팅 (또는 미저장+Save-As 취소 시 no-op). **`readImageAsBase64` 호출 미발생**을 단언 — inline-blob 폴백 금지
   - UT-R-BOUNDARY: 임계값 `−1`/`0`/`+1` byte × 3 경로 (최소 9개 단언)
   - UT-T-001: `IMAGE_INLINE_THRESHOLD` 상수가 존재, 값이 `< MAX_IMAGE_SIZE`(10MB)임을 단언. `>= LINE_FOLD_THRESHOLD`(1MB)임을 단언
   - UT-U-001: 붙여넣기/다이얼로그 + 대형 + inline-blob + 미저장 → `saveFileAs` 1회 호출 후 file-save
@@ -59,6 +60,7 @@
   - UT-U-003: 대형 + 저장된 문서 → file-save, `saveFileAs` 미호출
   - UT-N-001: 기본 모드 inline-blob + 소형 → data URI
   - UT-N-002: 대형 이미지 >10MB → file-save 경로 거부 에러 (Rust `copy_image_to_folder` 동작 — IPC mock으로 단언)
+  - UT-E-001 (v1.1.0, BD-2): 대형 이미지 >10MB → file-save 거부 → toast/메시지 표시 단언. silent no-op 아님. inline-blob 폴백 미발생 단언
 - 모든 신규 라우팅 테스트가 현재 구현에서 실패함을 확인 (RED 증거).
 
 **Files**:
@@ -87,6 +89,7 @@
   - 소형: 기존 모드 분기 유지 (inline-blob → data URI, file-save → `saveImageFromClipboard`).
   - 대형: 모드 무관 file-save 경로(`saveImageFromClipboard(mdFilePath, base64)`)로 라우팅.
   - 대형 + `mdFilePath` 빈 문자열(미저장): 지연 Save-As 트리거 — `extractImageFile`이 이미 File을 확보했으므로 안전. Save-As 완료 후 `savedPath`로 `saveImageFromClipboard` 호출.
+  - **NI-4 구현 메모 (v1.1.0, 성능)**: `fileToBase64`/base64 변환은 라우팅 결정 **이후에** 호출한다. 순서: (1) `file.size` 읽기 (동기), (2) `resolveImageRoute({ mode, sizeInBytes })` 호출, (3) 라우팅 결과에 따라 필요한 변환/IPC 호출. 붙여넣기 file-save 경로는 `saveImageFromClipboard(mdFilePath, base64)` IPC가 base64를 요구하므로 변환을 피할 수 없으나, 라우팅 분기 전에 모든 경로에 대해 미리 변환하지 않도록 주의한다 — 인라인 삽입이 결정된 경우에만 data URI 변환을 수행하고, file-save가 결정된 경우에만 base64 변환을 수행한다.
 - UT-R-001a/b, UT-R-003a, UT-U-001 (붙여넣기 변형), UT-U-002 (붙여넣기 변형), UT-U-003 통과 확인.
 
 **Files**:
@@ -102,8 +105,10 @@
   - 소형: 기존 모드 분기 유지 (inline-blob → `readImageAsBase64`, file-save → `copyImageToFolder`).
   - 대형: 모드 무관 `copyImageToFolder(selectedPath, mdFilePath)` 로 라우팅.
   - 대형 + `mdFilePath` 빈 문자열(미저장): 지연 Save-As 트리거. Save-As 완료 후 `savedPath`로 `copyImageToFolder` 호출.
+  - **BD-1 폴백 (v1.1.0)**: `readFileSize` IPC가 실패하는 경우, `readImageAsBase64`(inline-blob)로 폴백하지 않고 `copyImageToFolder(selectedPath, mdFilePath)`(file-save)로 폴백한다. `mdFilePath` 부재 시 `ensureMdFilePathForLargeImage` helper로 Save-As를 시도하고, 취소 시 no-op. 이 순서를 어기면 거대 base64 단일 라인이 재도입된다.
+  - **NI-4 구현 메모 (v1.1.0, 성능 — 다이얼로그 경로에서 특히 중요)**: `readImageAsBase64`는 inline-blob 라우팅으로 결정된 경우에 **만** 호출한다. file-save 라우팅(`copyImageToFolder`)인 경우 base64 변환을 건너뛰고 `copyImageToFolder(selectedPath, mdFilePath)`로 path-기반 복사를 직접 수행한다 — 5MB 이미지의 ~6.7MB base64 변환을 회피하여 메모리 펌핑을 방지. 순서: (1) `readFileSize(selectedPath)` (IPC), (2) `resolveImageRoute({ mode, sizeInBytes })` 호출, (3-a) inline → `readImageAsBase64`, (3-b) file-save → `copyImageToFolder` (base64 없음). 기존 구조가 base64를 먼저 읽고 모드를 분기한다면 순서를 뒤바꿔야 한다 (run-phase에서 회귀 테스트로 검증).
 - 기존 UT-7/8/11(`:276-318`) 회귀 없음 확인 (`readFileSize` mock이 소형 반환).
-- UT-R-001e/f, UT-R-003b, UT-U-001 (다이얼로그 변형), UT-U-002 (다이얼로그 변형) 통과 확인.
+- UT-R-001e/f, UT-R-003b, **UT-R-003c (v1.1.0)**, UT-U-001 (다이얼로그 변형), UT-U-002 (다이얼로그 변형) 통과 확인.
 
 **Files**:
 - `src/lib/image/imageHandler.ts` (수정)
@@ -141,12 +146,14 @@
   - [ ] 대형 이미지 + 미저장 문서에서 다이얼로그 → Save-As 트리거 후 file-save
   - [ ] 소형 이미지 + 미저장 문서에서 다이얼로그 → Save-As 스킵, data URI (Group A 보존)
   - [ ] 드롭 경로 대형 이미지 → file-save (미저장 시 기존 Save-As 게이트 동작)
-  - [ ] 대형 이미지 >10MB → file-save 거부 에러 (REQ-N-002)
+  - [ ] 대형 이미지 >10MB → file-save 거부 + 사용자 가시 에러(toast) 표시 (REQ-N-002 + REQ-E-001, v1.1.0 BD-2)
   - [ ] 다중 드롭 소형·대형 혼합 → 각 파일 독립 라우팅
+  - [ ] (v1.1.0, BD-1) 다이얼로그 경로 `readFileSize` IPC 실패 시뮬레이션 → file-save 폴백(또는 미저장+Save-As 취소 시 no-op). inline-blob로 회귀하지 않음을 실기기 확인
 
 **Playwright must-pass 게이트** ([feedback-jsdom-pointer-blindspot] 반영 — REQ-U-001 클립보드 만료 안전성):
 - [ ] PT-MODE-003-001: 실제 클립보드의 대형 이미지 붙여넣기 + 미저장 문서 → Save-As 다이얼로그 정상 트리거, 저장 후 이미지 누락 없음
 - [ ] PT-MODE-003-002: 대형 이미지 드롭 + 미저장 → 기존 Save-As 게이트 동작, 저장 후 file-save 라우팅
+- [ ] PT-E-001 (v1.1.0, BD-2): 대형 이미지 >10MB 삽입 시도 → toast/메시지가 사용자에게 가시적으로 표시됨을 Playwright로 단언 (DOM 셀렉터로 toast 요소 탐지). silent no-op 아님.
 
 ## Architecture Design Direction
 
@@ -183,56 +190,45 @@
 |---|---|---|
 | 다중 대형 이미지 연속 붙여넣기 시 Save-As 다이얼로그 반복 노출 | Medium | OD-2 UX 합의 — 첫 이미지에서 Save-As 확보 후 세션 내 재사용(별도 최적화) 또는 toast로 라우팅 사유 명시. 본 SPEC 범위에서는 1차 구현(이미지마다 게이트)으로 진행 |
 | 다이얼로그 경로 `readFileSize` IPC 왕복 지연 | Low | 단일 메타데이터 조회이므로 수 ms 이내. 기존 `useFileSystem.ts:215`에서 이미 동일 IPC 사용 중이며 성능 이슈 보고 없음 |
-| 임계값 튜닝 (OD-1) — 2MB가 너무 낮거나 높을 수 있음 | Medium | OD-1 범위 [1MB, 3MB]에서 사용자 합의. `LINE_FOLD_THRESHOLD`(1MB) 이상·`MAX_IMAGE_SIZE`(10MB) 미만 제약(T-001)이 안전망. 런타임 조정 불가(컴파일 타임 상수) — 튜닝은 후속 개정에서 |
-| 대형 이미지(>10MB)가 file-save로 라우팅 후 Rust 10MB 검증에서 거부 | Low | T-001 제약(`IMAGE_INLINE_THRESHOLD < MAX_IMAGE_SIZE`)으로 사각지대 방지. >10MB는 거부되며 사용자 가시적 에러 피드백은 Non-Goal #6 (OD-2 관련) |
+| 임계값 튜닝 (OD-1) — 2MB가 너무 낮거나 높을 수 있음 | Medium | OD-1 v1.1.0에서 2MB로 확정(범위 [1MB, 3MB]). `LINE_FOLD_THRESHOLD`(1MB) 이상·`MAX_IMAGE_SIZE`(10MB) 미만 제약(T-001)이 안전망. 런타임 조정 불가(컴파일 타임 상수) — 튜닝은 후속 개정에서. 디버그 로깅(OD-3)으로 post-ship 튜닝 데이터 수집 권장 |
+| 대형 이미지(>10MB)가 file-save로 라우팅 후 Rust 10MB 검증에서 거부 | Low | T-001 제약(`IMAGE_INLINE_THRESHOLD < MAX_IMAGE_SIZE`)으로 사각지대 방지. >10MB 거부 시 사용자 가시 에러(toast)는 REQ-IMG-MODE-3-E-001 (BD-2)로 처리 — silent no-op 아님 |
+| **(v1.1.0, BD-1)** `readFileSize` IPC 실패 시 inline-blob 폴백이 동결을 재도입 | Critical | REQ-R-003 정정: 폴백은 file-save (또는 file-save 불가 시 no-op). inline-blob 경로로 회귀 금지. UT-R-003c로 단언 — `readFileSize` reject + 대형 fixture + inline-blob 모드 → `copyImageToFolder` 호출, `readImageAsBase64` 미호출 |
 | 기존 UT-7/8/11(`imageHandler.test.ts:276-318`)이 `readFileSize` 모킹 누락으로 실패 | Medium | M1에서 `readFileSize` 모킹 추가를 가장 먼저 수행. 기존 테스트가 소형 mock 값으로 green 유지됨을 M1 완료 기준으로 검증 |
-| Playwright 게이트가 CI에서 warning-only일 때 클립보드 만료 회귀 누락 | Medium | PT-MODE-003-001/002를 로컬 must-pass로 지정. CI 통과와 별개로 PR 머지 전 수동 실행 ([feedback-jsdom-pointer-blindspot]) |
+| Playwright 게이트가 CI에서 warning-only일 때 클립보드 만료 회귀 누락 | Medium | PT-MODE-003-001/002/PT-E-001을 로컬 must-pass로 지정. CI 통과와 별개로 PR 머지 전 수동 실행 ([feedback-jsdom-pointer-blindspot]) |
 | 행동 반전으로 인해 기존 사용자 문서가 영향받을 가능성 | Low | 소형 이미지 경로는 100% 보존 (Group A 무변경). 대형 이미지 inline-blob 사용자는 라우팅 변경으로 이점(동결 해소) 획득 — 기대한 동작 개선 |
-| `resolveImageRoute` helper 도입이 기존 테스트 구조와 충돌 | Low | helper는 순수 함수(모드·크기 → 라우팅)이므로 기존 핸들러 테스트에 간섭 없음. helper 자체 단위 테스트(UT-R-002)로 검증 |
+| `resolveImageRoute` helper 도입이 기존 테스트 구조와 충돌 | Low | helper는 순수 함수(`{ mode, sizeInBytes }` → 라우팅)이므로 기존 핸들러 테스트에 간섭 없음. helper 자체 단위 테스트(UT-R-002)로 검증 |
 
-## Open Decisions (run phase 개시 전 사용자 합의 필요)
+## Open Decisions (v1.1.0 — 모두 해결됨, run phase 개시 가능)
 
-아래 항목은 본 SPEC plan 단계에서 명시적 합의가 필요한 결정이다. run phase 에이전트에 위임하기 전에 사용자가 해결해야 한다.
+아래 항목은 본 SPEC plan 단계에서 명시적 합의가 필요한 결정이다. v1.1.0에서 3개 모두 해결되어 run phase 에이전트에 위임할 수 있다.
 
-### OD-1: `IMAGE_INLINE_THRESHOLD` 값
+### OD-1: `IMAGE_INLINE_THRESHOLD` 값 — RESOLVED (2MB, v1.1.0)
 
-**질문**: per-image 크기 임계값을多少로 설정할 것인가?
+**결정**: 2MB (2,097,152 bytes). 허용 범위 [1MB, 3MB] 유지.
 
-**권장**: 2MB (2,097,152 bytes).
+**측정 근거 (NI-3)**: 2MB는 **heuristic이며 본 SPEC에 측정 REQ이 없다**. 하위 이웃 `LINE_FOLD_THRESHOLD`(1MB)와 상위 이웃 `MAX_IMAGE_SIZE`(10MB)의 브래킷 중간값으로, 일반적인 스크린샷(200KB~1MB)은 inline-blob 이식성을 유지하고 고해상도 사진(5~8MB)은 file-save로 라우팅된다는 직관에 기반한다. `SPEC-IMG-LOAD-002`의 라인 폴딩(REQ-D-003, `LINE_FOLD_THRESHOLD=1MB`)이 [~0.75MB, 임계값] 영역의 인라인 이미지에 대한 활성 편집 완화책으로 남는다 — 본 SPEC의 라우팅은 명백히 대형인 이미지(수 MB+)에 대한 안전망이다 (NI-2 정정 근거와 동일).
 
-**근거**:
-- 하위 이웃 `LINE_FOLD_THRESHOLD` = 1MB — 임계값 이하 inline-blob 이미지가 라인 폴딩을 트리거하지 않으려면 ≥ 1MB.
-- 상위 이웃 `MAX_IMAGE_SIZE` = 10MB — 대형 이미지가 file-save로 라우팅 후 10MB 검증에서 거부되는 사각지대를 피하려면 < 10MB (T-001 제약).
-- 2MB는 두 이웃의 중간값이며, 일반적인 스크린샷(Win+Shift+S PNG 보통 200KB~1MB)은 inline-blob 이식성을 유지하고, 고해상도 사진(5~8MB)은 file-save로 라우팅된다.
+**이웃 제약**:
+- 하위: `LINE_FOLD_THRESHOLD` = 1MB. 권장 ≥ 1MB (NI-2 — 일반 스크린샷의 불필요한 file-save 회피 목적; 라인 폴딩 방지 목적이 아님).
+- 상위: `MAX_IMAGE_SIZE` = 10MB. 필수 < 10MB (T-001 제약 — 사각지대 방지).
 
-**옵션**:
-- (권장) 2MB. 권장값. 브래킷 중간.
-- 1MB. `LINE_FOLD_THRESHOLD`와 동일. 더 많은 이미지가 file-save로 라우팅되어 `.md`가 가장 가벼워지나, 사용자가 명시적으로 inline-blob을 선호한 소형 스크린샷도 file-save로 갈 수 있음.
-- 3MB. 브래킷 상한. 더 관대한 inline-blob 허용. 대형 이미지 동결 완화 효과는 줄어듦.
+런타임 조정 불가(컴파일 타임 상수) — 튜닝은 후속 개정에서. 디버그 로깅(OD-3)으로 post-ship 튜닝 데이터 수집 권장.
 
-**이유**: 임계값은 사용자 워크플로우(스크린샷 vs 고해상도 사진 비율)에 따라 최적값이 다르다. 런타임 조정은 본 SPEC 범위 밖(컴파일 타임 상수)이므로, 합의된 단일 값으로 시작하고 후속 개정에서 튜닝.
+### OD-2: 지연 Save-As UX — RESOLVED (option 1: 조용히, v1.1.0)
 
-### OD-2: 지연 Save-As UX
+**결정**: option 1 — 조용히 Save-As 다이얼로그 표시. Save-As 자체에 대한 추가 toast 안내는 없다 (기존 file-save + 미저장 동작과 동일).
 
-**질문**: 대형 이미지 + 미저장 문서에서 Save-As가 트리거될 때 사용자에게 라우팅 사유를 알릴 것인가?
+**범위 분리 (BD-2, 중요)**: >10MB 이미지 file-save 거부 시의 사용자 가시 에러(toast)는 **본 OD가 아닌** REQ-IMG-MODE-3-E-001(Group E)로 본 SPEC v1.1.0 범위에서 다뤄진다. OD-2는 "지연 Save-As 다이얼로그 자체의 안내"에 한정되며, 이는 조용히 진행한다.
 
-**옵션**:
-- (권장) 조용히 Save-As 다이얼로그 표시 (기존 file-save + 미저장 동작과 동일). 라우팅 사유 미명시. Non-Goal #6 일관성.
-- Save-As 전 toast로 "대형 이미지는 파일로 저장됩니다" 안내 후 다이얼로그. 본 SPEC 범위 확장(toast 의존성) 또는 후속 SPEC.
-- Save-As 다이얼로그 제목/메시지에 라우팅 사유 포함. Tauri 다이얼로그 커스터마이징 필요.
+**이유**: Save-As 자체는 이미 익숙한 UX이고 (기존 file-save + 미저장 동작) toast 컴포넌트 의존성 추가는 범위 확장이므로 최소 변경을 채택. 사용자 안내는 >10MB 거부 에러(REQ-E-001 toast)와 크기 조회 실패 no-op(BD-1)에서만 명시적으로 제공한다.
 
-**이유**: 사용자가 갑작스러운 Save-As에 혼동하지 않도록 안내가 필요할 수 있으나, toast 컴포넌트 의존성 추가는 범위 확장. 첫째 옵션(조용히)이 최소 변경이지만 UX 품질은 OD 합의 대상.
+### OD-3: 라우팅 세션 텔레메트리 — RESOLVED (defer + 디버그 로깅 권장, v1.1.0)
 
-### OD-3: 라우팅 세션 텔레메트리
+**결정**: 연기 (defer). 본 SPEC은 라우팅 동작만 구현. 사용자 가시적 텔레메트리(설정 패널 카운터 등)는 후속 SPEC.
 
-**질문**: "이번 세션에 N개 이미지를 file-save로 라우팅함" 사용자 텔레메트리를 표면화할 것인가?
+**디버그 로깅 권장 (NI-3 연계)**: 라우팅 결정(`routed to inline/file`, threshold, size)의 debug-level 로그(`console.debug`)를 첫 구현에 포함할 것을 권장한다. 이는 post-ship 튜닝(OD-1 임계값 조정)의 첫 단계로, 개발자 도구에서 라우팅 통계를 수집할 수 있게 한다. Production 빌드에서는 noop 또는 낮은 레벨로 유지하여 UX 영향을 제로로.
 
-**옵션**:
-- (권장) 연기 (defer). 본 SPEC은 라우팅 동작만 구현. 텔레메트리는 후속 SPEC.
-- 디버그 로그(console)로 라우팅 결정 기록. 개발자용.
-- 사용자 가시적 카운터(설정 패널 등)로 표시. 본 SPEC 범위 확장.
-
-**이유**: 텔레메트리는 임계값 튜닝(OD-1 후속)에 유용하나, 첫 구현에서는 동작 안정화가 우선. 연기 권장.
+**이유**: 텔레메트리는 임계값 튜닝(OD-1 후속)에 유용하나, 첫 구현에서는 동작 안정화가 우선. 디버그 로깅은 사용자 가시 범위 밖이므로 UX 영향 없이 튜닝 데이터를 제공한다.
 
 ## Dependencies
 
@@ -247,9 +243,9 @@
 
 | Milestone | Requirements | Tests |
 |---|---|---|
-| M1 RED | (재생산 — 구현 전) | UT-R-001b/d/f, UT-U-001, UT-R-BOUNDARY 신규 (실패 상태) + `readFileSize` 모킹 추가 |
+| M1 RED | (재생산 — 구현 전) | UT-R-001b/d/f, UT-U-001, UT-R-BOUNDARY, UT-R-003c (v1.1.0 BD-1), UT-E-001 (v1.1.0 BD-2) 신규 (실패 상태) + `readFileSize` 모킹 추가 |
 | M2 GREEN 기반 | REQ-T-001, REQ-R-002 | UT-T-001, UT-R-002 통과 (상수 + helper) |
 | M3 GREEN 붙여넣기 | REQ-R-001(붙여넣기), REQ-R-003a, REQ-U-001(붙여넣기), REQ-U-002(붙여넣기), REQ-U-003, REQ-N-001 | UT-R-001a/b, UT-R-003a, UT-U-001, UT-U-002, UT-U-003, UT-N-001 통과 |
-| M4 GREEN 다이얼로그 | REQ-R-001(다이얼로그), REQ-R-003b, REQ-U-001(다이얼로그), REQ-U-002(다이얼로그), REQ-N-002 | UT-R-001e/f, UT-R-003b, UT-U-001, UT-U-002, UT-N-002 통과 |
+| M4 GREEN 다이얼로그 | REQ-R-001(다이얼로그), REQ-R-003b/c (v1.1.0 BD-1), REQ-U-001(다이얼로그), REQ-U-002(다이얼로그), REQ-N-002, REQ-E-001 (v1.1.0 BD-2) | UT-R-001e/f, UT-R-003b, UT-R-003c, UT-U-001, UT-U-002, UT-N-002, UT-E-001 통과 |
 | M5 GREEN 드롭 | REQ-R-001(드롭), REQ-R-002(드롭) | UT-R-001c/d 통과 |
-| M6 REFACTOR | (회귀 + @MX 갱신 + Playwright) | 전체 스위트 + 수동 스모크 + PT-MODE-003-001/002 |
+| M6 REFACTOR | (회귀 + @MX 갱신 + Playwright) | 전체 스위트 + 수동 스모크 + PT-MODE-003-001/002 + PT-E-001 (v1.1.0) |

@@ -1,7 +1,7 @@
 ---
 id: SPEC-IMG-MODE-003
 title: "이미지 삽입 per-image 크기 기반 라우팅 — 대용량 이미지 자동 file-save 전환"
-version: 1.0.0
+version: 1.1.0
 status: Planned
 created: 2026-08-14
 updated: 2026-08-14
@@ -24,6 +24,15 @@ related:
 
 ## HISTORY
 
+- **2026-08-14 v1.1.0**: 감사 결함 2건(BD-1/BD-2) 정정 및 비차단 이슈 5건(NI-1..5) 반영.
+  - **BD-1 (critical)**: REQ-R-003 크기 조회 실패 폴백을 "사용자 모드 존중(inline-blob)"에서 "file-save 폴백, file-save 불가 시 no-op"로 정정. inline-blob 폴백은 거대 base64 단일 라인을 재도입하여 본 SPEC의 근본 가치(`.md` 가벼움)를 위배하므로 명시적으로 금지. UT-R-003c 추가.
+  - **BD-2 (major)**: >`MAX_IMAGE_SIZE`(10MB) 이미지가 file-save로 라우팅 후 Rust 거부 시 silent disappearance(사용자 인지 없는 삽입 스킵)되는 결함 해소. 신규 Group E(REQ-IMG-MODE-3-E-001)로 사용자 가시 에러(toast/메시지) 요구 추가. UT-E-001, PT-E-001 추가. Non-Goal #6와 OD-2에서 분리 — >10MB 거부 에러는 이제 본 SPEC 범위 IN.
+  - **NI-1**: `resolveImageRoute` 시그니처를 Delta Map과 Design Notes 양쪽에서 `params: { mode; sizeInBytes }`로 일치.
+  - **NI-2**: REQ-T-001의 임계값 `>= LINE_FOLD_THRESHOLD` 근거를 "라인 폴딩 방지"에서 "일반 스크린샷(200KB~1MB)의 불필요한 file-save 회피"로 정정. base64 팽창(~1.33×)으로 인해 임계값 근방 이미지는 여전히 라인 폴딩 대상임을 명시적 인정 — `SPEC-IMG-LOAD-002`와의 부분 중복은 모순이 아닌 상호 보완적 안전망.
+  - **NI-3**: OD-1의 2MB 측정 근거를 명시(heuristic, 측정 REQ 없음). 라우팅 결정의 debug-level 로깅을 post-ship 튜닝의 첫 단계로 권장(OD-3).
+  - **NI-4**: plan.md M3/M4에 `fileToBase64`/base64 변환은 라우팅 결정 이후에만 호출하라는 성능 메모 추가. file-save 분기에서 base64를 미리 구성하지 않도록 — 대형 file-save 이미지의 ~1.33× 메모리 펌핑 회피.
+  - **NI-5**: Design Notes에 lazy Save-As DRY helper(`ensureMdFilePathForLargeImage`) 추가 — 붙여넣기·다이얼로그가 공유. drop은 기존 게이트(`MarkdownEditor.tsx:280,286`)로 면제.
+  - **OD 종료**: OD-1=2MB 확정(범위 [1MB, 3MB] 유지), OD-2=option 1(조용히, Save-As 자체는 안내 없음), OD-3=defer(텔레메트리) + 디버그 로깅 권장.
 - **2026-08-14 v1.0.0**: 최초 작성. `SPEC-IMG-MODE-002` Non-Goal #2("대용량 이미지(예: 50MB PNG)에 대한 임베드 제한·경고·자동 file-save 전환 등은 별도 이슈") 및 `SPEC-IMG-LOAD-001` Non-Goal #1("inline-blob 모드의 per-image 크기 제한 도입")·Non-Goal #9("read_image_as_base64 IPC 크기 검증 추가")를 명시적으로 폐기(supercede). 근본 원인 루트: 거대 base64 단일 라인이 CodeMirror Lezer(편집기) 및 markdown-it 이중 파싱(프리뷰)을 동결시키는 현상을, Web Worker 파싱 이관(과거 계획 방향) 대신 **삽입 시점에 per-image 크기로 라우팅**하여 `.md` 파일이 가벼운 상태로 유지되도록 원천 차단. 사용자 모드 선호(소형 이미지는 inline-blob 이식성)와 자동 안전망(대형 이미지는 file-save)을 양립시킨다.
 
 ## Context & Goal
@@ -107,7 +116,7 @@ MdEdit는 두 가지 이미지 삽입 모드(`SPEC-IMG-MODE-001`)를 제공한�
 | `src/lib/image/imageHandler.ts:155-173` (`insertImageFile` 붙여넣기) | [MODIFY] | per-image 크기 조회(`file.size`) 후 임계량 초과 시 file-save 라우팅. 미저장 + 대형 → 지연 Save-As (REQ-U-001) |
 | `src/lib/image/imageHandler.ts:185-242` (`handleImageDrop` 드롭) | [MODIFY] | 루프 내 per-image 크기 조회 후 임계량 초과 시 file-save 라우팅. 미저장 게이트는 이미 `MarkdownEditor.tsx:277-290`에서 Save-As 수행하므로 핸들러 내 지연 게이트 불필요 |
 | `src/lib/image/imageHandler.ts:253-280` (`insertImageFromDialog` 다이얼로그) | [MODIFY] | `readFileSize(selectedPath)` 조회 후 임계량 초과 시 file-save 라우팅. 미저장 + 대형 → 지연 Save-As (REQ-U-001) |
-| `src/lib/image/imageHandler.ts` (신규 helper) | [NEW] | `resolveImageRoute(fileOrPath, mode): Promise<'inline'|'file'>` chokepoint. 3개 핸들러가 공유. Design Notes 참조 |
+| `src/lib/image/imageHandler.ts` (신규 helper) | [NEW] | `resolveImageRoute(params: { mode: ImageInsertMode; sizeInBytes: number }): Promise<'inline' \| 'file'>` chokepoint. 3개 핸들러가 공유. 크기(sizeInBytes)는 호출측이 먼저 획득하여 전달(REQ-R-003 — DOM `file.size` 동기 또는 `readFileSize` IPC). Design Notes 참조 |
 | `src/test/imageHandler.test.ts:276-318` (UT-7/8/11 다이얼로그 블록) | [MODIFY] | `vi.mock('@/lib/tauri/ipc')`에 `readFileSize` 모킹 추가. 기존 소형 이미지 단언은 회귀 가드로 유지(REQ-U-002). 임계량 분기 신규 단언 추가 |
 | `src/test/imageHandler.test.ts` | [NEW] | 임계량 경계 테스트(threshold ±1 byte × 3 경로), 지연 Save-As 테스트(REQ-U-001), 소형+미저장 비-Save-As 테스트(REQ-U-002) |
 | `src/lib/image/imageHandler.ts:3` (`@MX:SPEC`) | [MODIFY] | SPEC 태그에 `SPEC-IMG-MODE-003` 추가 |
@@ -134,9 +143,9 @@ MdEdit는 두 가지 이미지 삽입 모드(`SPEC-IMG-MODE-001`)를 제공한�
 
 시스템은 세 개의 이미지 삽입 진입점(클립보드 붙여넣기·드래그-앤-드롭·이미지 다이얼로그)에 동일한 per-image 라우팅 결정을 적용한다. 어느 진입점으로 들어와도 동일한 임계값 비교와 동일한 file-save/inline 분기가 수행되어야 한다 (`SPEC-IMG-LOAD-001` REQ-IMG-LOAD-A-004 대칭 원칙과 동일).
 
-#### REQ-IMG-MODE-3-R-003 (State-Driven): per-path 크기 획득 방식
+#### REQ-IMG-MODE-3-R-003 (Complex): per-path 크기 획득 방식 및 조회 실패 폴백
 
-**WHILE** 이미지 크기를 조회할 때, **IF** DOM `File` 객체가可用하면(붙여넣기·드롭 경로) 시스템은 동기적으로 `file.size` 속성을 읽는다. **IF** DOM `File`이 없고 네이티브 경로만 있으면(다이얼로그 경로, 드롭의 네이티브 path 변형), 시스템은 `readFileSize` IPC를 통해 크기를 조회한다. 어느 방식이든 크기 조회 실패 시 시스템은 안전 쪽(사용자 모드 존중)으로 폴백하며 삽입을 중단하지 않는다.
+**WHILE** 이미지 크기를 조회할 때, **IF** DOM `File` 객체가 可用하면(붙여넣기·드롭 경로) 시스템은 동기적으로 `file.size` 속성을 읽는다. **IF** DOM `File`이 없고 네이티브 경로만 있으면(다이얼로그 경로, 드롭의 네이티브 path 변형), 시스템은 `readFileSize` IPC를 통해 크기를 조회한다. **IF** `readFileSize` IPC가 실패하는 경우(거부·에러·예외), **THEN** 시스템은 inline-blob로 폴백하지 **않고** file-save 경로(`copyImageToFolder` 또는 `saveImageFromClipboard`)로 폴백한다 — 크기를 알 수 없는 이미지를 inline-blob로 임베드하면 거대 base64 단일 라인이 생성되어 편집기·프리뷰 동결(본 SPEC의 근본 원인, Context & Goal 참조)이 재도입되기 때문이다. **AND IF** file-save 폴백이 `mdFilePath` 부재(미저장 문서)로 진행 불가하고 Save-As 다이얼로그가 취소된 경우, **THEN** 시스템은 삽입을 중단(no-op)한다 — 이 경우에도 inline-blob로 회귀하지 않는다. 동기 경로(DOM `file.size`)는 실패가 없으므로 본 폴백 규칙은 `readFileSize` IPC 경로에만 적용된다.
 
 ### Group T (Threshold — 임계값 상수)
 
@@ -144,9 +153,9 @@ MdEdit는 두 가지 이미지 삽입 모드(`SPEC-IMG-MODE-001`)를 제공한�
 
 시스템은 `IMAGE_INLINE_THRESHOLD`라는 명명된 상수를 정의한다. 이 상수는:
 - `src/lib/preview/previewLimits.ts`에 기존 임계값 상수들과 함께 위치한다.
-- 값은 Open Decision OD-1에서 사용자가 합의한다 (권장값 2MB, 허용 범위 [1MB, 3MB]).
+- 값은 Open Decision OD-1에서 사용자가 합의한다 (권장값 2MB, 허용 범위 [1MB, 3MB], v1.1.0에서 2MB로 확정).
 - `MAX_IMAGE_SIZE`(10MB, `image_ops.rs:12`)보다 **엄격하게 작아야 한다** (`<`). 이 제약은 위반 시 REQ-IMG-MODE-3-N-002(10MB 초과 file-save 거부)와의 사각지대를 방지한다.
-- `LINE_FOLD_THRESHOLD`(1MB, `previewLimits.ts:23`) 이상이어야 한다 (임계값 이하로 라우팅된 소형 inline-blob 이미지가 라인 폴딩을 트리거하지 않도록).
+- `LINE_FOLD_THRESHOLD`(1MB, `previewLimits.ts:23`) 이상을 권장한다. **근거 (NI-2, v1.1.0 정정)**: 라인 폴딩 방지가 아니다 — base64 인코딩은 원본 바이트의 약 1.33배로 팽창하므로, 2MB 이미지의 inline-blob 임베드는 ~2.67MB 단일 라인을 생성하여 `LINE_FOLD_THRESHOLD`(1MB)를 여전히 초과하며, 이 경우 `SPEC-IMG-LOAD-002` REQ-D-003의 라인 폴딩이 활성 편집 완화책으로 작동한다. 본 SPEC의 라우팅은 일반적인 스크린샷(Win+Shift+S PNG 보통 200KB~1MB)이 불필요하게 file-save로 가는 것을 회피하기 위함이며, 명백히 대형인 이미지(수 MB+)에 대한 안전망이다. [임계값×0.75, 임계값] 영역의 소형-중형 이미지에 대해서는 라인 폴딩(`SPEC-IMG-LOAD-002`)과 부분적으로 중복된다 — 이 중복은 모순이 아니라 두 SPEC의 상호 보완적 안전망이다.
 
 ### Group U (Unsaved conflict — 미저장 문서 충돌 해결)
 
@@ -170,7 +179,13 @@ MdEdit는 두 가지 이미지 삽입 모드(`SPEC-IMG-MODE-001`)를 제공한�
 
 #### REQ-IMG-MODE-3-N-002 (Unwanted): `MAX_IMAGE_SIZE` 10MB file-save 거부 정책 유지
 
-시스템은 `MAX_IMAGE_SIZE`(10MB, `image_ops.rs:12`) 기반 file-save 경로의 크기 거부 정책을 변경하지 않는다. `IMAGE_INLINE_THRESHOLD` 초과로 file-save로 라우팅된 이미지가 다시 10MB 초과인 경우, 시스템은 기존 동작대로 거부 에러를 반환하며 사용자 가시적 에러 피드백은 별도 SPEC 과제이다 (OD-2 관련). `IMAGE_INLINE_THRESHOLD`가 10MB 미만으로 설정되므로(T-001 제약) 임계량 역전 사각지대는 발생하지 않는다.
+시스템은 `MAX_IMAGE_SIZE`(10MB, `image_ops.rs:12`) 기반 file-save 경로의 크기 거부 정책을 변경하지 않는다. `IMAGE_INLINE_THRESHOLD` 초과로 file-save로 라우팅된 이미지가 다시 10MB 초과인 경우, 시스템은 기존 동작대로 거부 에러를 반환한다. 사용자 가시적 에러 피드백(toast/메시지)은 **별도 과제가 아니라** 본 SPEC v1.1.0의 REQ-IMG-MODE-3-E-001(Group E)로 다뤄진다 (BD-2 정정). `IMAGE_INLINE_THRESHOLD`가 10MB 미만으로 설정되므로(T-001 제약) 임계량 역전 사각지대는 발생하지 않는다.
+
+### Group E (Error surfacing — 사용자 가시 에러)
+
+#### REQ-IMG-MODE-3-E-001 (Unwanted Behavior): `MAX_IMAGE_SIZE` 초과 file-save 거부 시 사용자 가시 에러
+
+**IF** 이미지가 `IMAGE_INLINE_THRESHOLD` 초과로 file-save로 라우팅되었고 **AND** 해당 이미지의 크기가 `MAX_IMAGE_SIZE`(10MB, `image_ops.rs:12`)를 초과하여 Rust `copy_image_to_folder`/`save_image_from_clipboard`가 거부 에러를 반환하는 경우, **THEN** 시스템은 사용자 가시 에러(toast 또는 동등한 메시지 컴포넌트)를 표시하여 해당 이미지가 크기 제한을 초과했고 삽입되지 않았음을 명시적으로 알린다. **AND** 시스템은 silent no-op(사용자 인지 없는 삽입 스킵)을 수행하지 않는다. **AND** 시스템은 inline-blob 폴백을 수행하지 않는다 — 동결을 재도입하므로 명시적으로 배제된다 (BD-2 design notes 참조).
 
 ## Design Notes (구현 메커니즘 — 참고용)
 
@@ -218,7 +233,7 @@ async function resolveImageRoute(params: {
 
 `IMAGE_INLINE_THRESHOLD`는 `src/lib/preview/previewLimits.ts`에 기존 3계층 임계값(`LINE_FOLD_THRESHOLD=1MB`, `SOFT_THRESHOLD=30MB`, `HARD_CEILING=100MB`)과 함께 배치한다. 이 위치는:
 
-- `LINE_FOLD_THRESHOLD`(단일 라인 길이 1MB)와 논리적으로 인접 — 임계값 이하 inline-blob 이미지는 라인 폴딩을 트리거하지 않아야 한다.
+- `LINE_FOLD_THRESHOLD`(단일 라인 길이 1MB)와 논리적으로 인접 — 두 상수 모두 `.md` 라인/이미지 크기 게이트로서 상호 보완적 안전망 역할을 한다 (NI-2: 임계값 근방의 inline-blob 이미지는 base64 팽창으로 인해 여전히 라인 폴딩 대상이 됨 — 본 SPEC 라우팅은 명백히 대형인 이미지에 대한 안전망, 라인 폴딩은 중형 이미지에 대한 활성 편집 완화).
 - Rust `MAX_IMAGE_SIZE`(10MB)는 Rust 상수이므로 TS 파일에 명시적 import 불가. Design Notes와 T-001 제약(`< MAX_IMAGE_SIZE`)으로 문서화한다.
 
 ### Threshold Constants Table
@@ -231,6 +246,37 @@ async function resolveImageRoute(params: {
 | `SOFT_THRESHOLD` | 30MB | `previewLimits.ts:11` | 대용량 `.md` 파일 임계 — 점진적 로딩 (`SPEC-IMG-LOAD-002`). 본 SPEC과 무관 (`.md` 전체 크기, per-image 아님) |
 | `HARD_CEILING` | 100MB | `previewLimits.ts:17` | 대용량 `.md` 파일 상한 — UnsupportedFileViewer (`SPEC-IMG-LOAD-002`). 본 SPEC과 무관 |
 
+### 임계값 측정 근거 (NI-3, v1.1.0)
+
+2MB는 **heuristic이며 본 SPEC에 측정 REQ이 없다**. 하위 이웃 `LINE_FOLD_THRESHOLD`(1MB)와 상위 이웃 `MAX_IMAGE_SIZE`(10MB)의 브래킷 중간값으로, 일반적인 스크린샷(200KB~1MB)은 inline-blob 이식성을 유지하고 고해상도 사진(5~8MB)은 file-save로 라우팅된다는 직관에 기반한다. `SPEC-IMG-LOAD-002`의 라인 폴딩(REQ-D-003, `LINE_FOLD_THRESHOLD=1MB`)이 [~0.75MB, 임계값] 영역의 인라인 이미지에 대한 활성 편집 완화책으로 남는다 — 본 SPEC의 라우팅은 명백히 대형인 이미지(수 MB+)에 대한 안전망이다. **라우팅 결정의 debug-level 로깅(OD-3 권장)을 post-ship 튜닝의 첫 단계로 권장한다** — 개발자 도구에서 라우팅 통계를 수집하여 후속 개정에서 임계값 튜닝의 근거로 사용.
+
+### Lazy Save-As DRY helper (NI-5, v1.1.0)
+
+지연 Save-As 로직(빈 `mdFilePath` 감지 + 대형 크기 → `saveFileAs` IPC → 반환된 경로 사용)은 붙여넣기(`insertImageFile`)와 다이얼로그(`insertImageFromDialog`)가 공유한다. `ensureMdFilePathForLargeImage(mdFilePath: string): Promise<string | null>` helper를 추출하여 DRY하게 유지할 것을 run-phase 구현자에 권장한다:
+
+```typescript
+// 의사코드 — 실제 시그니처는 run phase 결정
+async function ensureMdFilePathForLargeImage(mdFilePath: string): Promise<string | null> {
+  if (mdFilePath) return mdFilePath;        // 이미 저장됨
+  const savedPath = await saveFileAs();      // 지연 Save-As 트리거
+  return savedPath ?? null;                  // 취소 시 null → 호출측 no-op (REQ-R-003, BD-1)
+}
+```
+
+반환값이 `null`인 경우(Save-As 취소) 호출측은 삽입을 중단(no-op)한다 — inline-blob로 회귀하지 않는다 (BD-1).
+
+**drop 경로 면제**: drop은 이미 `MarkdownEditor.tsx:280,286`의 게이트로 미저장 시 항상 Save-As를 수행하므로 본 helper의 적용 대상이 아니다 (회귀 가드 유지).
+
+### >10MB 거부 시 inline-blob 폴백 배제 (BD-2 design notes)
+
+REQ-IMG-MODE-3-E-001은 >`MAX_IMAGE_SIZE`(10MB) 이미지가 file-save에서 거부된 경우 사용자 가시 에러(toast)를 요구한다. 이 요구의 설계에서 **inline-blob 폴백(option b)은 명시적으로 배제된다**:
+
+- **Option a (채택)** ✓: 거부 시 toast 표시 + 삽입 중단. 사용자는 이미지가 너무 크다는 명시적 피드백을 받는다.
+- **Option b (거부)**: 거부 시 inline-blob로 폴백하여 data URI로 임베드. **거부** 사유: 12MB 스크린샷을 base64로 인코딩하면 ~16MB 단일 라인이 `.md`에 삽입되어, 본 SPEC이 제거하려는 바로 그 동결(편집기·프리뷰)을 재도입한다. 이는 본 SPEC의 근본 가치(`.md` 가벼움)를 위배한다.
+- **Option c (거부)**: 거부 시 silent no-op. **거부** 사유: 사용자가 이미지를 붙여넣었는데 아무 일도 일어나지 않으면 버그로 인식된다 (BD-2 정정의 직접 동기).
+
+toast 컴포넌트 의존성: run-phase 구현자는 기존 toast 시스템을 재사용하거나(`SPEC-UI-008` popover 패턴 등 동등한 메시지 컴포넌트), 최소 진입 장벽의 사용자 가시 메커니즘을 선택한다. REQ 본문은 "toast 또는 동등한 메시지 컴포넌트"로 서술하여 구현 유연성을 둔다.
+
 ## Exclusions (Non-Goals)
 
 본 SPEC은 다음을 다루지 않는다:
@@ -240,7 +286,7 @@ async function resolveImageRoute(params: {
 3. **per-image 디코드 최적화** — file-save 경로의 대형 단일 이미지 디코드 비용(프리뷰에서 raster 디코딩)은 존재하나, `.md`가 가벼우면 파싱 동결은 없으므로 본 SPEC 범위 밖. 별도 최적화 과제.
 4. **기본 모드를 `file-save`로 전환** — `inline-blob`이 기본값으로 유지된다 (`SPEC-IMG-MODE-001` REQ-1, `SPEC-IMG-LOAD-001` Non-Goal #2 보존). 본 SPEC은 소형 이미지의 모드 선호도를 존중한다.
 5. **`MAX_IMAGE_SIZE`(10MB) 변경** — Rust 상수 그대로. 대형 이미지(>10MB)는 file-save로 라우팅되어도 기존 거부 정책 적용 (REQ-N-002).
-6. **사용자 가시적 에러 피드백(toast 등)** — `readFileSize` 실패·file-save 거부(>10MB) 시의 사용자 알림은 별도 SPEC (`SPEC-IMG-MODE-002` Non-Goal #7과 동일 입장). 본 SPEC은 조용히 no-op 또는 기존 에러 전파를 따른다 (OD-2).
+6. **`readFileSize` IPC 실패 시의 사용자 알림** (v1.1.0 정정 — BD-1/BD-2 분리): 크기 조회 실패는 REQ-IMG-MODE-3-R-003에 따라 file-save 폴백(file-save 불가 시 no-op)으로 처리되며, 이 경로 자체에 대한 별도의 사용자 가시 에러는 표시하지 않는다. **주의**: >`MAX_IMAGE_SIZE`(10MB) 이미지 file-save 거부 시의 사용자 가시 에러(toast)는 본 SPEC v1.1.0의 REQ-IMG-MODE-3-E-001(Group E)로 **본 SPEC 범위에서 다뤄진다** — Non-Goal #6은 `readFileSize` 실패 알림에만 한정된다.
 7. **`imageInsertMode` store를 per-document로 변경** — 전역(zustand persist)을 유지. 모드 = 사용자 선호도, 임계값 = 자동 안전망의 양립 설계.
 8. **`SPEC-IMG-WIDGET-001`(이미지 접기 위젯)** — 본 SPEC과 독립. bloat된 파일 편집 UX 개선은 해당 SPEC.
 9. **이미지 삽입 순서 보존** — 다중 드롭 시 라우팅 결정이 파일마다 독립적이므로, 소형·대형 혼합 드롭에서 삽입 순서는 유지되나 이를 명시적 단위 테스트로 강제하지는 않는다 (기존 `handleImageDrop` 루프 순서 보존에 의존).
@@ -252,13 +298,14 @@ async function resolveImageRoute(params: {
 |---|---|---|
 | REQ-IMG-MODE-3-R-001 | UT-R-001a/b/c/d/e/f (3 경로 × 소형/대형), UT-R-BOUNDARY (임계값 ±1 byte × 3 경로) | AC-R-1, AC-R-2 |
 | REQ-IMG-MODE-3-R-002 | UT-R-002 (3 진입점 동일 라우팅 단언) | AC-R-3 |
-| REQ-IMG-MODE-3-R-003 | UT-R-003a (DOM `file.size`), UT-R-003b (`readFileSize` IPC) | AC-R-4 |
+| REQ-IMG-MODE-3-R-003 | UT-R-003a (DOM `file.size`), UT-R-003b (`readFileSize` IPC 성공), UT-R-003c (`readFileSize` IPC 실패 → file-save 폴백, no-op 단언, BD-1) | AC-R-4 |
 | REQ-IMG-MODE-3-T-001 | UT-T-001 (상수 존재·값 검증·`< MAX_IMAGE_SIZE` 단언) | AC-T-1 |
 | REQ-IMG-MODE-3-U-001 | UT-U-001 (대형 + inline-blob + 미저장 → `saveFileAs` 1회 호출) | AC-U-1 |
 | REQ-IMG-MODE-3-U-002 | UT-U-002 (소형 + inline-blob + 미저장 → `saveFileAs` 미호출) | AC-U-2 |
 | REQ-IMG-MODE-3-U-003 | UT-U-003 (대형 + 저장됨 → file-save, `saveFileAs` 미호출) | AC-U-3 |
 | REQ-IMG-MODE-3-N-001 | UT-N-001 (소형 + 기본 모드 inline-blob → data URI) | AC-N-1 |
 | REQ-IMG-MODE-3-N-002 | UT-N-002 (대형 >10MB → file-save 거부 에러) | AC-N-2 |
+| REQ-IMG-MODE-3-E-001 | UT-E-001 (>10MB → toast 표시 단언, silent no-op 아님, BD-2), PT-E-001 (Playwright toast 가시성) | AC-E-1 |
 
 ## Quality Notes
 
