@@ -4,6 +4,11 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Added
+- **이미지 삽입 per-image 크기 기반 라우팅 (SPEC-IMG-MODE-003)**: 큰 이미지를 붙여넣을 때 거대 base64가 `.md` 안에 박혀 문서가 수십 MB로 불어나고, 그 결과 에디터·미리보기가 느려지는 문제를 삽입 시점에 원천 차단합니다. 이미지 1장의 용량이 **`IMAGE_INLINE_THRESHOLD`(2MB) 이상**이면 사용자의 Image 모드 설정과 무관하게 자동으로 **File** 방식(`./images/` 폴더로 복사 + 상대 경로 링크)으로 라우팅되고, 2MB 미만의 작은 이미지는 기존대로 사용자 모드 설정(기본 Inline base64 임베드)을 따릅니다. 라우팅 판정은 `src/lib/image/imageHandler.ts`의 `resolveImageRoute({mode, sizeInBytes})` 초이크포인트에서 일어나며, 클립보드 붙여넣기·드래그 앤 드롭·파일 다이얼로그 세 진입점 모두에 대칭적으로 적용됩니다. 크기 취득은 붙여넣기/드롭은 `file.size`(비용 없음), 다이얼로그는 `readFileSize` IPC로 조회하며, 조회 실패 시에는 실수로 base64를 박는 일이 없도록 **File 방식으로 폴백**(File 저장이 불가능한 환경이면 삽입 자체를 안전하게 no-op)합니다. 큰 이미지를 **미저장 문서**에 넣을 때는 그때만 "다른 이름으로 저장"을 요청하는 Lazy Save-As(`ensureMdFilePathForLargeImage`)를 도입했습니다 — 작은 이미지 + Inline 모드 + 미저장 문서에서 Save-As 없이 바로 들어가는 0.15.0(SPEC-IMG-LOAD-001 Group A) 동작은 회귀 없이 보존됩니다. base64 변환은 라우팅 결정 **이후에만** 수행되어 File 경로에서는 거대 base64 문자열을 JS에서 조립하지 않습니다(NI-4).
+- **10MB 초과 이미지 거부 안내 (REQ-E-001)**: 용량이 `MAX_IMAGE_SIZE`(10MB)를 초과해 File 방식으로 라우팅된 이미지가 Rust 측에서 거부되면, 이제 기존 `useUIStore.setStatusMessage`로 사용자에게 안내 메시지("이미지가 너무 큽니다(10MB 초과) — 삽입하지 않았습니다")를 표시합니다 — 이전에는 이미지가 조용히 사라져 원인을 알 수 없었습니다.
+- **방향 전환: 폐기된 Web Worker 계획 대신 원인 제거 루트 채택**: 대용량 문서 편집 대책으로 검토되던 파싱 오프로드(Web Worker) 접근(SPEC-PREVIEW-013, 커밋 이력에 남기지 않고 폐기) 대신, `.md`가 애초에 무거워지지 않도록 삽입 시점에 라우팅하는 근본 대책을 먼저 적용했습니다. 검증: tsc·eslint(`--max-warnings 0`) 0, vitest 1549/1549(신규 22 포함, MODE-002 UT-7..12 회귀 포함), Playwright 62 pass + 1 skip(PT-MODE-003-002 — Playwright가 네이티브 `File.path`를 합성할 수 없어 수동 스모크 7건으로 대체).
+
 ## [0.15.0] - 2026-08-13
 
 ### Added
