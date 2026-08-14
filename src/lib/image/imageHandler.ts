@@ -1,6 +1,6 @@
 // @MX:ANCHOR: [AUTO] Image insertion handlers for clipboard paste, drag-and-drop, and file dialog
 // @MX:REASON: Public API boundary for all image insertion operations from editor (fan_in >= 3)
-// @MX:SPEC: SPEC-IMG-001, SPEC-IMG-MODE-001, SPEC-IMG-MODE-002, SPEC-IMG-LOAD-002
+// @MX:SPEC: SPEC-IMG-001, SPEC-IMG-MODE-001, SPEC-IMG-MODE-002, SPEC-IMG-MODE-003, SPEC-IMG-LOAD-002
 
 import type { EditorView } from '@codemirror/view';
 import { foldEffect } from '@codemirror/language';
@@ -9,10 +9,12 @@ import {
   copyImageToFolder,
   readImageAsBase64,
   openImageDialog,
+  readFileSize,
+  saveFileAs,
 } from '@/lib/tauri/ipc';
 import { useUIStore } from '@/store/uiStore';
 import type { ImageInsertMode } from '@/store/uiStore';
-import { LINE_FOLD_THRESHOLD } from '@/lib/preview/previewLimits';
+import { LINE_FOLD_THRESHOLD, IMAGE_INLINE_THRESHOLD } from '@/lib/preview/previewLimits';
 
 /**
  * SPEC-IMG-LOAD-002 REQ-A-005: 삽입 힌트용 LINE_FOLD_THRESHOLD 를 외부 테스트가 참조 가능하도록 export.
@@ -104,6 +106,62 @@ export function decideImageInsert(params: {
   return hasFilePath ? 'insert' : 'require-file-path';
 }
 
+/** SPEC-IMG-MODE-003: per-image 라우팅 결정 결과. */
+export type ImageRoute = 'inline' | 'file';
+
+/**
+ * SPEC-IMG-MODE-003 (REQ-IMG-MODE-3-R-001/R-002): per-image 크기 기반 라우팅 chokepoint.
+ *
+ * 3개 진입점(붙여넣기/드롭/다이얼로그)이 모두 이 helper 를 거친다 — 단일 결정점으로 대칭 보장.
+ *
+ * 라우팅 규칙:
+ *   - `sizeInBytes >= IMAGE_INLINE_THRESHOLD`(2MB) → 모드 무관 `'file'` (대형 이미지 안전망)
+ *   - `sizeInBytes <  IMAGE_INLINE_THRESHOLD` → 사용자 모드 존중
+ *       (`inline-blob` → `'inline'`, `file-save` → `'file'`)
+ *
+ * 근거: 거대 base64 단일 라인이 Lezer/markdown-it 양쪽을 동결시키는 원인을 삽입 시점에 차단.
+ * 소형 이미지(일반 스크린샷 200KB~1MB)는 inline-blob 이식성을 유지한다.
+ *
+ * 동기 함수이지만 호출측의 `await` 호환을 위해 `Promise` 반환도 무방하다 (SPEC: "시그니처는 run phase 결정").
+ */
+export function resolveImageRoute(params: {
+  mode: ImageInsertMode;
+  sizeInBytes: number;
+}): ImageRoute {
+  if (params.sizeInBytes >= IMAGE_INLINE_THRESHOLD) return 'file';
+  return params.mode === 'inline-blob' ? 'inline' : 'file';
+}
+
+/**
+ * SPEC-IMG-MODE-003 (REQ-IMG-MODE-3-E-001, BD-2): >10MB 이미지 file-save 거부 시 사용자 가시 에러.
+ *
+ * 기존 `useUIStore.setStatusMessage` (SPEC-UI-005 트랜지언트 메시지, Footer 표시 + 2000ms 후 자동 해제) 를 재사용.
+ * 신규 toast 컴포넌트 의존성 없음 — 최소 진입 장벽. silent no-op 금지, inline-blob 폴백 금지(BD-2).
+ */
+function notifyImageSizeError(): void {
+  useUIStore.getState().setStatusMessage('이미지가 너무 큽니다(10MB 초과) — 삽입하지 않았습니다');
+}
+
+/**
+ * SPEC-IMG-MODE-003 (REQ-IMG-MODE-3-U-001, NI-5): 대형 이미지 + 미저장 문서를 위한 지연 Save-As DRY helper.
+ *
+ * - `mdFilePath` 가 비어있지 않으면(이미 저장됨) 그대로 반환 — REQ-U-003 (무프롬프트).
+ * - `mdFilePath` 가 빈 문자열(미저장)이면 `saveFileAs` 로 다이얼로그를 띄워 경로를 확보.
+ *   사용자가 취소하면 `null` 반환 → 호출측은 no-op (BD-1: inline-blob 회귀 금지).
+ *
+ * `view` 인자는 저장할 현재 문서 내용을 얻기 위해서만 사용 (doc.toString()).
+ * `mdFilePath` 가 이미 유효하면 doc 접근 자체를 생략한다 — 기존 테스트의 minimal mock 과 호환.
+ */
+async function ensureMdFilePathForLargeImage(
+  mdFilePath: string,
+  view: EditorView,
+): Promise<string | null> {
+  if (mdFilePath) return mdFilePath;
+  const content = view.state.doc.toString();
+  const savedPath = await saveFileAs(content);
+  return savedPath ?? null;
+}
+
 /**
  * Handles image paste from clipboard.
  * Detects image items in clipboardData, extracts base64, saves via IPC,
@@ -148,9 +206,17 @@ export function extractImageFile(event: ClipboardEvent): File | null {
 }
 
 /**
- * 이미 확보해 둔 이미지 파일을 현재 모드에 맞게 문서에 삽입한다.
+ * 이미 확보해 둔 이미지 파일을 삽입한다.
  *
- * `mdFilePath` 는 `file-save` 모드에서만 쓰인다.
+ * SPEC-IMG-MODE-003 (REQ-IMG-MODE-3-R-001): per-image 크기 기반 라우팅.
+ *   - 소형 + inline-blob → data URI (MODE-002 회귀 보존, Group A 게이트 무변경)
+ *   - 대형(≥2MB) + 모드 무관 → file-save (`./images/` 저장 + 상대경로)
+ *   - 대형 + 미저장 → 지연 Save-As (REQ-U-001); 취소 시 no-op (BD-1)
+ *   - >10MB Rust 거부 → toast (REQ-E-001); inline-blob 폴백 금지
+ *
+ * NI-4 (성능): base64 변환은 라우팅 결정 *이후* 에만 수행 — file-save 분기에서 미리 변환하지 않는다.
+ * 단, paste 경로의 file-save 는 `saveImageFromClipboard(mdFilePath, base64)` IPC 가 base64 를 요구하므로
+ * 변환을 피할 수 없다. inline 라우팅이 결정된 경우에만 data URI 변환을 수행한다.
  */
 export async function insertImageFile(
   view: EditorView,
@@ -158,27 +224,46 @@ export async function insertImageFile(
   mdFilePath: string,
 ): Promise<boolean> {
   const { imageInsertMode } = useUIStore.getState();
-  const base64 = await fileToBase64(file);
+  // REQ-R-003a: DOM File 의 동기 size 속성으로 라우팅 결정. readFileSize IPC 사용 안 함.
+  const route = resolveImageRoute({ mode: imageInsertMode, sizeInBytes: file.size });
 
-  if (imageInsertMode === 'inline-blob') {
-    // REQ-2: Embed image as data URI directly in markdown, no Tauri IPC call
+  if (route === 'inline') {
+    // 소형 + inline-blob → data URI (MODE-002 회귀 보존).
+    const base64 = await fileToBase64(file);
     insertImageMarkdown(view, `data:${file.type};base64,${base64}`);
-  } else {
-    // REQ-3: Save to ./images/ folder via Tauri IPC (existing behavior)
-    const relativePath = await saveImageFromClipboard(mdFilePath, base64);
-    insertImageMarkdown(view, relativePath);
+    return true;
   }
 
-  return true;
+  // file-save 경로 (대형 이미지 모드 무관 OR file-save 모드).
+  // REQ-U-001: 미저장 시 지연 Save-As. extractImageFile 이 동기적으로 File 을 확보했으므로 클립보드 만료 안전.
+  const pathForSave = await ensureMdFilePathForLargeImage(mdFilePath, view);
+  if (!pathForSave) return false; // Save-As 취소 → no-op (BD-1: inline-blob 회귀 금지)
+
+  // file-save 라우팅에만 base64 변환. saveImageFromClipboard IPC 가 base64 를 요구.
+  const base64 = await fileToBase64(file);
+  try {
+    const relativePath = await saveImageFromClipboard(pathForSave, base64);
+    insertImageMarkdown(view, relativePath);
+    return true;
+  } catch {
+    // REQ-E-001 (BD-2): >10MB Rust 거부 시 toast. inline-blob 폴백 금지 — 동결 재도입.
+    notifyImageSizeError();
+    return false;
+  }
 }
 
 /**
  * Handles image files dropped onto the editor.
- * 드롭된 각 이미지 파일을 현재 `imageInsertMode` 에 맞춰 처리한다.
  *
- * - `inline-blob`: 네이티브 path 가 있으면 `readImageAsBase64` 로 data URI 를 읽고,
- *   없으면 `fileToBase64` 로 직접 data URI 를 조립한다. Tauri FS 쓰기는 발생하지 않는다.
- * - `file-save`: 기존 동작 — `./images/` 폴더로 복사하거나 base64 폴백으로 상대경로를 만든다.
+ * SPEC-IMG-MODE-003 (REQ-IMG-MODE-3-R-001): per-image 크기 기반 라우팅.
+ *   - 소형 + inline-blob → data URI (MODE-002 회귀 보존)
+ *   - 대형(≥2MB) + 모드 무관 → file-save (`./images/` 복사 + 상대경로)
+ *
+ * 지연 Save-As 불필요 — `MarkdownEditor.tsx:280,286` 게이트가 미저장 시 항상 Save-As 를
+ * 수행하므로, 이 핸들러가 호출되는 시점에는 `mdFilePath` 가 항상 유효하다 (회귀 가드 유지).
+ *
+ * 대형 >10MB Rust 거부 시 toast (REQ-E-001). inline-blob IPC 실패(소형 readImageAsBase64 거부 등)는
+ * 기존 OD-2 동작(조용히 건너뜀)을 유지한다.
  *
  * @returns true if images were handled, false otherwise
  */
@@ -198,19 +283,20 @@ export async function handleImageDrop(
   // Get drop position
   const dropPos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
 
-  // SPEC-IMG-MODE-002: 루프 진입 전 모드를 한 번만 읽는다 (클립보드 경로와 동일 패턴)
   const { imageInsertMode } = useUIStore.getState();
 
   let currentPos = dropPos;
   for (const file of imageFiles) {
     // Tauri 네이티브 드롭은 File 객체에 path 속성을 노출한다. DOM 소스 드롭은 path 가 없다.
     const filePath = (file as File & { path?: string }).path;
+    // REQ-R-001 + REQ-R-002: per-image 크기 기반 라우팅 (3 진입점 대칭).
+    const route = resolveImageRoute({ mode: imageInsertMode, sizeInBytes: file.size });
     let relativePath: string;
 
-    if (imageInsertMode === 'inline-blob') {
-      // REQ-IMG-MODE-2-003 / REQ-IMG-MODE-2-006: data URI 로 임베드 (Tauri FS 쓰기 없음)
+    if (route === 'inline') {
+      // 소형 + inline-blob → data URI (MODE-002 보존).
       if (filePath) {
-        // OD-2: 경로 검증 거부 등 IPC 실패 시 이 파일은 조용히 건너뛴다 (사용자 합의)
+        // OD-2: 경로 검증 거부 등 IPC 실패 시 이 파일은 조용히 건너뛴다 (사용자 합의).
         try {
           relativePath = await readImageAsBase64(filePath);
         } catch {
@@ -221,12 +307,18 @@ export async function handleImageDrop(
         relativePath = `data:${file.type};base64,${base64}`;
       }
     } else {
-      // REQ-IMG-MODE-2-004: file-save 모드 — 기존 동작 유지
-      if (filePath) {
-        relativePath = await copyImageToFolder(filePath, mdFilePath);
-      } else {
-        const base64 = await fileToBase64(file);
-        relativePath = await saveImageFromClipboard(mdFilePath, base64);
+      // file-save 경로 (대형 이미지 모드 무관 OR file-save 모드).
+      try {
+        if (filePath) {
+          relativePath = await copyImageToFolder(filePath, mdFilePath);
+        } else {
+          const base64 = await fileToBase64(file);
+          relativePath = await saveImageFromClipboard(mdFilePath, base64);
+        }
+      } catch {
+        // REQ-E-001 (BD-2): >10MB Rust 거부 시 toast. 다음 파일은 계속 처리 (루프 회복력).
+        notifyImageSizeError();
+        continue;
       }
     }
 
@@ -242,13 +334,19 @@ export async function handleImageDrop(
 }
 
 /**
- * 이미지 다이얼로그를 열어 선택된 파일을 현재 `imageInsertMode` 에 맞춰 삽입한다.
+ * 이미지 다이얼로그를 열어 선택된 파일을 삽입한다.
  *
- * - 다이얼로그 취소(null): no-op.
- * - `inline-blob`: `readImageAsBase64` 로 data URI 를 읽어 삽입. Tauri FS 복사 없음.
- * - `file-save`: 기존 동작 — `./images/` 폴더로 복사 후 상대경로 삽입.
+ * SPEC-IMG-MODE-003 (REQ-IMG-MODE-3-R-001/R-003): per-image 크기 기반 라우팅.
+ *   - 다이얼로그는 네이티브 경로만 반환 → `readFileSize(selectedPath)` 로 크기 조회 (REQ-R-003b)
+ *   - 소형 + inline-blob → `readImageAsBase64` data URI (MODE-002 회귀 보존)
+ *   - 대형(≥2MB) + 모드 무관 → `copyImageToFolder` file-save (base64 변환 회피 — NI-4)
+ *   - `readFileSize` IPC 실패 → file-save 폴백 (BD-1: inline-blob 회귀 금지)
+ *   - 미저장 + 대형 → 지연 Save-As (REQ-U-001); 취소 시 no-op
+ *   - >10MB Rust 거부 → toast (REQ-E-001)
  *
- * `mdFilePath` 인자는 inline-blob 분기에서는 쓰이지 않지만 기존 호출부 계약을 유지한다.
+ * NI-4 (성능, 다이얼로그 경로에서 특히 중요): file-save 라우팅 시 `readImageAsBase64` 를
+ * 건너뛰고 `copyImageToFolder(selectedPath, mdFilePath)` 로 path 기반 복사를 직접 수행한다 —
+ * 5MB 이미지의 ~6.7MB base64 변환을 회피하여 메모리 펌핑 방지.
  */
 export async function insertImageFromDialog(
   view: EditorView,
@@ -263,19 +361,50 @@ export async function insertImageFromDialog(
 
   const { imageInsertMode } = useUIStore.getState();
 
-  if (imageInsertMode === 'inline-blob') {
-    // REQ-IMG-MODE-2-001: 선택한 파일을 base64 data URI 로 임베드
-    // OD-2: IPC 실패(경로 검증 거부 등) 시 조용히 no-op — 다이얼로그 취소와 동일 취급
+  // REQ-R-003b: 네이티브 경로 → readFileSize IPC 로 크기 조회.
+  let sizeInBytes: number;
+  try {
+    sizeInBytes = await readFileSize(selectedPath);
+  } catch {
+    // REQ-R-003c (BD-1): 크기 조회 실패 → inline-blob 폴백 금지, file-save 폴백.
+    // 크기를 알 수 없는 이미지를 inline-blob 로 임베드하면 거대 base64 단일 라인이 재도입.
+    const pathForSave = await ensureMdFilePathForLargeImage(mdFilePath, view);
+    if (!pathForSave) return; // Save-As 취소 → no-op (BD-1)
+    try {
+      const relativePath = await copyImageToFolder(selectedPath, pathForSave);
+      insertImageMarkdown(view, relativePath, altText);
+    } catch {
+      // REQ-E-001 (BD-2): >10MB 거부 시 toast. inline-blob 폴백 금지.
+      notifyImageSizeError();
+    }
+    return;
+  }
+
+  const route = resolveImageRoute({ mode: imageInsertMode, sizeInBytes });
+
+  if (route === 'inline') {
+    // 소형 + inline-blob → data URI (MODE-002 보존).
+    // OD-2: 기존 inline-blob IPC 실패 시 조용히 no-op (다이얼로그 취소와 동일 취급).
     try {
       const dataUri = await readImageAsBase64(selectedPath);
       insertImageMarkdown(view, dataUri, altText);
     } catch {
       // 의도적 swallow — 사용자 합의 (Non-Goal #7)
     }
-  } else {
-    // REQ-IMG-MODE-2-002: file-save 모드 — 기존 동작 (./images/로 복사)
-    const relativePath = await copyImageToFolder(selectedPath, mdFilePath);
+    return;
+  }
+
+  // file-save 경로 (대형 이미지 모드 무관 OR file-save 모드).
+  // NI-4: file-save 라우팅 시 base64 변환 건너뜀 — copyImageToFolder 는 path 기반.
+  const pathForSave = await ensureMdFilePathForLargeImage(mdFilePath, view);
+  if (!pathForSave) return; // Save-As 취소 → no-op (BD-1)
+
+  try {
+    const relativePath = await copyImageToFolder(selectedPath, pathForSave);
     insertImageMarkdown(view, relativePath, altText);
+  } catch {
+    // REQ-E-001 (BD-2): >10MB Rust 거부 시 toast. inline-blob 폴백 금지 — 동결 재도입.
+    notifyImageSizeError();
   }
 }
 
