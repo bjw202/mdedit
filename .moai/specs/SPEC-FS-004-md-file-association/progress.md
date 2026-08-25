@@ -195,8 +195,19 @@ m3_scope: "설정·번들·문서 — tauri.conf.json bundle.fileAssociations(ex
 ac_pass_count: 9                 # AC-003/007/008/009/010/011/012/014 + AC-013-vitest(정규화 매트릭스)
 ac_pass_with_debt_count: 1       # AC-013-cargo — #[cfg(windows)] 실행 Windows 이관
 ac_fail_count: 0
-ac_deferred_count: 5             # AC-001(수동 절반)/002/004/005/006 — 설치 빌드 수동 인수(아래 handoff)
+ac_deferred_count: 2             # AC-004(Windows)·AC-001(수동 — Windows 절반) — macOS 3종은 2026-08-25 PASS(아래 results)
 manual_acceptance_handoff: "AC-001(수동): 양 OS 설치 후 .md '연결 프로그램'(Win)/'이 정보로 열기'(macOS) 후보에 mdedit 노출 / AC-002: 미실행 상태에서 폴더 B note.md 더블클릭 → 런치+워크스페이스 B+파일 열림+재실행 시 B 복원 / AC-004: Windows(NSIS) 실행 중 타 폴더 .md 더블클릭 → 2번째 창 없이 기존 창 전환(dirty 시 모달)·MSI 스팟체크·제거 시 등록 해제 / AC-005: macOS 실행 중 Finder .md 더블클릭 → 기존 인스턴스 재활성화+워크스페이스 전환 / AC-006: dock·작업표시줄 아이콘 재클릭 → 2번째 프로세스 없이 기존 창 포커스"
+manual_acceptance_results:
+  tested_at: "2026-08-25"          # 사용자 실측 보고(오케스트레이터 전언) — 빌드 mdedit_0.15.0_aarch64.dmg @ 3f41e23, macOS 설치 빌드
+  macos:
+    AC-002: "PASS — 미실행 더블클릭 → 런치+워크스페이스+파일 열림·재실행 복원 확인(사용자 보고)"
+    AC-005: "PASS — 실행 중 Finder .md 더블클릭 → 기존 창 전환 확인(사용자 보고)"
+    AC-006: "PASS — dock 아이콘 재클릭 → 기존 창 포커스 확인(사용자 보고)"
+    AC-001_macos_half: "PASS — '이 정보로 열기' 후보 노출·.md 연동 동작으로 간접 확인(사용자 보고)"
+  windows:
+    AC-004: "DEFERRED — Windows 머신 대기(NSIS 실행 중 전환·MSI 스팟체크·제거 시 등록 해제)"
+    AC-001_windows_half: "DEFERRED — '연결 프로그램' 후보 노출 Windows 확인 대기"
+    AC-013_cargo: "DEFERRED — Windows `cargo test` #[cfg(windows)] 접두사 부재 실행 대기"
 preserve_list_post_run_count: 3  # useFileSystem.ts / useUnsavedChangesGuard.ts / capabilities/main.json — diff 0 확인(M3 재확인)
 new_warnings_or_lints_introduced: 0
 cross_platform_build:
