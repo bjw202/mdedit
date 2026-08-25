@@ -2,7 +2,7 @@
 id: SPEC-FS-004
 title: ".md 파일 연동 — 더블클릭으로 mdedit 직접 열기"
 version: "1.1.0"
-status: in-progress
+status: completed
 created: 2026-08-25
 updated: 2026-08-25
 author: jw

@@ -203,3 +203,30 @@ cross_platform_build:
 total_run_phase_files: 21         # M1+M2 17파일(5311b05..77b774c 실측) + M3 신규 4(tauri.conf.json/README/USER_GUIDE/CHANGELOG; progress.md는 기존 포함)
 m1_to_mN_commit_strategy: milestone-per-commit, Late-branch(SPEC worktree branch), push none
 ```
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+```yaml
+sync_status: complete
+sync_complete_at: 2026-08-25T05:10:00Z
+sync_commit_sha: pending-backfill-1   # 커밋은 자기 SHA를 알 수 없음 — 확립 패턴대로 직후 백필 커밋에서 기입(§E.3 run_commit_sha 555a16c→a51837a와 동일 계약)
+doc_verification:
+  changelog_entry: verified-as-is    # CHANGELOG.md [Unreleased] SPEC-FS-004 항목 — 기술 주장 전건 코드 대조 결과 사실 정확, 중복 append 금지(grep 카운트 1), 원문 유지
+  ac_count_match: "14/14"            # acceptance.md distinct AC = 14 (AC-001..AC-014), CHANGELOG 기술(자동/수동 분리 포함)과 일치
+  file_paths_verified: 7             # file_open.rs / pending_open.rs / lib.rs / useExternalOpenFile.ts / ipc.ts / 테스트 2종 — ls 전건 존재 확인
+  readme_feature_item: verified-as-is # README 기능 항목 — 더블클릭·워크스페이스·single-instance·미저장 모달 주장이 구현(가드 래핑·single-instance 선행 등록)과 일치
+  user_guide_section_1_6: verified-as-is # §1.6 — fileAssociations ext ["md"] 단독(conf L40-44 실측)·UserChoice 보호 설명 일치
+  user_guide_faq_4: verified-as-is   # FAQ 4항 — UserChoice 1회 선택 / 모달 중 폐기 의도됨(설계 계약) / dev-식별자 충돌(conf identifier com.mdedit.app 공유 실측) / NSIS·MSI 연속 설치 미지원 — 전항 코드·계약과 일치
+mx_validation:
+  stage_pending_open_anchor: present   # file_open.rs L65-68 @MX:ANCHOR + REASON + SPEC
+  resolve_md_path_warn: present        # file_open.rs L38-40 @MX:WARN + REASON + SPEC
+  lib_rs_anchor_includes_spec: present # lib.rs L1-3 @MX:SPEC: SPEC-FS-001, SPEC-FS-004
+  use_external_open_file_notes: present # 2× @MX:NOTE + SPEC (L1-3, L15-20)
+  is_same_workspace_dir_note: present  # L15 NOTE — isSameWorkspaceDir 정규화 방향
+  new_test_file_headers: present       # 테스트 2종 @MX:SPEC 헤더 + Rust 인라인 테스트 @MX:SPEC 6건
+  missing_tags: 0
+frontmatter_close:
+  spec_md: "in-progress → completed (3-phase close — 본 sync 커밋에서 종단)"   # updated: 2026-08-25 (기존값 동일)
+  other_artifacts: "plan.md/acceptance.md/progress.md는 YAML frontmatter 없음(헤딩 문서) — close 대상 없음, 본문 미수정"
+code_changes_in_sync: 0                # .md 전용 — 게이트 재실행 불요(§E.2 + 오케스트레이터 독립 재실행에 의존)
+```
