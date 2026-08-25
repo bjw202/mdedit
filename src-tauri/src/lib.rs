@@ -104,6 +104,10 @@ pub fn run() {
         .run(|app, event| match event {
             // macOS 실행 중 오픈 — 번들 재활성화가 urls를 실어 보낸다(REQ-FS-004-005).
             // 다중 url은 first_md_url이 첫 .md 1개만 수용한다(REQ-FS-004-010).
+            // @MX:WARN: [AUTO] RunEvent::Opened는 tauri가 cfg(any(macos, ios))로만 노출하는 플랫폼 전용 변형이다(tauri 2.10.3 app.rs:233).
+            // @MX:REASON: [AUTO] 이 매치 암의 cfg를 제거하면 Windows 타깃에서 E0599(no variant `Opened`)로 빌드가 깨진다 — Windows 진입은 single-instance 콜백과 setup argv가 담당한다.
+            // @MX:SPEC: SPEC-FS-004
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             tauri::RunEvent::Opened { urls } => {
                 if let Some(raw) = file_open::first_md_url(&urls) {
                     let cwd = std::env::current_dir().unwrap_or_default();
@@ -112,7 +116,11 @@ pub fn run() {
                     }
                 }
             }
-            _ => {}
+            _ => {
+                // 비-Apple 타깃: 외부 오픈 진입은 single-instance 콜백/ setup argv가 이미 처리했다.
+                // 게이트된 암에서만 app을 쓰므로 여기서 사용 표시만 유지한다.
+                let _ = app;
+            }
         });
 }
 
