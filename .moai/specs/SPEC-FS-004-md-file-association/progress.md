@@ -192,10 +192,10 @@ run_commit_sha: 555a16c               # M3 마일스톤 커밋(자동 계층 완
 m1_scope: "Rust 배관 — Cargo.toml/lock, models/pending_open(+mod), commands/file_open(+mod), state/app_state, lib.rs 3개소"
 m2_scope: "프론트 배선 — lib/tauri/ipc.ts(PendingOpenFile+takePendingOpenFile), hooks/useExternalOpenFile(신규: atomic-take 리스너·consume·isSameWorkspaceDir·latest-wins 체인), App.tsx(handleExternalOpen 가드 전체 래핑+단일 if-else 복원), 테스트 2종 신규 + 회귀 가드 핀 갱신 2종(M1 계단식)"
 m3_scope: "설정·번들·문서 — tauri.conf.json bundle.fileAssociations(ext [md] 단독), README 기능 항목, USER_GUIDE §1.6+§6 FAQ 4항, CHANGELOG [Unreleased], progress.md §F+§E.2 M3+§E.3 — 코드(.rs/.ts) 0건 수정"
-ac_pass_count: 9                 # AC-003/007/008/009/010/011/012/014 + AC-013-vitest(정규화 매트릭스)
-ac_pass_with_debt_count: 1       # AC-013-cargo — #[cfg(windows)] 실행 Windows 이관
+ac_pass_count: 14                # 2026-08-25 전 AC 종결 — 자동 9 + 수동 5(AC-001 전체·002·004·005·006) + AC-013 cargo 부채 상환
+ac_pass_with_debt_count: 0       # AC-013-cargo — Windows cargo test 통과로 상환(사용자 실측 보고, 2026-08-25)
 ac_fail_count: 0
-ac_deferred_count: 2             # AC-004(Windows)·AC-001(수동 — Windows 절반) — macOS 3종은 2026-08-25 PASS(아래 results)
+ac_deferred_count: 0             # macOS 4항·Windows 3항 전부 2026-08-25 PASS(아래 results)
 manual_acceptance_handoff: "AC-001(수동): 양 OS 설치 후 .md '연결 프로그램'(Win)/'이 정보로 열기'(macOS) 후보에 mdedit 노출 / AC-002: 미실행 상태에서 폴더 B note.md 더블클릭 → 런치+워크스페이스 B+파일 열림+재실행 시 B 복원 / AC-004: Windows(NSIS) 실행 중 타 폴더 .md 더블클릭 → 2번째 창 없이 기존 창 전환(dirty 시 모달)·MSI 스팟체크·제거 시 등록 해제 / AC-005: macOS 실행 중 Finder .md 더블클릭 → 기존 인스턴스 재활성화+워크스페이스 전환 / AC-006: dock·작업표시줄 아이콘 재클릭 → 2번째 프로세스 없이 기존 창 포커스"
 manual_acceptance_results:
   tested_at: "2026-08-25"          # 사용자 실측 보고(오케스트레이터 전언) — 빌드 mdedit_0.15.0_aarch64.dmg @ 3f41e23, macOS 설치 빌드
@@ -205,15 +205,16 @@ manual_acceptance_results:
     AC-006: "PASS — dock 아이콘 재클릭 → 기존 창 포커스 확인(사용자 보고)"
     AC-001_macos_half: "PASS — '이 정보로 열기' 후보 노출·.md 연동 동작으로 간접 확인(사용자 보고)"
   windows:
-    AC-004: "DEFERRED — Windows 머신 대기(NSIS 실행 중 전환·MSI 스팟체크·제거 시 등록 해제)"
-    AC-001_windows_half: "DEFERRED — '연결 프로그램' 후보 노출 Windows 확인 대기"
-    AC-013_cargo: "DEFERRED — Windows `cargo test` #[cfg(windows)] 접두사 부재 실행 대기"
+    tested_at: "2026-08-25"        # 사용자 실측 보고(오케스트레이터 전언) — Windows 빌드 @ aba8068 (PR #66 cfg 핫픽스 포함)
+    AC-004: "PASS — NSIS 설치·실행 중 타 폴더 .md 더블클릭 → 2번째 창 없이 기존 창 전환·dirty 모달·MSI 스팟체크·제거 시 등록 해제 확인(사용자 보고)"
+    AC-001_windows_half: "PASS — '연결 프로그램' 후보에 mdedit 노출 확인(사용자 보고)"
+    AC-013_cargo: "PASS — Windows `cargo test` 통과(#[cfg(windows)] 접두사 부재 테스트 포함 — 사용자 보고; PR #66 cfg 핫픽스로 Windows 컴파일 자체가 해소된 뒤 실시)"
 preserve_list_post_run_count: 3  # useFileSystem.ts / useUnsavedChangesGuard.ts / capabilities/main.json — diff 0 확인(M3 재확인)
 new_warnings_or_lints_introduced: 0
 cross_platform_build:
   macos_cargo_test: "pass 358/358 (M3 종료 시점 재확인 — Rust 동결 유지)"
   macos_cargo_build: "pass, 0 warnings (M1 시점)"
-  windows_cargo_test: "syntax-checked only — cfg-stripped on macOS host; compile+run deferred to Windows"
+  windows_cargo_test: "pass on Windows (사용자 실측 보고 2026-08-25, @ aba8068 — PR #66 RunEvent::Opened cfg 핫픽스로 Windows 컴파일 해소)"
   bundle_full_build: "deferred-to-user — npm run build는 수동 인수 시점 실행(위임 계약 — tauri info+JSON 파싱으로 설정 검증 대체)"
 total_run_phase_files: 21         # M1+M2 17파일(5311b05..77b774c 실측) + M3 신규 4(tauri.conf.json/README/USER_GUIDE/CHANGELOG; progress.md는 기존 포함)
 m1_to_mN_commit_strategy: milestone-per-commit, Late-branch(SPEC worktree branch), push none
