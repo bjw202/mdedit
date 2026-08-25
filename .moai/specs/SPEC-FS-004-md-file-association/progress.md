@@ -3,7 +3,7 @@
 - id: SPEC-FS-004
 - title: ".md 파일 연동 — 더블클릭으로 mdedit 직접 열기"
 - tier: M
-- current_phase: run (M2 완료 — M3 설정·번들·문서 대기)
+- current_phase: run (M3 완료 — 자동 계층 종료, 수동 인수 5종 대기)
 
 ## §F.1 Plan-phase Completion
 
@@ -26,6 +26,16 @@
 - 실행 모드: Phase 4에서 재판정 (Tier M, coding-heavy → `serial` 예상)
 - Git: Late-branch 경로 (git-strategy `auto_enabled: false`) — SPEC은 main에 커밋, PR 시점에 브랜치 분기
 - 수동 인수 5종(AC-001/002/004/005/006)은 설치 빌드 필요 — `tauri dev`로 재현 불가
+
+## §F Phase 4 Mode Selection
+
+- 판정 시각: 2026-08-25 (Implementation Kickoff Approval 승인 직후 — 사용자 확정: 구현 시작·자율 진행·Late-branch)
+- 입력 파라미터: tier=M │ scope≈14파일 (Rust 7 + TS/테스트 5 + 설정/문서 2) │ 도메인 수=2-3 (Rust 백엔드 배관 / TS 프론트 배선 / 설정·문서) │ 언어 혼합=Rust+TypeScript+JSON+Markdown │ 동시성 편익=LOW (코딩 집약 — M1→M2→M3 계약 의존 직렬 체인)
+- 모드 평가: direct 미선정 (다중 파일 구현 — 오케스트레이터 직접 구현 금지) / **serial 선정** / fanout 미선정 (coding-heavy — Anthropic 코딩 과제 병렬화 주의) / sweep 미선정 (14파일 < ~30 · 다중 규칙 의미론 작업 — 기계적 단일 변환 아님) / agent-team 미선정 (명시 요청 전용 — 요청 없음)
+- Decision: serial
+- 근거: Tier M 코딩 집약 구현으로 M2는 M1의 커맨드/이벤트 계약을 소비하고 M3는 M1+M2 완료 후 번들이 필요한 직렬 의존 체인이다. Anthropic 코딩 과제 병렬화 주의("most coding tasks involve fewer truly parallelizable tasks than research")에 따라 마일스톤당 1회 manager-develop(cycle_type=tdd) 순차 위임이 최적이다.
+- 진행 모드: 자율 (ac_converge 골 무장 — 자동 검증 AC + 품질 게이트 한정; 수동 인수 5종은 별도 사용자 작업으로 분리)
+- Git 전략: Late-branch (run 커밋 SPEC 브랜치 적재 → 완료 시점 브랜치 분기·PR — 사용자 확정; 런타임이 M1·M2를 자동 워크트리로 격리하여 워크트리 브랜치 체인이 SPEC 통합 브랜치로 승계됨)
 
 ## §E.2 Run-phase Evidence
 
@@ -127,24 +137,69 @@
 - 폴더 실패는 전환 내부에서 흡수(REQ-012 중단) — openFile 미시도, unhandled rejection 없음.
 - 회귀 가드 2건 핀 갱신: exportOpenRegressionGuard(+`file_open::take_pending_open_file`)·aiDiagramTypeRegressionGuard(+`tauri-plugin-single-instance`) — SPEC-FS-004 (2026-08-25) 주석 기입.
 
+### M3 — 설정·번들·문서 — 2026-08-25, base 77b774c, worktree 격리 환경
+
+**TDD RED**: N/A — M3은 신규 자동화 동작 테스트가 없는 설정·문서 마일스톤이다 (TDD 계약 "신규 테스트 가능 코드 없음 = 테스트 없음" 충족 — RED 증거가 없음을 명시적으로 기록하며 날조하지 않는다).
+
+**번들 설정 (bundle.fileAssociations — AC-001 코드 리뷰 절반)**
+
+- `src-tauri/tauri.conf.json` `bundle` 섹션에 `fileAssociations` 추가:
+  `{"ext": ["md"], "name": "Markdown Document", "role": "Editor", "mimeType": "text/markdown"}` —
+  ext는 `["md"]` 단독(다른 확장자 금지 — 사용자 고정 전제)이며 이외 키(targets "all"·identifier `com.mdedit.app` 등)는 무변경.
+- JSON 파싱 검증: `node -e "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json','utf8'))"` → `json ok` (exit 0)
+- 설정 로드·검증: `npx tauri info` → exit 0 (App 섹션이 현 conf 파일을 읽음 — build-type bundle / frontendDist ../dist / devUrl :1420)
+- 런타임 등록 API 부재(REQ-001 정적 등록 원칙): `grep -rn "set_default\|register.*association\|ShellExecute" src-tauri/src` → 0 매치 (exit 1)
+
+**문서**
+
+- README 주요 기능: `.md` 파일 연동 항목 1행 추가 (더블클릭 → 해당 폴더 워크스페이스 + 파일 열림 / 실행 중이면 기존 창 전환·미저장 시 모달)
+- USER_GUIDE §1.6 신설 (기본 프로그램 설정 — Windows "연결 프로그램 → 다른 앱 선택" 1회 / macOS "이 정보로 열기 → 항상 이 앱으로 열기") + §6 FAQ 4항 추가: ①기본 프로그램으로 안 열림(UserChoice 해시 보호 — 1회 수동 선택) ②더블클릭 무반응(모달 중 도착 폐기 — 의도된 동작) ③설치본 실행 중 `npm run dev` 즉시 종료(식별자 `com.mdedit.app` 공유) ④NSIS/MSI 연속 설치 미지원·제거 시 등록 해제
+- CHANGELOG `[Unreleased]` Added에 SPEC-FS-004 항목 추가 — 사전 가드 `grep -c 'SPEC-FS-004' CHANGELOG.md` → `0` 확인 후 기입
+
+**최종 게이트 (M3 종료 — 4종 전부, M3 트리 기준)**
+
+- `cd src-tauri && cargo test` → exit 0, `test result: ok. 358 passed; 0 failed; 0 ignored` (서브에이전트 PATH에 cargo 부재로 절대경로 `~/.cargo/bin/cargo` 실행 — M2 종료 시점과 동일 358, Rust 동결 유지)
+- `npm run test` → exit 0, `Test Files 104 passed (104)` / `Tests 1578 passed (1578)`
+- `npm run typecheck` → exit 0 (`tsc --noEmit`, 0 errors)
+- `npm run lint` → exit 0 (`eslint . --ext ts,tsx --max-warnings 0`, 0 warnings)
+- `npm run build`(전체 tauri 번들 빌드)은 위임 계약상 실행하지 않음 — 수동 인수 시점에 사용자 실행으로 이관
+
+**FREEZE/PRESERVE 확인 (E5)**
+
+- `git status --short src-tauri/src src/hooks src/App.tsx src/lib/tauri/ipc.ts` → 빈 출력 (M3의 코드 영역 무변경 — 수정은 tauri.conf.json 번들 키와 문서 3종·progress.md뿐, `.rs` 파일 0건)
+
+**서브에이전트 경계 (E4)**
+
+- `grep -rn "AskUserQuestion" src-tauri/tauri.conf.json README.md docs/USER_GUIDE.md CHANGELOG.md` → 0 매치 (exit 1)
+
+**AC 매트릭스 (M3 계층)**
+
+| AC | 상태 | 근거 |
+|----|------|------|
+| AC-001 (코드 리뷰 절반) | PASS | fileAssociations ext `["md"]` 단독(conf JSON 블록) + 런타임 등록 API 부재 grep 0 매치 |
+| AC-001 (수동 절반) + AC-002/004/005/006 | DEFERRED-to-user | 설치 빌드 수동 인수 — §E.3 `manual_acceptance_handoff`의 시나리오 5종 참조 |
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 ```yaml
-run_status: m2-complete          # M3(tauri.conf.json fileAssociations + 번들 검증 + 문서 + 수동 인수 5종) 대기 — run 전체 미완
-run_complete_at: pending-M3
-run_commit_sha: pending-M-final
+run_status: m3-complete (자동 계층 완료 — 수동 인수 대기)
+run_complete_at: 2026-08-25T04:32:25Z   # 자동 계층(M1+M2+M3) 종료 — 수동 인수 5종은 별도 사용자 작업
+run_commit_sha: pending-backfill        # M3 커밋 SHA로 백필 예정(직후 1회 백필 커밋)
 m1_scope: "Rust 배관 — Cargo.toml/lock, models/pending_open(+mod), commands/file_open(+mod), state/app_state, lib.rs 3개소"
 m2_scope: "프론트 배선 — lib/tauri/ipc.ts(PendingOpenFile+takePendingOpenFile), hooks/useExternalOpenFile(신규: atomic-take 리스너·consume·isSameWorkspaceDir·latest-wins 체인), App.tsx(handleExternalOpen 가드 전체 래핑+단일 if-else 복원), 테스트 2종 신규 + 회귀 가드 핀 갱신 2종(M1 계단식)"
-ac_pass_count: 8                 # AC-003/010/012/014 + M2 완료 AC-007/008/009/011 (AC-012 vitest측 PASS — 양측 완료)
-ac_pass_with_debt_count: 1       # AC-013 — cargo #[cfg(windows)] 실행 Windows 이관(vitest 정규화 매트릭스는 PASS)
+m3_scope: "설정·번들·문서 — tauri.conf.json bundle.fileAssociations(ext [md] 단독), README 기능 항목, USER_GUIDE §1.6+§6 FAQ 4항, CHANGELOG [Unreleased], progress.md §F+§E.2 M3+§E.3 — 코드(.rs/.ts) 0건 수정"
+ac_pass_count: 9                 # AC-003/007/008/009/010/011/012/014 + AC-013-vitest(정규화 매트릭스)
+ac_pass_with_debt_count: 1       # AC-013-cargo — #[cfg(windows)] 실행 Windows 이관
 ac_fail_count: 0
-ac_deferred_count: 5             # AC-001/002/004/005/006(수동 M3 — 설치 빌드)
-preserve_list_post_run_count: 3  # useFileSystem.ts / useUnsavedChangesGuard.ts / capabilities/main.json — diff 0 확인(M2 재확인)
+ac_deferred_count: 5             # AC-001(수동 절반)/002/004/005/006 — 설치 빌드 수동 인수(아래 handoff)
+manual_acceptance_handoff: "AC-001(수동): 양 OS 설치 후 .md '연결 프로그램'(Win)/'이 정보로 열기'(macOS) 후보에 mdedit 노출 / AC-002: 미실행 상태에서 폴더 B note.md 더블클릭 → 런치+워크스페이스 B+파일 열림+재실행 시 B 복원 / AC-004: Windows(NSIS) 실행 중 타 폴더 .md 더블클릭 → 2번째 창 없이 기존 창 전환(dirty 시 모달)·MSI 스팟체크·제거 시 등록 해제 / AC-005: macOS 실행 중 Finder .md 더블클릭 → 기존 인스턴스 재활성화+워크스페이스 전환 / AC-006: dock·작업표시줄 아이콘 재클릭 → 2번째 프로세스 없이 기존 창 포커스"
+preserve_list_post_run_count: 3  # useFileSystem.ts / useUnsavedChangesGuard.ts / capabilities/main.json — diff 0 확인(M3 재확인)
 new_warnings_or_lints_introduced: 0
 cross_platform_build:
-  macos_cargo_test: "pass 358/358 (M2 종료 시점 재확인 — Rust 동결)"
-  macos_cargo_build: "pass, 0 warnings"
+  macos_cargo_test: "pass 358/358 (M3 종료 시점 재확인 — Rust 동결 유지)"
+  macos_cargo_build: "pass, 0 warnings (M1 시점)"
   windows_cargo_test: "compile-verified only — #[cfg(windows)] 실행 Windows CI/수동 이관"
-total_run_phase_files: 15         # M1 기준: 신규 2 + 수정 6 (Cargo.toml/Cargo.lock/commands/mod/models/mod/app_state/lib.rs)
+  bundle_full_build: "deferred-to-user — npm run build는 수동 인수 시점 실행(위임 계약 — tauri info+JSON 파싱으로 설정 검증 대체)"
+total_run_phase_files: 21         # M1+M2 17파일(5311b05..77b774c 실측) + M3 신규 4(tauri.conf.json/README/USER_GUIDE/CHANGELOG; progress.md는 기존 포함)
 m1_to_mN_commit_strategy: milestone-per-commit, Late-branch(SPEC worktree branch), push none
 ```
