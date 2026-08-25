@@ -2,6 +2,7 @@
 // @MX:REASON: [AUTO] Shared across multiple commands: start_watch, stop_watch (fan_in >= 2)
 // @MX:SPEC: SPEC-FS-002
 
+use crate::models::PendingOpenFile;
 use notify::RecommendedWatcher;
 use std::collections::HashMap;
 use std::process::Child;
@@ -38,6 +39,11 @@ pub struct AppState {
     pub ai_policy_disabled: Mutex<bool>,
     /// 정책 비활성의 출처(`env`|`policy-file`), 비활성이 아니면 None. setup에서 함께 프로브.
     pub ai_policy_source: Mutex<Option<String>>,
+    /// 외부 오픈(.md 더블클릭) 대기 슬롯(REQ-FS-004-011). emit이 프론트 리스너
+    /// 등록 전 도착해 유실되는 런치 레이스를 커버하는 원천(source of truth).
+    // @MX:NOTE: [AUTO] 새 페이로드는 기존 슬롯을 덮어쓴다(latest-wins — 이전 요청 폐기)
+    // @MX:SPEC: SPEC-FS-004
+    pub pending_open_file: Mutex<Option<PendingOpenFile>>,
 }
 
 impl AppState {
@@ -50,7 +56,24 @@ impl AppState {
             in_flight: Mutex::new(None),
             ai_policy_disabled: Mutex::new(false),
             ai_policy_source: Mutex::new(None),
+            pending_open_file: Mutex::new(None),
         }
+    }
+
+    /// 외부 오픈 대기 슬롯에 저장한다. 기존 값이 있으면 덮어쓴다(latest-wins, REQ-FS-004-011).
+    pub fn set_pending_open_file(&self, pending: PendingOpenFile) {
+        if let Ok(mut guard) = self.pending_open_file.lock() {
+            *guard = Some(pending);
+        }
+    }
+
+    /// 대기 슬롯을 드레인한다. 반환 후 슬롯은 클리어된다(atomic-take — 두 소비자가
+    /// 동시 take해도 한쪽만 Some을 받는다, REQ-FS-004-011).
+    pub fn take_pending_open_file(&self) -> Option<PendingOpenFile> {
+        self.pending_open_file
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.take())
     }
 }
 
@@ -136,5 +159,52 @@ mod tests {
         let map = state.last_write_time.lock().unwrap();
         assert_eq!(map.len(), 1);
         assert!(map.contains_key("/tmp/file.md"));
+    }
+
+    // ── REQ-FS-004-011: 외부 오픈 대기 슬롯 set/take 계약 ──────────────────────
+    // @MX:SPEC: SPEC-FS-004
+
+    #[test]
+    fn test_app_state_pending_open_file_defaults_to_none() {
+        let state = AppState::new();
+        assert!(state.pending_open_file.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn test_app_state_pending_open_file_take_returns_then_clears() {
+        let state = AppState::new();
+        state.set_pending_open_file(PendingOpenFile::new(
+            "/docs/a.md".to_string(),
+            "/docs".to_string(),
+        ));
+        let taken = state.take_pending_open_file();
+        assert_eq!(
+            taken,
+            Some(PendingOpenFile::new("/docs/a.md".to_string(), "/docs".to_string()))
+        );
+        // 드레인 후 슬롯은 클리어 — 두 번째 take는 None(이중 처리 구조적 봉쇄).
+        assert_eq!(state.take_pending_open_file(), None);
+        assert!(state.pending_open_file.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn test_app_state_pending_open_file_set_overwrites_latest_wins() {
+        let state = AppState::new();
+        state.set_pending_open_file(PendingOpenFile::new(
+            "/old/first.md".to_string(),
+            "/old".to_string(),
+        ));
+        state.set_pending_open_file(PendingOpenFile::new(
+            "/new/second.md".to_string(),
+            "/new".to_string(),
+        ));
+        let taken = state.take_pending_open_file();
+        assert_eq!(
+            taken,
+            Some(PendingOpenFile::new(
+                "/new/second.md".to_string(),
+                "/new".to_string()
+            ))
+        );
     }
 }

@@ -1,6 +1,6 @@
 // @MX:ANCHOR: [AUTO] Tauri application entry point - registers all IPC commands
 // @MX:REASON: Central wiring of all commands and plugins (fan_in >= 5)
-// @MX:SPEC: SPEC-FS-001
+// @MX:SPEC: SPEC-FS-001, SPEC-FS-004
 
 pub mod ai;
 pub mod commands;
@@ -8,12 +8,28 @@ pub mod models;
 pub mod process_util;
 pub mod state;
 
-use commands::{browser_ops, directory_ops, file_ops, image_ops, watcher};
+use commands::{browser_ops, directory_ops, file_open, file_ops, image_ops, watcher};
 use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // single-instance는 체인 첫 번째(다른 플러그인보다 먼저)로 등록해야
+        // 두 번째 프로세스가 창을 만들기 전에 기존 인스턴스로 포워드된다(REQ-FS-004-004).
+        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            // 두 번째 인스턴스의 argv → 기존 인스턴스 스테이징(Windows/Linux 실행 중 경로).
+            if let Some(raw) = file_open::find_md_in_args(&argv) {
+                let cwd_path = std::path::PathBuf::from(&cwd);
+                if let Some(pending) = file_open::resolve_md_path(&raw, Some(&cwd_path)) {
+                    file_open::stage_pending_open(app, &pending);
+                }
+            }
+            // .md 유무와 무관하게 항상 기존 "main" 창 포커스(REQ-FS-004-006 — 아이콘 재클릭 UX).
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -43,6 +59,17 @@ pub fn run() {
                     *guard = policy_source;
                 }
             }
+
+            // 런치 argv 처리(Windows/Linux 런치 경로, REQ-FS-004-002). macOS 번들은 파일이
+            // Apple Event로 전달되어 argv에 없으므로 자연 no-op — 실행 중 재오픈은 아래
+            // RunEvent::Opened가 담당한다(REQ-FS-004-005).
+            let argv: Vec<String> = std::env::args().collect();
+            if let Some(raw) = file_open::find_md_in_args(&argv) {
+                let cwd = std::env::current_dir().unwrap_or_default();
+                if let Some(pending) = file_open::resolve_md_path(&raw, Some(&cwd)) {
+                    file_open::stage_pending_open(app.handle(), &pending);
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -70,9 +97,23 @@ pub fn run() {
             ai::ai_cancel,
             ai::ai_detect_providers,
             ai::ai_policy_status,
+            file_open::take_pending_open_file,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| match event {
+            // macOS 실행 중 오픈 — 번들 재활성화가 urls를 실어 보낸다(REQ-FS-004-005).
+            // 다중 url은 first_md_url이 첫 .md 1개만 수용한다(REQ-FS-004-010).
+            tauri::RunEvent::Opened { urls } => {
+                if let Some(raw) = file_open::first_md_url(&urls) {
+                    let cwd = std::env::current_dir().unwrap_or_default();
+                    if let Some(pending) = file_open::resolve_md_path(&raw, Some(&cwd)) {
+                        file_open::stage_pending_open(app, &pending);
+                    }
+                }
+            }
+            _ => {}
+        });
 }
 
 #[cfg(test)]

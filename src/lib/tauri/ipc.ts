@@ -220,6 +220,28 @@ export async function openUrlInBrowser(url: string): Promise<void> {
   return invoke<void>('open_url_in_browser', { url });
 }
 
+// @MX:NOTE: [AUTO] SPEC-FS-004 외부 .md 오픈 대기 페이로드 — AppState 슬롯 저장 후 take 로 소개.
+//   'open-file' 이벤트는 통지일 뿐이며 모든 소비자는 takePendingOpenFile() 반환값만 처리한다
+//   (atomic-take, REQ-FS-004-011). 모킹 지점 단일화를 위해 래퍼로 모은다(SPEC-EXPORT-002 REQ-006 선례).
+// @MX:SPEC: SPEC-FS-004
+
+/** 외부 오픈 대기 페이로드 (Rust `PendingOpenFile` — src-tauri/src/models/pending_open.rs). */
+export interface PendingOpenFile {
+  /** 열 대상 .md 파일의 절대 경로 (원본 구분자 보존 — canonicalize 금지, REQ-FS-004-013). */
+  path: string;
+  /** path의 부모 폴더(Path::parent() 계산). openFolderPath의 인자가 된다. */
+  dir: string;
+}
+
+/**
+ * 스테이징된 외부 오픈 페이로드를 드레인한다 (take-then-clear).
+ * 정확히 1회만 Some 을 반환하고 이후는 null — 두 소비자(마운트 효과/라이브 핸들러)가
+ * 동시 take해도 한쪽만 받는다 (atomic-take, REQ-FS-004-011).
+ */
+export async function takePendingOpenFile(): Promise<PendingOpenFile | null> {
+  return invoke<PendingOpenFile | null>('take_pending_open_file');
+}
+
 // @MX:NOTE: [AUTO] AI IPC wrappers — SPEC-AI-001 (T-008). 프론트는 "기능 종류 + 텍스트 조각"만
 // 넘기고, 프롬프트 조립·컨텍스트 절단은 전부 Rust 쪽에서 수행한다(설계 §3). Tauri 가 camelCase
 // 키를 Rust snake_case 인자로 자동 매핑한다(기존 래퍼 관례와 동일).
