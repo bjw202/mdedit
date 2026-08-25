@@ -42,6 +42,7 @@ describe('SPEC-AI-008 regression guard', () => {
       .map((m) => m[1])
       .sort();
     // diagram_type 은 Option<String> 평문 필드 — 새 크레이트가 필요 없다.
+    // SPEC-FS-004 (2026-08-25): tauri-plugin-single-instance 추가 (M1 — 실행 중 외부 오픈 argv 포워드).
     expect(crates).toEqual([
       'base64',
       'notify',
@@ -51,6 +52,7 @@ describe('SPEC-AI-008 regression guard', () => {
       'tauri-plugin-dialog',
       'tauri-plugin-opener',
       'tauri-plugin-shell',
+      'tauri-plugin-single-instance',
       'tokio',
     ]);
   });

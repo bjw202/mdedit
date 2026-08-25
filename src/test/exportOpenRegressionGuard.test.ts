@@ -65,6 +65,7 @@ describe('SPEC-EXPORT-002 regression guard', () => {
       .map((s) => s.replace(/,$/, ''));
     // 기준선(본 SPEC 착수 시점) — 신규 command 가 추가되면 이 단언이 실패한다.
     // SPEC-IMG-LOAD-001 (2026-08-12): file_ops::read_file_size 추가 (Group B 신규 IPC).
+    // SPEC-FS-004 (2026-08-25): file_open::take_pending_open_file 추가 (M1 외부 .md 오픈 atomic-take).
     expect(commands).toEqual([
       'file_ops::read_file',
       'file_ops::write_file',
@@ -90,6 +91,7 @@ describe('SPEC-EXPORT-002 regression guard', () => {
       'ai::ai_cancel',
       'ai::ai_detect_providers',
       'ai::ai_policy_status',
+      'file_open::take_pending_open_file',
     ]);
   });
 
