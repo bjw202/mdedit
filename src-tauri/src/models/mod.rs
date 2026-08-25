@@ -3,9 +3,11 @@
 
 pub mod file_event;
 pub mod file_node;
+pub mod pending_open;
 
 pub use file_event::{FileChangedEvent, FileChangeKind};
 pub use file_node::FileNode;
+pub use pending_open::PendingOpenFile;
 
 pub const MODELS_MODULE_NAME: &str = "models";
 
