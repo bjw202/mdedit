@@ -184,7 +184,7 @@
 ```yaml
 run_status: m3-complete (자동 계층 완료 — 수동 인수 대기)
 run_complete_at: 2026-08-25T04:32:25Z   # 자동 계층(M1+M2+M3) 종료 — 수동 인수 5종은 별도 사용자 작업
-run_commit_sha: pending-backfill        # M3 커밋 SHA로 백필 예정(직후 1회 백필 커밋)
+run_commit_sha: 555a16c               # M3 마일스톤 커밋(자동 계층 완료 시점 HEAD) — SHA 자기참조 불가로 직후 백필 커밋로 기입
 m1_scope: "Rust 배관 — Cargo.toml/lock, models/pending_open(+mod), commands/file_open(+mod), state/app_state, lib.rs 3개소"
 m2_scope: "프론트 배선 — lib/tauri/ipc.ts(PendingOpenFile+takePendingOpenFile), hooks/useExternalOpenFile(신규: atomic-take 리스너·consume·isSameWorkspaceDir·latest-wins 체인), App.tsx(handleExternalOpen 가드 전체 래핑+단일 if-else 복원), 테스트 2종 신규 + 회귀 가드 핀 갱신 2종(M1 계단식)"
 m3_scope: "설정·번들·문서 — tauri.conf.json bundle.fileAssociations(ext [md] 단독), README 기능 항목, USER_GUIDE §1.6+§6 FAQ 4항, CHANGELOG [Unreleased], progress.md §F+§E.2 M3+§E.3 — 코드(.rs/.ts) 0건 수정"
