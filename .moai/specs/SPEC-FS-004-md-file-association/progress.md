@@ -209,7 +209,7 @@ m1_to_mN_commit_strategy: milestone-per-commit, Late-branch(SPEC worktree branch
 ```yaml
 sync_status: complete
 sync_complete_at: 2026-08-25T05:10:00Z
-sync_commit_sha: pending-backfill-1   # 커밋은 자기 SHA를 알 수 없음 — 확립 패턴대로 직후 백필 커밋에서 기입(§E.3 run_commit_sha 555a16c→a51837a와 동일 계약)
+sync_commit_sha: 010e3ee             # 커밋은 자기 SHA를 알 수 없음 — 확립 패턴대로 직후 백필 커밋에서 기입(§E.3 run_commit_sha 555a16c→a51837a와 동일 계약)
 doc_verification:
   changelog_entry: verified-as-is    # CHANGELOG.md [Unreleased] SPEC-FS-004 항목 — 기술 주장 전건 코드 대조 결과 사실 정확, 중복 append 금지(grep 카운트 1), 원문 유지
   ac_count_match: "14/14"            # acceptance.md distinct AC = 14 (AC-001..AC-014), CHANGELOG 기술(자동/수동 분리 포함)과 일치
