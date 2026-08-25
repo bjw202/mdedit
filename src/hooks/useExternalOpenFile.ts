@@ -1,5 +1,7 @@
 // @MX:NOTE: [AUTO] 런치 레이스 전제 — Tauri emit은 큐잉되지 않는다. 유실은 마운트 전 도착뿐이며
 //   AppState 슬롯+take가 커버, 겹침 창은 atomic-take 계약으로 봉쇄(모든 소비자가 take 반환값만 처리).
+//   단 take 만으로는 미러 경합(라이브 take Some ↔ 마운트 take null)에서 마운트 소비자가 false 를
+//   반환해 복원이 외부 전환과 경쟁한다 — handledRef 공유 플래그로 이 창을 봉쇄한다(sync-audit F1).
 // @MX:SPEC: SPEC-FS-004
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -96,7 +98,8 @@ export interface UseExternalOpenFileOptions {
 export interface UseExternalOpenFileResult {
   /**
    * 마운트 시 1회 드레인 판정 (REQ-FS-004-011): take Some → onExternalOpen 호출 후 true,
-   * None → false, ipc 거부 → false 폴백. 비-Tauri 런타임에서는 take 없이 항상 false.
+   * None → false(단 라이브 경로가 이미 Some 를 가져갔다면 true — 미러 경합 시 복원 스킵,
+   * sync-audit F1), ipc 거부 → false 폴백. 비-Tauri 런타임에서는 take 없이 항상 false.
    */
   consumePendingOpenFile: () => Promise<boolean>;
 }
@@ -121,12 +124,21 @@ export function useExternalOpenFile({
     onExternalOpenRef.current = onExternalOpen;
   }, [onExternalOpen]);
 
+  // 공유 handled 플래그 (sync-audit F1) — 어느 소비자든 take 가 Some 을 가져가면 설정.
+  //   마운트 소비자의 take 가 null 로 돌아와도(라이브 take 가 이긴 미러 경합) true 를 보고하게
+  //   만들어, App 의 단일 if-else 가 lastWatchedPath 복원을 스킵하도록 한다. openFolderPath 는
+  //   내부 single-flight 가 없어 두 경로가 동시 실행되면 store 쓰기가 인터리브되기 때문이다.
+  const handledRef = useRef(false);
+
   // 라이브 이벤트 경로 dispatch — take 반환값 기반만 처리(이벤트 페이로드 미참조).
   const dispatchTaken = useCallback(async (): Promise<void> => {
     if (!hasTauriRuntime()) return;
     try {
       const pending = await takePendingOpenFile();
-      if (pending) onExternalOpenRef.current(pending);
+      if (pending) {
+        handledRef.current = true; // 라이브 경로가 Some 획득 — 마운트 소비자의 판정 근거
+        onExternalOpenRef.current(pending);
+      }
     } catch {
       // take 실패 — 조용히 무시(atomic-take: 처리 기준은 take 반환값뿐이라 부분 처리 없음)
     }
@@ -167,7 +179,12 @@ export function useExternalOpenFile({
     if (!hasTauriRuntime()) return false; // REQ-FS-004-014: take 없이 false → 복원 경로 유지
     try {
       const pending = await takePendingOpenFile();
-      if (!pending) return false;
+      if (!pending) {
+        // null 이라도 라이브 경로가 인플라이트 중 Some 을 가져갔다면 '이미 처리됨' —
+        // false 를 반환하면 복원이 외부 전환과 경쟁하므로 공유 플래그로 판정한다(sync-audit F1).
+        return handledRef.current;
+      }
+      handledRef.current = true; // 마운트 경로가 Some 획득 — 이후 판정 근거
       onExternalOpenRef.current(pending);
       return true;
     } catch {

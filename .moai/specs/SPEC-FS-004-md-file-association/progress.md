@@ -179,6 +179,10 @@
 | AC-001 (코드 리뷰 절반) | PASS | fileAssociations ext `["md"]` 단독(conf JSON 블록) + 런타임 등록 API 부재 grep 0 매치 |
 | AC-001 (수동 절반) + AC-002/004/005/006 | DEFERRED-to-user | 설치 빌드 수동 인수 — §E.3 `manual_acceptance_handoff`의 시나리오 5종 참조 |
 
+### sync-audit 보충 — Playwright e2e 스모크 (F2 기록 갭 메움, 2026-08-25)
+
+- `npm run test:e2e` → exit 0, `62 passed + 1 skipped (22.5s)` — **sync-auditor 실측**(본 체인에서 sync-audit 단계 실행; sync-audit 보고서 전용 귀속 — run 에이전트 재실행 아님)
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 ```yaml
@@ -198,7 +202,7 @@ new_warnings_or_lints_introduced: 0
 cross_platform_build:
   macos_cargo_test: "pass 358/358 (M3 종료 시점 재확인 — Rust 동결 유지)"
   macos_cargo_build: "pass, 0 warnings (M1 시점)"
-  windows_cargo_test: "compile-verified only — #[cfg(windows)] 실행 Windows CI/수동 이관"
+  windows_cargo_test: "syntax-checked only — cfg-stripped on macOS host; compile+run deferred to Windows"
   bundle_full_build: "deferred-to-user — npm run build는 수동 인수 시점 실행(위임 계약 — tauri info+JSON 파싱으로 설정 검증 대체)"
 total_run_phase_files: 21         # M1+M2 17파일(5311b05..77b774c 실측) + M3 신규 4(tauri.conf.json/README/USER_GUIDE/CHANGELOG; progress.md는 기존 포함)
 m1_to_mN_commit_strategy: milestone-per-commit, Late-branch(SPEC worktree branch), push none

@@ -171,6 +171,53 @@ describe('SPEC-FS-004 합성 흐름: 마운트 드레인 vs lastWatchedPath 복�
     expect(mockReadDirectory).toHaveBeenCalledWith('/old/ws');
     expect(useFileStore.getState().watchedPath).toBe('/old/ws');
   });
+
+  it('마운트 take 인플라이트 중 라이브 take 가 Some 을 가져가면, 마운트 take 의 null 확정 시 복원은 스킵된다 (미러 경합, sync-audit F1)', async () => {
+    seedStores(null);
+    useUIStore.setState({ lastWatchedPath: '/old/ws' });
+    // take#1(마운트 consume) 은 지연(resolve 보류), take#2(라이브 이벤트) 는 Some.
+    let resolveMountTake: (v: PendingOpenFile | null) => void = () => {};
+    const mountTake = new Promise<PendingOpenFile | null>((res) => { resolveMountTake = res; });
+    mockTake
+      .mockImplementationOnce(() => mountTake)
+      .mockImplementationOnce(async () => ({ path: '/ws/B/note.md', dir: '/ws/B' } satisfies PendingOpenFile));
+
+    // 외부 전환의 readDirectory('/ws/B') 는 수동 게이트 — 마운트 null 확정 시점에
+    // 전환이 여전히 인플라이트(레이스 창) 상태를 만든다.
+    let resolveB: () => void = () => {};
+    const gateB = new Promise<void>((res) => { resolveB = res; });
+    mockReadDirectory.mockImplementation(async (path: string) => {
+      order.push(`readDirectory:${path}`);
+      if (path === '/ws/B') await gateB;
+      return [];
+    });
+
+    await act(async () => { render(<App />); });
+    await flush();
+    expect(openFileEventHandler).not.toBeNull();
+
+    // 마운트 take 인플라이트 상태에서 라이브 이벤트 도착 → take#2 Some → 외부 전환 시작(게이트 보류).
+    await act(async () => {
+      openFileEventHandler!({ payload: { path: 'IGNORED', dir: 'IGNORED' } });
+      await Promise.resolve();
+    });
+    await flush(3);
+    expect(order).toContain('readDirectory:/ws/B');
+
+    // 마운트 take 가 null 로 확정 — 미러 경합 지점. 외부 전환이 인플라이트인 동안
+    // lastWatchedPath('/old/ws') 복원이 시작되면 두 openFolderPath 가 경쟁한다(결함).
+    await act(async () => {
+      resolveMountTake(null);
+      await Promise.resolve();
+    });
+    await flush();
+    expect(mockReadDirectory).not.toHaveBeenCalledWith('/old/ws');
+
+    // 게이트 해제 — 외부 전환 완료, 종착 상태는 외부 오픈의 워크스페이스.
+    await act(async () => { resolveB(); });
+    await flush();
+    expect(useFileStore.getState().watchedPath).toBe('/ws/B');
+  });
 });
 
 // ── REQ-002: 다른 폴더 전환 — 순서 + 워처/스코프 + 상태 일관성 ───────────────────
