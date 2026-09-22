@@ -14,7 +14,7 @@ Tier: M · 워크트리: `WT-image-widget-gap`
 - 미해결: 없음. v1.0.0 의 `[NEEDS CLARIFICATION: LINE_FOLD_THRESHOLD 와 base64 팽창의 단위 불일치]` 는 사용자 결정으로 해소 — `LINE_FOLD_THRESHOLD = 3 * 1024 * 1024`(3,145,728자), 잔여 대역 0. `plan.md` B-1 참조.
 - plan-audit: v1.1.0 FAIL(0.67) → v1.2.0 PASS-WITH-DEBT(0.86) → v1.3.0 에서 잔여 7건(N1~N7) 해소. v1.2.0 이 D1~D6 6건을 반영했고, v1.3.0 은 검증 수단의 거짓 통과 경로(AC-B-001 삭제로 통과, grep 방언 의존 2건)와 정지 규칙의 잘못된 참조·단일 표본 분기를 닫았다. REQ 본문은 v1.1.0 이후 변경 없음. 핵심 변화는 3MB 상향의 비용을 **주장에서 측정으로** 전환한 것 — `PT-A1-006b` 의 대상 라인(2,097,183자)이 폴드→비폴드로 전환되므로 M4 측정은 회귀 확인이 아니라 새 시나리오의 최초 측정이며, 기존 941ms 는 통과 근거가 아니다.
 - run-phase 진입 시 필독: AC-C-002 의 2방향 판별 + 정지 규칙(예산 초과 시 자력 임계값 조정 금지, SPEC-IMG-LOAD-002 Re-planning Gate 로 에스컬레이션).
-- 상태: `in-progress`. run-phase 완료 (M1~M4), sync-phase 대기.
+- 상태: `completed`. run-phase(M1~M4) 및 sync-phase 완료.
 
 ## §E.2 Run-phase Evidence
 
@@ -110,7 +110,7 @@ npx playwright test e2e/spec-img-widget-002.spec.ts e2e/spec-img-load-002.spec.t
 
 ```yaml
 sync_complete_at: "2026-09-22"
-sync_commit_sha: "<sync commit>"
+sync_commit_sha: "1129346 + 후속 정리 커밋"
 sync_status: completed
 b12_self_test_a: "PASS — 사전 grep 'SPEC-IMG-WIDGET-002' CHANGELOG.md = 0건(중복 없음)"
 b12_self_test_b: "PASS — acceptance.md 고유 AC 식별자 15건, 검증 체크박스 10건 전건 tick"
@@ -127,6 +127,6 @@ docs_sync:
   docs/USER_MANUAL.md: "변경 없음"
   WINDOWS_BUILD.md: "변경 없음"
   docs/BUILD.md: "변경 없음"
-mx_tag_validation: "PASS — image-widget.ts @MX:SPEC + @MX:WARN/@MX:REASON, previewLimits.ts @MX:SPEC 에 REQ-B-001/B-004 반영. 잔여: previewLimits.ts:1 @MX:NOTE 가 'SPEC-IMG-LOAD-002 OD-1' 만 지시(3MB 개정 미반영) — src/ 무수정 제약으로 미조치, 후속 권고"
+mx_tag_validation: "PASS — image-widget.ts @MX:SPEC + @MX:WARN/@MX:REASON, previewLimits.ts @MX:SPEC 에 REQ-B-001/B-004 반영. 잔여 0 — previewLimits.ts:1 @MX:NOTE 의 3MB 개정 미반영은 sync 마감 시 해소"
 ```
 

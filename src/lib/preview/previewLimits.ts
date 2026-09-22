@@ -1,4 +1,4 @@
-// @MX:NOTE: [AUTO] SPEC-IMG-LOAD-002 임계값 명명 상수 (OD-1).
+// @MX:NOTE: [AUTO] SPEC-IMG-LOAD-002 임계값 명명 상수 (OD-1). LINE_FOLD_THRESHOLD 는 SPEC-IMG-WIDGET-002 REQ-B-001 이 1MB → 3MB 로 개정(OD-1 폴딩 정책 자체는 유지).
 //   SOFT/HARD/LINE_FOLD 3계층 + Phase 2 용 STREAM_CHUNK_SIZE + 테스트용 INPUT_RESPONSIVENESS_BUDGET_MS.
 //   FILE_SIZE_THRESHOLD (5MB) 는 OD-2 deprecated alias 로 유지 — SvgFileViewer 소스 뷰 가드가
 //   사용 중이며 REQ-D-007 (래스터/SVG 제외) 이 현행 라우팅 보존을 요구.
