@@ -108,4 +108,25 @@ npx playwright test e2e/spec-img-widget-002.spec.ts e2e/spec-img-load-002.spec.t
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+```yaml
+sync_complete_at: "2026-09-22"
+sync_commit_sha: "<sync commit>"
+sync_status: completed
+b12_self_test_a: "PASS — 사전 grep 'SPEC-IMG-WIDGET-002' CHANGELOG.md = 0건(중복 없음)"
+b12_self_test_b: "PASS — acceptance.md 고유 AC 식별자 15건, 검증 체크박스 10건 전건 tick"
+b12_self_test_c: "PASS — CHANGELOG 에 인용된 파일 경로 전건 실재 확인"
+changelog_entry_position: "[Unreleased] > ### Fixed (신규 섹션, Added 위)"
+frontmatter_status_transitions:
+  spec.md: "in-progress → completed (updated: 2026-09-22)"
+  plan.md: "frontmatter 없음 — 전이 대상 아님"
+  acceptance.md: "frontmatter 없음 — 검증 체크박스 10건 tick"
+  progress.md: "frontmatter 없음 — §E.4 기록"
+docs_sync:
+  README.md: "변경 없음"
+  docs/USER_GUIDE.md: "갱신 — 라인 1MB → 3MB"
+  docs/USER_MANUAL.md: "변경 없음"
+  WINDOWS_BUILD.md: "변경 없음"
+  docs/BUILD.md: "변경 없음"
+mx_tag_validation: "PASS — image-widget.ts @MX:SPEC + @MX:WARN/@MX:REASON, previewLimits.ts @MX:SPEC 에 REQ-B-001/B-004 반영. 잔여: previewLimits.ts:1 @MX:NOTE 가 'SPEC-IMG-LOAD-002 OD-1' 만 지시(3MB 개정 미반영) — src/ 무수정 제약으로 미조치, 후속 권고"
+```
+

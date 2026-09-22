@@ -249,13 +249,13 @@
 
 ## Definition of Done
 
-- [ ] AC-A-001 ~ AC-A-006 전건 PASS
-- [ ] AC-B-001 ~ AC-B-004 전건 PASS
-- [ ] AC-C-001 의 RED 증거(M1 시점 테스트 출력)가 `progress.md` §E.2 에 기록됨
-- [ ] AC-C-002 (`PT-A1-006b`) PASS — 실행 출력 인용
-- [ ] AC-C-003 스캔 문자 수 단언 PASS
-- [ ] AC-C-004 입력 응답 e2e PASS — 측정값 기록
-- [ ] AC-C-005 브라운필드 테스트 개정 확인 (삭제 아님)
-- [ ] 품질 게이트 5종 전건 PASS
-- [ ] `spec.md` Exclusions 의 파일이 `git diff --stat` 에 나타나지 않음
-- [ ] `LINE_FOLD_THRESHOLD` 가 3,145,728 로 기록되어 있고, base64 팽창 잔여 대역이 0 임이 AC-B-003 로 단언됨
+- [x] AC-A-001 ~ AC-A-006 전건 PASS
+- [x] AC-B-001 ~ AC-B-004 전건 PASS
+- [x] AC-C-001 의 RED 증거(M1 시점 테스트 출력)가 `progress.md` §E.2 에 기록됨
+- [x] AC-C-002 (`PT-A1-006b`) PASS — 실행 출력 인용
+- [x] AC-C-003 스캔 문자 수 단언 PASS
+- [x] AC-C-004 입력 응답 e2e PASS — 측정값 기록
+- [x] AC-C-005 브라운필드 테스트 개정 확인 (삭제 아님)
+- [x] 품질 게이트 5종 전건 PASS
+- [x] `spec.md` Exclusions 의 파일이 `git diff --stat` 에 나타나지 않음
+- [x] `LINE_FOLD_THRESHOLD` 가 3,145,728 로 기록되어 있고, base64 팽창 잔여 대역이 0 임이 AC-B-003 로 단언됨
