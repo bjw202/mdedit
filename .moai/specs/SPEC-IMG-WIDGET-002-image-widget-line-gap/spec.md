@@ -2,7 +2,7 @@
 id: SPEC-IMG-WIDGET-002
 title: 인라인 이미지 위젯 line-gap 회귀 복구 (가시 라인 경계 스캔 + 폴딩 임계값 정렬)
 version: 1.3.0
-status: draft
+status: in-progress
 created: 2026-09-22
 updated: 2026-09-22
 author: jw (bjw202)

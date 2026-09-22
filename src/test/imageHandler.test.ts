@@ -1,4 +1,4 @@
-// @MX:SPEC: SPEC-IMG-MODE-001, SPEC-IMG-MODE-002, SPEC-IMG-MODE-003
+// @MX:SPEC: SPEC-IMG-MODE-001, SPEC-IMG-MODE-002, SPEC-IMG-MODE-003, SPEC-IMG-WIDGET-002 REQ-B-003
 // Tests for image insert mode: inline-blob vs file-save, plus per-image size-based routing
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -434,8 +434,25 @@ describe('SPEC-IMG-MODE-003 UT-T-001: IMAGE_INLINE_THRESHOLD 상수 (REQ-T-001)'
   it('IMAGE_INLINE_THRESHOLD 값은 OD-1 확정값인 2MB(2,097,152 bytes)이어야 한다', () => {
     expect(IMAGE_INLINE_THRESHOLD).toBe(2 * 1024 * 1024);
   });
-  it('IMAGE_INLINE_THRESHOLD >= LINE_FOLD_THRESHOLD(1MB) — 하위 이웃 제약', () => {
-    expect(IMAGE_INLINE_THRESHOLD).toBeGreaterThanOrEqual(LINE_FOLD_THRESHOLD);
+  // SPEC-IMG-WIDGET-002 REQ-B-003 (AC-B-003) — 교체된 단언.
+  //
+  // 구 단언은 IMAGE_INLINE_THRESHOLD 가 LINE_FOLD_THRESHOLD 이상임을 요구했다. 그러나 이는
+  // **바이트 수**(IMAGE_INLINE_THRESHOLD)와 **문자 수**(LINE_FOLD_THRESHOLD)를 변환 없이
+  // 직접 비교한 것이라 도입 시점부터 차원상 무의미했다. 그 결과 "인라인 허용 이미지가 폴드되어
+  // 위젯이 생성될 수 없다"는 상태를 어떤 테스트도 잡아내지 못했다(SPEC-IMG-WIDGET-002 계층 2).
+  // 같은 단위끼리 비교하도록 base64 팽창 변환을 거친 단언으로 교체한다.
+  it('LINE_FOLD_THRESHOLD >= base64Length(IMAGE_INLINE_THRESHOLD) — 단위 변환 후 비교', () => {
+    // base64 는 3바이트를 4문자로 인코딩한다 (패딩 포함).
+    const base64Length = (n: number) => 4 * Math.ceil(n / 3);
+    expect(base64Length(IMAGE_INLINE_THRESHOLD)).toBe(2_796_204);
+    expect(LINE_FOLD_THRESHOLD).toBeGreaterThanOrEqual(base64Length(IMAGE_INLINE_THRESHOLD));
+    // 구체값: 3,145,728자 >= 2,796,204자 — 인라인 삽입 가능한 어떤 이미지도 폴드되지 않는다.
+    expect(LINE_FOLD_THRESHOLD).toBe(3_145_728);
+  });
+
+  // AC-B-001 검증 4: 상수값 자체를 이 스위트에서도 독립 단언한다.
+  it('LINE_FOLD_THRESHOLD 는 3MB(3,145,728자) 이다', () => {
+    expect(LINE_FOLD_THRESHOLD).toBe(3 * 1024 * 1024);
   });
   it('IMAGE_INLINE_THRESHOLD < MAX_IMAGE_SIZE(10MB) — 상위 이웃 제약 (사각지대 방지)', () => {
     expect(IMAGE_INLINE_THRESHOLD).toBeLessThan(MAX_IMAGE_SIZE_TS);

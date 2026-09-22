@@ -3,7 +3,7 @@
 //   FILE_SIZE_THRESHOLD (5MB) 는 OD-2 deprecated alias 로 유지 — SvgFileViewer 소스 뷰 가드가
 //   사용 중이며 REQ-D-007 (래스터/SVG 제외) 이 현행 라우팅 보존을 요구.
 //   IMAGE_INLINE_THRESHOLD (2MB) — SPEC-IMG-MODE-003 per-image 크기 기반 라우팅용.
-// @MX:SPEC: SPEC-PREVIEW-007 REQ-PREVIEW007-005, SPEC-IMG-LOAD-002 REQ-IMG-LOAD-2-D-001..007, SPEC-IMG-MODE-003
+// @MX:SPEC: SPEC-PREVIEW-007 REQ-PREVIEW007-005, SPEC-IMG-LOAD-002 REQ-IMG-LOAD-2-D-001..007, SPEC-IMG-MODE-003, SPEC-IMG-WIDGET-002 REQ-B-001/B-004
 
 /**
  * SOFT 임계값 (30MB) — 초과 시 점진적 로딩 + 라인 폴딩 활성화 (REQ-IMG-LOAD-2-D-001).
@@ -18,13 +18,25 @@ export const SOFT_THRESHOLD = 30 * 1024 * 1024;
 export const HARD_CEILING = 100 * 1024 * 1024;
 
 /**
- * 라인 폴딩 임계값 (1MB) — 단일 라인 길이가 초과 시 자동 fold (REQ-IMG-LOAD-2-D-003).
+ * 라인 폴딩 임계값 — **라인 문자 수** 3,145,728자 (3M chars). 단위: 문자 (바이트 아님).
+ * 단일 라인 길이가 이 값을 초과하면 자동 fold (REQ-IMG-LOAD-2-D-003).
  * REQ-IMG-LOAD-2-A-003 fold 트리거가 이 값을 사용한다. N1 (per-line tokenization) 직접 완화.
+ *
+ * SPEC-IMG-WIDGET-002 REQ-B-001 (1MB → 3MB 개정, SPEC-IMG-LOAD-002 OD-1 확정값을 supersede):
+ *   인라인 이미지가 만들 수 있는 최장 라인은 base64Length(IMAGE_INLINE_THRESHOLD - 1)
+ *   = 4 × ceil(2,097,151 / 3) = 2,796,204자(+ 마크다운·URI 접두 약 30자)다.
+ *   1MB(1,048,576자) 기준에서는 사실상 모든 인라인 이미지 라인이 폴드되어 위젯이 구조적으로
+ *   생성될 수 없었다(폴드된 라인은 visibleRanges 에서 제외된다). 3,145,728자는 2,796,204자를
+ *   여유 있게 덮으므로 "인라인으로 삽입 가능한데 폴드되는" 잔여 대역이 0 이 된다.
+ *
+ *   단위 불일치 주의: 본 상수는 **문자** 수, IMAGE_INLINE_THRESHOLD 는 **바이트** 수다.
+ *   두 상수를 비교할 때는 반드시 base64 팽창 변환(base64Length)을 거친다.
  */
-export const LINE_FOLD_THRESHOLD = 1 * 1024 * 1024;
+export const LINE_FOLD_THRESHOLD = 3 * 1024 * 1024;
 
 /**
- * per-image 크기 임계값 (2MB) — SPEC-IMG-MODE-003 (REQ-IMG-MODE-3-T-001).
+ * per-image 크기 임계값 — **원본 이미지 바이트** 수 2,097,152 (2MB). 단위: 바이트 (문자 아님).
+ * SPEC-IMG-MODE-003 (REQ-IMG-MODE-3-T-001).
  *
  * 세 이미지 삽입 진입점(붙여넣기/드롭/다이얼로그)이 `resolveImageRoute` 를 통해 이 값을 기준으로
  * per-image 라우팅을 결정한다:
@@ -36,10 +48,15 @@ export const LINE_FOLD_THRESHOLD = 1 * 1024 * 1024;
  * post-ship 튜닝은 debug-level 라우팅 로그(OD-3 권장)로 데이터 수집 후 후속 개정에서.
  *
  * 제약 (T-001):
- *   - `>= LINE_FOLD_THRESHOLD`(1MB) — 하위 이웃. 단, base64 팽창(~1.33×)으로 인해
- *     임계값 근방의 inline-blob 이미지는 여전히 라인 폴딩(SPEC-IMG-LOAD-002 REQ-D-003) 대상.
- *     본 SPEC 라우팅은 명백히 대형인 이미지(수 MB+) 안전망, 라인 폴딩은 중형 이미지 활성 편집 완화.
- *   - `< MAX_IMAGE_SIZE`(10MB, Rust `image_ops.rs:12`) — 상위 이웃. 사각지대(dead zone) 방지.
+ *   - 라인 폴딩과의 관계는 **같은 단위로 변환한 뒤** 비교한다 (SPEC-IMG-WIDGET-002 REQ-B-004):
+ *     `LINE_FOLD_THRESHOLD >= base64Length(IMAGE_INLINE_THRESHOLD)`,
+ *     여기서 `base64Length(n) = 4 × ceil(n / 3)` (base64 팽창 약 1.333×).
+ *     현재값으로는 `3,145,728자 >= 2,796,204자` 가 성립한다 — 인라인으로 삽입 가능한 어떤
+ *     이미지도 자동 폴드 대상이 되지 않으므로, 폴딩이 위젯 렌더를 가로막는 대역이 없다.
+ *     (두 상수는 서로 다른 단위를 쓰므로, 한 축 위의 이웃처럼 대소를 직접 비교하는 서술은
+ *      성립하지 않는다. 과거의 그런 서술과 바이트↔문자 직접 비교 단언이
+ *      SPEC-IMG-WIDGET-002 계층 2 회귀를 오래 잠복시킨 원인이었다.)
+ *   - `< MAX_IMAGE_SIZE`(10MB, Rust `image_ops.rs:12`) — 같은 바이트 축의 상위 이웃. 사각지대(dead zone) 방지.
  *     10MB 초과 이미지가 file-save 로 라우팅 후 Rust 거부 → REQ-IMG-MODE-3-E-001 toast.
  *
  * `MAX_IMAGE_SIZE` 는 Rust 상수이므로 TS import 불가. 값 검증은 단위 테스트의 TS mirror 상수로.

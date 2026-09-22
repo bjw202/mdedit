@@ -1,4 +1,4 @@
-// @MX:SPEC: SPEC-IMG-LOAD-002
+// @MX:SPEC: SPEC-IMG-LOAD-002, SPEC-IMG-WIDGET-002
 // Group A — UT-A1-003: 거대 라인 자동 폴딩 (REQ-IMG-LOAD-2-A-003).
 //
 // D2 (감사 수정): always-on StateField + Decoration.fold 패턴을 쓰지 않고
@@ -39,7 +39,7 @@ describe('SPEC-IMG-LOAD-002 REQ-A-003 (UT-A1-003): 거대 라인 자동 폴딩',
     const { findLinesToFold, LINE_FOLD_THRESHOLD_LOCAL } = await import(
       '@/components/editor/extensions/long-line-fold'
     );
-    const threshold = LINE_FOLD_THRESHOLD_LOCAL ?? 1024 * 1024;
+    const threshold = LINE_FOLD_THRESHOLD_LOCAL ?? 3 * 1024 * 1024;
     const doc = mockDoc([
       100,                        // 1: short
       threshold + 1,              // 2: LONG → fold 대상
@@ -56,7 +56,7 @@ describe('SPEC-IMG-LOAD-002 REQ-A-003 (UT-A1-003): 거대 라인 자동 폴딩',
     const { findLinesToFold, LINE_FOLD_THRESHOLD_LOCAL } = await import(
       '@/components/editor/extensions/long-line-fold'
     );
-    const threshold = LINE_FOLD_THRESHOLD_LOCAL ?? 1024 * 1024;
+    const threshold = LINE_FOLD_THRESHOLD_LOCAL ?? 3 * 1024 * 1024;
     const doc = mockDoc([threshold + 100, threshold + 200, threshold + 300]);
     // line 2(from = threshold+101)는 이미 고려됨 — 사용자가 unfold 한 상태로 가정
     const considered = new Set<number>([doc.line(2).from]);
@@ -71,7 +71,7 @@ describe('SPEC-IMG-LOAD-002 REQ-A-003 (UT-A1-003): 거대 라인 자동 폴딩',
     const { findLinesToFold, LINE_FOLD_THRESHOLD_LOCAL } = await import(
       '@/components/editor/extensions/long-line-fold'
     );
-    const threshold = LINE_FOLD_THRESHOLD_LOCAL ?? 1024 * 1024;
+    const threshold = LINE_FOLD_THRESHOLD_LOCAL ?? 3 * 1024 * 1024;
     const doc = mockDoc([threshold, threshold - 1]);
     const result = findLinesToFold(doc, new Set(), threshold);
     expect(result).toHaveLength(0);
@@ -81,7 +81,7 @@ describe('SPEC-IMG-LOAD-002 REQ-A-003 (UT-A1-003): 거대 라인 자동 폴딩',
     const { findLinesToFold, LINE_FOLD_THRESHOLD_LOCAL } = await import(
       '@/components/editor/extensions/long-line-fold'
     );
-    const threshold = LINE_FOLD_THRESHOLD_LOCAL ?? 1024 * 1024;
+    const threshold = LINE_FOLD_THRESHOLD_LOCAL ?? 3 * 1024 * 1024;
     const doc = mockDoc([]);
     const result = findLinesToFold(doc, new Set(), threshold);
     expect(result).toEqual([]);
@@ -91,5 +91,47 @@ describe('SPEC-IMG-LOAD-002 REQ-A-003 (UT-A1-003): 거대 라인 자동 폴딩',
     const m = await import('@/components/editor/extensions/long-line-fold');
     expect(m.longLineAutoFoldExtension).toBeDefined();
     expect(typeof m.longLineAutoFoldExtension).toBe('function');
+  });
+});
+
+// ============================================================
+// SPEC-IMG-WIDGET-002 REQ-B-001/B-002 (AC-B-002 명제 1): 3MB 폴드 트리거
+//
+// 위 테스트들은 threshold 를 인자로 주입하므로 실제 상수값이 폴딩을 유발하는지를 검증하지
+// 않는다. 아래 단언은 **기본 인자(실제 LINE_FOLD_THRESHOLD)** 경로를 직접 실행한다.
+//
+// mockDoc 은 라인 길이 숫자만 보관하므로 3MB 문자열을 실제로 할당하지 않는다 —
+// findLinesToFold 는 line.length 만 보기 때문이다.
+// (AC-B-002 명제 2 "폴드된 라인에 위젯 없음" 은 image-widget.regression.test.ts 의
+//  '폴드된 라인은 경계 확장으로 재유입되지 않는다' 가 수행한다 — 공동 요구.)
+// ============================================================
+
+describe('SPEC-IMG-WIDGET-002 REQ-B-001 (AC-B-002 명제 1): 실제 상수 기준 폴드 트리거', () => {
+  it('기본 threshold 로 3,145,728자 초과 라인만 폴드 대상이 된다', async () => {
+    const { findLinesToFold } = await import('@/components/editor/extensions/long-line-fold');
+    const { LINE_FOLD_THRESHOLD } = await import('@/lib/preview/previewLimits');
+    expect(LINE_FOLD_THRESHOLD).toBe(3_145_728);
+
+    const doc = mockDoc([
+      LINE_FOLD_THRESHOLD,       // 1: 경계값 — 폴드 대상 아님 (> 비교)
+      LINE_FOLD_THRESHOLD + 1,   // 2: 초과 — 폴드 대상
+      2_796_234,                 // 3: 인라인 최대 이미지 라인 — 폴드되면 안 된다 (REQ-B-001 목적)
+    ]);
+    // threshold 인자 생략 → 기본값(실제 상수) 경로
+    const result = findLinesToFold(doc, new Set());
+    expect(result).toHaveLength(1);
+    expect(result[0].lineFrom).toBe(doc.line(2).from);
+  });
+
+  it('인라인 허용 최대 이미지가 만드는 라인(2,796,204자 + 접두)은 폴드되지 않는다', async () => {
+    const { findLinesToFold } = await import('@/components/editor/extensions/long-line-fold');
+    const { LINE_FOLD_THRESHOLD, IMAGE_INLINE_THRESHOLD } = await import('@/lib/preview/previewLimits');
+    // base64Length(n) = 4 * ceil(n / 3) — 바이트 → 문자 변환
+    const base64Length = (n: number) => 4 * Math.ceil(n / 3);
+    const longestInlineLine = base64Length(IMAGE_INLINE_THRESHOLD - 1) + 30; // + 마크다운·URI 접두
+    expect(longestInlineLine).toBeLessThan(LINE_FOLD_THRESHOLD);
+
+    const doc = mockDoc([longestInlineLine]);
+    expect(findLinesToFold(doc, new Set())).toEqual([]);
   });
 });

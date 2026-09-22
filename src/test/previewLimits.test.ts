@@ -1,8 +1,9 @@
-// @MX:SPEC: SPEC-IMG-LOAD-002
+// @MX:SPEC: SPEC-IMG-LOAD-002, SPEC-IMG-WIDGET-002
 // Group D — UT-D1-001/002/003: 임계값 명명 상수 존재 + 제안값(OD-1) 단언.
 //   - REQ-IMG-LOAD-2-D-001: SOFT_THRESHOLD = 30MB
 //   - REQ-IMG-LOAD-2-D-002: HARD_CEILING = 100MB
 //   - REQ-IMG-LOAD-2-D-003: LINE_FOLD_THRESHOLD = 1MB
+//     → SPEC-IMG-WIDGET-002 REQ-B-001 이 3MB(문자 수)로 개정(supersede). 아래 단언 참조.
 //
 // OD-2 (SPEC-PREVIEW-007 회귀 방지): FILE_SIZE_THRESHOLD (5MB) deprecated alias 는
 // 본 SPEC 도입 후에도 제거되지 않고 현행 5MB 값을 유지한다 — SvgFileViewer 소스 뷰 가드가
@@ -40,9 +41,12 @@ describe('SPEC-IMG-LOAD-002 REQ-D-003 (UT-D1-003): LINE_FOLD_THRESHOLD 명명 �
     expect(m.LINE_FOLD_THRESHOLD).toBeDefined();
   });
 
-  it('LINE_FOLD_THRESHOLD 값은 1 * 1024 * 1024 (1MB) 이다 (OD-1)', async () => {
+  // SPEC-IMG-WIDGET-002 REQ-B-001 (AC-B-001): 1MB → 3MB 개정.
+  // 근거: base64 팽창으로 인해 인라인 허용 최대 이미지가 만드는 라인은 2,796,204자이며,
+  // 1MB 기준에서는 그 라인이 폴드되어 위젯이 구조적으로 생성될 수 없었다.
+  it('LINE_FOLD_THRESHOLD 값은 3 * 1024 * 1024 (3MB, 문자 수) 이다 (SPEC-IMG-WIDGET-002 REQ-B-001)', async () => {
     const { LINE_FOLD_THRESHOLD } = await import('@/lib/preview/previewLimits');
-    expect(LINE_FOLD_THRESHOLD).toBe(1 * 1024 * 1024);
+    expect(LINE_FOLD_THRESHOLD).toBe(3 * 1024 * 1024);
   });
 });
 
