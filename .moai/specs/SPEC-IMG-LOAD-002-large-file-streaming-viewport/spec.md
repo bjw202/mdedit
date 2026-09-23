@@ -269,6 +269,8 @@ follow_ups: []
 | `SOFT_THRESHOLD` | `30 * 1024 * 1024` (30MB) | `src/lib/preview/previewLimits.ts` | 점진적 로딩 + 폴딩 활성화 한계 | OD-1 |
 | `HARD_CEILING` | `100 * 1024 * 1024` (100MB) | `src/lib/preview/previewLimits.ts` | 로드 거부 한계(UnsupportedFileViewer) | OD-1 |
 | `LINE_FOLD_THRESHOLD` | `1 * 1024 * 1024` (1MB) | `src/lib/preview/previewLimits.ts` | 단일 라인 자동 폴딩 트리거 | OD-1 |
+
+> 개정 안내: `LINE_FOLD_THRESHOLD` 값은 SPEC-IMG-WIDGET-002 REQ-B-001 에 의해 1MB → 3MB(`3 * 1024 * 1024`)로 개정되었다. 폴딩 정책(OD-1) 자체는 유지된다.
 | `STREAM_CHUNK_SIZE` | `256 * 1024` (256KB) | `src/lib/preview/previewLimits.ts` | `read_file_chunk` 기본 청크 크기 | OD-1 |
 | `WORKER_DEBOUNCE_MS` | `300` (현행 `usePreview.ts:15` DEBOUNCE_MS와 동일) | `src/hooks/usePreview.ts` | Worker 파싱 디바운스 | (현행 유지) |
 | `INPUT_RESPONSIVENESS_BUDGET_MS` | `5000` (5초) | 테스트 전용 상수 | REQ-IMG-LOAD-2-A-006 동결 판정 한계(Playwright) | OD-1 |

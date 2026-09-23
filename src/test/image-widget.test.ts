@@ -228,18 +228,69 @@ describe('ImageWidget', () => {
 // 호출하지 않고 view.visibleRanges 기반 부분 스캔을 수행한다. 테스트 mock 도 visibleRanges 와
 // sliceString(to) 를 제공해야 한다. toString 스파이는 미호출 단언용이다.
 
+// SPEC-IMG-WIDGET-002 REQ-A-001: buildDecorations 가 visibleRange 를 **라인 경계로 확장** 하므로
+// mock doc 은 lineAt(pos) 를 제공해야 한다. 본문 획득은 여전히 sliceString 만 쓴다 (plan.md §E-2).
+
+interface MockLine { from: number; to: number }
+
+/** text 의 라인 경계 인덱스 ('\n' 분리, 반개구간 [from, to)). */
+function buildLineIndex(text: string): MockLine[] {
+  const lines: MockLine[] = [];
+  let from = 0;
+  for (let i = 0; i <= text.length; i++) {
+    if (i === text.length || text[i] === '\n') {
+      lines.push({ from, to: i });
+      from = i + 1;
+    }
+  }
+  return lines;
+}
+
+/**
+ * 계측형 doc mock — sliceString 이 잘라낸 구간을 기록한다 (REQ-C-003 스캔 문자 수 계측).
+ * lineAt 은 경계 조회 전용이며 `.text` 를 제공하지 않는다 — 구현이 우회 경로를 쓰면 즉시 드러난다.
+ */
+function instrumentedDoc(text: string) {
+  const lines = buildLineIndex(text);
+  const slices: { from: number; to: number }[] = [];
+  let toStringCalls = 0;
+  const doc = {
+    length: text.length,
+    sliceString: (from: number, to: number) => {
+      slices.push({ from, to });
+      return text.slice(from, to);
+    },
+    lineAt: (pos: number): MockLine => {
+      for (const line of lines) {
+        if (pos >= line.from && pos <= line.to) return line;
+      }
+      return lines[lines.length - 1];
+    },
+    toString: () => { toStringCalls++; return text; },
+  };
+  return {
+    doc,
+    slices,
+    lines,
+    get toStringCalls() { return toStringCalls; },
+    get scannedChars() { return slices.reduce((sum, s) => sum + (s.to - s.from), 0); },
+    get sliceCalls() { return slices.length; },
+  };
+}
+
 /** visibleRanges 한 개가 full doc 을 덮는 mock (단순 케이스). toString 스파이 포함. */
 function fullVisibleMock(text: string) {
+  const { doc } = instrumentedDoc(text);
   return {
     visibleRanges: [{ from: 0, to: text.length }] as const,
-    state: {
-      doc: {
-        length: text.length,
-        sliceString: (from: number, to: number) => text.slice(from, to),
-        toString: () => text,
-      },
-    },
+    state: { doc },
   };
+}
+
+/** 임의의 visibleRanges 를 직접 지정하는 계측형 mock. */
+function instrumentedMock(text: string, visibleRanges: readonly { from: number; to: number }[]) {
+  const probe = instrumentedDoc(text);
+  return { view: { visibleRanges, state: { doc: probe.doc } }, probe };
 }
 
 describe('buildDecorations', () => {
@@ -293,80 +344,118 @@ describe('SPEC-IMG-LOAD-002 REQ-A-001 (UT-A1-001): 뷰포트 위젯 바운딩', 
   it('view.state.doc.toString() 은 호출되지 않는다 (full-doc copy 회피)', async () => {
     const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
     const text = '![a](data:image/png;base64,aaa=) middle ![b](data:image/jpeg;base64,bbb=)';
-    let toStringCalls = 0;
-    const mockView = {
-      visibleRanges: [{ from: 0, to: text.length }] as const,
-      state: {
-        doc: {
-          length: text.length,
-          sliceString: (from: number, to: number) => text.slice(from, to),
-          toString: () => { toStringCalls++; return text; },
-        },
-      },
-    };
-    buildDecorations(mockView as never);
-    expect(toStringCalls).toBe(0);
+    const { view, probe } = instrumentedMock(text, [{ from: 0, to: text.length }]);
+    buildDecorations(view as never);
+    expect(probe.toStringCalls).toBe(0);
   });
 
-  it('visible 범위 밖의 data URI 는 위젯 생성 안 함', async () => {
+  // SPEC-IMG-WIDGET-002 REQ-C-005 (AC-C-005) — 개정: 삭제가 아니라 경계 단위 이동.
+  // 원래 의도("뷰포트 밖은 스캔하지 않는다")는 보존하되, 경계의 단위가 문자 오프셋에서
+  // **라인** 으로 옮겨졌다. REQ-A-001 이 가시 라인 전체를 스캔하므로, hidden 을 같은 라인에
+  // 두면 이제 위젯 2개가 정답이 된다. 의도를 지키려면 hidden 을 다른 라인에 둔다.
+  it('가시 라인이 아닌 라인의 data URI 는 위젯 생성 안 함 (visible 경계 = 라인)', async () => {
     const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
     const visible = '![visible](data:image/png;base64,vv=)';
-    const hidden = ' ![hidden](data:image/jpeg;base64,hh=)';
-    const full = visible + hidden;
-    const mockView = {
-      visibleRanges: [{ from: 0, to: visible.length }] as const,  // visible 구간만
-      state: {
-        doc: {
-          length: full.length,
-          sliceString: (f: number, t: number) => full.slice(f, t),
-          toString: () => full,
-        },
-      },
-    };
-    const result = buildDecorations(mockView as never);
+    const hidden = '![hidden](data:image/jpeg;base64,hh=)';
+    const full = visible + '\n' + hidden;   // hidden 은 **다른 라인**
+    const { view, probe } = instrumentedMock(full, [{ from: 0, to: visible.length }]);
+    const result = buildDecorations(view as never);
     let count = 0;
     result.between(0, full.length, () => { count++; });
-    expect(count).toBe(1);  // visible 1개만
+    expect(count).toBe(1);  // 가시 라인의 1개만
+    // hidden 라인 구간은 한 번도 잘리지 않는다
+    const hiddenFrom = visible.length + 1;
+    expect(probe.slices.filter((s) => s.from < full.length && s.to > hiddenFrom)).toEqual([]);
   });
 
-  it('여러 visibleRanges 분할 — 각 범위를 독립 스캔', async () => {
+  // SPEC-IMG-WIDGET-002 REQ-A-003 — 이름 정정: 두 범위가 **같은 라인** 위에 있으므로
+  // 개정 후에는 "각 범위를 독립 스캔"이 아니라 병합되어 1회 스캔된다. 기대값(위젯 2개)은 불변.
+  it('여러 visibleRanges 분할 — 같은 라인은 병합되어 1회 스캔', async () => {
     const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
     const text = '![a](data:image/png;base64,aa=) X ![b](data:image/jpeg;base64,bb=)';
     const aEnd = text.indexOf(' X ');
     const bStart = aEnd + 3;
-    const mockView = {
-      visibleRanges: [
-        { from: 0, to: aEnd },
-        { from: bStart, to: text.length },
-      ] as const,
-      state: {
-        doc: {
-          length: text.length,
-          sliceString: (f: number, t: number) => text.slice(f, t),
-          toString: () => text,
-        },
-      },
-    };
-    const result = buildDecorations(mockView as never);
+    const { view, probe } = instrumentedMock(text, [
+      { from: 0, to: aEnd },
+      { from: bStart, to: text.length },
+    ]);
+    const result = buildDecorations(view as never);
     let count = 0;
     result.between(0, text.length, () => { count++; });
     expect(count).toBe(2);
+    expect(probe.sliceCalls).toBe(1);
   });
 
   it('빈 문서 (visibleRanges 빈) → 위젯 0개, 예외 없음', async () => {
     const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
-    const mockView = {
-      visibleRanges: [] as const,
-      state: {
-        doc: {
-          length: 0,
-          sliceString: () => '',
-          toString: () => '',
-        },
-      },
-    };
-    const result = buildDecorations(mockView as never);
+    const { view } = instrumentedMock('', []);
+    const result = buildDecorations(view as never);
     expect(result).toBeDefined();
+  });
+});
+
+// ============================================================
+// SPEC-IMG-WIDGET-002 Axis A/C: 라인 경계 스캔의 1회성·완전성·비용
+// ============================================================
+
+describe('SPEC-IMG-WIDGET-002 REQ-A-003/004/C-003: 라인 경계 스캔', () => {
+  it('분절된 라인은 병합되어 1회만 스캔된다', async () => {
+    const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
+    const line = '![x](data:image/png;base64,' + 'A'.repeat(300) + '=)';
+    // 한 라인이 3조각으로 분절 (line gap 2개)
+    const { view, probe } = instrumentedMock(line, [
+      { from: 0, to: 50 },
+      { from: 120, to: 200 },
+      { from: 260, to: line.length },
+    ]);
+    // RangeSetBuilder 가 중복/역순 입력으로 던지지 않아야 한다
+    const result = buildDecorations(view as never);
+    expect(probe.sliceCalls).toBe(1);
+    expect(probe.slices[0]).toEqual({ from: 0, to: line.length });
+    let count = 0;
+    result.between(0, line.length, () => { count++; });
+    expect(count).toBe(1);
+  });
+
+  it('분절 라인의 복수 이미지 — 중복/누락 없음', async () => {
+    const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
+    const imgA = '![a](data:image/png;base64,' + 'A'.repeat(80) + '=)';
+    const imgB = '![b](data:image/jpeg;base64,' + 'B'.repeat(80) + '=)';
+    const line = imgA + ' sep ' + imgB;
+    const boundary1 = 40;                      // imgA 한복판
+    const boundary2 = imgA.length + 5 + 40;    // imgB 한복판
+    const { view, probe } = instrumentedMock(line, [
+      { from: 0, to: boundary1 },
+      { from: boundary1 + 10, to: boundary2 },
+      { from: boundary2 + 10, to: line.length },
+    ]);
+    const result = buildDecorations(view as never);
+    let count = 0;
+    result.between(0, line.length, () => { count++; });
+    expect(count).toBe(2);
+    expect(probe.sliceCalls).toBe(1);
+  });
+
+  it('스캔 문자 수는 가시 라인 길이 합과 같다 (REQ-C-003)', async () => {
+    const { buildDecorations } = await import('@/components/editor/extensions/image-widget');
+    const head = '# 앞 라인';
+    const big = '![big](data:image/png;base64,' + 'A'.repeat(100_000) + '=)';
+    const tail = '뒤 라인';
+    const full = `${head}\n${big}\n${tail}`;
+    const bigFrom = head.length + 1;
+    const bigTo = bigFrom + big.length;
+    // 가운데 라인만 가시이고, line gap 으로 3조각 분절
+    const { view, probe } = instrumentedMock(full, [
+      { from: bigFrom, to: bigFrom + 30_000 },
+      { from: bigFrom + 50_000, to: bigFrom + 70_000 },
+      { from: bigFrom + 90_000, to: bigTo },
+    ]);
+    buildDecorations(view as never);
+
+    expect(probe.scannedChars).toBe(big.length);   // 가시 라인 길이와 정확히 일치
+    expect(probe.sliceCalls).toBe(1);              // 병합 후 범위 1개
+    expect(probe.scannedChars).toBeLessThan(full.length);  // full-doc 회귀 탐지
+    expect(probe.toStringCalls).toBe(0);
   });
 });
 
