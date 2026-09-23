@@ -56,7 +56,7 @@
 **When** 해당 라인이 뷰포트에 들어온다
 **Then** 편집 영역에 `.cm-image-widget` 요소가 1개 이상 나타나고, 원시 base64 문자열은 활성 라인 텍스트로 노출되지 않는다
 
-검증: `E2E:widget002` — `'20,000자 초과 base64 라인에 위젯이 렌더된다'`
+검증: `E2E:widget002` — `'거대 base64 라인이 뷰포트에 들어오면 위젯이 렌더되고 원문이 노출되지 않는다'` (`e2e/spec-img-widget-002.spec.ts:139`)
 
 ### AC-A-006 (REQ-A-006) — full-doc 복사 없음
 
@@ -64,7 +64,7 @@
 **When** `buildDecorations` 를 호출한다
 **Then** `view.state.doc.toString()` 호출 횟수가 0 이다
 
-검증: `UNIT:widget` — `image-widget.test.ts:293` 의 기존 테스트 `'view.state.doc.toString() 은 호출되지 않는다 (full-doc copy 회피)'`
+검증: `UNIT:widget` — `image-widget.test.ts:344` 의 기존 테스트 `'view.state.doc.toString() 은 호출되지 않는다 (full-doc copy 회피)'`
 
 비고: 이 테스트는 **변경 없이 통과할 수 없다**. `image-widget.ts:158-169` 의 `DocView` 인터페이스는 `length` / `sliceString` / `visibleRanges` 만 노출하며 라인 조회 멤버가 없다. REQ-A-001 이 라인 경계 확장을 요구하므로 `DocView` 에 라인 조회 멤버가 추가되어야 하고, 기존 mock 들은 그 멤버를 제공하지 않으므로 함께 갱신되어야 한다. 따라서 이 AC 는 **mock 에 라인 조회 멤버를 추가하는 변경을 허용**하되, 단언 자체(`toString` 호출 0회)는 보존될 것을 요구한다. mock 갱신 범위: `image-widget.test.ts` 와 `image-widget.regression.test.ts` 의 `visibleRanges` 출현 18곳 / `buildDecorations` 호출 16곳(측정값).
 

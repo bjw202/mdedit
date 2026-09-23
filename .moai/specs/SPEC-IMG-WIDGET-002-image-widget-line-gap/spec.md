@@ -74,14 +74,14 @@ v0.15.0 이전에는 인라인(`inline-blob`) 모드에서 이미지를 붙여�
 |---|---|---|
 | 1 | `src/components/editor/extensions/markdown-extensions.ts:105` | `EditorView.lineWrapping` 활성화 |
 | 2 | `node_modules/@codemirror/view/dist/index.js:6378` | `let margin = wrapping ? 10000 : 2000, doubleMargin = margin << 1;` → wrapping 시 `doubleMargin = 20000` |
-| 3 | `node_modules/@codemirror/view/dist/index.js:6413` (`checkLine`) | `if (line.length < doubleMargin || line.type != BlockType.Text) return;` → **20,000자를 초과하는 라인**에 line-gap 데코레이션이 부여된다 |
-| 4 | `node_modules/@codemirror/view/dist/index.js:6491-6498` (`computeVisibleRanges`) | line-gap 데코레이션이 `deco` 에 합성된 뒤 `RangeSet.spans(deco, viewport.from, viewport.to, { span(from,to){ranges.push(...)}, point(){} }, 20)` 로 처리된다. `point()` 콜백이 비어 있으므로 gap 이 덮는 구간은 `visibleRanges` 에서 **제외**된다 → 긴 라인이 **자기 자신 안에서** 복수 조각으로 분절된다 |
+| 3 | `node_modules/@codemirror/view/dist/index.js:6414` (`checkLine`) | `if (line.length < doubleMargin || line.type != BlockType.Text) return;` → **20,000자를 초과하는 라인**에 line-gap 데코레이션이 부여된다 |
+| 4 | `node_modules/@codemirror/view/dist/index.js:6490-6498` (`computeVisibleRanges`) | line-gap 데코레이션이 `deco` 에 합성된 뒤 `RangeSet.spans(deco, viewport.from, viewport.to, { span(from,to){ranges.push(...)}, point(){} }, 20)` 로 처리된다. `point()` 콜백이 비어 있으므로 gap 이 덮는 구간은 `visibleRanges` 에서 **제외**된다 → 긴 라인이 **자기 자신 안에서** 복수 조각으로 분절된다 |
 | 5 | `src/components/editor/extensions/image-widget.ts:197-212` (`buildDecorations`) | SPEC-IMG-LOAD-002 REQ-A-001 로 도입. `view.visibleRanges` 를 순회하며 각 `sliceString(from, to)` 조각에 대해 `parseDataUriImage()` 를 **독립 실행** |
 | 6 | `src/components/editor/extensions/image-widget.ts:35` | 패턴 `/!\[([^\]]*)\]\((data:image\/([^;]+);base64,([A-Za-z0-9+/=]+))\)/g` 는 완결된 `![alt](data:...)` 구조가 **하나의 조각 안에** 있어야 매칭된다 |
 
 결론: line gap 이 `![alt](data:...)` 구조를 가로지르면 어느 조각에서도 매칭되지 않고 → 위젯 0개 → 원시 base64 노출.
 
-> 검증 범위 주석: 위 표의 `node_modules/@codemirror/view/dist/index.js` 행 번호는 `@codemirror/view` v6.39.15(`package.json:27`의 `^6.39.15`)를 대상으로 오케스트레이터가 주 체크아웃에서 확인한 값이다. 본 워크트리에는 `node_modules` 가 설치되어 있지 않아 이 SPEC 작성 시점에 재확인하지 않았다. `src/` 측 행 번호(1, 5, 6행)는 본 워크트리에서 직접 확인했다.
+> 검증 범위 주석: 위 표의 `node_modules/@codemirror/view/dist/index.js` 행 번호는 `@codemirror/view` v6.39.15(`package.json:27`의 `^6.39.15`)를 대상으로 오케스트레이터가 주 체크아웃에서 확인한 값이다. sync-phase 독립 감사에서 주 체크아웃의 v6.39.15 실물과 대조해 재확인했으며, 이때 2개 행 번호의 1줄 오차(6413→6414, 6491→6490)를 정정했다. `src/` 측 행 번호(1, 5, 6행)는 본 워크트리에서 직접 확인했다.
 
 ### v0.15.0 이전 동작
 
@@ -184,7 +184,7 @@ REQ-B-001 이후 이 상황은 인라인 이미지로는 도달할 수 없으며
 
 #### REQ-C-002 (Ubiquitous)
 
-SPEC-IMG-LOAD-002 의 linchpin Playwright 테스트 `PT-A1-006b`(`e2e/spec-img-load-002.spec.ts:162`)는 본 SPEC 적용 후에도 통과해야 한다. 이는 must-pass 게이트이며 선택 항목이 아니다.
+SPEC-IMG-LOAD-002 의 linchpin Playwright 테스트 `PT-A1-006b`(`e2e/spec-img-load-002.spec.ts:163`)는 본 SPEC 적용 후에도 통과해야 한다. 이는 must-pass 게이트이며 선택 항목이 아니다.
 
 #### REQ-C-003 (Ubiquitous)
 
