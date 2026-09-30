@@ -25,8 +25,11 @@ pub fn run() {
                 }
             }
             // .md 유무와 무관하게 항상 기존 "main" 창 포커스(REQ-FS-004-006 — 아이콘 재클릭 UX).
+            // set_focus만으로는 최소화/숨김 창이 복원되지 않아, 먼저 복원·표시한 뒤 포커스한다.
             use tauri::Manager;
             if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
                 let _ = window.set_focus();
             }
         }))
