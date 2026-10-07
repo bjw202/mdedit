@@ -41,4 +41,38 @@
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+- 상태: **`implemented` — 수동 수용(앱 내 확인) 대기 중. `completed` 아님.** 수동 수용이 끝나면 `completed`로 전이한다.
+- 동기화 내용:
+  - `CHANGELOG.md` `[Unreleased]` → `### Fixed`에 SPEC-PREVIEW-014 항목 1건 추가 (증상·원인·수정·검증 수치·후속 한계)
+  - `spec.md` frontmatter `status: draft` → `status: implemented` (`updated`는 이미 2026-10-07로 오늘 날짜와 같아 변경 없음, 본문 미수정)
+  - `README.md`, `.moai/project/*.md`, `docs/*.md`: 비ASCII 경로 이미지 해석과 관련해 사실과 달라진 서술이 없어 변경하지 않음
+
+```yaml
+sync_status: implemented-pending-manual-acceptance
+sync_base_head: 5c4a173
+changelog_entry_position: "[Unreleased] / ### Fixed / 1번째 항목"
+b12_self_test_a: "grep -c 'SPEC-PREVIEW-014' CHANGELOG.md → 0 (추가 전, 중복 없음)"
+b12_self_test_b: "acceptance.md 고유 AC 5건(AC-PREVIEW014-01~05) ↔ CHANGELOG 항목에 5건 명시"
+b12_self_test_c: "항목에 인용한 경로 3개 ls 확인: src/lib/image/imageResolver.ts, src/test/imageResolver.test.ts, src/lib/export/exportHtml.ts"
+frontmatter_status_transitions:
+  spec.md: "draft → implemented"
+```
+
+### 증거 (출처 구분)
+
+| 항목 | 결과 | 출처 |
+|------|------|------|
+| `npx vitest run src/test/imageResolver.test.ts src/test/usePreview.test.ts` | exit 0, 17 passed | 오케스트레이터 직접 실행 |
+| `npm run typecheck` | exit 0 | 오케스트레이터 직접 실행 |
+| `npm run lint` | exit 0 | 오케스트레이터 직접 실행 |
+| `moai spec lint` (SPEC) | exit 0 | 오케스트레이터 직접 실행 (sync 후 재실행 결과는 sync 보고 참조) |
+| RED: 수정 전 `7 failed \| 4 passed (11)` | §E.2 기록 | run 에이전트 보고 |
+| 전체 `npx vitest run` 105 파일 / 1604 테스트 통과 | exit 0 | run 에이전트 보고 (오케스트레이터 재실행 안 함) |
+
+### Gaps (미검증)
+
+- 수동 수용 미수행: 한글 파일명 이미지가 들어간 문서를 실제 앱 미리보기에서 열어 그림이 표시되는지 사용자가 확인해야 함
+- 커버리지 미측정: vitest 커버리지 제공자가 설치되어 있지 않음
+- Windows 실기 미검증: macOS 외 환경(NFC/NFD 차이 포함)은 확인하지 않음
+- 전체 스위트 결과(1604/1604)는 run 에이전트 보고 수치이며 sync 단계에서 재실행하지 않음
+- 후속 과제(이번 범위 밖): 공백·`&` 포함 파일명, 한글 절대경로, HTML 내보내기 `embedLocalImages`의 동일 결함

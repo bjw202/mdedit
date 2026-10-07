@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-014
 title: 미리보기 한글(비ASCII) 상대경로 이미지 깨짐 수정 (퍼센트 인코딩 디코드)
 version: 1.0.2
-status: draft
+status: implemented
 created: 2026-10-07
 updated: 2026-10-07
 author: jw (bjw202)
