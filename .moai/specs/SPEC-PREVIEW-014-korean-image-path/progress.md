@@ -33,6 +33,7 @@
 
 - 커버리지: 저장소에 vitest 커버리지 제공자가 설치되어 있지 않아 측정하지 않음
 - 원본 로그: `.moai/state/verify/preview-013/` (red.log, green.log, usePreview.log, typecheck.log, lint.log, full.log — 커밋 대상 아님)
+  - 참고: 폴더명 `preview-013`과 `red.log`의 테스트 제목은 SPEC 번호를 014로 바꾸기 전의 원래 번호(013)를 그대로 담고 있다. 기존 증거 링크가 깨지지 않도록 폴더명은 의도적으로 바꾸지 않았다.
 
 ## §E.3 Run-phase Audit-Ready Signal
 
@@ -65,14 +66,15 @@ frontmatter_status_transitions:
 | `npx vitest run src/test/imageResolver.test.ts src/test/usePreview.test.ts` | exit 0, 17 passed | 오케스트레이터 직접 실행 |
 | `npm run typecheck` | exit 0 | 오케스트레이터 직접 실행 |
 | `npm run lint` | exit 0 | 오케스트레이터 직접 실행 |
-| `moai spec lint` (SPEC) | exit 0 | 오케스트레이터 직접 실행 (sync 후 재실행 결과는 sync 보고 참조) |
-| RED: 수정 전 `7 failed \| 4 passed (11)` | §E.2 기록 | run 에이전트 보고 |
-| 전체 `npx vitest run` 105 파일 / 1604 테스트 통과 | exit 0 | run 에이전트 보고 (오케스트레이터 재실행 안 함) |
+| `moai spec lint .moai/specs/SPEC-PREVIEW-014-korean-image-path/spec.md` | exit 0, `✓ No findings — all SPEC documents are valid` | 감사 지적(D3) 반영 재실행 로그 `.moai/state/verify/preview-014-sync/spec-lint.log` + sync-auditor 독립 재실행(exit 0, `.moai/state/verify/preview-014-auditor/spec-lint.log`) |
+| RED: 수정 전 `7 failed \| 4 passed (11)` | §E.2 기록 | run 에이전트 보고 (sync-auditor가 `preview-013/red.log`를 읽고 일치 확인) |
+| 전체 `npx vitest run` 105 파일 / 1604 테스트 통과 | exit 0 | sync-auditor 독립 재실행으로 관측 (HEAD `838fb17`, `.moai/state/verify/preview-014-auditor/full-vitest.log`) |
+| 감사 후 주석 전용 커밋 `8581920` | 동작 변경 없음 | 오케스트레이터 재실행: imageResolver 테스트 11/11, lint exit 0, typecheck exit 0 (`.moai/state/verify/preview-013-orch/v8-comment-fix-test.log`, `v9-lint.log`, `v10-typecheck.log`) |
 
 ### Gaps (미검증)
 
 - 수동 수용 미수행: 한글 파일명 이미지가 들어간 문서를 실제 앱 미리보기에서 열어 그림이 표시되는지 사용자가 확인해야 함
 - 커버리지 미측정: vitest 커버리지 제공자가 설치되어 있지 않음
 - Windows 실기 미검증: macOS 외 환경(NFC/NFD 차이 포함)은 확인하지 않음
-- 전체 스위트 결과(1604/1604)는 run 에이전트 보고 수치이며 sync 단계에서 재실행하지 않음
+- 전체 스위트(1604/1604)는 sync-auditor가 HEAD `838fb17`에서 재실행해 확인함. 주석 전용 커밋 `8581920` 이후에는 전체 스위트를 다시 돌리지 않음(대상 테스트·lint·typecheck만 재실행)
 - 후속 과제(이번 범위 밖): 공백·`&` 포함 파일명, 한글 절대경로, HTML 내보내기 `embedLocalImages`의 동일 결함
