@@ -100,17 +100,35 @@ export async function embedPreviewImages(html: string, mdFilePath: string | null
     }
 
     // Resolve relative path to absolute
-    const normalizedSrc = src.startsWith('./') ? src.substring(2) : src;
-    const absolutePath = src.startsWith('/')
-      ? src
-      : `${mdDir}${sep}${normalizedSrc.replace(/\//g, sep)}`;
+    const toAbsolute = (p: string) => {
+      const normalizedSrc = p.startsWith('./') ? p.substring(2) : p;
+      return `${mdDir}${sep}${normalizedSrc.replace(/\//g, sep)}`;
+    };
 
-    try {
-      const dataUri = await readImageAsBase64(absolutePath);
-      resolved.set(src, dataUri);
-      result = result.replace(full, full.replace(src, dataUri));
-    } catch {
-      // Keep original src if the file cannot be read
+    // SPEC-PREVIEW-014: markdown-it은 상대경로의 한글·단독 % 를 퍼센트 인코딩하므로
+    // 디코드한 경로를 먼저 읽는다. 파일명 자체에 %XX 가 든 경우(a%20b.png)를 위해
+    // 실패하면 원문 경로로 한 번 더 읽는다. 잘못된 시퀀스는 원문만 쓴다.
+    // 절대경로는 기존대로 디코드하지 않으며, `..` 거부는 Rust validate_path 가 담당한다.
+    let candidates = [src];
+    if (!src.startsWith('/')) {
+      let decoded = src;
+      try {
+        decoded = decodeURIComponent(src);
+      } catch {
+        // 잘못된 퍼센트 시퀀스 — 원문 사용
+      }
+      candidates = decoded === src ? [toAbsolute(src)] : [toAbsolute(decoded), toAbsolute(src)];
+    }
+
+    for (const absolutePath of candidates) {
+      try {
+        const dataUri = await readImageAsBase64(absolutePath);
+        resolved.set(src, dataUri);
+        result = result.replace(full, full.replace(src, dataUri));
+        break;
+      } catch {
+        // 이 후보를 읽지 못함 — 다음 후보를 시도하고, 모두 실패하면 원본 src를 그대로 둔다
+      }
     }
   }
 
