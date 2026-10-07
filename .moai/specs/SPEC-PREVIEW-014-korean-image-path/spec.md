@@ -1,8 +1,8 @@
 ---
 id: SPEC-PREVIEW-014
 title: 미리보기 한글(비ASCII) 상대경로 이미지 깨짐 수정 (퍼센트 인코딩 디코드)
-version: 1.0.2
-status: implemented
+version: 1.0.3
+status: completed
 created: 2026-10-07
 updated: 2026-10-07
 author: jw (bjw202)
@@ -25,6 +25,7 @@ related_specs: [SPEC-PREVIEW-001, SPEC-PREVIEW-008, SPEC-IMG-MODE-003, SPEC-IMG-
 | 1.0.0 | 2026-10-07 | jw | 최초 작성 — 미리보기에서 파일명에 한글이 들어간 상대경로 이미지(`![도1](figures_svg/도01_frame.png)`)가 깨지는 결함을 고친다. 원인은 markdown-it이 링크 목적지를 퍼센트 인코딩한 src를 `embedPreviewImages`가 디코드 없이 파일 경로로 쓰는 것. 디코드한 경로를 먼저 읽고, 실패하면 원문 경로로 한 번 더 읽는다. 잘못된 퍼센트 시퀀스는 예외 없이 원문으로 처리한다. |
 | 1.0.1 | 2026-10-07 | jw | plan-audit PASS-WITH-DEBT 반영: D1-D6 — `tags`를 따옴표 문자열로 변경(lint), T11 기대 호출 명시, 테스트 mock 인용 정정(`convertFileSrc`), 제외 항목에 `&`·NFC/NFD·익스포트 쌍둥이 결함 기록. 요구사항 변경 없음. |
 | 1.0.2 | 2026-10-07 | jw | SPEC 번호를 PREVIEW-013 → PREVIEW-014로 변경 — CHANGELOG 0.16.0이 013을 폐기된 Web Worker 계획 이름으로 이미 사용 중이어서 충돌. 요구사항 변경 없음. |
+| 1.0.3 | 2026-10-07 | jw | 앱 수동 인수(macOS, 사용자 보고) 완료 → completed. Windows 실기 검증은 미수행. |
 
 ## Overview
 
