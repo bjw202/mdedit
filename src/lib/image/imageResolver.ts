@@ -127,7 +127,7 @@ export async function embedPreviewImages(html: string, mdFilePath: string | null
         result = result.replace(full, full.replace(src, dataUri));
         break;
       } catch {
-        // Keep original src if the file cannot be read
+        // 이 후보를 읽지 못함 — 다음 후보를 시도하고, 모두 실패하면 원본 src를 그대로 둔다
       }
     }
   }
