@@ -14,14 +14,6 @@ vi.mock('@/components/preview/PreviewRenderer', () => ({
   )),
 }));
 
-// Mock mermaid
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn().mockResolvedValue({ svg: '<svg></svg>' }),
-  },
-}));
-
 // Mock shiki
 vi.mock('shiki', () => ({
   createHighlighter: vi.fn().mockResolvedValue({

@@ -2,12 +2,13 @@
 // Tests for insertDiagram(view, preset) — mermaid diagram fence insertion helper.
 // TDD RED phase: written before implementation exists in keyboard-shortcuts.ts.
 // Covers: 7 preset snippets (byte-exact from spec.md) + custom empty fence,
-// first-edit-token cursor placement, block padding, and mermaid 11.12.3 parse success.
+// first-edit-token cursor placement, block padding, and preset render success through the diagram module
+// (SPEC-PREVIEW-015: real pele 1.10.0, replacing the former mermaid 11.12.3 parse check).
 
 import { describe, it, expect } from 'vitest';
 import { EditorState, EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import mermaid from 'mermaid';
+import { renderDiagram } from '@/lib/diagram/diagramRenderer';
 
 /**
  * Builds a minimal fake "view" backed by a real CodeMirror EditorState.
@@ -214,15 +215,16 @@ describe('DIAGRAM_PRESETS table', () => {
   });
 });
 
-// AC-UI-008-004: the 7 preset snippet bodies parse without error under mermaid 11.12.3.
-describe('preset snippets parse under mermaid 11.12.3 (AC-004)', () => {
+// AC-UI-008-004 / SPEC-PREVIEW-015 AC-016: the 7 preset snippet bodies render without error through the diagram module.
+describe('preset snippets render through the diagram module (AC-004, SPEC-PREVIEW-015 AC-016)', () => {
   for (const preset of Object.keys(EXPECTED_BLOCKS)) {
-    it(`mermaid.parse succeeds for the ${preset} snippet body`, async () => {
+    it(`renderDiagram returns an SVG for the ${preset} snippet body`, async () => {
       const { DIAGRAM_PRESETS } = await import('@/components/editor/extensions/keyboard-shortcuts');
       const def = DIAGRAM_PRESETS.find((p) => p.preset === preset);
       expect(def).toBeDefined();
-      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
-      await expect(mermaid.parse(def!.body)).resolves.toBeTruthy();
+      const result = renderDiagram(def!.body);
+      if (!result.ok) throw new Error(`${preset}: ${result.error.code} ${result.error.message}`);
+      expect(result.svg).toContain('<svg');
     });
   }
 });
