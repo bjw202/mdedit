@@ -234,6 +234,54 @@
 - 저장소 전체 `npm run lint`(`eslint .`)는 실행하지 않았다. `spike/pele/`의 mermaid import가 lint 규칙에 걸리는지는 측정하지 않았다(M7에서 삭제).
 - `npm ci`(깨끗한 설치)는 하지 않고 `npm install` + scratch 복사로 대신했다.
 
+### M5 e2e 개정 (2026-10-26, 기준 HEAD a84b8e1)
+
+M4 CSS 변경(`mdedit-tokens.css` 라이트 블록 선택자 `[data-theme="light"], :root`)은 사용자가 유지로 결정(2026-10-26). design.md D6 반영은 M6에서 manager-spec이 한다.
+
+#### 변경
+
+| 커밋 | 내용 |
+|---|---|
+| `26caee8` | `e2e/mermaid-subgraph-label.spec.ts`: `.cluster-label foreignObject` 측정을 pele 서브그래프 제목 `text.pele-cluster-label` 측정으로 교체. 소유 상자는 가장 가까운 `[data-id]` 조상(`g.pele-cluster` 또는 `g.pele-cluster-titles > g.pele-cluster-title`). 단언: 제목 2개·상자 2개(A·B), 제목마다 `tspan` 0개 + `getBBox().height < 글자 크기 × 1.4 × 1.6`(1줄), 제목 화면 상자가 자기 `g.pele-cluster > rect` 안(1px 여유), 두 상자 겹침 없음. 측정 전 `document.fonts.ready` 대기. 낡은 patch-package 주석(`:6`) 삭제, 파일 이름 유지(D10). `e2e/markdown-render.spec.ts`: "mermaid 비동기 렌더" 주석만 pele 기준으로 정정(대기 조건·선택자 무변경) |
+| `08eeb44` | 새 `e2e/diagram-preview-behavior.spec.ts` 5건 — AC-011 2건, AC-012 2건, AC-025 e2e 1건(아래 "AC 대응") |
+
+- 실제 pele 제목 구조(근거): `src/test/fixtures/pele/browser/02-subgraph-B-vertical.sanitized.svg`·`03-subgraph-C-horizontal.sanitized.svg`. 가려질 수 있는 제목은 `g.pele-cluster-titles > g.pele-cluster-title[data-id]` 안에 후광용 `<text fill="none" stroke=…>`와 `text.pele-cluster-label`이 함께 놓이고, 나머지는 `g.pele-cluster[data-id]` 안에 `rect` 다음으로 놓인다. webkit 일회성 탐침(커밋하지 않음, `.moai/state/verify/pele-015-m5/probe.txt`): 제목 `getBBox().height` 19.22, 글자 크기 16px(1줄 기준 상한 35.84), 노드 rect 계산 `fill` `rgb(233, 233, 234)`(= 라이트 `--md-surface` `#e9e9ea`).
+- 다른 e2e의 mermaid 내부 의존: `grep -rn -i "mermaid\|foreignObject\|\.cluster\|nodeLabel\|edgeLabel" e2e/*.ts` 결과, 내부 구조에 기대던 것은 `mermaid-subgraph-label.spec.ts`뿐이었다. `markdown-render.spec.ts:41,61`·`ai-inline-edit.spec.ts:230,238`은 D10으로 유지된 클래스(`.mermaid-container`, `.mdedit-ai-mermaid-preview`)와 펜스 문자열만 쓰며, 대기 조건 변경 없이 통과했다.
+
+#### 검증 (이 worktree에서 직접 실행, 출력 전문 `.moai/state/verify/pele-015-m5/`)
+
+모든 Playwright 실행은 `CI=1`(기존 서버 재사용 금지 → 이 worktree의 `npm run dev-vite`를 `webServer`가 띄우고 끝나면 내림). 실행 전후 `lsof -nP -iTCP:1420 -sTCP:LISTEN` → 출력 없음(exit 1).
+
+| 명령 | 결과 |
+|---|---|
+| `CI=1 npx playwright test e2e/mermaid-subgraph-label.spec.ts e2e/markdown-render.spec.ts e2e/ai-inline-edit.spec.ts` (개정 전, RED) | exit 1 — `2 failed`, `16 passed`. 실패 2건 = 옛 서브그래프 시나리오 B·C, `locator('.preview-content .mermaid-container svg .cluster-label')` 10초 타임아웃(pele SVG에 없음) (`baseline-3specs.txt`) |
+| `CI=1 npx playwright test e2e/mermaid-subgraph-label.spec.ts` | exit 0 — `2 passed (4.6s)` (`final-subgraph.txt`) |
+| `CI=1 npx playwright test e2e/diagram-preview-behavior.spec.ts` | exit 0 — `5 passed (12.8s)` (`final-behavior.txt`) |
+| `CI=1 npx playwright test e2e/markdown-render.spec.ts e2e/ai-inline-edit.spec.ts` | exit 0 — `16 passed (12.0s)` (`final-render-ai.txt`) |
+| `CI=1 npx playwright test --reporter=json e2e/diagram-preview-behavior.spec.ts` (측정값 기록) | exit 0. AC-011: 라이트 `fill rgb(233, 233, 234)` / `stroke rgba(29, 31, 32, 0.28)`, 다크 `fill rgb(33, 36, 39)` / `stroke rgba(231, 231, 234, 0.26)`, 각각 토큰 계산값과 같음. AC-025: 기준·수식 모두 `violations [] consoleRejects []` (`behavior-2.json`) |
+| `CI=1 npx playwright test` (전체, webkit 프로젝트) | exit 0 — `69 passed`, `1 skipped` (21.1s). skip 1건 = `spec-img-mode-003.spec.ts:143` 기존 `.skip`(실제 DataTransfer 필요, 이 SPEC과 무관) (`full-e2e.txt`) |
+| `npx tsc --noEmit` | exit 0, 출력 없음 (`tsc.txt`). `tsconfig.json`의 `include`는 `src`뿐이라 e2e는 검사하지 않음 |
+| `npx tsc --noEmit --strict --module esnext --moduleResolution bundler --target es2022 --lib es2022,dom,dom.iterable --skipLibCheck --types node e2e/mermaid-subgraph-label.spec.ts e2e/diagram-preview-behavior.spec.ts` | exit 0, 출력 없음 (`tsc-e2e.txt`). 같은 옵션에서 `markdown-render.spec.ts`는 기존 오류(fixture에서 `Page` import, `:129-131` 암시적 any)가 나며 이번 변경(주석)과 무관 |
+| `npx eslint e2e/mermaid-subgraph-label.spec.ts e2e/diagram-preview-behavior.spec.ts e2e/markdown-render.spec.ts` | exit 0, 출력 없음 (`eslint.txt`) |
+| `npx vitest run` (전체) | exit 0 — `Test Files  108 passed (108)`, `Tests  1751 passed (1751)` (`vitest-full.txt`). 이번 마일스톤은 단위 테스트를 추가하지 않음 |
+
+#### AC 대응 (e2e 부분)
+
+- **AC-013**: 시나리오 B(세로)·C(가로) 모두 제목 1줄(tspan 0, 높이 기준 이하), 자기 상자 안, 상자끼리 겹침 없음 — PASS.
+- **AC-011**: (1) `theme: 'system'` + `colorScheme: light`로 시작 → OS 다크 → OS 라이트 → 헤더 "Toggle theme"(다크) → 다시 토글(라이트). 매 단계 같은 SVG 객체(`isConnected` + 현재 `querySelector` 결과와 동일), 노드 rect 계산 `fill`·`stroke`가 `--md-surface`·`--md-border-strong` 계산값과 같고 라이트·다크 값이 서로 다름. (2) `addInitScript`로 `theme: 'dark'` 저장 → `waitForSelector('.preview-content .mermaid-container svg')` 핸들로 곧바로 읽은 채움색 = 다크 토큰 값, 1초 뒤에도 같은 핸들이 연결·현재 노드, 토글 뒤 라이트 값과 다름 — PASS. 계산값은 `--pele-surface → var(--md-surface)` 연결을 통한 것이다.
+- **AC-012**: 노드 링크 문법(샘플 19와 같음) 다이어그램에 href 있는 `<a>` 0개, 노드 A·B 클릭 뒤 URL 같음·`open_url_in_browser` 호출 0·팝업 0. 대조: 같은 문서의 본문 링크 클릭은 같은 수집기로 `['https://example.com/control']` 1회. 외부 이미지 문법(샘플 20과 같음): 외부 `href`·`xlink:href` 0, `<image>` 0, `example.com` 요청 0 — PASS(이미지 부분은 AC상 unit 배치이며 e2e는 추가 확인).
+- **AC-014 (e2e)**: 기존 `ai-inline-edit.spec.ts` "1차 무효 → 자동 재요청 → 2차 유효" 시나리오가 무변경으로 통과(`.mdedit-ai-mermaid-preview` 보임, 삽입 문서에 ` ```mermaid `) — PASS.
+- **AC-025 (e2e)**: 앱 CSP meta가 있는 개발 서버 페이지에서 `18-math-label`을 렌더 → `foreignObject.pele-math` 2개, 각 안의 `<math>` 상자가 크기 > 0이고 `foreignObject` 상자 안(1px 여유). 수식을 뺀 같은 문서(기준)와 비교해 (가) `securitypolicyviolation` 수, (나) 콘솔 CSP 거부 수 모두 증가 없음(둘 다 0 대 0). 대조: 같은 페이지에 `img-src`에 없는 외부 주소 `<img>`를 붙이면 두 수집기 모두 증가 → CSP가 실제로 걸려 있고 수집기가 동작함 — PASS. 내보내기 쪽 단언(KaTeX CSS 없음, `<math>` 포함)은 M4 단위 테스트 범위다.
+
+#### Gaps (확인하지 않은 것)
+
+- 모든 e2e는 Playwright webkit 26.0(헤드리스) + `vite` 개발 서버 + IPC mock이다. 시스템 WKWebView(실제 Tauri 앱)에서의 수식 배치(MANUAL-4), 다이어그램 클릭 시 외부 브라우저가 열리지 않음(MANUAL-1), 앱 안 Barlow 글꼴 로드 전 첫 렌더 시 측정·표시 글꼴 어긋남은 확인하지 않았다.
+- AC-025 CSP 비교는 개발 서버 기준이다. 프로덕션 빌드에서만 생기는 `KaTeX_Size3-Regular.woff2` `data:` 글꼴 거부(백로그 `t1`)는 이 환경에서 기준·수식 모두 0건이라 나타나지 않았다. 프로덕션 빌드(`vite preview`)로는 실행하지 않았다.
+- AC-011 e2e는 노드 rect의 `fill`·`stroke` 두 속성만 본다. 선(`--pele-line`)·글자(`--pele-fg`)·`--pele-series-*`(파이·간트 색) 다크 대비는 실물 화면으로 확인하지 않았다(manual AC-024).
+- `readPeleThemeValues`(내보내기용 탐침 값 읽기, M4)는 이 e2e에서 호출하지 않았다. 내보내기 결과의 실제 색(HTML·PDF·DOCX)은 여전히 manual(AC-020·024) 대상이다.
+- 서브그래프 1줄 판정의 "글자 크기 × 1.4" 한 줄 기준은 추정치다(측정 19.22 대 상한 35.84). 2줄 렌더를 실제로 만들어 이 단언이 실패하는지는 확인하지 않았고, 대신 `tspan` 0개 단언을 함께 둔다.
+- Windows(WebView2)는 확인하지 않았다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_
