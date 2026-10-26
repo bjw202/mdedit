@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-015
 title: "Mermaid 렌더러를 pele로 전면 교체 — 미리보기·AI 검증·내보내기를 한 엔진으로"
 version: "0.4.3"
-status: in-progress
+status: completed
 created: 2026-10-26
 updated: 2026-10-26
 author: jw (bjw202)

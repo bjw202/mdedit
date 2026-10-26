@@ -9,7 +9,7 @@ MdEdit는 크로스 플랫폼 데스크톱 마크다운 에디터입니다. Taur
 
 **핵심 기능:**
 - **3-pane 레이아웃**: 사이드바 파일 탐색기, CodeMirror 6 에디터, 실시간 마크다운 미리보기
-- **마크다운 렌더링**: markdown-it + Shiki 구문 강조 + Mermaid 다이어그램 + **KaTeX LaTeX 수식** (v0.4.0 신규)
+- **마크다운 렌더링**: markdown-it + Shiki 구문 강조 + Mermaid 문법 다이어그램(pele 1.10.0) + **KaTeX LaTeX 수식** (v0.4.0 신규)
 - **내보내기**: HTML, PDF (Tauri 네이티브 print API), DOCX (docx npm 패키지)
 - **파일 감시**: notify 크레이트로 외부 변경 자동 감지 (50ms 디바운스)
 - **상태 관리**: Zustand (persist middleware로 localStorage 저장)
@@ -37,7 +37,7 @@ graph TD
     C2["Components<br/>layout/ editor/<br/>preview/ sidebar/"]
     C3["Hooks<br/>useFileSystem<br/>useFileWatcher<br/>usePreview<br/>useTheme<br/>useScrollSync"]
     C4["Zustand Stores<br/>editorStore<br/>fileStore<br/>uiStore"]
-    C5["Markdown Pipeline<br/>markdown-it<br/>Shiki + Mermaid<br/>KaTeX + imageResolver"]
+    C5["Markdown Pipeline<br/>markdown-it<br/>Shiki + pele<br/>KaTeX + imageResolver"]
     
     A --> B
     A --> C
@@ -70,7 +70,7 @@ graph TD
 ### Frontend
 - **Framework**: React 18.3.1 (Hooks, Concurrent)
 - **Editor**: CodeMirror 6 (autocomplete, lang-markdown, search, view)
-- **마크다운**: markdown-it 14.1.1, Shiki 3.22.0, Mermaid 11.12.3, **KaTeX 0.16.44** (신규)
+- **마크다운**: markdown-it 14.1.1, Shiki 3.22.0, pele 1.10.0(Mermaid 문법 다이어그램), **KaTeX 0.16.44** (신규)
 - **상태**: Zustand 5.0.0 (persist middleware)
 - **CSS**: Tailwind 3.4, CSS Variables (dark mode)
 - **IPC**: @tauri-apps/api 2

@@ -60,9 +60,9 @@ const md = new MarkdownIt({
 ### Plugin 파이프라인 (상세)
 
 #### 1. mermaidPlugin
-- 입력: \`\`\`mermaid ... \`\`\` 코드 블록
-- 출력: SVG로 변환된 다이어그램
-- 에러 처리: mermaid.render 실패 시 원본 코드블록 유지
+- 입력: \`\`\`mermaid ... \`\`\` 코드 블록 (Mermaid 문법)
+- 출력: `<div class="mermaid-container" data-diagram="…">` 자리 표시. 실제 그림은 `PreviewRenderer`가 다이어그램 모듈(`src/lib/diagram/diagramRenderer.ts`, pele 1.10.0)로 동기 렌더해 정화된 SVG를 넣는다 (SPEC-PREVIEW-015)
+- 에러 처리: 렌더 실패 시 그 자리에 `⚠ Diagram syntax error (L행 C열)` 문구(위치가 없으면 접미사 없음), 빈 펜스는 "다이어그램 문법을 입력하세요" 안내
 
 #### 2. markdownItKatex (신규 v0.4.0, SPEC-PREVIEW-003)
 - 입력: $ ... $ (인라인) 또는 $$ ... $$ (블록) 수식
@@ -108,7 +108,7 @@ const md = new MarkdownIt({
 ### 에러 처리
 
 **상황별 대응**:
-- mermaid.render 실패 → 에러 메시지 + 원본 코드블록 유지
+- 다이어그램 렌더 실패(pele `PeleError`) → 그 자리에만 `⚠ Diagram syntax error (L행 C열)` 문구, 다른 다이어그램은 계속 렌더
 - KaTeX 수식 파싱 실패 (throwOnError: false) → 원본 $...$ 유지
 - imageResolver 경로 불가능 → 깨진 이미지 심볼
 - 전체 renderMarkdown 에러 → usePreview에서 catch → 이전 HTML 유지

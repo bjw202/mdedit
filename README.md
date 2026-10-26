@@ -12,7 +12,7 @@ Tauri v2 + React 18 + CodeMirror 6 기반 크로스 플랫폼 마크다운 에�
 
 ## 주요 기능
 
-- **마크다운 편집 + 실시간 미리보기**: CodeMirror 6 편집, markdown-it 렌더링(약 300ms 디바운스), KaTeX 수식, Mermaid 다이어그램(라이트/다크 테마 연동), Shiki 코드 강조
+- **마크다운 편집 + 실시간 미리보기**: CodeMirror 6 편집, markdown-it 렌더링(약 300ms 디바운스), KaTeX 수식, Mermaid 문법 다이어그램(pele 엔진, 라이트/다크 테마 연동, 다이어그램 안 수식 지원), Shiki 코드 강조
 - **AI 어시스턴트** (아래 [AI 기능](#ai-기능) 참고): ✨ 선택 툴바 6종 프리셋, 이어쓰기, 섹션 채우기 — 로컬 **Claude Code CLI** 또는 **codex CLI** 중 설치된 것으로 자동 동작
 - **서식 툴바**: 굵게·이탤릭·제목·목록·코드·링크·인용, 8×8 그리드 표 삽입 피커, 이미지 삽입
 - **다양한 파일 뷰어**: 마크다운, HTML, 이미지, SVG, 코드/설정 파일, 평문 등 확장자별 자동 라우팅([지원 형식](#지원-파일-형식) 참고)
@@ -101,7 +101,7 @@ cd src-tauri && cargo test   # Rust 테스트
 | --- | --- |
 | 프론트엔드 | React 18, TypeScript 5, Vite 5 |
 | 에디터 | CodeMirror 6 |
-| 미리보기 | markdown-it 14, Shiki 3, Mermaid 11.12.3, KaTeX |
+| 미리보기 | markdown-it 14, Shiki 3, pele 1.10.0(Mermaid 문법 다이어그램), KaTeX |
 | 상태 관리 | Zustand 5 |
 | 백엔드 | Rust (Tauri v2) |
 | 테스트 | Vitest, Testing Library, Playwright |

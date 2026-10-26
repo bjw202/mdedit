@@ -455,6 +455,27 @@ acceptance.md "기계 검증 게이트" 7종을 표에 적힌 순서와 상관�
 - 프로덕션 빌드는 만들기만 했고 `vite preview`로 띄워 e2e를 돌리지 않았다(KaTeX `data:` 글꼴 CSP 백로그 `t1` 확인 안 함).
 - 커버리지 수치는 일회성 설치 도구로 잰 것이며 프로젝트에 고정된 커버리지 게이트는 없다.
 
+### 수동 확인 (2026-10-26, 사용자 보고, sync 단계 manager-docs가 기록)
+
+- **출처**: 사용자가 이 worktree(`.claude/worktrees/pele-015`, 브랜치 `WT-pele-renderer`) 빌드를 `npm run dev`로 띄워 확인한 뒤 2026-10-26에 "수동 확인 다 통과했어"라고 보고했다. 아래 판정은 사용자 보고에 근거하며, 에이전트가 앱을 직접 실행해 관찰한 것이 아니다.
+- **확인 목록과 결과** (사용자에게 전달된 점검 목록 전 항목, 보고 = 통과):
+
+| 항목 | 내용 | 결과 |
+|---|---|---|
+| MANUAL-1 | 다이어그램 안 링크 클릭 시 아무 일도 없음 / 본문 일반 링크는 시스템 브라우저로 열림 | 통과(사용자 보고) |
+| MANUAL-4 | 시스템 WKWebView에서 다이어그램 노드 안 수식이 그려짐 | 통과(사용자 보고) |
+| 테마 | 테마 토글 시 깜빡임 없이 다이어그램 색만 바뀜 | 통과(사용자 보고) |
+| 다크 대비 | 다크 테마의 계열 색(`--pele-series-*`)·선·글자 대비 | 통과(사용자 보고) |
+| 서브그래프 | 긴 한글 서브그래프 제목이 한 줄 | 통과(사용자 보고) |
+| 오류·빈 펜스 | 오류 문구의 `(L행 C열)` 위치 표시, 빈 펜스 안내 문구 | 통과(사용자 보고) |
+| 글꼴 | 글꼴 로드 시점(첫 렌더의 측정 글꼴·표시 글꼴 어긋남 없음) | 통과(사용자 보고) |
+| 내보내기 | 다크 테마에서 HTML·PDF·DOCX 내보내기 — DOCX는 라이트 색, 그림 위치 맞음, 수식 보임, 실패 펜스는 코드 텍스트 | 통과(사용자 보고) |
+| 에디터 단독 보기 | 미리보기를 끈 에디터 단독 보기에서 내보내기 | 통과(사용자 보고) |
+| Windows | WebView2 미리보기 렌더·DOCX 내보내기("기기가 있을 때만" 항목) | 사용자가 별도로 언급하지 않음 (미확인) |
+
+- **AC 판정 갱신**: AC-018(manual 부분), AC-020(manual 부분), AC-024(앱 안 전체 흐름 manual 부분), AC-025(manual 부분: MANUAL-4, 앱 PDF 수식 표시)를 사용자 보고에 따라 통과로 본다. AC-024의 문서 26행은 sync 단계 문서 갱신 뒤 따로 검사한다(§E.4).
+- **확인하지 않은 것**: Windows(WebView2). MANUAL-2(앱 PDF 인쇄 결과)·MANUAL-3(교체 전 mermaid 수식 기준선)은 목록에 이름으로 따로 적히지 않았다. MANUAL-2는 "다크 테마에서 HTML·PDF·DOCX 내보내기" 항목에 포함된 것으로 읽었고, MANUAL-3은 교체 전 비교용 기준선이라 이번 보고 대상이 아니었다. 사용자가 확인한 문서·기기·OS 버전은 보고에 없다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 - `run_status: audit-ready`
@@ -511,7 +532,49 @@ acceptance.md "기계 검증 게이트" 7종을 표에 적힌 순서와 상관�
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+```yaml
+sync_complete_at: 2026-10-26
+sync_commit_sha: "이 기록을 담은 sync 커밋 자체(같은 커밋 안에서는 자기 SHA를 적을 수 없음). git log --grep 'SPEC-PREVIEW-015 sync' -1로 확인"
+sync_base_sha: adbea17
+sync_status: audit-ready
+b12_self_test_a: "grep -c 'SPEC-PREVIEW-015' CHANGELOG.md → 0 (작성 전), 중복 없음"
+b12_self_test_b: "acceptance.md 고유 AC 식별자 36개 중 이 SPEC 소유 AC-PREVIEW015-* 25개(나머지 11개는 개정 대상 다른 SPEC의 AC 인용). CHANGELOG 항목은 '수용 기준 25건(AC-PREVIEW015-001~025)'으로 일치"
+b12_self_test_c: "CHANGELOG에 적은 경로 8개(src/lib/diagram/diagramRenderer.ts, src/styles/mdedit-tokens.css, e2e/diagram-preview-behavior.spec.ts, src/lib/ai/mermaidValidate.ts, src/lib/export/exportHtml.ts·exportDocx.ts·exportUtils.ts, src/components/preview/PreviewRenderer.tsx) ls 확인, 삭제를 적은 patches/는 ls → No such file"
+changelog_entry_position: "CHANGELOG.md [Unreleased] → 새 '### Changed' 절(기존 Fixed·Added 뒤)"
+frontmatter_status_transitions:
+  spec.md: "in-progress → completed (implemented 단계는 이 sync 커밋에 합쳐 닫음), updated: 2026-10-26 (이미 오늘 날짜라 값 변화 없음)"
+  plan.md / acceptance.md / progress.md / spec-compact.md / design.md / research.md: "frontmatter 블록이 없어 상태 필드 없음 — 새로 만들지 않음"
+mx_validation: "sync는 소스 파일을 바꾸지 않음. M7 MX 최종 점검(1233f89, §E.2 M7 표)이 계획 전 행을 확인했으므로 추가·변경 태그 0"
+```
+
+### 바꾼 문서
+
+| 파일 | 내용 |
+|---|---|
+| `docs/USER_MANUAL.md` | 목차 7번 앵커를 실제 부록 제목으로 수정, 94행 깨진 앵커(`물법`→`문법`) 수정. 부록: pele 1.10.0 명시, 안내 문구 표(`⚠ Diagram syntax error (L행 C열)`·위치 없는 오류·빈 펜스·코드 그대로 보임) 신설, 문제 1을 실제 동작대로 다시 씀(백틱 줄에 `mermaid`, 공백은 무관), 사실이 아닌 문제 3(들여쓰기) 삭제·번호 당김, 점선 화살표 잘못된 예 `..->`→`-.>`, 단계별 점검에 오류 위치 단계 추가, 6-4절(다이어그램 안 수식·테마·링크/이미지·내보내기 색과 실패 처리) 신설, FAQ 갱신 |
+| `docs/USER_GUIDE.md` | `### Mermaid 다이어그램` 절: pele 엔진, 재렌더 없이 색 전환, 오류 위치, 다이어그램 안 수식(섞인 라벨, 내보내기 포함), 링크·이미지, 내보내기(에디터 단독 보기, DOCX 항상 라이트, 실패 처리) |
+| `README.md` | 15행 기능 설명, 104행 기술 표(Mermaid 11.12.3 → pele 1.10.0) |
+| `docs/AI-Best-Practice-MdEdit.md`, `-Brief.md` | 기술 표 "Mermaid 11" 한 칸만 → "pele 1.10(Mermaid 문법)" (엔진에 대해 틀린 문장) |
+| `.moai/project/tech.md` | 기술 표, Decision 5 재작성(이력 표기), 의존성 목록, 성능 표, 플랫폼 목록 |
+| `.moai/project/structure.md` | 없는 `MermaidRenderer` 제거, usePreview·mermaidPlugin 설명, `diagram/` 모듈 추가, package.json·경계·데이터 흐름·성능·보안 항목 |
+| `.moai/project/codemaps/{overview,pipelines,testing}.md` | 버전·플러그인 출력·에러 처리·테스트 공백 항목 |
+| `CHANGELOG.md` | [Unreleased] `### Changed` 항목 |
+
+문서 주장 근거: 부록의 "실패한다/성공한다" 문장은 pele 1.10.0 직접 탐침으로 확인했다(`.moai/state/verify/pele-015-sync/probe.mjs`·`probe2.mjs`, gitignore 대상). 예: `A[사용자 (User)]` → `syntax 2 11`, 탭 들여쓰기 → 렌더 성공, `A ..-> B` → 렌더 성공, `A -.> B`·`A -- > B`·`A -> B` → `syntax`, `Flowchart LR` → `unsupported-diagram 0 0`. 펜스 정보 문자열은 markdown-it 파싱 + `mermaidPlugin`과 같은 `trim() === 'mermaid'` 비교로 확인(`" mermaid"`·`"mermaid   "` 일치, `"mermaid diagram"`·`"Mermaid"`·다음 줄 `mermaid` 불일치). 내보내기 테마는 `AppLayout.tsx:149-168`의 `exportTheme`(앱 테마, system은 OS 설정으로 풀어 씀).
+
+### AC-024 검사
+
+- `python3 -I .moai/state/verify/pele-015-m6/ac024.py <worktree>` → exit 0, 1~25·27행 모두 PASS, HISTORY 8개 파일 각 1행, `FAILS 0` (`.moai/state/verify/pele-015-sync/ac024-out.txt`). 이 스크립트는 26행을 다루지 않는다.
+- 26행 검사 `python3 -I .moai/state/verify/pele-015-sync/ac024_row26.py <worktree>` → README·USER_MANUAL·USER_GUIDE 모두 `11\.12\.3` 0건 PASS, 목차 15행 → `#appendix-mermaid-다이어그램-문법-오류-해결` 제목 존재 PASS, 문서 안 깨진 내부 앵커 0, `FAILS 0` (`ac024-row26-out.txt`).
+- AC-024 manual(앱 전체 흐름): §E.2 "수동 확인" 사용자 보고로 통과.
+
+### Gaps (확인하지 않은 것)
+
+- 문서를 렌더해 링크를 클릭해 보지는 않았다. 앵커는 GitHub 제목 슬러그 규칙을 흉내 낸 스크립트로만 확인했다.
+- 마크다운 린터는 이 저장소에 설정이 없어 돌리지 않았다.
+- sync는 소스·테스트를 바꾸지 않아 vitest·Playwright·LSP 게이트를 다시 돌리지 않았다(마지막 실행은 M7, `1233f89` 작업 트리).
+- USER_MANUAL 부록 소제목 번호(`6-1`~`6-4`)가 목차 번호(7)와 맞지 않는 기존 불일치는 그대로 두었다.
+- Windows(WebView2) 실물 확인은 없다.
 
 ## §F Phase 4 Mode Selection
 

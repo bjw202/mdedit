@@ -225,8 +225,7 @@ Reusable React components organized by feature.
 
 **preview/**
 - MarkdownPreview: Preview panel container
-- PreviewRenderer: Renders markdown-it HTML output
-- MermaidRenderer: Handles Mermaid diagram rendering
+- PreviewRenderer: Renders markdown-it HTML output and draws each `.mermaid-container` synchronously through `src/lib/diagram/diagramRenderer.ts` (pele 1.10.0; no separate diagram component)
 - CodeBlockRenderer: Syntax-highlighted code blocks
 
 #### src/hooks/
@@ -246,8 +245,7 @@ Custom React hooks for common patterns.
 - Cleanup on unmount
 
 **usePreview.ts**
-- markdown-it renderer initialization
-- Mermaid diagram rendering setup
+- markdown-it renderer initialization (diagram fences become `.mermaid-container` placeholders; drawing happens in PreviewRenderer)
 - Shiki syntax highlighter initialization
 - Debounced markdown compilation
 
@@ -286,9 +284,12 @@ Utility libraries and helpers.
 
 **markdown/**
 - renderer.ts: markdown-it initialization and rendering
-- mermaidPlugin.ts: Plugin for rendering Mermaid in markdown-it
+- mermaidPlugin.ts: Turns ` ```mermaid ` fences into `.mermaid-container` placeholders carrying the source in `data-diagram` (name kept; the syntax is still Mermaid)
 - codeHighlight.ts: Shiki integration for syntax highlighting
 - markdownExt.ts: Custom Markdown extensions and rules
+
+**diagram/**
+- diagramRenderer.ts: Single diagram module (SPEC-PREVIEW-015). Renders Mermaid syntax with pele 1.10.0 using fixed options, sanitizes through a diagram-only DOMPurify instance, draws `$$…$$` label math with KaTeX MathML, formats the `(L행 C열)` error suffix, and resolves `--pele-*` colours to literal values for exports. Used by preview, AI validation (`mermaidValidate.ts`), AI card mini-preview, and HTML/PDF/DOCX export
 
 **export/**
 - exportHtml.ts: HTML export with self-contained CSS and SVG diagrams
@@ -332,7 +333,7 @@ TypeScript type definitions for type safety.
 **package.json**
 - React and TypeScript dependencies
 - CodeMirror 6 packages
-- Markdown libraries (markdown-it, Shiki, mermaid)
+- Markdown libraries (markdown-it, Shiki, pele pinned at exactly 1.10.0, KaTeX)
 - Build scripts (dev, build, preview, type-check)
 - Tauri CLI integration
 - Dev dependencies (vite, TypeScript, vitest)
@@ -406,7 +407,7 @@ TypeScript type definitions for type safety.
 
 **Component Boundaries**
 - Editor component owns CodeMirror instance
-- Preview component owns markdown-it and Mermaid renderers
+- Preview component owns markdown-it; diagram drawing goes through the shared diagram module (`src/lib/diagram/`)
 - FileExplorer component owns directory tree state
 - AppLayout component manages pane sizing
 
@@ -429,7 +430,7 @@ TypeScript type definitions for type safety.
 5. usePreview hook detects content change
 6. Debounces 300ms to reduce unnecessary renders
 7. markdown-it compiles Markdown to HTML
-8. Mermaid plugin processes code blocks
+8. mermaidPlugin turns diagram fences into placeholders; PreviewRenderer draws them with pele
 9. Shiki highlights code blocks
 10. MarkdownPreview displays rendered HTML
 
@@ -477,7 +478,7 @@ TypeScript type definitions for type safety.
 
 **Preview Performance**
 - 300ms debounce on markdown compilation
-- Mermaid diagrams lazy-loaded on scroll
+- Diagrams drawn synchronously per fence by pele; theme switch recolours through `--pele-*` CSS variables without re-rendering
 - Shiki highlighter initialized once and reused
 - markdown-it token cache between renders
 
@@ -505,7 +506,7 @@ TypeScript type definitions for type safety.
 
 **Content Security**
 - markdown-it configured with html: false (no HTML in Markdown)
-- Mermaid configured with securityLevel: 'strict'
+- Diagrams (pele) rendered with `links: false` and `images: false`, then sanitized by a diagram-only DOMPurify instance (strict mode: no clickable links, no external requests)
 - No eval or dynamic code execution
 - External links opened in browser, not in app
 
