@@ -53,6 +53,78 @@
 - 오케스트레이터 재확인: 픽스처 재렌더 `unitChecked=76 browserChecked=76 mismatches=0` (exit 0), `git diff --name-only f145220 d1dbc02 -- src index.html` 출력 없음.
 - 남은 수동 확인: MANUAL-3(현재 앱 mermaid 수식이 WKWebView에서 제자리인지 — M1b에서 어긋남 가능성 관찰), MANUAL-4(M3 이후 pele 수식 WKWebView 확인)
 
+### M2 다이어그램 모듈·테마 토큰·픽스처 (2026-10-26, 기준 HEAD fd0df84)
+
+- 커밋: `73ddd04`(M1 `unit/` → `m1-frozen/` 이동 + `status: in-progress`), `88340f2`(모듈·토큰·픽스처 재캡처·단위 테스트). 의존성 제거·가드 테스트 개정은 **보류**(아래 "의존성 제거 보류").
+- 새 모듈 `src/lib/diagram/diagramRenderer.ts`: `renderDiagram`(정화된 SVG·`width`·`height` 또는 오류 `{code,message,line,column}`, 예외를 밖으로 던지지 않음), `validateDiagram`(같은 렌더 함수 호출, `error` = `PeleError.message`), `formatDiagramError`(D9), `sanitizeDiagramSvg`(별도 `DOMPurify(window)` 인스턴스, href 차단 훅 재등록, 수식 허용분만 추가), `katexMathMarkup`·`createMathResolver`(`mathml-bare`, `trust: false`, KaTeX 오류 마크업이면 `null`), 고정 옵션 `PELE_RENDER_OPTIONS`(동결 객체), 호출마다 고유 `idPrefix`(`pd1`, `pd2`, …), 시험용 진입점 `renderDiagramForTest`(수식 크기 측정만 주입). 색 값 치환 함수는 M4 범위라 만들지 않았다.
+- 다이어그램 경로의 HTML 허용은 "foreignObject.pele-math 바로 아래의 감싸기 `div`"뿐이다. M1b 시제품이 허용하던 `span`과 금지하던 `style`·`a`는 D4 문구와 공유 규칙에 맞춰 각각 빼고 되돌렸다(공유 `sanitizeSvg`와 같은 규칙 + 수식 허용분만).
+- 글꼴 상수: 일반 `"Barlow", system-ui, sans-serif`(앱 UI 글꼴 `--md-font-ui`와 같은 목록), 고정폭 `"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace`(`--md-font-mono`와 같은 목록). `--pele-font`·`--pele-font-mono`는 두 블록 모두 이 목록을 리터럴로 적었다.
+
+#### `--pele-*` ↔ `--md-*` 대응 (D5 확정, `src/styles/mdedit-tokens.css` 두 블록 동일)
+
+| `--pele-*` | 값 | 비고 |
+|---|---|---|
+| `--pele-bg` | `var(--md-bg)` | 미리보기 패널 바탕(`.md-previewpane`)과 같음 |
+| `--pele-fg` | `var(--md-text-primary)` | |
+| `--pele-muted` | `var(--md-text-muted)` | |
+| `--pele-line` | `var(--md-text-muted)` | 선은 본문보다 한 단계 약하게 |
+| `--pele-surface` | `var(--md-surface)` | 노드 채움 |
+| `--pele-surface-alt` | `var(--md-surface-raised)` | |
+| `--pele-border` | `var(--md-border-strong)` | |
+| `--pele-accent` | `var(--md-accent)` | |
+| `--pele-error` · `--pele-critical` | `var(--md-danger)` | |
+| `--pele-radius` | `var(--md-radius-sm)` | 3px (pele 기본 4px) |
+| `--pele-title-weight` · `--pele-heading-weight` | `600` | 미리보기 제목 굵기(`.md-preview h1–h3`)와 같음, 굵기 토큰 없음 |
+| `--pele-series-1`…`8` | `--md-accent`, `--md-dirty`, `--md-success`, `--md-danger`, `--md-ai-glow-from`, `--md-accent-active`, `--md-text-muted`, `--md-accent-hover` | 계열 전용 `--md-*` 토큰이 없어 기존 역할 색으로 연결 |
+| `--pele-font` | `"Barlow", system-ui, sans-serif` | 리터럴 |
+| `--pele-font-mono` | `"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace` | 리터럴 |
+
+- `var()`는 선언한 요소에서 풀리므로, `data-theme="dark"`가 라이트 루트 아래 요소(D6 탐침 등)에 붙어도 다크 값이 나오게 다크 블록에 같은 선언을 반복했다. `--pele-zoom-*`는 정의하지 않았다.
+
+#### 픽스처 (`src/test/fixtures/pele/manifest.json` 170항목)
+
+| 묶음 | 파일 | 캡처 | 측정기 | 정화기 |
+|---|---|---|---|---|
+| `m1-frozen/` | 77 (정화 전·후 38쌍 + `errors.json`) | M1 그대로 이동(`git mv`, 이름 변경 100%), `frozen: true` | `jsdom-default` | 공유 `sanitizeSvg`(M1) |
+| `unit/` | 47 (샘플 23개 × 정화 전·후 + `errors.json`) | `npx vitest run --config spike/pele/vitest.capture.config.ts spike/pele/m2-unit.capture.ts` → `m2-unit entries=47 svgFiles=46 errors=4`, exit 0 | `jsdom-default` (vitest 2.1.9, jsdom 28.1.0) | `sanitizeDiagramSvg` |
+| `browser/` | 46 (샘플 23개 × 정화 전·후) | `SPIKE_OUT=<scratch> npx vite build --config spike/pele/vite.spike.config.ts` → exit 0, `SPIKE_OUT=<scratch> node spike/pele/run-m2-browser.mjs` → `m2-browser entries=46 env="playwright 1.58.2 webkit 26.0 (headless, macOS)" fonts=[Barlow 400·700, IBM Plex Mono 400 모두 loaded:true] consoleErrors=0`, exit 0 | `canvas` | `sanitizeDiagramSvg` |
+
+- 샘플 23개 = M1 유효 샘플 19개 + M1b 수식 샘플 `m01`–`m04`. 옵션은 모두 `PELE_RENDER_OPTIONS`(두 글꼴 값 포함)이고 `responsive: true` 한 가지로만 캡처했다(고정 옵션이므로 `false` 변형은 두지 않음).
+- 수식 픽스처 5종(`18-math-label`, `m01`–`m04`): `unit/`은 `math.method: "injected-fixed"`(48×20 주입, jsdom은 크기 0), `browser/`는 `math.method: "getBoundingClientRect"`(모듈 기본 측정, 예: `18-math-label` 49×19·9×24). 두 묶음 모두 `foreignObject.pele-math`가 수식 개수만큼 있고 `$$` 원문 0. `m04`의 `\href{javascript:…}`·`\htmlClass{evil}`는 `trust: false`로 링크·클래스가 되지 않고 `<annotation>` 안 TeX 글자로만 남는다.
+- 손으로 쓴 SVG는 픽스처에 없다. 테스트 안의 적대 입력 9종은 공격 탐침이며 pele 출력 픽스처로 쓰지 않는다.
+
+#### 검증 (모두 이 worktree에서 직접 실행, 출력 전문 `.moai/state/verify/pele-015-m2/`)
+
+| 명령 | 결과 |
+|---|---|
+| `npx vitest run src/test/diagramRenderer.test.ts` (구현 전, RED) | exit 1 — 모듈 없음(`red.txt`) |
+| `npx vitest run src/test/diagramRenderer.test.ts src/test/diagramRegressionGuard.test.ts src/test/aiDiagramTypeRegressionGuard.test.ts` | exit 1 — `Tests 1 failed \| 84 passed (85)`. 실패 1건은 M1부터 있던 `diagramRegressionGuard` 의존성 집합 단언(pele 추가, 가드 개정은 보류 패치에 있음). `diagramRenderer.test.ts` 78개 전부 통과(`targeted.txt`) |
+| `npx tsc --noEmit` | exit 0 (`tsc-final.txt`) |
+| `npx eslint <변경 파일 6개>` | exit 0 (`eslint-final.txt`) |
+| `npx vitest run` (전체) | exit 1 — `Test Files 1 failed \| 106 passed (107)`, `Tests 1 failed \| 1724 passed (1725)`. 실패 1건 = 위와 같은 M1부터의 가드 단언(예상, 의존성 제거 단계와 함께 해소)(`full-vitest-final.txt`) |
+| `git diff --stat fd0df84 HEAD -- src/lib/preview/svgSanitize.ts index.html src-tauri src/lib/markdown/mermaidPlugin.ts` | 출력 없음(무변경) |
+
+- AC-005: m1-frozen 38쌍 모두 `sanitizeDiagramSvg(raw) === sanitizeSvg(raw) === 고정 정화 후 출력`(바이트), 결과에 `<script`·`<foreignObject`·`on*` 0. 불일치 없음 → blocker 아님.
+- AC-025(unit 1–6), AC-012(unit), AC-004(옵션·CSS 리터럴 비교), AC-007·014(모듈 부분), AC-010(idPrefix), AC-002(unit 재렌더 바이트 동일, browser 구조) 통과.
+
+#### 의존성 제거 보류 (blocker 성격 발견)
+
+- `npm uninstall mermaid patch-package` + `postinstall` 삭제 + `patches/` 삭제 + `npm install`로 실제 제거해 영향을 쟀다.
+- 이 worktree는 주 체크아웃 폴더 안에 있어서, 제거 뒤에도 `mermaid`가 상위 폴더의 `node_modules`(주 체크아웃)에서 풀린다. 그래서 worktree 안의 `tsc`는 TS2307 대신 `@types/trusted-types` 두 벌 충돌 1건만 보였다(`tsc-post-removal.txt`) — 대표성이 없는 측정이다.
+- 깨끗한 체크아웃을 흉내 내려고 `src`·설정을 저장소 밖 scratch 폴더로 복사하고 worktree의 `node_modules`만 연결해 다시 쟀다:
+  - `tsc --noEmit` → exit 2, `error TS2307: Cannot find module 'mermaid'` 18건 — 운영 3건(`ai-suggestion-card.ts:1289`, `PreviewRenderer.tsx:2`, `mermaidValidate.ts:1`) + 테스트 15건(`insertDiagram.test.ts`, `PreviewRenderer.test.tsx`)(`cleansim-tsc.txt`). 다이어그램 모듈 자체 오류 0.
+  - `vitest run` → `Test Files 37 failed | 70 passed (107)`, `Tests 321 failed | 1188 passed (1509)`. 원인: `Failed to resolve import "mermaid"` — `ai-suggestion-card.ts` 343회(카드를 가져오는 AI 테스트 전반으로 번짐), `mermaidValidate.ts` 7, `PreviewRenderer.tsx` 2, 테스트 2. 그 밖의 3건은 복사본에 `src-tauri/capabilities/main.json`·`src-tauri/src/lib.rs`가 없어 생긴 측정 부산물(`cleansim-vitest.txt`).
+- 결론: M2에서 mermaid를 지우면 M3·M4 호출부가 바뀔 때까지 깨끗한 체크아웃(CI)의 `tsc`·빌드·테스트가 깨진다. 호출부 파일은 고치지 않았다(M3·M4 범위). 제거 변경(`package.json`·`package-lock.json`·패치 삭제·가드 테스트 2개 개정, MX NOTE 포함)은 `.moai/state/verify/pele-015-m2/m2-dependency-removal.patch`에 저장했고 `git apply --check` 통과를 확인한 뒤 작업 트리를 HEAD로 되돌리고 `npm ci`로 `node_modules`를 복구했다(`npm ls` → `mermaid@11.12.3`, `pele@1.10.0`).
+- 선택지(오케스트레이터 결정): (A) 지금 패치를 적용·커밋하고 M3·M4 동안 깨진 빌드를 받아들임 (B) mermaid를 M3·M4가 끝날 때까지 두고, 패치를 M4 마지막 단계(또는 M7 직전)에 적용 (C) M3에서 호출부 교체와 같은 커밋으로 적용.
+
+#### Gaps (확인하지 않은 것)
+
+- 깨끗한 체크아웃의 실제 CI 실행은 하지 않았다(scratch 복사본 측정으로 대신함).
+- 의존성 제거 상태에서의 `vite build`는 실행하지 않았다(정적 import 3곳이 있어 실패가 예상되지만 측정하지 않음).
+- `browser/` 픽스처의 측정 폭과 앱 웹뷰의 실제 표시 폭이 맞는지는 이 묶음 캡처로만 보았고, 앱(WKWebView)에서는 확인하지 않았다. 앱 안에서 Barlow 글꼴이 로드되기 전에 첫 렌더가 일어나면 측정 글꼴과 표시 글꼴이 어긋날 수 있다(M3에서 확인 필요).
+- `--pele-series-*` 대응과 다크 대비는 실물 화면으로 확인하지 않았다(파이·간트 색 구분은 M5 e2e·수동 확인).
+- `npm run lint`(저장소 전체)는 실행하지 않았다. 변경 파일만 검사했다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_
