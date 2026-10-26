@@ -1,5 +1,6 @@
 // @MX:NOTE: [AUTO] DOCX export using docx npm package for SPEC-EXPORT-001
 // @MX:SPEC: SPEC-EXPORT-001
+// @MX:SPEC: SPEC-EXPORT-004
 
 import {
   Document,
@@ -18,7 +19,8 @@ import {
 } from 'docx';
 import MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
-import { exportSaveDialog, writeBinaryFile, readImageAsBase64 } from '@/lib/tauri/ipc';
+import { exportSaveDialog, writeBinaryFile } from '@/lib/tauri/ipc';
+import { isLocalImageSrc, readLocalImage } from '@/lib/image/imageResolver';
 import { generateExportFilename } from './exportUtils';
 import type { ExportOptions } from './types';
 
@@ -30,6 +32,15 @@ const DOCX_MAX_IMAGE_WIDTH = 415;
 // @MX:NOTE: [AUTO] mermaidImages array is consumed via shift() - order must match DOM order of .mermaid-container elements
 
 type DocxChild = Paragraph | Table;
+
+/**
+ * SPEC-EXPORT-004: 토큰 변환 중 이미지 해석에 필요한 문맥.
+ * unembedded 는 임베드하지 못한 로컬 이미지 이름(중복 없음, 등장 순서)을 모은다.
+ */
+interface ImageContext {
+  mdFilePath: string | null;
+  unembedded: Set<string>;
+}
 
 /**
  * Exports the markdown content as a DOCX file.
@@ -77,7 +88,10 @@ export async function exportToDocx(options: ExportOptions): Promise<string | nul
   md.enable('strikethrough');
 
   const tokens = md.parse(content, {});
-  const docxChildren = await convertTokensToDocx(tokens, mermaidImages, mdFilePath ?? null);
+  const imageCtx: ImageContext = { mdFilePath: mdFilePath ?? null, unembedded: new Set() };
+  const docxChildren = await convertTokensToDocx(tokens, mermaidImages, imageCtx);
+  // SPEC-EXPORT-004 (REQ-008): 이미지 임베드 단계가 끝난 직후 누락을 한 번 알린다.
+  if (imageCtx.unembedded.size > 0) options.onUnembeddedImages?.([...imageCtx.unembedded]);
 
   const doc = new Document({
     sections: [
@@ -189,7 +203,7 @@ async function svgToPng(svg: SVGElement): Promise<MermaidImageData | null> {
 /**
  * Converts markdown-it tokens to docx document elements.
  */
-async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[], mdFilePath: string | null): Promise<DocxChild[]> {
+async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[], imageCtx: ImageContext): Promise<DocxChild[]> {
   const result: DocxChild[] = [];
   let i = 0;
 
@@ -215,7 +229,7 @@ async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageD
       case 'paragraph_open': {
         const inlineToken = tokens[i + 1];
         if (inlineToken?.type === 'inline' && inlineToken.children) {
-          const runs = await convertInlineTokensToRuns(inlineToken.children, mdFilePath);
+          const runs = await convertInlineTokensToRuns(inlineToken.children, imageCtx);
           result.push(new Paragraph({ children: runs }));
         }
         i += 3; // paragraph_open, inline, paragraph_close
@@ -288,7 +302,7 @@ async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageD
           if (tokens[j].type === 'blockquote_open') depth++;
           if (tokens[j].type === 'blockquote_close') depth--;
           if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
-            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], mdFilePath);
+            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], imageCtx);
             quoteParagraphs.push(
               new Paragraph({
                 children: runs,
@@ -319,7 +333,7 @@ async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageD
           if (tokens[j].type === 'bullet_list_open') depth++;
           if (tokens[j].type === 'bullet_list_close') depth--;
           if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
-            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], mdFilePath);
+            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], imageCtx);
             result.push(
               new Paragraph({
                 children: [new TextRun({ text: '• ' }), ...runs],
@@ -341,7 +355,7 @@ async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageD
           if (tokens[j].type === 'ordered_list_open') depth++;
           if (tokens[j].type === 'ordered_list_close') depth--;
           if (depth > 0 && tokens[j].type === 'inline' && tokens[j].children) {
-            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], mdFilePath);
+            const runs = await convertInlineTokensToRuns(tokens[j].children ?? [], imageCtx);
             result.push(
               new Paragraph({
                 children: [new TextRun({ text: `${itemNum}. ` }), ...runs],
@@ -357,7 +371,7 @@ async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageD
       }
 
       case 'table_open': {
-        const tableResult = await parseTable(tokens, i, mdFilePath);
+        const tableResult = await parseTable(tokens, i, imageCtx);
         if (tableResult.table) {
           result.push(tableResult.table);
         }
@@ -396,7 +410,7 @@ async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageD
  * Parses a table from tokens starting at the given index.
  * Returns the Table element and the next token index after the table.
  */
-async function parseTable(tokens: Token[], startIndex: number, mdFilePath: string | null): Promise<{ table: Table | null; nextIndex: number }> {
+async function parseTable(tokens: Token[], startIndex: number, imageCtx: ImageContext): Promise<{ table: Table | null; nextIndex: number }> {
   let i = startIndex + 1;
   const tableRows: TableRow[] = [];
   let isHeader = false;
@@ -416,7 +430,7 @@ async function parseTable(tokens: Token[], startIndex: number, mdFilePath: strin
           const inlineToken = tokens[i + 1];
           const runs =
             inlineToken?.type === 'inline' && inlineToken.children
-              ? await convertInlineTokensToRuns(inlineToken.children, mdFilePath)
+              ? await convertInlineTokensToRuns(inlineToken.children, imageCtx)
               : [new TextRun({ text: '' })];
 
           cells.push(
@@ -465,7 +479,7 @@ function extractInlineText(inlineChildren: Token[]): string {
 /**
  * Converts inline tokens to docx TextRun/ExternalHyperlink/ImageRun elements.
  */
-async function convertInlineTokensToRuns(inlineChildren: Token[], mdFilePath: string | null): Promise<Array<TextRun | ExternalHyperlink | ImageRun>> {
+async function convertInlineTokensToRuns(inlineChildren: Token[], imageCtx: ImageContext): Promise<Array<TextRun | ExternalHyperlink | ImageRun>> {
   const runs: Array<TextRun | ExternalHyperlink | ImageRun> = [];
   let bold = false;
   let italic = false;
@@ -586,20 +600,12 @@ async function convertInlineTokensToRuns(inlineChildren: Token[], mdFilePath: st
           } catch {
             // Fall through to alt text fallback
           }
-        } else if (mdFilePath && imgSrc && !imgSrc.startsWith('http://') && !imgSrc.startsWith('https://')) {
-          // Try to embed the image if we have a markdown file path
+        } else if (imgSrc && isLocalImageSrc(imgSrc)) {
+          // SPEC-EXPORT-004: 경로 해석은 공용 readLocalImage(토큰 src → 엔티티 디코드 없음)에 위임한다.
+          // 미저장 문서(mdFilePath null)는 readLocalImage 가 아무것도 읽지 않고 누락으로 돌려준다(REQ-008, plan D8).
+          const { dataUri, displayName } = await readLocalImage(imgSrc, imageCtx.mdFilePath, false);
           try {
-            // Resolve relative path to absolute
-            const mdDir = mdFilePath.substring(0, Math.max(mdFilePath.lastIndexOf('/'), mdFilePath.lastIndexOf('\\')));
-            let absolutePath: string;
-            if (imgSrc.startsWith('/')) {
-              absolutePath = imgSrc;
-            } else {
-              const normalizedSrc = imgSrc.startsWith('./') ? imgSrc.substring(2) : imgSrc;
-              absolutePath = `${mdDir}/${normalizedSrc}`;
-            }
-
-            const dataUri = await readImageAsBase64(absolutePath);
+            if (dataUri === null) throw new Error('image not read');
             // Extract raw base64 data (remove data:mime;base64, prefix)
             const base64Data = dataUri.split(',')[1] ?? '';
             const binaryStr = atob(base64Data);
@@ -633,6 +639,8 @@ async function convertInlineTokensToRuns(inlineChildren: Token[], mdFilePath: st
           } catch {
             // Fall through to alt text fallback
           }
+          // SPEC-EXPORT-004 (REQ-008, plan D9): 읽기·base64·크기 계산 어느 단계든 실패하면 누락으로 기록
+          if (!embedded) imageCtx.unembedded.add(displayName);
         }
 
         if (!embedded) {
