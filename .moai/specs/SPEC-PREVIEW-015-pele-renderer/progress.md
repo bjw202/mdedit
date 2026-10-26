@@ -125,6 +125,56 @@
 - `--pele-series-*` 대응과 다크 대비는 실물 화면으로 확인하지 않았다(파이·간트 색 구분은 M5 e2e·수동 확인).
 - `npm run lint`(저장소 전체)는 실행하지 않았다. 변경 파일만 검사했다.
 
+### M3 미리보기·AI 호출부 교체 (2026-10-26, 기준 HEAD be76af2)
+
+사용자 결정에 따라 `mermaid` 의존성 제거(`m2-dependency-removal.patch`)는 M4 마지막 단계로 미뤘다. M3에서는 패치를 적용하지 않았고, M3 파일이 mermaid를 import하지 않게만 했다.
+
+#### 변경
+
+| 커밋 | 내용 |
+|---|---|
+| `6f529e2` | `PreviewRenderer.tsx`: mermaid import·`MERMAID_BASE_CONFIG`·`initialize`·비동기 `forEach` 제거, 컨테이너마다 `renderDiagram` 동기 호출. 오류는 `<p class="text-sm text-amber-500 italic py-2">`에 `formatDiagramError` 결과를 `textContent`로(D9). `useUIStore` 테마 구독·`isDark`·matchMedia 리스너·의존성 배열의 `isDark` 제거(테마 전환 재렌더 없음). 빈 펜스 분기·본문 링크 클릭 처리·클래스 이름(D10) 유지. `PreviewRenderer.test.tsx` 재작성 |
+| `7a1ae73` | `mermaidValidate.ts`: 계약(`Promise<{valid, error?}>`) 유지, 내부는 `validateDiagram`, `MERMAID_STRICT_CONFIG` 제거. `ai-suggestion-card.ts` `renderMermaidInto`: 동적 import 제거, `renderDiagram` 동기 렌더(반환형 `void`, 주입 타입과 같음), 실패 시 영역 비움. 테스트 `mermaidValidate`·`aiSuggestionCard`(AC-015 3건 추가)·`aiCardRetryLimit`·`aiSuggestionCardRerequest`(mermaid mock·`parseMock` 제거, 실제 pele 판정) |
+| `6c56d31` | `insertDiagram.test.ts` 프리셋 7종을 `renderDiagram`으로 렌더. `renderer.test.ts`·`MarkdownPreview.test.tsx`의 소비자 없는 mermaid mock 제거 |
+| `d2f51dd` | `aiSuggestionCardRerequest.test.ts` 주석 한 줄 정정(`mermaid.parse` → 검증 계약) |
+
+- 다이어그램 모듈(`diagramRenderer.ts`)은 바꾸지 않았다.
+- 테스트에서 pele·모듈은 통과형 감시 래퍼(`vi.fn(real.render)`, `vi.fn(real.renderDiagram)`)로만 감쌌다. 손으로 쓴 SVG를 pele 출력으로 쓰는 테스트는 없다. AI 흐름 테스트의 `BADSYNTAX`·펜스가 남은 코드 거부와 `flowchart LR …` 통과는 실제 pele로 확인했다(`node` 탐침: `BADSYNTAX` → `unsupported-diagram 0 0`, `sequenceDiagram\n  A->>B hello` → `syntax 2 14`, `pie\n  "a" : -1` → `semantic 0 0`).
+- MX: PreviewRenderer ANCHOR 문구를 "다이어그램 모듈로 렌더"로, async forEach WARN·parse 선행 NOTE 삭제(개별 실패 처리는 NOTE로 남김), securityLevel WARN/REASON을 표의 strict 모드 문구로 교체, `@MX:SPEC`에 SPEC-PREVIEW-015 추가, 빈 펜스 NOTE 유지. mermaidValidate SPEC 줄 추가·WARN/REASON 교체. `renderMermaidInto`에 NOTE 추가.
+
+#### 검증 (이 worktree에서 직접 실행, 출력 전문 `.moai/state/verify/pele-015-m3/`)
+
+| 명령 | 결과 |
+|---|---|
+| `npx vitest run src/test/PreviewRenderer.test.tsx` (구현 전, RED) | exit 1 — `Tests  9 failed \| 12 passed (21)` (`red-preview.txt`) |
+| `npx vitest run src/test/mermaidValidate.test.ts` (구현 전, RED) | exit 1 — `Tests  4 failed \| 6 passed (10)` (`red-validate.txt`) |
+| `npx vitest run src/test/aiSuggestionCard.test.ts` (구현 전, RED) | exit 1 — `Tests  2 failed \| 57 passed (59)` (`red-card.txt`) |
+| `npx vitest run src/test/PreviewRenderer.test.tsx` | exit 0 — `Tests  21 passed (21)` (`green-preview.txt`) |
+| `npx vitest run src/test/mermaidValidate.test.ts src/test/aiSuggestionCard.test.ts src/test/aiCardRetryLimit.test.ts src/test/aiSuggestionCardRerequest.test.ts` | exit 0 — `Tests  102 passed (102)` (`green-ai.txt`) |
+| `npx vitest run src/test/insertDiagram.test.ts src/test/renderer.test.ts src/test/MarkdownPreview.test.tsx` | exit 0 — `Tests  98 passed (98)` (`green-misc.txt`). 프리셋 렌더 테스트 7건 실행 확인(verbose) |
+| `npx tsc --noEmit` | exit 0 (`tsc.txt`, 출력 없음) |
+| `npx eslint <변경 파일 11개>` | exit 0 (`eslint.txt`, 출력 없음) |
+| `npx vitest run` (전체, `6c56d31` 기준) | exit 1 — `Test Files  1 failed \| 106 passed (107)`, `Tests  1 failed \| 1729 passed (1730)`. 실패 1건 = `diagramRegressionGuard.test.ts > adds zero new runtime dependencies to package.json (REQ-019)` — M1부터의 예상 실패(의존성 제거 패치와 함께 해소) (`vitest-full.txt`) |
+| `npx vitest run src/test/aiSuggestionCardRerequest.test.ts` (`d2f51dd` 주석 정정 뒤) | `Tests  8 passed (8)` |
+
+- 대상 AC(unit 부분): AC-006, 007, 008, 009, 010(입력=`data-diagram`, 최신 내용만, idPrefix 고유·id 중복 없음), 011(테마 토글·system 변경 뒤 같은 SVG 노드, pele 추가 호출 0), 014(검증 결과 = 모듈 `PeleError.message`, pele 호출 1회·고정 옵션, Promise), 015(미니 렌더 = 모듈 결과, 실패 시 비움, 삽입·닫기 동작), 016(프리셋 7종).
+
+#### 남은 mermaid 참조
+
+- M3 파일 11개에서 `from 'mermaid'`·`import('mermaid')`·`vi.mock('mermaid'` 검색 → 0건(grep exit 1).
+- 저장소 `src`·`e2e` 전체에서 같은 검색 → 0건. 내보내기 파일(`exportHtml.ts`·`exportDocx.ts`)은 mermaid를 import하지 않고 미리보기 DOM의 `.mermaid-container`를 읽는다(M4 범위).
+- 라이브러리 이름이 남은 곳(import 아님): `package.json`·`package-lock.json`의 `mermaid`·`patch-package`·`patches/mermaid+11.12.3.patch`(M4 끝 제거 예정), `diagramRegressionGuard.test.ts:37` 의존성 집합, `exportDocx.ts:241` 펜스 info 비교, `mermaidPlugin.ts:17` 펜스 info 비교.
+- worktree가 주 체크아웃 폴더 안에 있어 패키지 해석으로는 제거를 증명할 수 없으므로 위 grep을 근거로 한다.
+
+#### Gaps (확인하지 않은 것)
+
+- e2e(M5)는 실행하지 않았다. 테마 전환 뒤 실제 채움색 변화(AC-011 e2e)와 AI 카드 e2e(AC-014 e2e)는 확인하지 않았다.
+- MANUAL-1(미리보기 본문 링크 클릭이 시스템 브라우저로 열림): 코드는 그대로 두었으나 앱에서 확인하지 않았다. 링크 클릭 단위 테스트도 이번에 추가하지 않았다.
+- MANUAL-4(시스템 WKWebView에서 pele 수식이 상자 안에 그려짐): 앱에서 확인하지 않았다. jsdom은 수식 크기를 0으로 재어 `$$…$$` 원문으로 되돌리므로 단위 테스트로는 증명하지 않는다.
+- 앱 안 Barlow 글꼴 로드 전 첫 렌더 시 측정 글꼴과 표시 글꼴이 어긋나는지(M2 Gaps 항목)는 여전히 확인하지 않았다. 이제 미리보기는 테마로 다시 렌더하지 않으므로 글꼴이 늦게 로드되어도 내용이 바뀔 때까지 첫 배치가 유지된다.
+- M4 전까지의 내보내기: `exportHtml`·`exportDocx`가 미리보기 DOM의 다이어그램을 그대로 가져가므로, 이 브랜치에서는 M4 전까지 내보낸 파일에 `var(--pele-*)`가 풀리지 않은 pele SVG가 들어갈 수 있다(측정하지 않음, M4가 해소).
+- 저장소 전체 `npm run lint`와 `vite build`는 실행하지 않았다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_
