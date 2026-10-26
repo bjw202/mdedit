@@ -87,7 +87,7 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
       streamBuffer: '```mermaid\nBADSYNTAX\n```',
     });
 
-    // 다이어그램 검증은 비동기(mermaid.parse) — 자동 재요청이 발행될 때까지 대기.
+    // 다이어그램 검증 결과는 Promise로 돌아온다(validateMermaid 계약) — 자동 재요청이 발행될 때까지 대기.
     await vi.waitFor(() => expect(aiRequestMock).toHaveBeenCalledTimes(1));
 
     const newRequestId = (aiRequestMock.mock.calls[0][0] as { requestId: string }).requestId;
