@@ -56,7 +56,7 @@
 
 - **Given** `sanitizeSvg`를 감시하는 상태에서
 - **When** 모듈이 렌더 결과를 돌려주면
-- **Then** 수식이 없는 다이어그램에서 돌려준 SVG는 `sanitizeSvg` 결과와 같고, 그 안에 `<script>`·`foreignObject`·`on*` 속성이 없다. 수식이 있는 다이어그램의 `foreignObject.pele-math` 허용은 AC-025(잠정)가 다룬다. `git diff`로 `src/lib/preview/svgSanitize.ts`가 바뀌지 않았음을 확인한다(코드 리뷰). (REQ-003)
+- **Then** 수식이 없는 다이어그램에서 돌려준 SVG는 `sanitizeSvg` 결과와 같고, 그 안에 `<script>`·`foreignObject`·`on*` 속성이 없다. 수식이 있는 다이어그램의 `foreignObject.pele-math` 허용은 AC-025가 다룬다. `git diff`로 `src/lib/preview/svgSanitize.ts`가 바뀌지 않았음을 확인한다(코드 리뷰). (REQ-003)
 
 ### AC-PREVIEW015-006: 오류 문구에 소스·메시지가 HTML로 들어가지 않는다 — must-pass (unit)
 
@@ -224,12 +224,19 @@
 - **And** 위 7개 SPEC 각각의 HISTORY 표에 `SPEC-PREVIEW-015`를 담은 행이 1개 이상 있다. USER_MANUAL 목차 `:15` 링크가 실제 부록 제목으로 이동한다.
 - **And** (manual, macOS 앱) 다이어그램이 많은 실제 문서를 열어 라이트·다크 전환, 문법 오류 위치 표시, 빈 펜스 안내, 삽입 메뉴 7종, AI "다이어그램으로"(다크 모드 미니 미리보기 포함), HTML·PDF·DOCX 내보내기를 한 번씩 확인한다. (REQ-024)
 
-### AC-PREVIEW015-025: 다이어그램 안 수식이 KaTeX로 그려지고 허용 목록은 수식에만 걸린다 — must-pass (unit + evidence), **잠정 — M1b 보강 측정 뒤 확정**
+### AC-PREVIEW015-025: 다이어그램 안 수식은 `mathml-bare`로 그려지고 허용 목록은 별도 인스턴스에만 걸린다 — must-pass (unit + e2e + manual)
 
-- **Given** `18-math-label` 샘플(라벨에 `$$x^2 + y^2$$`)과, `class`가 `pele-math`가 아닌 `foreignObject`·`<script>`·`onload` 속성을 섞어 넣은 SVG 문자열이 있을 때
-- **When** (unit) diagram module로 렌더·정화하고, 같은 악성 SVG를 공유 `sanitizeSvg`(SVG 파일 뷰어 경로)로도 정화하면
-- **Then** 다이어그램 결과에는 `foreignObject.pele-math`가 1개 이상 있고 그 안에 KaTeX 출력(`class="katex"`)이 있으며, 다른 `foreignObject`·`<script>`·`on*` 속성은 0개다. 공유 `sanitizeSvg` 결과에는 `foreignObject`가 0개이고 M1 때와 같다.
-- **And** (evidence) M1b 결과표(`m1/checks.md` "M1b")에 미리보기 렌더, 허용 목록 왕복, HTML 내보내기, DOCX PNG, CSP 다섯 항목의 명령·출력·PASS/FAIL과 사용자 판정이 있다. DOCX가 실패했다면 사용자가 정한 DOCX 처리 방식과 그에 맞춰 확정한 문구가 이 AC에 반영되어 있다. (REQ-003, REQ-025)
+- **Given** 수식 샘플 `18-math-label`(라벨에 `$$x^2 + y^2$$`), 글자와 수식 여러 개가 섞인 `m03`, 그리고 M1b 적대 입력 9종(`spike/pele/m1b/hostile.ts`에서 옮긴 것: 클래스 없는 `foreignObject`, `pele-math evil` 같은 다른 클래스, `foreignObject` 안 `<script>`, `onload`·`onclick`·`onerror`, `javascript:` href, `foreignObject` 밖 HTML·MathML, form·iframe·style, `annotation-xml` 안 HTML, `data:`·외부 href)이 있을 때
+- **When** (unit) 해석기에 크기 측정 결과를 주입해 모듈로 렌더·정화하고, 같은 적대 입력을 공유 `sanitizeSvg`로도 정화하면
+- **Then** (unit, 구조만 단언 — jsdom은 실제 크기를 잴 수 없다)
+  1. KaTeX 호출 옵션이 `output: 'mathml'`, `trust: false`이고, 해석기 결과 `html`이 `<math`로 시작하며 `class="katex"` span을 담지 않는다.
+  2. 다이어그램 결과에 `foreignObject.pele-math`가 수식 개수만큼 있고, 그 안에 `<math>`·`<semantics>`·`<annotation encoding="application/x-tex">`가 남는다.
+  3. 적대 입력 9종 각각에 대해 다이어그램 결과에 남은 표지가 0개다.
+  4. 공유 `sanitizeSvg` 결과는 같은 입력에서 `foreignObject`가 0개이고, M1 픽스처(`unit/` 38쌍)를 다이어그램 경로 사용 전·후에 다시 정화한 결과가 바이트 단위로 같다.
+  5. 다이어그램 경로가 쓰는 DOMPurify가 전역 인스턴스와 다른 객체이고, 다이어그램 경로를 거친 뒤에도 전역 인스턴스에 등록된 훅 수가 늘지 않는다.
+- **And** (e2e, webkit) 앱 CSP meta가 있는 미리보기에서 `18-math-label`을 렌더하면 `foreignObject.pele-math` 안 `<math>` 요소의 `getBoundingClientRect`가 그 `foreignObject` 상자 안에 있고, 페이지의 CSP 위반 이벤트 수가 수식 없는 같은 문서를 렌더했을 때보다 늘지 않는다(**다이어그램 수식으로 생기는 새 위반 0**. 기존 `KaTeX_Size3` `data:` 글꼴 거부는 범위 밖, 백로그 `t1`). 내보낸 HTML에 KaTeX CSS(`.katex` 규칙)나 `@font-face`가 들어가지 않는다.
+- **And** (unit) DOCX 내보내기에서 수식 다이어그램의 래스터 입력 SVG에 `foreignObject.pele-math`가 있고 `ImageRun`이 생성된다(펜스 코드 텍스트로 바뀌지 않음).
+- **And** (manual) MANUAL-3(현재 앱 mermaid 수식 기준선)과 MANUAL-4(M3 이후 시스템 WKWebView에서 pele 수식이 상자 안에 그려짐)를 사용자가 확인한다. `m03`이 오류 없이 그려지는 것도 이때 함께 본다. (REQ-003, REQ-025)
 
 ## 추적표 (REQ → AC)
 
@@ -259,7 +266,7 @@
 | 022 | 023 |
 | 023 | 001, 002 |
 | 024 | 024 |
-| 025 | 005, 025 (잠정) |
+| 025 | 005, 025 |
 
 ## 기계 검증 게이트
 
@@ -284,7 +291,8 @@
 ## Definition of Done
 
 - AC-001 사용자 통과 판정이 progress.md에 기록됨(보류이면 이 SPEC은 M1에서 끝나고 나머지 AC는 대상이 아님).
-- M1b 판정이 기록되고, REQ-025·AC-025와 design.md D4·D15의 잠정 표시가 최종 문구로 바뀜.
+- M1b 판정(통과, 2026-10-26)이 progress.md에 기록됨. REQ-025·AC-025와 design.md D4·D15는 spec v0.4.0에서 최종 문구로 확정됨.
+- manual 항목 MANUAL-3·MANUAL-4(AC-025)를 사용자가 확인.
 - 기계 검증 게이트 7종 결과를 명령 출력과 함께 progress.md §E.2에 인용.
 - AC-019(DOCX 밀림)·AC-018(에디터 단독)의 재현 테스트가 교체 전 코드에서 실패했음을 기록.
 - 변경 파일이 plan.md 변경 표 안으로 한정되고 `spike/pele/`가 삭제됨.

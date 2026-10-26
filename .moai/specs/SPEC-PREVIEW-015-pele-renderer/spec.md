@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-015
 title: "Mermaid 렌더러를 pele로 전면 교체 — 미리보기·AI 검증·내보내기를 한 엔진으로"
-version: "0.3.0"
+version: "0.4.0"
 status: draft
 created: 2026-10-26
 updated: 2026-10-26
@@ -25,6 +25,7 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 | 0.1.0 | 2026-10-26 | jw | 최초 작성. 사용자 결정(2026-10-26): `mermaid` 11.12.3과 그 패치(`patches/mermaid+11.12.3.patch`, `patch-package`, `postinstall`)를 npm `pele` **1.10.0 정확 고정**으로 전면 교체한다. 두 라이브러리 병행·설정 토글·mermaid 폴백은 두지 않는다. 입력 언어는 Mermaid 문법 그대로이며 Rust AI 프롬프트(`src-tauri/src/ai/prompt.rs`)는 바꾸지 않는다. M1 시험 렌더링 보고서를 사용자가 읽고 통과를 결정한 뒤에만 M2 이후 교체 작업을 한다(사람 게이트). 근거 조사: 같은 폴더 `research.md`, 타당성 보고서 `.moai/reports/mermaid-pele-feasibility-2026-10-24.md`(주 체크아웃). |
 | 0.2.0 | 2026-10-26 | jw | plan-audit iteration 1(FAIL 0.76) 결함 D1–D12 반영. `images: false` 고정(사용자 결정)을 고정 옵션에 추가. Tier L 산출물 `design.md` 신설 — 확정 결정 D1–D15와 Design Note를 옮김. 내보내기 색은 모든 `var(--pele-…)`를 내보내기 테마의 실제 값으로 치환하는 한 가지 방식으로 정함(D6, AC-020 이진 확인). REQ-012: 검증은 미리보기와 같은 렌더 함수·같은 옵션으로 하고 `error`는 `PeleError.message`와 같음. REQ-023: 픽스처 매니페스트에 캡처 환경·측정기 기록, 바이트 비교는 같은 측정기 픽스처끼리만. Exclusions에 수식 라벨 미지원 추가. 수용 기준: AC-024를 개정 대상 줄만 검사하도록 좁힘, AC-002 측정기 범위, AC-006 추적 보정, AC-011 관찰 방법, AC-014 메시지 동일성, AC-017 내보낸 HTML `id` 중복 검사, 통과형 감시 래퍼 허용 명시. REQ 24건·AC 24건 유지. plan-audit iteration 2(PASS 0.91) 소견 N1–N5 반영: PREVIEW-010 REQ-003 행을 "교체"로 바로잡고 `REQ-PREVIEW010-002`를 명시, PREVIEW-006 REQ-006 개정 행과 AC-024 검사 행 추가, USER_GUIDE 인용 줄을 `:206-208`로 수정, AC-UI-008-004 대체 Given/When/Then 전문 제시, plan.md M6에 완료 SPEC(EXPORT-004) 편집 전 `moai spec audit` 확인 절차 추가. |
 | 0.3.0 | 2026-10-26 | jw | M1 판정 반영(사용자 통과 판정, 근거 `m1/checks.md`·`m1/report.html`). `responsive: true` 고정(REQ-002, AC-004). 내보내기 색: HTML·PDF는 내보내기 테마, DOCX는 항상 라이트 값(REQ-018, AC-020). 오류 위치 접미사를 "line·column 모두 있음 → `(L행 C열)`, 그 밖에는 접미사 없음" 두 갈래로 정리(REQ-009, AC-007 — M1에서 "line만 있음" 0건/6,264). 다이어그램 안 수식은 사용자 결정에 따라 pele `math` 옵션을 기존 `katex`에 연결하는 것으로 정함 — 잠정 REQ-025·AC-025 추가, 최종 문구는 plan.md M1b 보강 측정·게이트 뒤 확정(REQ-003·Exclusions·D4·D15). design.md에 D5 변수 목록·`fontFamily` M2 확인 항목, D14 측정기 `jsdom-default`, 받아들인 배치 변화(§3) 기록. REQ 25건·AC 25건(Tier L 상한 25). |
+| 0.4.0 | 2026-10-26 | jw | M1b 판정 반영(사용자 통과 판정, 근거 `m1/checks.md` "M1b"·`m1/report-m1b.html`). REQ-025·AC-025의 잠정 표시를 지우고 최종 문구로 확정: 해석기는 KaTeX `output:'mathml'`에서 바깥 `.katex` span을 걷어 낸 `mathml-bare`(`trust:false` 유지, HTML 출력은 webkit 어긋남·CSS+글꼴 386,784 B로 탈락), 크기는 브라우저 `getBoundingClientRect` 측정. REQ-003: 다이어그램 정화는 별도 `DOMPurify(window)` 인스턴스에서 href 차단 훅을 다시 등록하고 `HTML_INTEGRATION_POINTS: {foreignobject: true}`로 수식 허용 목록만 더함(전역 인스턴스 훅 누수 43회 측정), 공유 `sanitizeSvg`는 M1 픽스처와 바이트 동일. HTML·PDF는 KaTeX CSS·글꼴 불필요, DOCX는 별도 대체안 없음. CSP는 "다이어그램 수식으로 생기는 새 위반 0"(기존 KaTeX_Size3 결함은 범위 밖, 백로그 `t1`). Exclusions(수식 라벨) 최종 문구. REQ 25건·AC 25건 유지. |
 
 ## Overview
 
@@ -56,10 +57,12 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 - The diagram module shall 모든 pele 호출에 `autoDirection: false`, `links: false`, `images: false`를 넘긴다.
 - The diagram module shall `responsive: true`(M1 판정)로 고정하고, 호출자가 pele 옵션을 바꿀 수 있는 경로를 열지 않는다.
 
-#### REQ-PREVIEW015-003: 출력은 기존 정화기를 거친다 (Ubiquitous)
+#### REQ-PREVIEW015-003: 출력은 정화를 거친다 — 공유 정화기는 그대로 (Ubiquitous, Unwanted)
 
-- The diagram module shall pele가 만든 SVG를 문서(미리보기 DOM, AI 카드, 내보낸 파일)에 넣기 전에 정화한다. 정화 기준은 `src/lib/preview/svgSanitize.ts`의 `sanitizeSvg`와 같은 규칙이며, 수식 영역에 한해 REQ-PREVIEW015-025의 다이어그램 전용 허용 목록(`foreignObject.pele-math`와 그 안의 KaTeX HTML)만 더한다(**잠정 — M1b 보강 측정 뒤 확정**).
-- The diagram module shall not `svgSanitize.ts`의 공유 설정이나 훅을 바꾼다(SVG 파일 뷰어와 공유하는 설정이다). 다이어그램 전용 허용 목록은 공유 설정에 영향을 주지 않는 별도 정화 경로로 둔다.
+- The diagram module shall pele가 만든 SVG를 문서(미리보기 DOM, AI 카드, 내보낸 파일)에 넣기 전에 다이어그램 전용 정화 경로로 정화한다. 이 경로의 기본 규칙은 `src/lib/preview/svgSanitize.ts`의 `sanitizeSvg`와 같고, 수식(REQ-PREVIEW015-025)을 위해 `foreignObject.pele-math`, pele가 만드는 감싸기 `div`, MathML 태그, `semantics`, `encoding` 속성이 있는 `annotation`만 더 허용한다.
+- The diagram sanitize path shall 전역 DOMPurify 인스턴스가 아닌 **별도 인스턴스**(`DOMPurify(window)`)를 쓰고, 그 인스턴스에 href 차단 훅(`data:`·스킴 있는 외부 주소 제거)을 다시 등록한다.
+- The diagram sanitize path shall not 전역 DOMPurify 인스턴스에 훅이나 설정을 추가한다.
+- The diagram module shall not `svgSanitize.ts`의 공유 설정이나 훅을 바꾼다. SVG 파일 뷰어가 쓰는 `sanitizeSvg`의 결과는 M1 픽스처와 바이트 단위로 같아야 한다.
 
 #### REQ-PREVIEW015-004: 오류 문구는 텍스트로만 넣는다 (Unwanted)
 
@@ -178,14 +181,15 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 - The SPEC records shall 아래 "다른 SPEC 개정" 절의 요구 문구를 새 문구로 바꾸고, 각 SPEC의 HISTORY에 이 SPEC을 근거로 한 행을 남긴다.
 - The user documentation shall `docs/USER_MANUAL.md` Mermaid 부록(`:498-665`)과 목차의 깨진 앵커(`:15`), `docs/USER_GUIDE.md:206-208`(`### Mermaid 다이어그램` 절), `README.md:15,104`를 pele 기준으로 고친다.
 
-#### REQ-PREVIEW015-025: 다이어그램 안 수식을 KaTeX로 그린다 (Event-driven) — 잠정, M1b 보강 측정 뒤 확정
-
-> 이 요구는 사용자 결정(2026-10-26, M1 판정 뒤)을 담은 **잠정 문구**다. 최종 문구는 plan.md M1b 보강 측정과 그 사람 게이트 판정 뒤에 확정한다. M1b 이전에는 이 요구를 근거로 운영 코드를 바꾸지 않는다.
+#### REQ-PREVIEW015-025: 다이어그램 안 수식을 KaTeX MathML로 그린다 (Event-driven)
 
 - **When** 다이어그램 라벨에 `$$…$$` 수식이 있으면, the diagram module shall pele `math` 옵션(`MathResolver = (tex, size) => { svg | html, width, height }`, `node_modules/pele/dist/types.d.ts:5-14, 35`)에 기존 `katex` 의존성으로 만든 해석기를 넘겨 수식으로 렌더한다. 새 의존성은 추가하지 않는다.
-- The diagram module shall 다이어그램 출력 정화에서 `class="pele-math"`인 `foreignObject`와 그 안의 KaTeX HTML만 추가로 허용하고, 그 밖의 `foreignObject`·`<script>`·이벤트 핸들러 속성은 지금처럼 지운다.
-- The SVG file viewer shall 지금과 같은 공유 `sanitizeSvg` 설정을 그대로 쓴다(수식 허용 목록의 영향을 받지 않는다).
-- **Where** M1b에서 DOCX의 캔버스 래스터화가 `foreignObject` 수식을 그리지 못한다고 측정되면, the DOCX export shall M1b 게이트에서 사용자가 정한 DOCX 전용 처리 방식을 따른다(방식은 이 문구에 미리 정하지 않는다).
+- The math resolver shall KaTeX를 `output: 'mathml'`, `trust: false`로 호출하고, 결과에서 바깥 `<span class="katex">`를 걷어 낸 MathML(`mathml-bare`)을 `html`로 돌려준다. The math resolver shall not KaTeX HTML 출력(`output: 'html'`)을 쓴다.
+- The math resolver shall `width`·`height`를 브라우저에서 pele의 감싸기 `div`와 같은 스타일로 문서에 붙여 `getBoundingClientRect`로 잰 값으로 돌려준다.
+- The diagram sanitize path shall 수식 영역에서 `foreignObject.pele-math`, pele가 만드는 감싸기 `div`, MathML 태그, `semantics`, `encoding` 속성이 있는 `annotation`만 남기고, 그 밖의 `foreignObject`·`<script>`·이벤트 핸들러 속성·`javascript:`/`data:`/외부 href는 지운다(REQ-PREVIEW015-003).
+- The HTML and PDF exports shall 다이어그램 수식을 KaTeX CSS나 글꼴 없이 표시하며, 다이어그램 수식 때문에 KaTeX CSS·글꼴을 내보낸 파일에 넣지 않는다.
+- The DOCX export shall 같은 `mathml-bare` 출력을 지금의 SVG→PNG 변환 경로로 그리며, 별도 대체 방식을 두지 않는다.
+- The diagram math rendering shall not 앱 CSP(`index.html:7`) 아래에서 새 콘솔 CSP 위반을 만든다.
 
 ## 다른 SPEC 개정 (REQ-PREVIEW015-024 대상)
 
@@ -239,14 +243,16 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 
 ### Out of Scope — 수식 라벨
 
-- 다이어그램 안 수식은 REQ-PREVIEW015-025(잠정)대로 기존 `katex`로 그린다. KaTeX 외의 수식 엔진(MathJax 등)이나 새 의존성은 도입하지 않는다.
-- `class="pele-math"`가 아닌 `foreignObject`는 다이어그램에서도 허용하지 않는다. 공유 `sanitizeSvg` 설정과 SVG 파일 뷰어의 정화 동작은 바꾸지 않는다.
-- DOCX에서 수식이 그려지지 않을 때의 대체 방식은 이 SPEC이 미리 정하지 않는다. M1b 게이트에서 사용자가 정한다(design.md D15).
+- KaTeX HTML 출력(`output: 'html'`), KaTeX 외 수식 엔진(MathJax 등), 새 의존성은 쓰지 않는다. M1b에서 HTML 출력은 webkit에서 `foreignObject` 밖으로 어긋나 그려졌고, 내보낼 때 KaTeX CSS와 글꼴이 필요했다(386,784 B).
+- KaTeX `trust: true`(`\href`·`\htmlClass` 등)는 켜지 않는다.
+- DOCX 수식의 별도 대체 방식(원문 표시, 글자 SVG 등)은 만들지 않는다. M1b에서 `mathml-bare`가 DOCX PNG에도 그려졌다.
+- 이미 있는 CSP 결함 — Vite가 `KaTeX_Size3-Regular.woff2`를 `data:` URI로 넣는데 CSP에 `font-src`가 없어 막히는 문제 — 은 고치지 않는다. 수식이 없는 문서에서도 생기는 기존 결함이며 백로그 카드 `t1`로 따로 다룬다.
 - 마크다운 본문 수식(KaTeX)의 동작은 바꾸지 않는다.
+- 시스템 WKWebView에서의 실제 표시는 자동 검증하지 않는다. MANUAL-3(현재 앱 기준선)과 MANUAL-4(M3 이후 pele 수식)로 사람이 확인한다.
 
 ### Out of Scope — 정화기·비다이어그램 내보내기
 
-- `svgSanitize.ts`의 공유 설정 완화는 하지 않는다. 다이어그램 전용 정화 경로는 REQ-PREVIEW015-025의 수식 허용 목록(`foreignObject.pele-math`와 KaTeX HTML)만 더하며, 그 밖의 허용 확대는 하지 않는다.
+- `svgSanitize.ts`의 공유 설정 완화는 하지 않는다. 다이어그램 전용 정화 경로는 REQ-PREVIEW015-003·025의 수식 허용 목록(`foreignObject.pele-math`, pele가 만드는 감싸기 `div`, MathML 태그, `semantics`, `encoding` 속성이 있는 `annotation`)만 더하며, 그 밖의 허용 확대는 하지 않는다.
 - 다이어그램이 아닌 내보내기 동작(이미지 임베드, 표, 코드 하이라이트, 완료 모달 등)은 바꾸지 않는다.
 
 ## Acceptance

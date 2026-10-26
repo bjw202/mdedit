@@ -22,7 +22,7 @@
 | D1 | 엔진 = pele 1.10.0 전면 교체 |
 | D2 | 고정 옵션 `autoDirection: false`·`links: false`·`images: false`·`responsive: true` |
 | D3 | 모듈 하나, 검증과 렌더가 같은 렌더 함수 |
-| D4 | 정화 = `sanitizeSvg` 규칙 + `foreignObject.pele-math` 허용 목록만 추가 (공유 설정 무변경, 수식 부분 M1b 뒤 확정) |
+| D4 | 정화 = 별도 `DOMPurify(window)` 인스턴스의 다이어그램 경로(href 훅 재등록, 수식 허용 목록) + 공유 `sanitizeSvg` 무변경 |
 | D5 | `--pele-*` ↔ `--md-*` 연결 (변수 목록은 M1 확정) |
 | D6 | 내보내기 = 원본 렌더 + 모든 `var(--pele-…)`를 실제 값으로 치환 (HTML·PDF는 내보내기 테마, DOCX는 항상 라이트) |
 | D7 | 실패·빈 펜스 자리 = 형식별 현재 동작 + 위치 고정 |
@@ -33,7 +33,7 @@
 | D12 | M1 보고서 `m1/report.html` + `m1/checks.md` |
 | D13 | `images: false` 고정 |
 | D14 | 픽스처 두 묶음(`unit/`·`browser/`), 매니페스트에 캡처 환경·측정기 기록, 단위 테스트 측정기 `jsdom-default` |
-| D15 | 다이어그램 안 수식 = pele `math` + 기존 `katex` (M1b 보강 측정 뒤 확정) |
+| D15 | 다이어그램 안 수식 = pele `math` + 기존 `katex`, 출력 `mathml-bare` (M1b 확정) |
 
 ## 마일스톤 (우선순위 순, 시간 추정 없음)
 
@@ -73,7 +73,9 @@ M1 판정 뒤 사용자가 다이어그램 안 수식을 pele `math` + 기존 `k
 4. **DOCX PNG**: 현재 DOCX 래스터화 방식(SVG→data URI→`Image`→canvas)으로 `foreignObject` 수식이 PNG에 그려지는지 확인한다.
 5. **CSP**: 앱 CSP(`index.html:7`) 아래에서 콘솔 CSP 오류가 없는지 확인한다.
 
-결과는 `m1/checks.md`에 "M1b" 표로 덧붙인다. **게이트**: 오케스트레이터가 결과를 사용자에게 보이고 `AskUserQuestion`으로 판정을 받는다. DOCX(항목 4)가 실패하면 DOCX만의 처리 방식도 이 게이트에서 사용자가 정한다. 판정 뒤 manager-spec 재위임으로 spec REQ-025·AC-025와 design.md D4·D15의 잠정 표시를 지우고 최종 문구로 바꾼다. 그 전에는 M2로 가지 않는다.
+결과는 `m1/checks.md`에 "M1b" 표로 덧붙인다. **게이트**: 오케스트레이터가 결과를 사용자에게 보이고 `AskUserQuestion`으로 판정을 받는다. DOCX(항목 4)가 실패하면 DOCX만의 처리 방식도 이 게이트에서 사용자가 정한다. 판정 뒤 manager-spec 재위임으로 spec REQ-025·AC-025와 design.md D4·D15를 최종 문구로 바꾼다. 그 전에는 M2로 가지 않는다.
+
+**M1b 결과(2026-10-26)**: 사용자 판정 **통과**. 해석기 출력 `mathml-bare`, DOCX 별도 대체안 없음, 기존 CSP 글꼴 결함은 백로그 `t1`. 최종 문구는 spec v0.4.0 REQ-003·025, AC-025, design.md D4·D15에 반영했다. 수식 픽스처는 아직 `src/test/fixtures/pele/`에 없으므로 M2에서 `mathml-bare` 출력의 정화 결과(구조)를 실제 렌더로 캡처해 추가한다(D14 원칙).
 
 ### M2 (Priority High) — 다이어그램 모듈, 의존성, 테마 토큰
 
@@ -128,7 +130,7 @@ Reference: research.md §4.5
 
 - `docs/USER_MANUAL.md:498-665` 부록 갱신, 목차 `:15` 앵커 수정, `:29`, `:75-80`, `:94` 언급 확인.
 - `docs/USER_GUIDE.md:206-208`(`### Mermaid 다이어그램` 절, 테마 전환 즉시 재채색 → 재렌더 없이 색 전환), `:236`, `:320` 확인.
-- **다이어그램 수식·DOCX 색 안내**: `docs/USER_MANUAL.md` Mermaid 부록과 `docs/USER_GUIDE.md` `### Mermaid 다이어그램` 절에 다이어그램 안 `$$…$$` 수식 지원 범위를 M1b 판정 결과대로 적는다(DOCX 처리 방식 포함, design.md D15). DOCX 다이어그램은 항상 라이트 색으로 들어간다는 안내도 함께 넣는다(design.md D6).
+- **다이어그램 수식·DOCX 색 안내**: `docs/USER_MANUAL.md` Mermaid 부록과 `docs/USER_GUIDE.md` `### Mermaid 다이어그램` 절에 다이어그램 안 `$$…$$` 수식이 KaTeX로 그려지며 HTML·PDF·DOCX 내보내기에도 그대로 들어간다는 점, 글자와 수식을 섞은 라벨도 그려진다는 점(design.md §4)을 적는다(design.md D15). DOCX 다이어그램은 항상 라이트 색으로 들어간다는 안내도 함께 넣는다(design.md D6).
 - `README.md:15, 104`("Mermaid 11.12.3" → pele 1.10.0, Mermaid 문법 지원).
 - `.moai/project/tech.md:43, 126-131, 224, 350`, `.moai/project/structure.md:229, 250, 335, 508`, `.moai/project/codemaps/*`의 mermaid 언급.
 
@@ -144,6 +146,8 @@ Reference: research.md §4.5
 | 같은 파일 | 검증 진입 함수 | `@MX:ANCHOR` + `@MX:REASON` | `validateMermaid`가 이 함수로 렌더 함수를 그대로 호출한다(design.md D3). `parse`만 부르도록 바꾸면 검증·미리보기 불일치가 다시 생긴다 | M2 |
 | 같은 파일 | 고정 옵션 상수 | `@MX:NOTE` + `@MX:WARN` + `@MX:REASON` | `autoDirection: false`·`links: false`·`images: false`는 사용자 결정(design.md D2·D13). `links`를 켜면 스킴 검증 없는 `open_url_in_browser` 경로가 열리고, `images`를 켜면 정화기 하나에만 외부 요청 차단을 맡기게 된다 | M2 |
 | 같은 파일 | 색 값 치환 함수 | `@MX:WARN` + `@MX:REASON` | 내보내기 테마 기준으로 모든 `var(--pele-…)`를 치환해야 한다. 하나라도 남으면 pele 대체값(라이트)으로 그려져 다크 내보내기가 조용히 라이트가 된다(AC-020) | M4 |
+| 같은 파일 | 다이어그램 전용 정화 경로 | `@MX:WARN` + `@MX:REASON` | 전역 DOMPurify 인스턴스를 쓰거나 훅을 전역에 걸면 SVG 파일 뷰어의 `sanitizeSvg`로 새어 든다(M1b 측정 43회). 별도 `DOMPurify(window)` 인스턴스에서 href 차단 훅을 다시 등록해야 한다(design.md D4) | M2 |
+| 같은 파일 | KaTeX 수식 해석기 | `@MX:NOTE` | `output: 'mathml'` + 바깥 `.katex` 제거(`mathml-bare`), `trust: false`. HTML 출력은 webkit에서 어긋나 탈락(design.md D15) | M2 |
 | 같은 파일 | `idPrefix` 생성부 | `@MX:NOTE` | 한 문서 안 SVG `id` 충돌 방지(design.md D3, AC-010·017) | M2 |
 | `package.json` 대신 가드 테스트 `src/test/diagramRegressionGuard.test.ts` | pele 핀 단언 | `@MX:NOTE` | `pele`는 `1.10.0` 정확 고정. 올릴 때는 별도 SPEC에서 M1과 같은 비교를 거친다(JSON 파일에는 주석을 달 수 없어 가드 테스트에 둔다) | M2 |
 | `src/lib/markdown/mermaidPlugin.ts` | `data-diagram` 이스케이프 줄(`:19`) | `@MX:NOTE` 추가 | `"`만 `&quot;`로 바꾸는 계약이 렌더러 입력을 정한다. 미리보기와 내보내기가 같은 문자열을 써야 한다(REQ-006·015). 이스케이프 범위를 바꾸면 내보내기 입력 변환도 함께 바꿔야 한다 | M4 |
@@ -193,7 +197,7 @@ Reference: research.md §4.5
 | `spike/pele/**` | M1 생성 → M7 삭제 | 시험 렌더링 코드 |
 | `.moai/specs/SPEC-PREVIEW-015-pele-renderer/m1/{report.html,checks.md}` | M1 | 비교 보고서·기계 확인 표 |
 | `src/test/fixtures/pele/**` | M1 | 실제 렌더 캡처 픽스처 + `manifest.json` |
-| `src/lib/diagram/diagramRenderer.ts` (신규) | M2 | 렌더·검증·위치 문구·색 풀어 넣기, KaTeX 수식 해석기와 다이어그램 전용 정화 경로(M1b 확정 뒤) |
+| `src/lib/diagram/diagramRenderer.ts` (신규) | M2 | 렌더·검증·위치 문구·색 풀어 넣기, KaTeX `mathml-bare` 수식 해석기, 별도 DOMPurify 인스턴스의 다이어그램 전용 정화 경로 |
 | `src/test/diagramRenderer.test.ts` (신규) | M2 | 모듈 단위 테스트 |
 | `package.json`, `package-lock.json` | M1·M2 | pele 추가, mermaid·patch-package·postinstall 제거 |
 | `patches/mermaid+11.12.3.patch` | M2 | 삭제 |

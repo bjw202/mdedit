@@ -45,9 +45,11 @@
 - 확인 4 DOCX PNG: webkit·chromium 모두 캔버스 오염 없음(`toDataURL`·`toBlob`·`getImageData` 성공). `html`은 위첨자·분수·근호가 깨진 글자, `mathml`·`mathml-bare`는 수식 표시. 대체안 `none`·`textsvg`도 측정(성공).
 - 확인 5 CSP: pele 수식 렌더로 늘어난 위반 0. 모든 시나리오(수식 없는 load-only 포함)에 콘솔 거부 1건 — Vite가 `KaTeX_Size3-Regular.woff2`를 `data:` URI로 넣고 CSP에 `font-src`가 없어 막힘(앱 프로덕션 빌드에서도 확인, 기존 결함).
 - jsdom: DOM 측정은 크기 0 → `null` → `$$…$$` 원문. 단위 테스트에서 실제 수식 크기는 확인 불가.
-- 판정(통과/보류): **pending user verdict**
-- 해석기 출력 방식(`html` / `mathml-bare` / 기타): **pending user verdict**
-- DOCX 처리 방식: **pending user verdict**
+- 판정(통과/보류): **통과** (2026-10-26, AskUserQuestion으로 수집)
+- 해석기 출력 방식: **`mathml-bare`** — KaTeX `output:'mathml'`에서 바깥 `.katex` span 제거. `html`·`mathml`은 webkit에서 foreignObject 밖으로 어긋나 탈락.
+- DOCX 처리 방식: **별도 대체안 없음** — `mathml-bare`가 DOCX PNG에서도 수식 표시, 캔버스 오염 없음.
+- CSP 기존 결함(KaTeX_Size3 data: 글꼴, font-src 없음): 이 SPEC 범위 밖, 백로그 카드 `t1`로 기록(`moai todo`, 오케스트레이터 실행).
+- 오케스트레이터 재확인: 픽스처 재렌더 `unitChecked=76 browserChecked=76 mismatches=0` (exit 0), `git diff --name-only f145220 d1dbc02 -- src index.html` 출력 없음.
 - 남은 수동 확인: MANUAL-3(현재 앱 mermaid 수식이 WKWebView에서 제자리인지 — M1b에서 어긋남 가능성 관찰), MANUAL-4(M3 이후 pele 수식 WKWebView 확인)
 
 ## §E.3 Run-phase Audit-Ready Signal
