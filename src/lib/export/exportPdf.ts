@@ -1,5 +1,6 @@
 // @MX:NOTE: [AUTO] PDF export via Tauri native print API for SPEC-EXPORT-001
 // @MX:SPEC: SPEC-EXPORT-001
+// @MX:SPEC: SPEC-EXPORT-004
 
 import { generateHtmlContent } from './exportHtml';
 import { printCurrentWindow } from '@/lib/tauri/ipc';
@@ -26,7 +27,22 @@ import type { ExportOptions } from './types';
  * @param options - Export options including content, filename, theme, and highlighter
  */
 export async function exportToPdf(options: ExportOptions): Promise<void> {
-  const htmlContent = await generateHtmlContent(options);
+  // SPEC-EXPORT-004 (plan D4): generateHtmlContent 가 임베드 직후 부르는 콜백으로 누락 이름을 모은다.
+  const collected: string[] = [];
+  const htmlContent = await generateHtmlContent({
+    ...options,
+    onUnembeddedImages: (names) => {
+      collected.push(...names);
+      options.onUnembeddedImages?.(names);
+    },
+  });
+
+  // SPEC-EXPORT-004 (REQ-010, plan D6): 누락이 있으면 제목·인쇄 요소·afterprint 리스너·정리 타이머를
+  // 건드리기 **전에** 확인을 기다린다. false 면 아무것도 바꾸지 않고 돌아가므로 남는 것이 없다.
+  if (collected.length > 0 && options.confirmUnembeddedImages) {
+    const proceed = await options.confirmUnembeddedImages(collected);
+    if (!proceed) return;
+  }
 
   // Clean up any leftover print elements from a previous export
   cleanupPrintElements();

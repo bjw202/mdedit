@@ -131,6 +131,20 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   // SPEC-EXPORT-002 (REQ-015/016): 완료 모달 단일 경로 슬롯. null=닫힘, string=해당 경로로 열림.
   //   연속 성공 시 최신 경로로 덮어쓴다(큐잉/중첩 없음). try 블록에서만 설정, catch 절대 불가(REQ-018).
   const [exportedPath, setExportedPath] = useState<string | null>(null);
+  // SPEC-EXPORT-004 (REQ-009): 완료 모달에 함께 보일 "임베드하지 못한 이미지" 이름. exportedPath 와 같은 슬롯 의미.
+  const [unembeddedImages, setUnembeddedImages] = useState<string[]>([]);
+  // SPEC-EXPORT-004 (REQ-010): PDF 인쇄 전 누락 확인 다이얼로그. resolve 는 정확히 한 번만 호출된다.
+  const [pdfConfirmNames, setPdfConfirmNames] = useState<string[] | null>(null);
+  const pdfConfirmResolveRef = useRef<((proceed: boolean) => void) | null>(null);
+  // 확인 다이얼로그가 열린 채로 언마운트되면 대기 중인 Promise 를 false 로 정리한다(인쇄 안 함, sync-audit F5).
+  useEffect(
+    () => () => {
+      const resolve = pdfConfirmResolveRef.current;
+      pdfConfirmResolveRef.current = null;
+      resolve?.(false);
+    },
+    [],
+  );
   const themeRaw = useUIStore((s) => s.theme);
   // Resolve 'system' theme to actual light/dark for export CSS
   // 'system' must check OS preference; themeRaw !== 'dark' alone would always export as light
@@ -147,15 +161,22 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
       const highlighter = await getHighlighter();
+      let missing: string[] = [];
       const savePath = await exportToHtml({
         content: c,
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
         mdFilePath: currentFile,
+        onUnembeddedImages: (names) => {
+          missing = names;
+        },
       });
       // SPEC-EXPORT-002 REQ-009: 저장 성공 시에만 모달 슬롯 설정. catch 절대 불가(REQ-018).
-      if (savePath !== null) setExportedPath(savePath);
+      if (savePath !== null) {
+        setUnembeddedImages(missing);
+        setExportedPath(savePath);
+      }
     } catch (err) {
       console.error('HTML export failed:', err);
       window.alert(`HTML export failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -176,6 +197,14 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
         theme: exportTheme,
         highlighter,
         mdFilePath: currentFile,
+        // SPEC-EXPORT-004 (REQ-010): 누락이 있으면 인쇄 전에 ConfirmDialog 로 묻는다(window.alert 금지).
+        //   다이얼로그가 열린 동안은 로딩 표시를 내리고(SPEC-EXPORT-002 REQ-015), 계속 인쇄 시 다시 올린다.
+        confirmUnembeddedImages: (names) =>
+          new Promise<boolean>((resolve) => {
+            pdfConfirmResolveRef.current = resolve;
+            setExportLoading(false);
+            setPdfConfirmNames(names);
+          }),
       });
     } catch (err) {
       console.error('PDF export failed:', err);
@@ -191,15 +220,22 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
       const { content: c } = useEditorStore.getState();
       const currentFile = useFileStore.getState().currentFile;
       const highlighter = await getHighlighter();
+      let missing: string[] = [];
       const savePath = await exportToDocx({
         content: c,
         filename: currentFile ?? 'document.md',
         theme: exportTheme,
         highlighter,
         mdFilePath: currentFile,
+        onUnembeddedImages: (names) => {
+          missing = names;
+        },
       });
       // SPEC-EXPORT-002 REQ-010: 저장 성공 시에만 모달 슬롯 설정. catch 절대 불가(REQ-018).
-      if (savePath !== null) setExportedPath(savePath);
+      if (savePath !== null) {
+        setUnembeddedImages(missing);
+        setExportedPath(savePath);
+      }
     } catch (err) {
       console.error('DOCX export failed:', err);
       window.alert(`DOCX export failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -216,6 +252,17 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   //   - PDF 는 본 모달의 대상이 아니다(handleExportPdf 무변경, REQ-019).
   //   - 단일 슬롯 덮어쓰기(REQ-016): setExportedPath(null) 로 닫고, 새 성공이 다시 채운다.
   // @MX:SPEC: SPEC-EXPORT-002
+  // SPEC-EXPORT-004 (REQ-010): PDF 누락 확인 다이얼로그 액션. 'print' 만 true, 'cancel'(취소·Escape·백드롭)은 false.
+  const handlePdfConfirmAction = useCallback((id: string): void => {
+    const resolve = pdfConfirmResolveRef.current;
+    pdfConfirmResolveRef.current = null;
+    setPdfConfirmNames(null);
+    if (!resolve) return;
+    const proceed = id === 'print';
+    if (proceed) setExportLoading(true);
+    resolve(proceed);
+  }, []);
+
   const handleExportDialogAction = useCallback(
     async (id: string): Promise<void> => {
       if (id === 'cancel') {
@@ -489,6 +536,7 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
               <div>
                 <div>내보낸 파일이 아래 경로에 저장되었습니다.</div>
                 <code data-testid="exported-path">{exportedPath}</code>
+                <UnembeddedImagesNotice names={unembeddedImages} />
               </div>
             )
           }
@@ -499,7 +547,40 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
           ]}
           onAction={handleExportDialogAction}
         />
+        {/* SPEC-EXPORT-004 (REQ-010): PDF 인쇄 전 누락 이미지 확인. 액션: 취소 → 계속 인쇄(primary). */}
+        <ConfirmDialog
+          open={pdfConfirmNames !== null}
+          title="PDF 내보내기"
+          message={pdfConfirmNames === null ? null : <UnembeddedImagesNotice names={pdfConfirmNames} />}
+          actions={[
+            { id: 'cancel', label: '취소' },
+            { id: 'print', label: '계속 인쇄', variant: 'primary' },
+          ]}
+          onAction={handlePdfConfirmAction}
+        />
       </div>
     </GuardContext.Provider>
+  );
+}
+
+/** SPEC-EXPORT-004 (REQ-009, plan D7): 누락 이미지 이름은 최대 10개까지 보이고 나머지는 "외 K개"로 요약한다. */
+const UNEMBEDDED_NAME_LIMIT = 10;
+
+function UnembeddedImagesNotice({ names }: { names: string[] }): JSX.Element | null {
+  if (names.length === 0) return null;
+  const shown = names.slice(0, UNEMBEDDED_NAME_LIMIT);
+  const rest = names.length - shown.length;
+  return (
+    <div data-testid="unembedded-images">
+      <div>이미지 {names.length}개를 포함하지 못했습니다.</div>
+      <ul>
+        {shown.map((name) => (
+          <li key={name}>
+            <code>{name}</code>
+          </li>
+        ))}
+      </ul>
+      {rest > 0 && <div>외 {rest}개</div>}
+    </div>
   );
 }

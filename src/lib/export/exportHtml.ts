@@ -1,8 +1,12 @@
 // @MX:NOTE: [AUTO] HTML export implementation for SPEC-EXPORT-001
+// @MX:NOTE: [AUTO] SPEC-EXPORT-004: 옛 복사본 embedLocalImages 를 제거하고 이미지 경로 해석을 공용
+//   embedImagesInHtml(imageResolver.ts)에 위임한다. 임베드하지 못한 이미지는 onUnembeddedImages 로 알린다.
 // @MX:SPEC: SPEC-EXPORT-001
+// @MX:SPEC: SPEC-EXPORT-004
 
 import { renderMarkdown } from '@/lib/markdown/renderer';
-import { exportSaveDialog, writeFile, readImageAsBase64 } from '@/lib/tauri/ipc';
+import { exportSaveDialog, writeFile } from '@/lib/tauri/ipc';
+import { embedImagesInHtml } from '@/lib/image/imageResolver';
 import { buildHtmlDocument, generateExportFilename, getPreviewCss } from './exportUtils';
 import type { ExportOptions } from './types';
 
@@ -24,7 +28,7 @@ import type { ExportOptions } from './types';
 //   (별도 export, :70) 분리로 무영향(REQ-019). 결정 근거 = progress.md T2.
 // @MX:SPEC: SPEC-EXPORT-002
 export async function exportToHtml(options: ExportOptions): Promise<string | null> {
-  const { content, filename, theme, highlighter, mdFilePath } = options;
+  const { content, filename, theme, highlighter } = options;
 
   // Generate the default save filename
   const defaultName = generateExportFilename(filename, 'html');
@@ -42,7 +46,7 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
   const htmlWithMermaid = await replaceMermaidPlaceholders(renderedHtml);
 
   // Embed local images as base64 data URIs for self-contained HTML
-  const htmlWithEmbeddedImages = await embedLocalImages(htmlWithMermaid, mdFilePath ?? null);
+  const htmlWithEmbeddedImages = await embedAndReport(htmlWithMermaid, options);
 
   // Build the title from the filename (strip extension)
   const title = defaultName.replace(/\.[^.]+$/, '');
@@ -74,12 +78,12 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
  * @returns The complete HTML document string
  */
 export async function generateHtmlContent(options: ExportOptions): Promise<string> {
-  const { content, filename, theme, highlighter, mdFilePath } = options;
+  const { content, filename, theme, highlighter } = options;
 
   const defaultName = generateExportFilename(filename, 'html');
   const renderedHtml = await renderMarkdown(content, highlighter);
   const htmlWithMermaid = await replaceMermaidPlaceholders(renderedHtml);
-  const htmlWithImages = await embedLocalImages(htmlWithMermaid, mdFilePath ?? null);
+  const htmlWithImages = await embedAndReport(htmlWithMermaid, options);
   const title = defaultName.replace(/\.[^.]+$/, '');
   const css = getPreviewCss(theme);
 
@@ -127,48 +131,11 @@ async function replaceMermaidPlaceholders(html: string): Promise<string> {
 }
 
 /**
- * Embeds local images as base64 data URIs in the HTML for self-contained export.
- * HTTP/HTTPS URLs are kept as-is. Only relative paths are resolved and embedded.
+ * 로컬 이미지를 공용 해석기로 임베드하고, 임베드하지 못한 이미지가 있으면 콜백으로 한 번 알린다.
+ * 미저장 문서(mdFilePath null)는 로컬 이미지를 읽지 않고 모두 누락으로 보고한다(REQ-008).
  */
-async function embedLocalImages(html: string, mdFilePath: string | null): Promise<string> {
-  if (!mdFilePath) return html;
-
-  // Match all img tags with src attributes
-  const imgRegex = /<img\s+[^>]*src="([^"]*)"[^>]*>/g;
-  const matches: Array<{ full: string; src: string }> = [];
-
-  let match: RegExpExecArray | null;
-  while ((match = imgRegex.exec(html)) !== null) {
-    matches.push({ full: match[0], src: match[1] });
-  }
-
-  if (matches.length === 0) return html;
-
-  let result = html;
-  const mdDir = mdFilePath.substring(0, Math.max(mdFilePath.lastIndexOf('/'), mdFilePath.lastIndexOf('\\')));
-
-  for (const { full, src } of matches) {
-    // Skip HTTP/HTTPS URLs and data URIs
-    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
-      continue;
-    }
-
-    // Resolve relative path to absolute
-    let absolutePath: string;
-    if (src.startsWith('/')) {
-      absolutePath = src;
-    } else {
-      const normalizedSrc = src.startsWith('./') ? src.substring(2) : src;
-      absolutePath = `${mdDir}/${normalizedSrc}`;
-    }
-
-    try {
-      const dataUri = await readImageAsBase64(absolutePath);
-      result = result.replace(full, full.replace(src, dataUri));
-    } catch {
-      // Keep original src if reading fails
-    }
-  }
-
-  return result;
+async function embedAndReport(html: string, options: ExportOptions): Promise<string> {
+  const { html: embedded, unembedded } = await embedImagesInHtml(html, options.mdFilePath ?? null);
+  if (unembedded.length > 0) options.onUnembeddedImages?.(unembedded);
+  return embedded;
 }

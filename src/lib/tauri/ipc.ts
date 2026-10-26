@@ -186,6 +186,14 @@ export async function readImageAsBase64(imagePath: string): Promise<string> {
 }
 
 /**
+ * SPEC-EXPORT-004: 마크다운 파일 기준 상대경로(`..` 포함)의 이미지를 data URI 로 읽는다.
+ * Rust 쪽이 경로 해석·이미지 확장자·일반 파일 여부를 검사한다. `..` 조각이 있는 후보만 이 명령을 쓴다.
+ */
+export async function readRelativeImageAsBase64(mdFilePath: string, relativeSrc: string): Promise<string> {
+  return invoke<string>('read_relative_image_as_base64', { mdFilePath, relativeSrc });
+}
+
+/**
  * Opens a native file dialog filtered for image files.
  * Returns the selected file path, or null if the user cancels.
  */

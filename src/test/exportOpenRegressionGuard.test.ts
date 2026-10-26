@@ -66,6 +66,7 @@ describe('SPEC-EXPORT-002 regression guard', () => {
     // 기준선(본 SPEC 착수 시점) — 신규 command 가 추가되면 이 단언이 실패한다.
     // SPEC-IMG-LOAD-001 (2026-08-12): file_ops::read_file_size 추가 (Group B 신규 IPC).
     // SPEC-FS-004 (2026-08-25): file_open::take_pending_open_file 추가 (M1 외부 .md 오픈 atomic-take).
+    // SPEC-EXPORT-004 (2026-10-26): image_ops::read_relative_image_as_base64 추가 (상위 폴더 이미지 전용 읽기).
     expect(commands).toEqual([
       'file_ops::read_file',
       'file_ops::write_file',
@@ -85,6 +86,7 @@ describe('SPEC-EXPORT-002 regression guard', () => {
       'image_ops::save_image_from_clipboard',
       'image_ops::copy_image_to_folder',
       'image_ops::read_image_as_base64',
+      'image_ops::read_relative_image_as_base64',
       'image_ops::open_image_dialog',
       'browser_ops::open_url_in_browser',
       'ai::ai_request',

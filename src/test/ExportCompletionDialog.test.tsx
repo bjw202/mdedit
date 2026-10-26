@@ -271,3 +271,190 @@ describe('SPEC-EXPORT-002: 내보내기 완료 모달', () => {
     expect(screen.queryByText('/tmp/first.html')).not.toBeInTheDocument();
   });
 });
+
+// SPEC-EXPORT-004: 임베드하지 못한 이미지 보고 (REQ-009·010).
+//   내보내기 함수는 mock 이며, mock 구현이 options.onUnembeddedImages / confirmUnembeddedImages 를 호출해
+//   다이얼로그 렌더와 "다이얼로그 액션 → Promise 값" 배선만 검증한다. 실제 인쇄 흐름은 exportPdf.test.ts(PF).
+type ExportOpts = {
+  onUnembeddedImages?: (names: string[]) => void;
+  confirmUnembeddedImages?: (names: string[]) => Promise<boolean>;
+};
+
+describe('SPEC-EXPORT-004: 누락 이미지 보고', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useEditorStore.setState({
+      content: '# 테스트 문서',
+      dirty: false,
+      currentFilePath: '/tmp/test.md',
+      cursorLine: 1,
+      cursorCol: 1,
+    });
+    window.alert = vi.fn();
+  });
+
+  it('F1: HTML 완료 모달에 누락 개수 문구와 이름이 표시되고 제목·경로·액션은 그대로다', async () => {
+    mockExportToHtml.mockImplementationOnce(async (opts: ExportOpts) => {
+      opts.onUnembeddedImages?.(['./img/없음.png']);
+      return '/tmp/out/test.html';
+    });
+    render(<App />);
+    await openExportMenu();
+    await clickExportItem('Export as HTML');
+
+    await screen.findByRole('dialog');
+    expect(screen.getByText('내보내기 완료')).toBeInTheDocument();
+    expect(screen.getByText('/tmp/out/test.html')).toBeInTheDocument();
+    const block = screen.getByTestId('unembedded-images');
+    expect(block).toHaveTextContent('이미지 1개를 포함하지 못했습니다.');
+    expect(block).toHaveTextContent('./img/없음.png');
+    expect(screen.getByTestId('dialog-action-cancel')).toHaveTextContent('닫기');
+    expect(screen.getByTestId('dialog-action-reveal')).toHaveTextContent('폴더에서 보기');
+    expect(screen.getByTestId('dialog-action-open')).toHaveTextContent('열기');
+  });
+
+  it('F1(DOCX): DOCX 완료 모달에도 누락이 표시된다', async () => {
+    mockExportToDocx.mockImplementationOnce(async (opts: ExportOpts) => {
+      opts.onUnembeddedImages?.(['a.png', 'b.png']);
+      return '/tmp/out/test.docx';
+    });
+    render(<App />);
+    await openExportMenu();
+    await clickExportItem('Export as DOCX');
+
+    const block = await screen.findByTestId('unembedded-images');
+    expect(block).toHaveTextContent('이미지 2개를 포함하지 못했습니다.');
+  });
+
+  it('F2: 누락 0개면 경고 블록이 없다', async () => {
+    mockExportToHtml.mockResolvedValueOnce('/tmp/out/test.html');
+    render(<App />);
+    await openExportMenu();
+    await clickExportItem('Export as HTML');
+
+    await screen.findByRole('dialog');
+    expect(screen.queryByTestId('unembedded-images')).not.toBeInTheDocument();
+  });
+
+  it('F2(연속): 이전 내보내기의 누락 목록은 다음 내보내기에 남지 않는다', async () => {
+    mockExportToHtml
+      .mockImplementationOnce(async (opts: ExportOpts) => {
+        opts.onUnembeddedImages?.(['old.png']);
+        return '/tmp/first.html';
+      })
+      .mockResolvedValueOnce('/tmp/second.html');
+    render(<App />);
+    await openExportMenu();
+    await clickExportItem('Export as HTML');
+    await screen.findByTestId('unembedded-images');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('dialog-action-cancel'));
+    });
+
+    await openExportMenu();
+    await clickExportItem('Export as HTML');
+    await screen.findByText('/tmp/second.html');
+    expect(screen.queryByTestId('unembedded-images')).not.toBeInTheDocument();
+  });
+
+  it('F4: 누락 12개면 이름 10개와 "외 2개"를 표시한다', async () => {
+    const names = Array.from({ length: 12 }, (_, i) => `img${i + 1}.png`);
+    mockExportToHtml.mockImplementationOnce(async (opts: ExportOpts) => {
+      opts.onUnembeddedImages?.(names);
+      return '/tmp/out/test.html';
+    });
+    render(<App />);
+    await openExportMenu();
+    await clickExportItem('Export as HTML');
+
+    const block = await screen.findByTestId('unembedded-images');
+    expect(block).toHaveTextContent('이미지 12개를 포함하지 못했습니다.');
+    for (const n of names.slice(0, 10)) expect(block).toHaveTextContent(n);
+    expect(block).not.toHaveTextContent('img11.png');
+    expect(block).not.toHaveTextContent('img12.png');
+    expect(block).toHaveTextContent('외 2개');
+  });
+
+  async function startPdfWithMissing(): Promise<{ result: () => boolean | undefined }> {
+    let recorded: boolean | undefined;
+    mockExportToPdf.mockImplementationOnce(async (opts: ExportOpts) => {
+      recorded = await opts.confirmUnembeddedImages?.(['a.png']);
+    });
+    render(<App />);
+    await openExportMenu();
+    await clickExportItem('Export as PDF');
+    return { result: () => recorded };
+  }
+
+  it('F5: PDF 누락 시 ConfirmDialog 를 열고 "계속 인쇄"는 true 로 이어진다', async () => {
+    const { result } = await startPdfWithMissing();
+
+    await screen.findByRole('dialog');
+    const block = screen.getByTestId('unembedded-images');
+    expect(block).toHaveTextContent('이미지 1개를 포함하지 못했습니다.');
+    expect(block).toHaveTextContent('a.png');
+    const buttons = screen.getAllByTestId(/^dialog-action-/);
+    expect(buttons.map((b) => b.getAttribute('data-testid'))).toEqual(['dialog-action-cancel', 'dialog-action-print']);
+    expect(screen.getByTestId('dialog-action-cancel')).toHaveTextContent('취소');
+    expect(screen.getByTestId('dialog-action-print')).toHaveTextContent('계속 인쇄');
+    expect(screen.getByTestId('dialog-action-print').className).toContain('md-dialog-action-primary');
+    expect(screen.getByTestId('dialog-action-cancel').className).not.toContain('md-dialog-action-primary');
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('dialog-action-print'));
+    });
+
+    await waitFor(() => expect(result()).toBe(true));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(window.alert).not.toHaveBeenCalled();
+  });
+
+  for (const [label, close] of [
+    ['취소 버튼', () => fireEvent.click(screen.getByTestId('dialog-action-cancel'))],
+    ['Escape', () => fireEvent.keyDown(document, { key: 'Escape' })],
+    ['백드롭', () => fireEvent.click(screen.getByTestId('confirm-dialog-backdrop'))],
+  ] as const) {
+    it(`F9: PDF 확인 다이얼로그를 ${label}로 닫으면 false 로 이어지고 로딩 표시가 해제된다`, async () => {
+      const { result } = await startPdfWithMissing();
+      await screen.findByRole('dialog');
+
+      await act(async () => {
+        close();
+      });
+
+      await waitFor(() => expect(result()).toBe(false));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByLabelText('Export loading')).not.toBeInTheDocument());
+      expect(window.alert).not.toHaveBeenCalled();
+    });
+  }
+});
+
+describe('SPEC-EXPORT-004: PDF 확인 다이얼로그 언마운트 정리 (sync-audit F5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useEditorStore.setState({
+      content: '# 테스트 문서',
+      dirty: false,
+      currentFilePath: '/tmp/test.md',
+      cursorLine: 1,
+      cursorCol: 1,
+    });
+    window.alert = vi.fn();
+  });
+
+  it('F5-unmount: 다이얼로그가 열린 채 언마운트되면 확인 Promise 가 false 로 정리된다', async () => {
+    let recorded: boolean | undefined;
+    mockExportToPdf.mockImplementationOnce(async (opts: ExportOpts) => {
+      recorded = await opts.confirmUnembeddedImages?.(['a.png']);
+    });
+    const { unmount } = render(<App />);
+    await openExportMenu();
+    await clickExportItem('Export as PDF');
+    await screen.findByRole('dialog');
+
+    unmount();
+
+    await waitFor(() => expect(recorded).toBe(false));
+  });
+});

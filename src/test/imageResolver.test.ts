@@ -3,9 +3,11 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockReadImageAsBase64 } = vi.hoisted(() => {
+const { mockReadImageAsBase64, mockReadRelativeImageAsBase64 } = vi.hoisted(() => {
   return {
     mockReadImageAsBase64: vi.fn(),
+    // SPEC-EXPORT-004: 상위 폴더(..) 이미지 전용 명령 래퍼
+    mockReadRelativeImageAsBase64: vi.fn(),
   };
 });
 
@@ -17,6 +19,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 vi.mock('@/lib/tauri/ipc', () => ({
   readImageAsBase64: mockReadImageAsBase64,
+  readRelativeImageAsBase64: mockReadRelativeImageAsBase64,
 }));
 
 import { embedPreviewImages } from '@/lib/image/imageResolver';
@@ -34,8 +37,12 @@ function readable(...paths: string[]) {
 const img = (src: string) => `<img src="${src}" alt="x">`;
 const calls = () => mockReadImageAsBase64.mock.calls.map((c) => c[0]);
 
+const relCalls = () => mockReadRelativeImageAsBase64.mock.calls.map((c) => [c[0], c[1]]);
+
 beforeEach(() => {
   mockReadImageAsBase64.mockReset();
+  mockReadRelativeImageAsBase64.mockReset();
+  mockReadRelativeImageAsBase64.mockRejectedValue(new Error('not found'));
 });
 
 describe('embedPreviewImages — SPEC-PREVIEW-014', () => {
@@ -116,11 +123,55 @@ describe('embedPreviewImages — SPEC-PREVIEW-014', () => {
     expect(out).toBe(img(DATA) + img(DATA));
   });
 
-  it('T11: 디코드 결과의 .. 는 정리하지 않고 그대로 전달하며, 실패 시 원래 src 를 유지한다', async () => {
+  // SPEC-EXPORT-004 R2: T11 개정 — 디코드 후보 `../secret.png` 는 `..` 조각이 있어 전용 명령으로,
+  // 원문 후보 `%2E%2E/secret.png` 는 `..` 조각이 없어 일반 IPC 로 간다. 클라이언트는 `..` 를 정리하지 않는다.
+  it('T11: 디코드 결과의 .. 는 정리하지 않고 후보별로 라우팅하며, 실패 시 원래 src 를 유지한다', async () => {
     readable();
     const html = img('%2E%2E/secret.png');
     const out = await embedPreviewImages(html, MD);
-    expect(calls()).toEqual(['/docs/../secret.png', '/docs/%2E%2E/secret.png']);
+    expect(relCalls()).toEqual([[MD, '../secret.png']]);
+    expect(calls()).toEqual(['/docs/%2E%2E/secret.png']);
+    expect(out).toBe(html);
+  });
+});
+
+describe('embedPreviewImages — SPEC-EXPORT-004', () => {
+  it('V1: 렌더 HTML 의 &amp; 를 되돌린 경로로 읽고 src 를 data URI 로 치환한다', async () => {
+    readable('/docs/images/a&b.png');
+    const out = await embedPreviewImages(img('images/a&amp;b.png'), MD);
+    expect(calls()[0]).toBe('/docs/images/a&b.png');
+    expect(out).toContain(`src="${DATA}"`);
+  });
+
+  it('V2: ../ 상위 폴더 이미지는 전용 명령으로 (md, 상대경로) 1회 읽는다', async () => {
+    readable();
+    mockReadRelativeImageAsBase64.mockImplementation((_md: string, rel: string) =>
+      rel === '../assets/a.png' ? Promise.resolve(DATA) : Promise.reject(new Error('nf')),
+    );
+    const out = await embedPreviewImages(img('../assets/a.png'), MD);
+    expect(relCalls()).toEqual([[MD, '../assets/a.png']]);
+    expect(mockReadImageAsBase64).not.toHaveBeenCalled();
+    expect(out).toContain(`src="${DATA}"`);
+  });
+
+  it('V3a: 디코드·원문 후보 모두 .. 조각이 있으면 둘 다 전용 명령으로 순서대로 읽는다', async () => {
+    readable();
+    const html = img('../images/%EC%82%AC%EC%A7%84.png');
+    const out = await embedPreviewImages(html, MD);
+    expect(relCalls()).toEqual([
+      [MD, '../images/사진.png'],
+      [MD, '../images/%EC%82%AC%EC%A7%84.png'],
+    ]);
+    expect(mockReadImageAsBase64).not.toHaveBeenCalled();
+    expect(out).toBe(html);
+  });
+
+  it('V3b: \\ 로 나눈 .. 조각도 전용 명령 대상이고, .. 조각이 없는 원문 후보는 일반 IPC 로 읽는다', async () => {
+    readable();
+    const html = img('..%5Cx.png');
+    const out = await embedPreviewImages(html, MD);
+    expect(relCalls()).toEqual([[MD, '..\\x.png']]);
+    expect(calls()).toEqual(['/docs/..%5Cx.png']);
     expect(out).toBe(html);
   });
 });
