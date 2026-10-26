@@ -1,8 +1,8 @@
-// @MX:SPEC: SPEC-UI-008
+// @MX:SPEC: SPEC-UI-008 SPEC-PREVIEW-015
 // Regression guard (REQ-019/021/022, AC-013): no new runtime deps, exactly 8 presets,
 // markdownKeyBindings unchanged (no new global shortcut).
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -34,7 +34,7 @@ describe('SPEC-UI-008 regression guard', () => {
         'dompurify',
         'katex',
         'markdown-it',
-        'mermaid',
+        'pele',
         'react',
         'react-dom',
         'shiki',
@@ -45,8 +45,14 @@ describe('SPEC-UI-008 regression guard', () => {
     const all = { ...pkg.dependencies, ...pkg.devDependencies };
     expect(all['lucide-react']).toBeUndefined();
     expect(all['@floating-ui/react']).toBeUndefined();
-    // mermaid pin unchanged (SPEC-PREVIEW-006).
-    expect(pkg.dependencies.mermaid).toBe('11.12.3');
+    // @MX:NOTE: [AUTO] pele는 1.10.0 정확 고정(캐럿·틸드 없음). 올릴 때는 별도 SPEC에서 SPEC-PREVIEW-015 M1과 같은 비교를 거친다.
+    //   package.json에는 주석을 달 수 없어 이 가드에 둔다(SPEC-PREVIEW-015 REQ-021·022, AC-023).
+    expect(pkg.dependencies.pele).toBe('1.10.0');
+    // mermaid·patch-package·postinstall은 SPEC-PREVIEW-015에서 제거됐다 — 다시 들어오면 실패한다.
+    expect(all.mermaid).toBeUndefined();
+    expect(all['patch-package']).toBeUndefined();
+    expect((pkg as { scripts?: Record<string, string> }).scripts?.postinstall).toBeUndefined();
+    expect(existsSync(resolve(repoRoot, 'patches', 'mermaid+11.12.3.patch'))).toBe(false);
   });
 
   it('exposes exactly 8 diagram presets — 7 + custom, no other mermaid types (REQ-021)', async () => {
