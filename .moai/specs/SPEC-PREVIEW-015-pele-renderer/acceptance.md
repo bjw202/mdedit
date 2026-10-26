@@ -5,7 +5,7 @@
 
 ## 사전 준비
 
-- **픽스처 원칙**: pele 출력을 비교하거나 대신하는 픽스처는 모두 실제 pele 1.10.0 렌더로 캡처한 `src/test/fixtures/pele/` 파일이다. 수식 없는 픽스처는 M1에서, 수식 픽스처와 `fontFamily` 반영 뒤 다시 캡처하는 `unit/` 픽스처는 M2에서 같은 매니페스트 계약으로 캡처한다(design.md D5·D14). `unit/` 묶음은 단위 테스트와 같은 측정기로 캡처해 바이트 비교에 쓰고, `browser/` 묶음은 캔버스 측정기로 캡처해 구조 확인과 e2e 참고에만 쓴다(design.md D14). 손으로 쓴 SVG 문자열을 pele 출력이라고 가정하는 테스트는 두지 않는다(프로젝트 교훈: 손으로 쓴 외부 출력 픽스처는 테스트는 전부 통과하고 실기기에서는 한 번도 동작하지 않았다).
+- **픽스처 원칙**: pele 출력을 비교하거나 대신하는 픽스처는 모두 실제 pele 1.10.0 렌더로 캡처한 `src/test/fixtures/pele/` 파일이다. 세 묶음이 있다. (1) `src/test/fixtures/pele/m1-frozen/`: M1 `unit/` 캡처(정화 전·후 38쌍)를 M2 재캡처 전에 옮겨 둔 **고정 기준**으로, 다시 캡처하지 않고 공유 `sanitizeSvg` 회귀 비교(AC-005, AC-025)에만 쓴다. (2) `unit/`: M2에서 `fontFamily`·`fontFamilyMono`를 넣은 뒤 다시 캡처하고, 수식 픽스처도 이때 캡처한다. (3) `browser/`: M2에서 같은 옵션으로 다시 캡처한다. 모두 같은 매니페스트 계약을 쓴다(design.md D5·D14). `unit/` 묶음은 단위 테스트와 같은 측정기로 캡처해 바이트 비교에 쓰고, `browser/` 묶음은 캔버스 측정기로 캡처해 구조 확인과 e2e 참고에만 쓴다(design.md D14). 손으로 쓴 SVG 문자열을 pele 출력이라고 가정하는 테스트는 두지 않는다(프로젝트 교훈: 손으로 쓴 외부 출력 픽스처는 테스트는 전부 통과하고 실기기에서는 한 번도 동작하지 않았다).
 - **mock 원칙**: 모듈 자체(`diagramRenderer.test.ts`)와 프리셋·AI 검증 테스트는 pele를 mock하지 않는다. 호출 순서·옵션만 볼 때는 실제 pele 함수를 감시(spy)한다. **통과형 감시 래퍼는 mock으로 보지 않는다**: vitest ESM에서는 모듈 네임스페이스에 `vi.spyOn`을 걸 수 없으므로, `vi.mock('pele', async (importOriginal) => …)`로 원래 모듈을 받아 각 함수를 `vi.fn(real)`처럼 **실제 구현에 그대로 위임**하는 래퍼를 쓸 수 있다. 반환값을 바꾸거나 가짜 SVG를 돌려주는 래퍼는 이 예외에 들지 않는다. 단위 테스트 측정기는 M1에서 `jsdom-default`로 확정되었다(jsdom에서 pele가 내장 글자 폭 표를 고른다, design.md D14). 테스트 전용 측정기는 주입하지 않으며, 레이아웃 수치 단언은 e2e에만 둔다.
 - **색 값 주입**: jsdom은 앱 CSS를 읽지 않으므로 내보내기 색 테스트는 모듈의 시험용 진입점으로 라이트·다크 색 값 표를 주입한다(design.md D6). 실제 색이 나오는지는 M1 증거와 manual 항목이 맡는다.
 - **공통 입력**: 엔티티 샘플 `flowchart LR\n  A[R&amp;D] --> B["따옴표"]`, 실패 샘플 `notarealdiagramtype foo!!!`, 위치가 있는 문법 오류 샘플은 M1에서 pele가 실제로 `line`·`column`을 돌려준 소스를 쓴다.
@@ -50,13 +50,13 @@
 
 - **Given** pele `render`를 감시하는 상태에서
 - **When** 미리보기·AI 검증·AI 카드·내보내기·프리셋 경로로 각각 렌더하면
-- **Then** 모든 호출의 옵션에 `autoDirection: false`, `links: false`, `images: false`, `responsive: true`와, 모듈의 다이어그램 글꼴 상수와 같은 `fontFamily`가 있다. 그 상수는 `mdedit-tokens.css`의 `--pele-font` 값과 같은 글꼴 목록이다(두 블록 모두). 옵션은 호출자가 넘긴 값으로 바뀌지 않는다. (REQ-002)
+- **Then** 모든 호출의 옵션에 `autoDirection: false`, `links: false`, `images: false`, `responsive: true`와, 모듈의 일반 글꼴 상수와 같은 `fontFamily`, 고정폭 글꼴 상수와 같은 `fontFamilyMono`가 있다. 두 상수가 글꼴 목록의 기준이다. 확인 절차: 테스트가 `src/styles/mdedit-tokens.css` 파일 텍스트를 읽어 `:root`·`[data-theme="dark"]` 두 블록의 `--pele-font`·`--pele-font-mono` 값을 꺼내고, 각각이 해당 상수 문자열과 **글자 그대로 같은지** 비교한다(design.md D5 규칙상 두 변수는 `var(...)` 참조가 아닌 리터럴이다. `var(`가 들어 있으면 실패로 처리한다). 옵션은 호출자가 넘긴 값으로 바뀌지 않는다. (REQ-002)
 
 ### AC-PREVIEW015-005: 수식이 없는 다이어그램은 공유 `sanitizeSvg`와 같은 결과로 정화된다 — must-pass (unit)
 
-- **Given** `src/test/fixtures/pele/unit/`의 수식 없는 항목마다 저장된 **정화 전** pele 출력(M1 캡처, `manifest.json`에 입력·옵션 기록)이 있을 때
+- **Given** M1 고정 기준 묶음 `src/test/fixtures/pele/m1-frozen/`(M1 `unit/` 캡처의 정화 전·후 38쌍, M2가 `fontFamily` 반영 전에 옮겨 두며 다시 캡처하지 않음, 매니페스트에 `frozen: true`)의 수식 없는 항목마다 **정화 전** pele 출력과, M1 때 공유 `sanitizeSvg`가 만든 **정화 후** 출력이 있을 때
 - **When** (unit) 같은 정화 전 SVG 문자열을 다이어그램 전용 정화 경로와 공유 `sanitizeSvg`에 각각 넣으면
-- **Then** 두 결과 문자열이 **바이트 단위로** 같다. 두 결과 모두 `<script>`·`foreignObject`·`on*` 속성이 0개다. 공유 `sanitizeSvg`의 결과는 저장된 **정화 후** 픽스처와도 바이트 단위로 같다(M1b 2a에서 이미 측정된 성질의 회귀 확인).
+- **Then** 두 결과 문자열이 **바이트 단위로** 같다. 두 결과 모두 `<script>`·`foreignObject`·`on*` 속성이 0개다. 공유 `sanitizeSvg`의 결과는 고정 기준 묶음의 **정화 후** 출력(M1 때 만들어 두고 이후 다시 만들지 않은 값)과도 바이트 단위로 같다. 이 비교는 지금의 `sanitizeSvg`를 그 함수가 지금 만든 결과와 비교하지 않는다. M1b 2a는 같은 38쌍에서 이 일치를 측정했다.
 - 이 비교는 `sanitizeSvg`에 감시를 걸지 않는다. 다이어그램 모듈은 `sanitizeSvg`를 호출하지 않는다(design.md D4).
 - 수식이 없는 입력에서 두 경로의 결과가 같다는 성질은 M1b에서 측정하지 않았다(2a는 공유 함수만, 2b는 수식 샘플만 측정). 그래서 이 AC는 M2에서 처음 확인하는 테스트다. 같지 않으면 정화 설정을 넓히지 않고 차이를 blocker로 보고한다.
 - 수식이 있는 다이어그램의 `foreignObject.pele-math` 허용은 AC-025가 다룬다. `git diff`로 `src/lib/preview/svgSanitize.ts`가 바뀌지 않았음을 확인한다(코드 리뷰). (REQ-003)
@@ -150,9 +150,10 @@
 
 ### AC-PREVIEW015-020: 내보낸 다이어그램의 `--pele-*`는 모두 실제 값으로 치환된다 — must-pass (unit + manual)
 
-- **Given** 라이트·다크 색 값 표(서로 다른 값)를 주입하고, `classDef`·`style` 색 지정 샘플, 일반 flowchart, 수식 다이어그램(`18-math-label`)이 든 문서일 때
+- **Given** 라이트·다크 색 값 표(서로 다른 값)를 주입하고, `classDef`·`style` 색 지정 샘플, 일반 flowchart, 수식 다이어그램(`18-math-label`)이 든 문서일 때. 수식 다이어그램은 AC-025·수식 픽스처와 같은 방법으로 해석기에 고정 크기를 주입한다(jsdom은 DOM 크기를 0으로 재어 pele가 `$$…$$` 원문으로 되돌리기 때문, design.md D14)
 - **When** 아래 6가지 조합으로 각각 내보내면: HTML × `light`/`dark`, PDF(`generateHtmlContent`) × `light`/`dark`, DOCX(래스터 입력 SVG) × `light`/`dark`
 - **Then** (unit) 6가지 조합 **각각**에서 다음이 모두 참이다.
+  0. 수식 다이어그램 SVG에 `foreignObject.pele-math`가 1개 이상 있다(이 전제가 거짓이면 아래 1번 단언은 수식 영역을 검사하지 못하므로 테스트 실패로 처리한다).
   1. 다이어그램 SVG 문자열(수식 다이어그램의 `foreignObject.pele-math` 감싸기 안쪽 포함)에 `var(--pele-` 부분 문자열이 **0번** 나온다(pele 내부 `var(--_…)`는 검사 대상이 아니다, report F9).
   2. 기대 테마의 값이 SVG 안에 1개 이상 있고, 다른 테마에만 있는 값은 없다. 기대 테마는 조합마다 다음과 같다.
 
@@ -235,10 +236,10 @@
   1. KaTeX 호출 옵션이 `output: 'mathml'`, `trust: false`이고, 해석기 결과 `html`이 `<math`로 시작하며 `class="katex"` span을 담지 않는다.
   2. 다이어그램 결과에 `foreignObject.pele-math`가 수식 개수만큼 있고, 그 안에 `<math>`·`<semantics>`·`<annotation encoding="application/x-tex">`가 남는다.
   3. 적대 입력 9종 각각에 대해 다이어그램 결과에 남은 표지가 0개다.
-  4. 공유 `sanitizeSvg` 결과는 같은 입력에서 `foreignObject`가 0개이고, M1 픽스처(`unit/` 38쌍)를 다이어그램 경로 사용 전·후에 다시 정화한 결과가 바이트 단위로 같다.
+  4. 공유 `sanitizeSvg` 결과는 같은 입력에서 `foreignObject`가 0개이고, M1 고정 기준 묶음(`src/test/fixtures/pele/m1-frozen/` 38쌍)의 정화 전 출력을 다이어그램 경로 사용 전·후에 정화한 결과가 모두 그 묶음의 정화 후 출력과 바이트 단위로 같다.
   5. 다이어그램 경로가 쓰는 DOMPurify가 전역 인스턴스와 다른 객체이고, 다이어그램 경로를 거친 뒤에도 전역 인스턴스에 등록된 훅 수가 늘지 않는다.
   6. 다이어그램 경로를 거친 뒤에도 전역 인스턴스의 설정이 바뀌지 않았다: 같은 `foreignObject.pele-math`가 든 입력을 공유 `sanitizeSvg`에 넣으면 `foreignObject`가 여전히 0개이고, 그 결과가 다이어그램 경로를 쓰기 전 같은 입력의 결과와 바이트 단위로 같다(M1b 2d에서 측정한 성질).
-- **And** (e2e, webkit) 앱 CSP meta가 있는 미리보기에서 `18-math-label`을 렌더하면 `foreignObject.pele-math` 안 `<math>` 요소의 `getBoundingClientRect`가 그 `foreignObject` 상자 안에 있고, CSP 신호 두 가지를 **각각** 센다: (가) `securitypolicyviolation` 이벤트 수, (나) 콘솔의 CSP 거부 메시지 수. 같은 문서에서 수식을 뺀 기준 렌더와 비교해 두 수 모두 늘지 않는다(**다이어그램 수식으로 생기는 새 위반 0**). 제외하는 것은 기존 `KaTeX_Size3-Regular.woff2` `data:` 글꼴 거부 1건뿐이며(범위 밖, 백로그 `t1`), 이 1건은 기준 렌더에도 있어야 한다. `exportToHtml` 결과와 PDF 경로의 `generateHtmlContent` 결과 모두에 KaTeX CSS(`.katex` 규칙)나 `@font-face`가 들어가지 않고, 두 결과 모두 수식 다이어그램의 `foreignObject.pele-math` 안에 `<math>`가 있다.
+- **And** (e2e, webkit) 앱 CSP meta가 있는 미리보기에서 `18-math-label`을 렌더하면 `foreignObject.pele-math` 안 `<math>` 요소의 `getBoundingClientRect`가 그 `foreignObject` 상자 안에 있고, CSP 신호 두 가지를 **각각** 센다: (가) `securitypolicyviolation` 이벤트 수, (나) 콘솔의 CSP 거부 메시지 수. 같은 문서에서 수식을 뺀 기준 렌더와 비교해 두 수 모두 늘지 않는다(**다이어그램 수식으로 생기는 새 위반 0**). 판정은 "수식 있는 렌더의 (가)·(나) 각각 ≤ 기준 렌더의 같은 값"이다. 기준 렌더에 있는 거부(현재는 기존 `KaTeX_Size3-Regular.woff2` `data:` 글꼴 거부 1건, 범위 밖, 백로그 `t1`)는 이 비교에서 상쇄되며, 그 거부가 없어도(`t1`이 고쳐진 뒤) 판정은 같다. 그 1건 말고 다른 거부를 제외 대상으로 삼지 않는다. `exportToHtml` 결과와 PDF 경로의 `generateHtmlContent` 결과 모두에 KaTeX CSS(`.katex` 규칙)나 `@font-face`가 들어가지 않고, 두 결과 모두 수식 다이어그램의 `foreignObject.pele-math` 안에 `<math>`가 있다.
 - **And** (unit) DOCX 내보내기에서 수식 다이어그램의 래스터 입력 SVG에 `foreignObject.pele-math`가 있고 `ImageRun`이 생성된다(펜스 코드 텍스트로 바뀌지 않음).
 - **And** (manual) MANUAL-3(현재 앱 mermaid 수식 기준선)과 MANUAL-4(M3 이후 시스템 WKWebView에서 pele 수식이 상자 안에 그려짐)를 사용자가 확인한다. `m03`이 오류 없이 그려지는 것도 이때 함께 본다. 앱에서 수식 다이어그램이 든 문서를 라이트·다크로 PDF 내보내기(인쇄 → PDF 저장)해 수식이 상자 안에 보이는지도 확인한다(PDF 수식 표시는 M1b에서 측정하지 않았다). (REQ-003, REQ-025)
 

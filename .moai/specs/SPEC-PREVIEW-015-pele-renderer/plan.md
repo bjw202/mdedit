@@ -20,7 +20,7 @@
 | # | 결정 (요약) |
 |---|-------------|
 | D1 | 엔진 = pele 1.10.0 전면 교체 |
-| D2 | 고정 옵션 `autoDirection: false`·`links: false`·`images: false`·`responsive: true`·`fontFamily`(앱 다이어그램 글꼴 상수) |
+| D2 | 고정 옵션 `autoDirection: false`·`links: false`·`images: false`·`responsive: true`·`fontFamily`·`fontFamilyMono`(앱 다이어그램 글꼴 상수 두 개) |
 | D3 | 모듈 하나, 검증과 렌더가 같은 렌더 함수 |
 | D4 | 정화 = 별도 `DOMPurify(window)` 인스턴스의 다이어그램 경로(href 훅 재등록, 수식 허용 목록) + 공유 `sanitizeSvg` 무변경 |
 | D5 | `--pele-*` ↔ `--md-*` 연결 (변수 목록은 M1 확정) |
@@ -80,7 +80,7 @@ M1 판정 뒤 사용자가 다이어그램 안 수식을 pele `math` + 기존 `k
 ### M2 (Priority High) — 다이어그램 모듈, 의존성, 테마 토큰
 
 - 새 모듈 `src/lib/diagram/diagramRenderer.ts`(D3·D4·D9)와 `src/test/diagramRenderer.test.ts`(실제 pele + 픽스처).
-- 다이어그램 글꼴 상수와 `--pele-font` 연결(design.md D5): 상수를 정해 `fontFamily` 고정 옵션에 넣은 뒤 `src/test/fixtures/pele/unit/` 픽스처를 다시 캡처하고 매니페스트 옵션에 `fontFamily`를 기록한다. 수식 픽스처(`mathml-bare` 정화 결과)도 이때 실제 렌더로 캡처한다(크기 결정 방법 기록, design.md D14).
+- 다이어그램 글꼴 상수와 `--pele-font`·`--pele-font-mono` 연결(design.md D5): **먼저** M1 `unit/` 캡처(정화 전·후 38쌍)를 `src/test/fixtures/pele/m1-frozen/`으로 옮기고 매니페스트에 `frozen: true`를 단다(다시 캡처하지 않는 고정 기준). 그다음 일반·고정폭 글꼴 상수를 정해 `fontFamily`·`fontFamilyMono` 고정 옵션에 넣고, 두 CSS 변수를 같은 리터럴 목록으로 적은 뒤 `src/test/fixtures/pele/unit/`과 `browser/` 픽스처를 다시 캡처해 매니페스트 옵션에 두 값을 기록한다. 수식 픽스처(`mathml-bare` 정화 결과)도 이때 실제 렌더로 캡처한다(크기 결정 방법 기록, design.md D14).
 - `package.json`: `mermaid` 제거, `pele: "1.10.0"`, `patch-package` devDependency·`postinstall` 제거. `patches/mermaid+11.12.3.patch` 삭제(`patches/` 폴더가 비면 함께 삭제). `package-lock.json` 재생성.
 - `src/styles/mdedit-tokens.css` 두 블록에 `--pele-*` 정의(D5).
 - 가드 테스트: `src/test/diagramRegressionGuard.test.ts:13-50`(의존성 집합에서 `mermaid` 빼고 `pele` 넣기, `pele === '1.10.0'`), `src/test/aiDiagramTypeRegressionGuard.test.ts:13-31`(같은 핀). 프리셋·키바인딩 단언(`:52-76`, `:34`, `:60-76`)은 그대로.
@@ -127,7 +127,7 @@ Reference: research.md §4.5
 - `spike/pele/` 삭제(D11). 캡처한 픽스처 `src/test/fixtures/pele/`(`unit/`·`browser/`)와 `manifest.json`은 **남긴다**(단위 테스트·구조 확인의 기준). `node_modules`에 mermaid가 남지 않았는지 확인.
 - 남은 mermaid 참조 검사: `grep -rn "from 'mermaid'\|import('mermaid')\|vi.mock('mermaid'" src e2e` 결과 0건.
 - 게이트: acceptance.md "기계 검증 게이트".
-- MX: 새 모듈 공개 함수에 `@MX:ANCHOR`(호출부 4곳 이상), `PreviewRenderer.tsx:25-28`·`mermaidValidate.ts:4-5`의 `securityLevel` 경고 주석을 "strict 모드 = pele + sanitizeSvg + links:false" 경고로 교체.
+- MX: 새 모듈 공개 함수에 `@MX:ANCHOR`(호출부 4곳 이상), `PreviewRenderer.tsx:25-28`·`mermaidValidate.ts:4-5`의 `securityLevel` 경고 주석을 아래 "MX Tag Plan" 표에 적힌 strict 모드 문구로 교체(문구는 그 표가 기준).
 
 ### Sync 단계 (manager-docs)
 
@@ -163,7 +163,7 @@ Reference: research.md §4.5
 | `src/components/preview/PreviewRenderer.tsx:7-8` | `@MX:ANCHOR` "mermaid 다이어그램을 처리하는 핵심 컴포넌트" | 문구를 "다이어그램 모듈로 렌더"로 고침, ANCHOR 유지 |
 | `src/components/preview/PreviewRenderer.tsx:16-17` | `@MX:WARN` "mermaid.render()가 forEach 내부에서 async로 실행됨" | **삭제**. 동기 렌더로 바뀌어 대상 코드가 없어진다. 다이어그램별 개별 실패 처리는 `@MX:NOTE`로 남긴다 |
 | `src/components/preview/PreviewRenderer.tsx:18` | `@MX:NOTE` "mermaid.parse()를 render() 전에 호출" | **삭제**(검증·렌더는 모듈 한 함수) |
-| `src/components/preview/PreviewRenderer.tsx:27-28` | `@MX:WARN` "securityLevel을 'strict'보다 약한 값으로…" | "strict 모드 = pele 기본 보안 + 다이어그램 전용 정화(별도 DOMPurify 인스턴스, 재등록한 href 차단 훅, 수식용 MathML만 추가 허용) + links/images false. 옵션·정화를 약화하지 않는다"로 교체 |
+| `src/components/preview/PreviewRenderer.tsx:27-28` | `@MX:WARN` "securityLevel을 'strict'보다 약한 값으로…" | "strict 모드 = pele 기본 보안 + 다이어그램 전용 정화(별도 DOMPurify 인스턴스, 재등록한 href 차단 훅, 수식용으로 foreignObject.pele-math·그 안의 감싸기 div·MathML 태그·semantics·annotation[encoding]만 추가 허용) + links/images false. 옵션·정화를 약화하지 않는다"로 교체 |
 | `src/components/preview/PreviewRenderer.tsx:11` | `@MX:SPEC: SPEC-PREVIEW-010` | 유지하고 `SPEC-PREVIEW-015` 추가 |
 | `src/components/preview/PreviewRenderer.tsx:116-119` | `@MX:NOTE` 빈 펜스 분기 | 유지(동작 무변경) |
 | `src/lib/ai/mermaidValidate.ts:3-5` | `@MX:SPEC`·`@MX:WARN`·`@MX:REASON`(securityLevel) | SPEC 줄에 `SPEC-PREVIEW-015` 추가, WARN·REASON은 위와 같은 strict 모드 문구로 교체 |
@@ -187,7 +187,7 @@ Reference: research.md §4.5
 | `data-diagram` 이스케이프 계약(`mermaidPlugin.ts:19`는 `"`만 바꿈)이 미리보기·내보내기 입력 차이를 만듦 | **M1에서 닫힘**: 입력은 다르지만 pele 출력은 바이트 동일(checks 확인 10, `svgEqual: true`)이라 지금은 출력 차이가 없다. 그래도 REQ-006·015의 같은 입력 계약은 pele 업그레이드 대비로 유지하고, M4 단위 테스트(AC-017)로 입력 일치를 고정한다 |
 | 여러 다이어그램의 SVG 내부 `id` 충돌(화살표 마커가 다른 다이어그램 정의를 가리킴) | D3 고유 `idPrefix`. AC-PREVIEW015-010(미리보기)과 AC-PREVIEW015-017(내보낸 HTML)에서 `id` 중복 0건 단언 |
 | jsdom에 캔버스가 없어 pele 글자 폭 측정이 다르게 동작 | **M1 해소**: jsdom에서 pele가 내장 글자 폭 표로 결정적으로 렌더함을 확인했고 단위 테스트 측정기를 `jsdom-default`로 정했다(픽스처 재렌더 76/76 일치, design.md D14). 바이트 비교는 같은 측정기 픽스처끼리만 한다. 레이아웃 수치 단언은 e2e(webkit)에만 둔다 |
-| `sanitizeSvg`가 pele 출력의 일부(`<style>`, 인라인 style, `id` 참조)를 지움 | M1 "정화 후 모양 유지" 확인. 지워지면 보류 사유이거나 정화 설정 완화가 필요한데, 완화는 Out of Scope이므로 사용자에게 다시 묻는다 |
+| 다이어그램 전용 정화 경로가 pele 출력의 일부(`<style>`, 인라인 style, `id` 참조, 수식 MathML)를 지움 | M1(report F6)·M1b(2b)에서 정화 뒤 모양 유지를 확인했다. M2 AC-005(수식 없는 입력에서 공유 `sanitizeSvg`와 결과 일치)와 AC-025(수식 구조 유지)로 고정한다. 깨지면 허용 목록을 넓히지 않고 blocker로 보고해 사용자에게 다시 묻는다 |
 | 다이어그램 안 외부 이미지(pele 기본 `images: true`) | D13 `images: false`로 렌더 단계에서 차단하고, 정화 단계에서 다이어그램 전용 정화 경로(별도 DOMPurify 인스턴스에 다시 등록한 href 차단 훅, design.md D4)가 스킴 있는 `href`를 다시 지운다. 공유 `sanitizeSvg` 훅은 별도 인스턴스에 물려지지 않는다(M1b 2d). AC-PREVIEW015-012로 정화 전·후 외부 이미지 href 0건 고정 |
 | Windows `open_url_in_browser` 스킴 미검증(`browser_ops.rs:11-29`) | `links: false`로 다이어그램에서 닿지 않는다. 마크다운 본문 링크 경로는 기존 그대로이며 별도 보안 정리 후보 |
 | Windows WebView2 렌더 차이 | 자동 검증 없음. Windows에서 미리보기·DOCX 수동 확인 1회 권장(acceptance.md 검증 경계) |
@@ -199,7 +199,7 @@ Reference: research.md §4.5
 |------|----------|------|
 | `spike/pele/**` | M1 생성 → M7 삭제 | 시험 렌더링 코드 |
 | `.moai/specs/SPEC-PREVIEW-015-pele-renderer/m1/{report.html,checks.md}` | M1 | 비교 보고서·기계 확인 표 |
-| `src/test/fixtures/pele/**` | M1 | 실제 렌더 캡처 픽스처 + `manifest.json` |
+| `src/test/fixtures/pele/**` | M1·M2 | 실제 렌더 캡처 픽스처 + `manifest.json`. M2에서 M1 `unit/` 캡처를 `m1-frozen/`(고정 기준, 재캡처 없음)으로 옮기고 `unit/`·`browser/`를 `fontFamily`·`fontFamilyMono` 반영 뒤 다시 캡처, 수식 픽스처 추가 |
 | `src/lib/diagram/diagramRenderer.ts` (신규) | M2 | 렌더·검증·위치 문구·색 풀어 넣기, KaTeX `mathml-bare` 수식 해석기, 별도 DOMPurify 인스턴스의 다이어그램 전용 정화 경로 |
 | `src/test/diagramRenderer.test.ts` (신규) | M2 | 모듈 단위 테스트 |
 | `package.json`, `package-lock.json` | M1·M2 | pele 추가, mermaid·patch-package·postinstall 제거 |
@@ -241,4 +241,5 @@ research.md는 조사 기록이라 고치지 않고, §9의 열린 질문이 어
 
 - 2026-10-26: 사용자가 전면 교체, pele 1.10.0 정확 고정, M1 사람 게이트, 원본 렌더 내보내기, 오류 위치 접미사 형식, `links: false`, 범위 제외 항목을 정했다(오케스트레이터 전달). `responsive` 선택과 `--pele-*` 변수 목록은 M1 판정으로 넘겼다(D2·D5).
 - 2026-10-26: Open questions의 `images` 옵션을 사용자가 `images: false` 고정으로 정했다(D13). 미결 표지는 없다.
-- 2026-10-26: plan-audit iteration 1(FAIL 0.76, `.moai/reports/plan-audit/SPEC-PREVIEW-015-review-1.md`)의 D1–D12를 반영했다. 오케스트레이터 결정: 색은 치환 한 가지 방식(D6), `design.md` 신설(예외 없음), AC-024는 개정 대상 줄만 검사, 픽스처 매니페스트에 캡처 환경·측정기 기록(D14), 수식 라벨 미지원(D15), 통과형 감시 래퍼 허용.
+- 2026-10-26: plan-audit iteration 1(FAIL 0.76, `.moai/reports/plan-audit/SPEC-PREVIEW-015-review-1.md`)의 D1–D12를 반영했다. 오케스트레이터 결정: 색은 치환 한 가지 방식(D6), `design.md` 신설(예외 없음), AC-024는 개정 대상 줄만 검사, 픽스처 매니페스트에 캡처 환경·측정기 기록(D14), 수식 라벨 미지원(D15 — 이후 M1b 뒤 KaTeX `mathml-bare` 지원으로 변경, design.md D15), 통과형 감시 래퍼 허용.
+- 2026-10-26: plan-audit iteration 4(PASS-WITH-DEBT 0.88, `.moai/reports/plan-audit/SPEC-PREVIEW-015-review-4.md`)의 N1–N8을 반영했다. 고정 기준 묶음 `m1-frozen/` 도입(공유 `sanitizeSvg` 비교는 다시 만들지 않는 M1 값과 함), strict 모드 허용 목록을 REQ-003·D4와 같게, `fontFamilyMono` 추가와 리터럴 글꼴 목록 비교 절차, AC-020 수식 크기 주입, AC-025 기준 비교 완화, `browser/` 재캡처.

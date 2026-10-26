@@ -6,8 +6,9 @@
 - SPEC ID 정규식 검사: `SPEC-PREVIEW-015` PASS (2026-10-26, Bash 실행)
 - REQ 25건, AC 25건 (Tier L 상한 25), 모든 REQ가 AC 1건 이상에 연결됨. REQ-025·AC-025는 M1b 판정으로 최종 문구 확정(spec v0.4.0)
 - 남은 미결 표지: 없음
-- plan-audit: iteration 1 FAIL 0.76(`review-1.md`) → iteration 2 PASS 0.91(`review-2.md`) → M1·M1b 판정 반영 뒤 iteration 3 FAIL 0.85(`review-3.md`) → 결함 D1·D2·D4–D10 반영(spec v0.4.1, D3은 오케스트레이터가 §E.2에 반영), iteration 4 대기
+- plan-audit: iteration 1 FAIL 0.76(`review-1.md`) → iteration 2 PASS 0.91(`review-2.md`) → M1·M1b 판정 반영 뒤 iteration 3 FAIL 0.85(`review-3.md`) → 결함 D1·D2·D4–D10 반영(spec v0.4.1, D3은 오케스트레이터가 §E.2에 반영) → iteration 4(아래 줄)
 - 상태: `status: draft` 유지. M1·M1b 커밋(`20eb33f`, `d1dbc02`)은 운영 코드를 바꾸지 않는 사람 게이트용 시험 측정이므로 `draft → in-progress` 전이를 일으키는 첫 run-phase 커밋으로 보지 않는다. 전이는 manager-develop이 첫 M2 커밋에서 한다.
+- plan-audit iteration 4: PASS-WITH-DEBT 0.88 (`.moai/reports/plan-audit/SPEC-PREVIEW-015-review-4.md`, 조건: N1–N4를 M2 인계 전에 반영) → N1–N8 모두 반영(spec v0.4.2)
 - plan_complete_at: 2026-10-26T16:34:40+09:00
 - plan_status: audit-ready
 

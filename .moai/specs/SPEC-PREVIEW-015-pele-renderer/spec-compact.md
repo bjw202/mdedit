@@ -1,6 +1,6 @@
 # SPEC-PREVIEW-015 — 요약본 (spec-compact)
 
-> spec.md v0.4.1, acceptance.md, plan.md에서 기계적으로 뽑은 요약본이다. 요구사항·수용 기준·변경 파일·제외 범위만 담고 개요·접근 방식·조사 근거·이력은 뺐다. 원문과 다르면 원문(spec.md·acceptance.md·plan.md)이 우선한다. 결정 번호 D1–D15는 design.md 참조.
+> spec.md v0.4.2, acceptance.md, plan.md에서 기계적으로 뽑은 요약본이다. 요구사항·수용 기준·변경 파일·제외 범위만 담고 개요·접근 방식·조사 근거·이력은 뺐다. 원문과 다르면 원문(spec.md·acceptance.md·plan.md)이 우선한다. 결정 번호 D1–D15는 design.md 참조.
 
 ## Requirements (GEARS)
 
@@ -13,7 +13,7 @@
 
 #### REQ-PREVIEW015-002: 렌더 옵션은 고정이다 (Ubiquitous)
 
-- The diagram module shall 모든 pele 호출에 `autoDirection: false`, `links: false`, `images: false`, 그리고 `fontFamily`(앱 다이어그램 글꼴 상수 하나 — `--pele-font`에 연결하는 값과 같은 글꼴 목록)를 넘긴다. 글꼴 값은 M2에서 `--pele-font`의 `--md-*` 대응과 함께 정해 모듈 상수로 둔다(design.md D5).
+- The diagram module shall 모든 pele 호출에 `autoDirection: false`, `links: false`, `images: false`, 그리고 `fontFamily`(일반 글꼴 상수)와 `fontFamilyMono`(고정폭 글꼴 상수)를 넘긴다. 두 상수가 글꼴 목록의 기준이며 M2에서 정한다. `mdedit-tokens.css`의 `--pele-font`·`--pele-font-mono`는 두 블록 모두 같은 글꼴 목록을 리터럴로 적는다(design.md D5).
 - The diagram module shall `responsive: true`(M1 판정)로 고정하고, 호출자가 pele 옵션을 바꿀 수 있는 경로를 열지 않는다.
 
 #### REQ-PREVIEW015-003: 출력은 정화를 거친다 — 공유 정화기는 그대로 (Ubiquitous, Unwanted)
@@ -21,7 +21,7 @@
 - The diagram module shall pele가 만든 SVG를 문서(미리보기 DOM, AI 카드, 내보낸 파일)에 넣기 전에 다이어그램 전용 정화 경로로 정화한다. 이 경로의 기본 규칙은 `src/lib/preview/svgSanitize.ts`의 `sanitizeSvg`와 같고, 수식(REQ-PREVIEW015-025)을 위해 `foreignObject.pele-math`, pele가 만드는 감싸기 `div`, MathML 태그, `semantics`, `encoding` 속성이 있는 `annotation`만 더 허용한다.
 - The diagram sanitize path shall 전역 DOMPurify 인스턴스가 아닌 **별도 인스턴스**(`DOMPurify(window)`)를 쓰고, 그 인스턴스에 href 차단 훅(`data:`·스킴 있는 외부 주소 제거)을 다시 등록한다.
 - The diagram sanitize path shall not 전역 DOMPurify 인스턴스에 훅이나 설정을 추가한다.
-- The diagram module shall not `svgSanitize.ts`의 공유 설정이나 훅을 바꾼다. SVG 파일 뷰어가 쓰는 `sanitizeSvg`의 결과는 M1 픽스처와 바이트 단위로 같아야 한다.
+- The diagram module shall not `svgSanitize.ts`의 공유 설정이나 훅을 바꾼다. SVG 파일 뷰어가 쓰는 `sanitizeSvg`의 결과는 M1 고정 기준 묶음(`src/test/fixtures/pele/m1-frozen/`, M1 `unit/` 캡처의 정화 전·후 38쌍을 M2 재캡처 전에 옮겨 둔 것, 다시 캡처하지 않음)의 정화 후 출력과 바이트 단위로 같아야 한다.
 
 #### REQ-PREVIEW015-004: 오류 문구는 텍스트로만 넣는다 (Unwanted)
 
@@ -190,13 +190,13 @@
 
 - **Given** pele `render`를 감시하는 상태에서
 - **When** 미리보기·AI 검증·AI 카드·내보내기·프리셋 경로로 각각 렌더하면
-- **Then** 모든 호출의 옵션에 `autoDirection: false`, `links: false`, `images: false`, `responsive: true`와, 모듈의 다이어그램 글꼴 상수와 같은 `fontFamily`가 있다. 그 상수는 `mdedit-tokens.css`의 `--pele-font` 값과 같은 글꼴 목록이다(두 블록 모두). 옵션은 호출자가 넘긴 값으로 바뀌지 않는다. (REQ-002)
+- **Then** 모든 호출의 옵션에 `autoDirection: false`, `links: false`, `images: false`, `responsive: true`와, 모듈의 일반 글꼴 상수와 같은 `fontFamily`, 고정폭 글꼴 상수와 같은 `fontFamilyMono`가 있다. 두 상수가 글꼴 목록의 기준이다. 확인 절차: 테스트가 `src/styles/mdedit-tokens.css` 파일 텍스트를 읽어 `:root`·`[data-theme="dark"]` 두 블록의 `--pele-font`·`--pele-font-mono` 값을 꺼내고, 각각이 해당 상수 문자열과 **글자 그대로 같은지** 비교한다(design.md D5 규칙상 두 변수는 `var(...)` 참조가 아닌 리터럴이다. `var(`가 들어 있으면 실패로 처리한다). 옵션은 호출자가 넘긴 값으로 바뀌지 않는다. (REQ-002)
 
 ### AC-PREVIEW015-005: 수식이 없는 다이어그램은 공유 `sanitizeSvg`와 같은 결과로 정화된다 — must-pass (unit)
 
-- **Given** `src/test/fixtures/pele/unit/`의 수식 없는 항목마다 저장된 **정화 전** pele 출력(M1 캡처, `manifest.json`에 입력·옵션 기록)이 있을 때
+- **Given** M1 고정 기준 묶음 `src/test/fixtures/pele/m1-frozen/`(M1 `unit/` 캡처의 정화 전·후 38쌍, M2가 `fontFamily` 반영 전에 옮겨 두며 다시 캡처하지 않음, 매니페스트에 `frozen: true`)의 수식 없는 항목마다 **정화 전** pele 출력과, M1 때 공유 `sanitizeSvg`가 만든 **정화 후** 출력이 있을 때
 - **When** (unit) 같은 정화 전 SVG 문자열을 다이어그램 전용 정화 경로와 공유 `sanitizeSvg`에 각각 넣으면
-- **Then** 두 결과 문자열이 **바이트 단위로** 같다. 두 결과 모두 `<script>`·`foreignObject`·`on*` 속성이 0개다. 공유 `sanitizeSvg`의 결과는 저장된 **정화 후** 픽스처와도 바이트 단위로 같다(M1b 2a에서 이미 측정된 성질의 회귀 확인).
+- **Then** 두 결과 문자열이 **바이트 단위로** 같다. 두 결과 모두 `<script>`·`foreignObject`·`on*` 속성이 0개다. 공유 `sanitizeSvg`의 결과는 고정 기준 묶음의 **정화 후** 출력(M1 때 만들어 두고 이후 다시 만들지 않은 값)과도 바이트 단위로 같다. 이 비교는 지금의 `sanitizeSvg`를 그 함수가 지금 만든 결과와 비교하지 않는다. M1b 2a는 같은 38쌍에서 이 일치를 측정했다.
 - 이 비교는 `sanitizeSvg`에 감시를 걸지 않는다. 다이어그램 모듈은 `sanitizeSvg`를 호출하지 않는다(design.md D4).
 - 수식이 없는 입력에서 두 경로의 결과가 같다는 성질은 M1b에서 측정하지 않았다(2a는 공유 함수만, 2b는 수식 샘플만 측정). 그래서 이 AC는 M2에서 처음 확인하는 테스트다. 같지 않으면 정화 설정을 넓히지 않고 차이를 blocker로 보고한다.
 - 수식이 있는 다이어그램의 `foreignObject.pele-math` 허용은 AC-025가 다룬다. `git diff`로 `src/lib/preview/svgSanitize.ts`가 바뀌지 않았음을 확인한다(코드 리뷰). (REQ-003)
@@ -290,9 +290,10 @@
 
 ### AC-PREVIEW015-020: 내보낸 다이어그램의 `--pele-*`는 모두 실제 값으로 치환된다 — must-pass (unit + manual)
 
-- **Given** 라이트·다크 색 값 표(서로 다른 값)를 주입하고, `classDef`·`style` 색 지정 샘플, 일반 flowchart, 수식 다이어그램(`18-math-label`)이 든 문서일 때
+- **Given** 라이트·다크 색 값 표(서로 다른 값)를 주입하고, `classDef`·`style` 색 지정 샘플, 일반 flowchart, 수식 다이어그램(`18-math-label`)이 든 문서일 때. 수식 다이어그램은 AC-025·수식 픽스처와 같은 방법으로 해석기에 고정 크기를 주입한다(jsdom은 DOM 크기를 0으로 재어 pele가 `$$…$$` 원문으로 되돌리기 때문, design.md D14)
 - **When** 아래 6가지 조합으로 각각 내보내면: HTML × `light`/`dark`, PDF(`generateHtmlContent`) × `light`/`dark`, DOCX(래스터 입력 SVG) × `light`/`dark`
 - **Then** (unit) 6가지 조합 **각각**에서 다음이 모두 참이다.
+  0. 수식 다이어그램 SVG에 `foreignObject.pele-math`가 1개 이상 있다(이 전제가 거짓이면 아래 1번 단언은 수식 영역을 검사하지 못하므로 테스트 실패로 처리한다).
   1. 다이어그램 SVG 문자열(수식 다이어그램의 `foreignObject.pele-math` 감싸기 안쪽 포함)에 `var(--pele-` 부분 문자열이 **0번** 나온다(pele 내부 `var(--_…)`는 검사 대상이 아니다, report F9).
   2. 기대 테마의 값이 SVG 안에 1개 이상 있고, 다른 테마에만 있는 값은 없다. 기대 테마는 조합마다 다음과 같다.
 
@@ -375,10 +376,10 @@
   1. KaTeX 호출 옵션이 `output: 'mathml'`, `trust: false`이고, 해석기 결과 `html`이 `<math`로 시작하며 `class="katex"` span을 담지 않는다.
   2. 다이어그램 결과에 `foreignObject.pele-math`가 수식 개수만큼 있고, 그 안에 `<math>`·`<semantics>`·`<annotation encoding="application/x-tex">`가 남는다.
   3. 적대 입력 9종 각각에 대해 다이어그램 결과에 남은 표지가 0개다.
-  4. 공유 `sanitizeSvg` 결과는 같은 입력에서 `foreignObject`가 0개이고, M1 픽스처(`unit/` 38쌍)를 다이어그램 경로 사용 전·후에 다시 정화한 결과가 바이트 단위로 같다.
+  4. 공유 `sanitizeSvg` 결과는 같은 입력에서 `foreignObject`가 0개이고, M1 고정 기준 묶음(`src/test/fixtures/pele/m1-frozen/` 38쌍)의 정화 전 출력을 다이어그램 경로 사용 전·후에 정화한 결과가 모두 그 묶음의 정화 후 출력과 바이트 단위로 같다.
   5. 다이어그램 경로가 쓰는 DOMPurify가 전역 인스턴스와 다른 객체이고, 다이어그램 경로를 거친 뒤에도 전역 인스턴스에 등록된 훅 수가 늘지 않는다.
   6. 다이어그램 경로를 거친 뒤에도 전역 인스턴스의 설정이 바뀌지 않았다: 같은 `foreignObject.pele-math`가 든 입력을 공유 `sanitizeSvg`에 넣으면 `foreignObject`가 여전히 0개이고, 그 결과가 다이어그램 경로를 쓰기 전 같은 입력의 결과와 바이트 단위로 같다(M1b 2d에서 측정한 성질).
-- **And** (e2e, webkit) 앱 CSP meta가 있는 미리보기에서 `18-math-label`을 렌더하면 `foreignObject.pele-math` 안 `<math>` 요소의 `getBoundingClientRect`가 그 `foreignObject` 상자 안에 있고, CSP 신호 두 가지를 **각각** 센다: (가) `securitypolicyviolation` 이벤트 수, (나) 콘솔의 CSP 거부 메시지 수. 같은 문서에서 수식을 뺀 기준 렌더와 비교해 두 수 모두 늘지 않는다(**다이어그램 수식으로 생기는 새 위반 0**). 제외하는 것은 기존 `KaTeX_Size3-Regular.woff2` `data:` 글꼴 거부 1건뿐이며(범위 밖, 백로그 `t1`), 이 1건은 기준 렌더에도 있어야 한다. `exportToHtml` 결과와 PDF 경로의 `generateHtmlContent` 결과 모두에 KaTeX CSS(`.katex` 규칙)나 `@font-face`가 들어가지 않고, 두 결과 모두 수식 다이어그램의 `foreignObject.pele-math` 안에 `<math>`가 있다.
+- **And** (e2e, webkit) 앱 CSP meta가 있는 미리보기에서 `18-math-label`을 렌더하면 `foreignObject.pele-math` 안 `<math>` 요소의 `getBoundingClientRect`가 그 `foreignObject` 상자 안에 있고, CSP 신호 두 가지를 **각각** 센다: (가) `securitypolicyviolation` 이벤트 수, (나) 콘솔의 CSP 거부 메시지 수. 같은 문서에서 수식을 뺀 기준 렌더와 비교해 두 수 모두 늘지 않는다(**다이어그램 수식으로 생기는 새 위반 0**). 판정은 "수식 있는 렌더의 (가)·(나) 각각 ≤ 기준 렌더의 같은 값"이다. 기준 렌더에 있는 거부(현재는 기존 `KaTeX_Size3-Regular.woff2` `data:` 글꼴 거부 1건, 범위 밖, 백로그 `t1`)는 이 비교에서 상쇄되며, 그 거부가 없어도(`t1`이 고쳐진 뒤) 판정은 같다. 그 1건 말고 다른 거부를 제외 대상으로 삼지 않는다. `exportToHtml` 결과와 PDF 경로의 `generateHtmlContent` 결과 모두에 KaTeX CSS(`.katex` 규칙)나 `@font-face`가 들어가지 않고, 두 결과 모두 수식 다이어그램의 `foreignObject.pele-math` 안에 `<math>`가 있다.
 - **And** (unit) DOCX 내보내기에서 수식 다이어그램의 래스터 입력 SVG에 `foreignObject.pele-math`가 있고 `ImageRun`이 생성된다(펜스 코드 텍스트로 바뀌지 않음).
 - **And** (manual) MANUAL-3(현재 앱 mermaid 수식 기준선)과 MANUAL-4(M3 이후 시스템 WKWebView에서 pele 수식이 상자 안에 그려짐)를 사용자가 확인한다. `m03`이 오류 없이 그려지는 것도 이때 함께 본다. 앱에서 수식 다이어그램이 든 문서를 라이트·다크로 PDF 내보내기(인쇄 → PDF 저장)해 수식이 상자 안에 보이는지도 확인한다(PDF 수식 표시는 M1b에서 측정하지 않았다). (REQ-003, REQ-025)
 
@@ -388,7 +389,7 @@
 |------|----------|------|
 | `spike/pele/**` | M1 생성 → M7 삭제 | 시험 렌더링 코드 |
 | `.moai/specs/SPEC-PREVIEW-015-pele-renderer/m1/{report.html,checks.md}` | M1 | 비교 보고서·기계 확인 표 |
-| `src/test/fixtures/pele/**` | M1 | 실제 렌더 캡처 픽스처 + `manifest.json` |
+| `src/test/fixtures/pele/**` | M1·M2 | 실제 렌더 캡처 픽스처 + `manifest.json`. M2에서 M1 `unit/` 캡처를 `m1-frozen/`(고정 기준, 재캡처 없음)으로 옮기고 `unit/`·`browser/`를 `fontFamily`·`fontFamilyMono` 반영 뒤 다시 캡처, 수식 픽스처 추가 |
 | `src/lib/diagram/diagramRenderer.ts` (신규) | M2 | 렌더·검증·위치 문구·색 풀어 넣기, KaTeX `mathml-bare` 수식 해석기, 별도 DOMPurify 인스턴스의 다이어그램 전용 정화 경로 |
 | `src/test/diagramRenderer.test.ts` (신규) | M2 | 모듈 단위 테스트 |
 | `package.json`, `package-lock.json` | M1·M2 | pele 추가, mermaid·patch-package·postinstall 제거 |

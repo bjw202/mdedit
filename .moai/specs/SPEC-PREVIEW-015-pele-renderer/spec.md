@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-015
 title: "Mermaid 렌더러를 pele로 전면 교체 — 미리보기·AI 검증·내보내기를 한 엔진으로"
-version: "0.4.1"
+version: "0.4.2"
 status: draft
 created: 2026-10-26
 updated: 2026-10-26
@@ -27,6 +27,7 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 | 0.3.0 | 2026-10-26 | jw | M1 판정 반영(사용자 통과 판정, 근거 `m1/checks.md`·`m1/report.html`). `responsive: true` 고정(REQ-002, AC-004). 내보내기 색: HTML·PDF는 내보내기 테마, DOCX는 항상 라이트 값(REQ-018, AC-020). 오류 위치 접미사를 "line·column 모두 있음 → `(L행 C열)`, 그 밖에는 접미사 없음" 두 갈래로 정리(REQ-009, AC-007 — M1에서 "line만 있음" 0건/6,264). 다이어그램 안 수식은 사용자 결정에 따라 pele `math` 옵션을 기존 `katex`에 연결하는 것으로 정함 — 잠정 REQ-025·AC-025 추가, 최종 문구는 plan.md M1b 보강 측정·게이트 뒤 확정(REQ-003·Exclusions·D4·D15). design.md에 D5 변수 목록·`fontFamily` M2 확인 항목, D14 측정기 `jsdom-default`, 받아들인 배치 변화(§3) 기록. REQ 25건·AC 25건(Tier L 상한 25). |
 | 0.4.0 | 2026-10-26 | jw | M1b 판정 반영(사용자 통과 판정, 근거 `m1/checks.md` "M1b"·`m1/report-m1b.html`). REQ-025·AC-025의 잠정 표시를 지우고 최종 문구로 확정: 해석기는 KaTeX `output:'mathml'`에서 바깥 `.katex` span을 걷어 낸 `mathml-bare`(`trust:false` 유지, HTML 출력은 webkit 어긋남·CSS+글꼴 386,784 B로 탈락), 크기는 브라우저 `getBoundingClientRect` 측정. REQ-003: 다이어그램 정화는 별도 `DOMPurify(window)` 인스턴스에서 href 차단 훅을 다시 등록하고 `HTML_INTEGRATION_POINTS: {foreignobject: true}`로 수식 허용 목록만 더함(전역 인스턴스 훅 누수 43회 측정), 공유 `sanitizeSvg`는 M1 픽스처와 바이트 동일. HTML·PDF는 KaTeX CSS·글꼴 불필요, DOCX는 별도 대체안 없음. CSP는 "다이어그램 수식으로 생기는 새 위반 0"(기존 KaTeX_Size3 결함은 범위 밖, 백로그 `t1`). Exclusions(수식 라벨) 최종 문구. REQ 25건·AC 25건 유지. |
 | 0.4.1 | 2026-10-26 | jw | plan-audit 3회차 반영(FAIL 0.85, `.moai/reports/plan-audit/SPEC-PREVIEW-015-review-3.md`). D2: 공유 `sanitizeSvg` 훅을 다이어그램 경로의 방어선으로 적은 곳을 모두 "다이어그램 전용 정화 경로(별도 DOMPurify 인스턴스, 재등록한 href 훅)"로 고치고, M6이 7개 SPEC에 옮겨 적는 "strict 모드" 공통 정의를 그 자체로 완결된 문구로 다시 씀. D1: AC-005를 감시 없는 출력 비교(수식 없는 `unit/` 픽스처에서 두 경로 결과 바이트 동일, M2 첫 확인)로 다시 씀. D8: `fontFamily`를 고정 옵션에 넣고(REQ-002, AC-004) M2에서 `unit/` 픽스처를 다시 캡처하는 규칙으로 정함. D4: 픽스처 출처(M1·M2)와 수식 픽스처 크기 결정 방법을 매니페스트 계약에 넣음(REQ-023, AC-002). D5: AC-025 CSP 확인이 이벤트와 콘솔 거부를 각각 셈. D6: 엔티티 근거를 M1 측정(출력 바이트 동일)으로 고침. D7: REQ-003 추적에 AC-025 추가, 전역 설정 무변경 단언. D10: 수식 다이어그램의 PDF·색 치환 확인 추가. REQ 25건·AC 25건 유지. |
+| 0.4.2 | 2026-10-26 | jw | plan-audit 4회차 반영 (PASS-WITH-DEBT 조건 해소, 0.88, `.moai/reports/plan-audit/SPEC-PREVIEW-015-review-4.md`). N1: M1 `unit/` 캡처 38쌍을 다시 캡처하지 않는 고정 기준 묶음 `src/test/fixtures/pele/m1-frozen/`(매니페스트 `frozen: true`)으로 두고, REQ-003·AC-005·AC-025 4번·design.md D4·D5·D14의 공유 `sanitizeSvg` 비교 기준을 그 묶음으로 통일. N2: "strict 모드" 공통 정의의 추가 허용 목록을 REQ-003·D4와 같게(`foreignObject.pele-math`·감싸기 `div`·MathML 태그·`semantics`·`annotation[encoding]`). N3: M7 MX 문구를 MX 표 기준으로. N4: AC-020 수식 다이어그램에 크기 주입과 `foreignObject.pele-math` 존재 전제 추가. N5: AC-025 CSP를 기준 렌더 이하 비교로. N6·N7: `fontFamilyMono`를 고정 옵션에 추가하고 두 글꼴 상수를 기준으로 CSS 리터럴과 문자열 비교. N8: 위험 행·결정 이력 정리, M2에서 `browser/`도 다시 캡처. REQ 25건·AC 25건 유지. |
 
 ## Overview
 
@@ -55,7 +56,7 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 
 #### REQ-PREVIEW015-002: 렌더 옵션은 고정이다 (Ubiquitous)
 
-- The diagram module shall 모든 pele 호출에 `autoDirection: false`, `links: false`, `images: false`, 그리고 `fontFamily`(앱 다이어그램 글꼴 상수 하나 — `--pele-font`에 연결하는 값과 같은 글꼴 목록)를 넘긴다. 글꼴 값은 M2에서 `--pele-font`의 `--md-*` 대응과 함께 정해 모듈 상수로 둔다(design.md D5).
+- The diagram module shall 모든 pele 호출에 `autoDirection: false`, `links: false`, `images: false`, 그리고 `fontFamily`(일반 글꼴 상수)와 `fontFamilyMono`(고정폭 글꼴 상수)를 넘긴다. 두 상수가 글꼴 목록의 기준이며 M2에서 정한다. `mdedit-tokens.css`의 `--pele-font`·`--pele-font-mono`는 두 블록 모두 같은 글꼴 목록을 리터럴로 적는다(design.md D5).
 - The diagram module shall `responsive: true`(M1 판정)로 고정하고, 호출자가 pele 옵션을 바꿀 수 있는 경로를 열지 않는다.
 
 #### REQ-PREVIEW015-003: 출력은 정화를 거친다 — 공유 정화기는 그대로 (Ubiquitous, Unwanted)
@@ -63,7 +64,7 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 - The diagram module shall pele가 만든 SVG를 문서(미리보기 DOM, AI 카드, 내보낸 파일)에 넣기 전에 다이어그램 전용 정화 경로로 정화한다. 이 경로의 기본 규칙은 `src/lib/preview/svgSanitize.ts`의 `sanitizeSvg`와 같고, 수식(REQ-PREVIEW015-025)을 위해 `foreignObject.pele-math`, pele가 만드는 감싸기 `div`, MathML 태그, `semantics`, `encoding` 속성이 있는 `annotation`만 더 허용한다.
 - The diagram sanitize path shall 전역 DOMPurify 인스턴스가 아닌 **별도 인스턴스**(`DOMPurify(window)`)를 쓰고, 그 인스턴스에 href 차단 훅(`data:`·스킴 있는 외부 주소 제거)을 다시 등록한다.
 - The diagram sanitize path shall not 전역 DOMPurify 인스턴스에 훅이나 설정을 추가한다.
-- The diagram module shall not `svgSanitize.ts`의 공유 설정이나 훅을 바꾼다. SVG 파일 뷰어가 쓰는 `sanitizeSvg`의 결과는 M1 픽스처와 바이트 단위로 같아야 한다.
+- The diagram module shall not `svgSanitize.ts`의 공유 설정이나 훅을 바꾼다. SVG 파일 뷰어가 쓰는 `sanitizeSvg`의 결과는 M1 고정 기준 묶음(`src/test/fixtures/pele/m1-frozen/`, M1 `unit/` 캡처의 정화 전·후 38쌍을 M2 재캡처 전에 옮겨 둔 것, 다시 캡처하지 않음)의 정화 후 출력과 바이트 단위로 같아야 한다.
 
 #### REQ-PREVIEW015-004: 오류 문구는 텍스트로만 넣는다 (Unwanted)
 
@@ -194,7 +195,7 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 
 ## 다른 SPEC 개정 (REQ-PREVIEW015-024 대상)
 
-공통 정의: 이 SPEC 이후 "strict 모드"는 다음 세 가지를 모두 뜻한다. (1) pele 1.10.0 기본 보안: 텍스트 이스케이프, 위험 URL 차단, 입력·출력 크기 제한. (2) pele 렌더 옵션 `links: false`, `images: false`. (3) 다이어그램 전용 정화: 앱의 SVG 정화 규칙(`src/lib/preview/svgSanitize.ts`의 `sanitizeSvg`와 같은 규칙)을 **전역이 아닌 별도 DOMPurify 인스턴스**에서 적용하고, 그 인스턴스에 `data:`·외부 주소 href를 지우는 훅을 따로 등록하며, 수식용 `foreignObject.pele-math`·MathML만 추가로 허용한다. 공유 `sanitizeSvg`의 훅은 이 인스턴스에 물려지지 않는다(SPEC-PREVIEW-015 REQ-003). 아래 문구는 각 SPEC의 해당 REQ 본문을 대체한다. 실제 편집은 run 단계 M6에서 한다(plan.md).
+공통 정의: 이 SPEC 이후 "strict 모드"는 다음 세 가지를 모두 뜻한다. (1) pele 1.10.0 기본 보안: 텍스트 이스케이프, 위험 URL 차단, 입력·출력 크기 제한. (2) pele 렌더 옵션 `links: false`, `images: false`. (3) 다이어그램 전용 정화: 앱의 SVG 정화 규칙(`src/lib/preview/svgSanitize.ts`의 `sanitizeSvg`와 같은 규칙)을 **전역이 아닌 별도 DOMPurify 인스턴스**에서 적용하고, 그 인스턴스에 `data:`·외부 주소 href를 지우는 훅을 따로 등록하며, 수식을 위해 `class="pele-math"`인 `foreignObject`, pele가 그 안에 만드는 감싸기 `div`, MathML 태그, `semantics`, `encoding` 속성이 있는 `annotation`만 추가로 허용한다. 공유 `sanitizeSvg`의 훅은 이 인스턴스에 물려지지 않는다(SPEC-PREVIEW-015 REQ-003). 아래 문구는 각 SPEC의 해당 REQ 본문을 대체한다. 실제 편집은 run 단계 M6에서 한다(plan.md).
 
 | SPEC | 요구 | 새 문구 |
 |------|------|---------|
