@@ -8,6 +8,9 @@ import { sanitizeSvg } from '../../src/lib/preview/svgSanitize';
 import { mermaidPlugin } from '../../src/lib/markdown/mermaidPlugin';
 import { getPreviewCss, buildHtmlDocument } from '../../src/lib/export/exportUtils';
 import '../../src/styles/mdedit-tokens.css';
+// M2: app fonts so the canvas measurer sees the same faces as DIAGRAM_FONT_FAMILY(_MONO) (design.md D5 / report F4).
+import '../../src/styles/mdedit-fonts.css';
+import { PELE_RENDER_OPTIONS, sanitizeDiagramSvg, createMathResolver } from '../../src/lib/diagram/diagramRenderer';
 
 const raw = import.meta.glob('./samples/*.mmd', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const SAMPLES = Object.entries(raw)
@@ -231,10 +234,34 @@ async function timing(engine: 'mermaid' | 'pele', sources: string[], theme: 'lig
 }
 
 declare global { interface Window { M1: unknown } }
+// ---------- M2: browser/ fixture recapture with the production fixed options + math resolver ----------
+const rawM1b = import.meta.glob('./samples-m1b/*.mmd', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const SAMPLES_M2 = [
+  ...SAMPLES,
+  ...Object.entries(rawM1b).map(([k, source]) => ({ id: k.replace('./samples-m1b/', '').replace('.mmd', ''), source })).sort((a, b) => a.id.localeCompare(b.id)),
+];
+async function m2LoadFonts() {
+  const faces = ['400 16px "Barlow"', '700 16px "Barlow"', '400 16px "IBM Plex Mono"'];
+  const loaded = await Promise.all(faces.map(async (f) => ({ face: f, loaded: (await document.fonts.load(f)).length > 0 })));
+  await document.fonts.ready;
+  return loaded;
+}
+function m2Fixture(source: string) {
+  const boxes: { tex: string; size: number }[] = [];
+  const resolve = createMathResolver();
+  try {
+    const r = render(source, { ...PELE_RENDER_OPTIONS, math: (tex, size) => { boxes.push({ tex, size }); return resolve(tex, size); } });
+    return { ok: true as const, raw: r.svg, sanitized: sanitizeDiagramSvg(r.svg), width: r.width, height: r.height, type: r.type, mermaidType: r.mermaidType, mathCalls: boxes.length };
+  } catch (e) {
+    return { ok: false as const, error: peleErr(e) };
+  }
+}
+
 window.M1 = {
   samples: SAMPLES, BASE, PELE_TO_MD,
   pele, mermaidRender, tokens, literalize, sanitize: sanitizeSvg, mount, clear, geometry, nodePositions,
   svgToPng, exportHtml, timing,
+  samplesM2: SAMPLES_M2, m2LoadFonts, m2Fixture, fixedOptions: { ...PELE_RENDER_OPTIONS },
   violations: () => violations.slice(), setPhase: (p: string) => { phase = p; },
   version: { pele: '1.10.0' },
 };
