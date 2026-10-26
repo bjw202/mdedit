@@ -576,6 +576,15 @@ mx_validation: "sync는 소스 파일을 바꾸지 않음. M7 MX 최종 점검(1
 - USER_MANUAL 부록 소제목 번호(`6-1`~`6-4`)가 목차 번호(7)와 맞지 않는 기존 불일치는 그대로 두었다.
 - Windows(WebView2) 실물 확인은 없다.
 
+### 감사 후속 (F1·F2) (2026-10-26, 기준 HEAD af8b61b, manager-develop)
+
+sync 감사(`.moai/reports/sync-audit/SPEC-PREVIEW-015-sync-audit.md`) PASS-WITH-DEBT 중 F1·F2만 고쳤다. 출력 전문은 `.moai/state/verify/pele-015-audit-fix/`.
+
+- **F2 `da709ce`** — 정화 실패(예외·빈 결과)를 `{ok:false, error:{code:'sanitize', line:0, column:0}}`로 돌려준다(D9 접미사 없음). RED: `npx vitest run src/test/diagramRenderer.test.ts -t F2` → exit 1, `Tests 2 failed | 78 skipped (80)`, `expected true to be false` (`f2-red.txt`). GREEN: 같은 파일 전체 exit 0, `Tests 80 passed (80)` (`f2-green.txt`). 호출부 6곳(PreviewRenderer·mermaidValidate·ai-suggestion-card·exportUtils→exportHtml/exportDocx)은 모두 이미 실패 결과를 분기 처리함을 코드로 확인했다.
+- **F1 `b5fe856`** — `e2e/diagram-export-colors.spec.ts`(webkit 2건). 페이지에서 `import('/src/lib/diagram/diagramRenderer.ts')`·`import('/src/lib/export/exportHtml.ts')`로 같은 모듈을 불러 다크 루트에서 dark 값 = 루트 계산 `--md-*`(= CSS 다크 블록), light 탐침 값 = CSS 라이트 블록(bg·fg·accent·surface, 다크와 다름), 탐침 미잔존, 실제 `generateHtmlContent` SVG의 `var(--pele-` 0건·테마 색만 사용을 확인. 운영 코드 무변경. 첫 실행 exit 0 `2 passed`. 실패 확인(커밋 안 함): 탐침 `data-theme` 제거 → exit 1, `light --pele-bg Expected "#f2f2f3" Received "#191b1d"` 및 라이트 SVG에 `#e9e9ea` 없음(`f1-e2e-break1.txt`); `probe.remove()` 제거 → exit 1, `임시 탐침 요소가 남아 있음 Expected 0 Received 2`(`f1-e2e-break2.txt`). 복구 후 `git diff -- src/lib/diagram/diagramRenderer.ts` 빈 출력, 재실행 exit 0 `2 passed`(`f1-e2e-green.txt`).
+- 게이트(F1 커밋 직전 작업 트리): `npx tsc --noEmit` exit 0 · `npm run lint` exit 0 · `npx vitest run` exit 0 `Test Files 108 passed (108)`, `Tests 1753 passed (1753)` · `CI=1 npx playwright test` exit 0 `71 passed, 1 skipped`. 끝난 뒤 1420 포트 점유 프로세스 없음(`lsof -ti tcp:1420` 빈 출력).
+- Gaps: tsconfig `include`가 `src`뿐이라 새 e2e 파일은 tsc가 아니라 eslint와 Playwright 실행으로만 검사된다. F1 e2e는 Vite 개발 서버의 `/src/...` 모듈 경로에 기대므로 빌드 산출물에서는 돌지 않는다(기존 e2e 2개 파일과 같은 방식).
+
 ## §F Phase 4 Mode Selection
 
 - Input: tier L, M1 scope = spike only (spike/pele/, m1/ report, src/test/fixtures/pele/), domains = frontend render + export + test tooling, language mix TS/HTML, concurrency benefit LOW (sequential capture/compare pipeline)
