@@ -201,7 +201,9 @@ function renderWith(source: string, measure: MathMeasure): DiagramRenderResult {
 }
 
 // @MX:ANCHOR: [AUTO] 다이어그램 렌더 진입점 — 미리보기·AI 검증·AI 카드·HTML/PDF/DOCX 내보내기가 모두 이 함수를 지난다
-// @MX:REASON: [AUTO] fan_in ≥ 3(M3·M4 이후 5곳 이상). 고정 옵션·정화 단계를 바꾸면 모든 경로가 함께 바뀐다. 예외를 밖으로 던지지 않는다.
+// @MX:REASON: [AUTO] fan_in = 4(운영 코드 직접 호출: PreviewRenderer.tsx, ai-suggestion-card.ts renderMermaidInto, 이 파일 validateDiagram,
+//   exportUtils.ts renderExportDiagram — 뒤의 둘을 거쳐 AI 검증·HTML/PDF/DOCX까지 5경로, M7 grep 측정). 고정 옵션·정화 단계를 바꾸면
+//   모든 경로가 함께 바뀐다. 예외를 밖으로 던지지 않는다.
 export function renderDiagram(source: string): DiagramRenderResult {
   return renderWith(source, measureInDom);
 }
@@ -214,6 +216,7 @@ export function renderDiagramForTest(source: string, deps: { measureMath: MathMe
 // @MX:ANCHOR: [AUTO] 다이어그램 검증 진입점 — validateMermaid가 이 함수를 쓴다
 // @MX:REASON: [AUTO] renderDiagram과 같은 렌더 함수·같은 고정 옵션을 그대로 호출한다(design.md D3). pele parse만 부르도록 바꾸면
 //   렌더 단계에서만 나는 실패(limit·출력 한도) 때문에 "검증 통과, 미리보기 실패" 불일치가 다시 생긴다.
+//   직접 호출부는 mermaidValidate.ts 1곳(fan_in = 1, M7 grep 측정)이라 fan_in 기준이 아니라 검증·렌더 일치 계약 때문에 ANCHOR로 둔다(plan.md MX 표).
 export function validateDiagram(source: string): DiagramValidation {
   const r = renderDiagram(source);
   return r.ok ? { valid: true } : { valid: false, error: r.error.message };

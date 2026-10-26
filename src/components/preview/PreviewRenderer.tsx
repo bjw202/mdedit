@@ -4,7 +4,8 @@ import { sanitizeSvg } from '@/lib/preview/svgSanitize';
 import { renderDiagram, formatDiagramError } from '@/lib/diagram/diagramRenderer';
 
 // @MX:ANCHOR: [AUTO] PreviewRenderer - sanitized HTML을 DOM에 렌더하고 다이어그램 펜스를 다이어그램 모듈로 렌더하는 핵심 컴포넌트
-// @MX:REASON: [AUTO] MarkdownPreview, 내보내기 함수 등에서 직접 사용되는 중심 렌더 타겟 (fan_in >= 3)
+// @MX:REASON: [AUTO] 미리보기 화면의 중심 렌더 타겟. 운영 코드 직접 사용처는 MarkdownPreview.tsx 1곳이다(M7 grep 측정, fan_in = 1).
+//   SPEC-PREVIEW-015 M4 이후 내보내기는 이 컴포넌트의 DOM을 읽지 않고 원본 펜스를 직접 렌더한다. fan_in < 3이므로 NOTE 강등 후보(보고만, 자동 삭제 금지).
 // @MX:SPEC: SPEC-PREVIEW-001
 // @MX:SPEC: SPEC-PREVIEW-008 REQ-PREVIEW008-005 REQ-PREVIEW008-006
 // @MX:SPEC: SPEC-PREVIEW-010 SPEC-PREVIEW-015
