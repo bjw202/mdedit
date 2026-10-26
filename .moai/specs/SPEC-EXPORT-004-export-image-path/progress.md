@@ -67,11 +67,68 @@
 
 ## §E.2 Run-phase Evidence
 
-_<pending run-phase>_
+- 실행: manager-develop(cycle_type=tdd), 2026-10-26, 워크트리 `.claude/worktrees/export-004`, 브랜치 `WT-export-image-path`(기준 `6a322d6`).
+- 상세 출력 보관 위치(워크트리 안): `.moai/state/verify/spec-export-004/` — `red-vitest.txt`, `red-embed-verbose.txt`, `red-cargo.txt`, `s9-mutation.txt`, `m2-cargo.txt`, `final-vitest-full.txt`, `final-tsc.txt`, `final-lint.txt`, `final-cargo-test.txt`, `final-clippy.txt`.
+
+### RED (구현 전, 커밋 `47cbfc4` 시점)
+
+- 명령: `npx vitest run src/test/exportImageEmbed.test.ts src/test/imageResolver.test.ts src/test/exportPdf.test.ts src/test/ExportCompletionDialog.test.tsx` → exit 1, `Tests  32 failed | 30 passed (62)`.
+- 실패(수정 전 코드): H1~H5, X1·X2·X4·X5, E1(HTML), P1, F3(HTML·DOCX), F7(HTML·DOCX), F10, T11(개정), V1·V2·V3a·V3b, PF1~PF3, F1·F1(DOCX)·F2(연속)·F4·F5·F9×3.
+  - 대표 실패 출력: H1 `expected '/docs/images/%EC%82%AC%EC%A7%84.png' to be '/docs/images/사진.png'`, E1(HTML) `expected '/docs/a&amp;amp;b.png' to be '/docs/a&amp;b.png'`, H4 `expected "spy" to be called 1 times, but got 0 times`, F1 `Unable to find an element by: [data-testid="unembedded-images"]`.
+- 수정 전에도 통과(설계상 기대): X3, E1(DOCX), DM1. 추가로 F6·R5도 통과(기존 동작 회귀 가드)와 기존 T1~T10·AC-001~012·exportPdf 3건.
+- Rust: `cargo test --manifest-path src-tauri/Cargo.toml --lib image_ops` → exit 101, ``error[E0425]: cannot find function `read_relative_image_as_base64` in this scope``(S1~S10 컴파일 실패 = RED).
+
+### GREEN·검증 (최종 HEAD 기준)
+
+| 명령 | exit | 출력 꼬리 |
+|------|------|-----------|
+| `npx vitest run` | 0 | `Test Files  106 passed (106)` / `Tests  1641 passed (1641)` |
+| `npx tsc --noEmit` | 0 | (출력 없음) |
+| `npm run lint` | 0 | `eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0` (경고 0) |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture` | 0 | `test result: ok. 367 passed; 0 failed` / `S9 RUNNING: fifo at …/spec_export004_s9/assets/x.png` / `S9 SKIPPED` 문구 0회 |
+| `cargo clippy --manifest-path src-tauri/Cargo.toml` | 0 | 경고·오류 0 |
+
+- S9 시간 제한 가드 실효성 확인(뮤테이션): 열기 전 `is_file()` 검사를 임시로 제거하고 `cargo test … s9_ -- --nocapture` 실행 → exit 101, `S9 timed out — implementation opened FIFO before type check`, `finished in 5.01s`(멈추지 않음). 확인 후 원본 복원(복원 뒤 `cargo test` 전체 통과).
+
+### AC 상태
+
+| AC | 상태 | 근거 테스트 |
+|----|------|-------------|
+| AC-01 | PASS | H1~H3, X1~X3, E1(HTML·DOCX), P1, V1 |
+| AC-02 | PASS | H4, X4, V2, V3a, V3b, T11(R2) |
+| AC-03 | PASS | H5, X5 |
+| AC-04 | PASS | F1, F1(DOCX), F4, F7(HTML·DOCX), F10, F3(HTML·DOCX) |
+| AC-05 | PASS | PF1, PF2, F5, F9(취소·Escape·백드롭) |
+| AC-06 | PASS | F2, F2(연속), F6, PF3, 기존 AC-001~012·exportPdf 3건 무수정 통과(F8) |
+| AC-07 | PASS (unix) | S1~S7, S9, S10, 기존 image_ops·file_ops 테스트 무수정 통과(S8), R6 |
+| AC-08 | PASS | R1(T1~T10), R3(exportHtml.test.ts 무수정), R4(exportDocx.test.ts 무수정), R5, DM1 |
+| AC-09 | 미검증(수동) | 사용자 수행 항목 |
+
+### 설계와의 차이(run 단계 결정)
+
+- 테스트 F3·F7·F10의 `[alt]` 폴백 단언은 폴백 **개수**로 바꿨다. markdown-it 이미지 토큰의 `alt` 속성은 빈 문자열이고 대체 텍스트는 children에 있어, 기존 코드의 폴백은 실제로 `[]`를 만든다(수정 전부터의 동작, 이번 SPEC 범위 밖). 폴백 동작 자체는 유지했다.
+- DOCX 이미지 분기의 `mdFilePath &&` 조건은 공용 `readLocalImage`로 옮겼다(미저장 문서면 읽기 IPC 0회 + 누락 반환). 동작은 같고 F3(DOCX)가 고정한다.
+- 테스트 F2(연속)·F1(DOCX)를 추가로 넣었다(단일 슬롯에서 이전 누락 목록이 남지 않음, DOCX 배선).
+
+### 커밋
+
+- `3d32c0b` docs(spec): SPEC-EXPORT-004 계획 산출물 추가 및 in-progress 전이
+- `47cbfc4` test(export): 재현 테스트 추가 (RED)
+- `11c93fd` feat(image): 상위 폴더 이미지 전용 읽기 명령 추가
+- `2fbdfce` fix(export): 공용 이미지 경로 해석기로 HTML·PDF·DOCX 이미지 누락 수정
+- `9c02117` feat(export): 누락 이미지 보고 UI 추가
+- (이 기록 커밋) docs(spec): run 단계 증거 기록
 
 ## §E.3 Run-phase Audit-Ready Signal
 
-_<pending run-phase>_
+- run_status: audit-ready (기계 게이트 5종 exit 0)
+- 남은 검증: AC-09 수동 확인, Windows 실기 `cargo test` 1회(S4 Windows 케이스·심볼릭 링크·명명된 파이프)
+- run_complete_at: 2026-10-26
+
+## §F Phase 4 Mode Selection
+
+- Decision: serial
+- 근거: 단일 구현 에이전트(manager-develop). Tier M, 코딩 중심, 도메인 2개(TypeScript + Rust). 같은 파일(`imageResolver.ts`, export 모듈)을 마일스톤이 이어서 고치므로 병렬 이득이 없다.
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
