@@ -2,7 +2,7 @@
 id: SPEC-EXPORT-004
 title: "내보내기(HTML/PDF/DOCX) 로컬 이미지 누락 수정 — 공용 이미지 경로 해석기 + 상위 폴더 이미지 제한적 허용 + 누락 보고"
 version: "0.1.3"
-status: in-progress
+status: completed
 created: 2026-10-26
 updated: 2026-10-26
 author: jw (bjw202)

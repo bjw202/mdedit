@@ -132,4 +132,26 @@
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+- 실행: manager-docs, 2026-10-26, 워크트리 `.claude/worktrees/export-004`, 브랜치 `WT-export-image-path`(push·PR 없음 — 오케스트레이터 지시).
+- 동기화 산출물: `CHANGELOG.md` `[Unreleased]`(`### Fixed` 1건 + `### Added` 1건), `docs/USER_GUIDE.md` §2.6, `docs/USER_MANUAL.md` §6(5-2) 이미지 안내 1단락씩.
+- 검증 수치 출처: §E.2 표(vitest 1641/1641·106 파일, cargo test 367, tsc·eslint·clippy exit 0). 오케스트레이터가 같은 값을 독립 측정했다고 전달. sync 단계에서 테스트를 다시 실행하지 않았다(문서·frontmatter만 변경).
+- MX 태그 검증(sync 하위 단계): `readLocalImage`(`imageResolver.ts:98`)와 `read_relative_image_as_base64`(`image_ops.rs:172`)에 `@MX:ANCHOR`+`@MX:REASON`, `@MX:WARN`은 모두 `@MX:REASON` 동반. 추가·수정한 태그 없음.
+
+```yaml
+sync_complete_at: 2026-10-26
+sync_commit_sha: pending-backfill-sync
+sync_status: audit-ready
+b12_self_test_a: "grep -c 'SPEC-EXPORT-004' CHANGELOG.md → 0 (작성 전) — PASS"
+b12_self_test_b: "acceptance.md 고유 AC 토큰 12개 중 이 SPEC의 AC는 AC-EXPORT004-01~09 9건(나머지 AC-001·AC-011은 SPEC-EXPORT-002 참조, AC-09는 약칭). CHANGELOG는 9건(자동 8 + 수동 AC-EXPORT004-09) 언급 — PASS"
+b12_self_test_c: "CHANGELOG 언급 경로 src/lib/image/imageResolver.ts, src-tauri/src/commands/image_ops.rs, src/components/layout/AppLayout.tsx 존재 확인 — PASS"
+changelog_entry_position: "[Unreleased] 최상단 (### Fixed → ### Added)"
+frontmatter_status_transitions:
+  spec.md: "in-progress → completed (updated: 2026-10-26)"
+  plan.md: "frontmatter 없음 — 변경 없음"
+  acceptance.md: "frontmatter 없음 — 변경 없음"
+  progress.md: "frontmatter 없음 — 변경 없음"
+remaining_manual:
+  - "AC-EXPORT004-09 실제 앱 수동 확인"
+  - "Windows 실기 cargo test 1회 (S4 Windows 케이스·심볼릭 링크·명명된 파이프)"
+known_limitation: "DOCX 이미지 폴백이 [alt] 대신 [] 출력 — markdown-it 대체 텍스트가 token children에 있음, 기존 동작·범위 밖"
+```
