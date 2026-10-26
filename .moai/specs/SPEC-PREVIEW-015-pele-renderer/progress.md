@@ -2,12 +2,12 @@
 
 ## §E.1 Plan-phase Audit-Ready Signal
 
-- plan 산출물: research.md(조사 단계), spec.md(v0.2.0), design.md, plan.md, acceptance.md, progress.md (status: draft, tier: L)
-- plan-audit iteration 1: FAIL 0.76 (`.moai/reports/plan-audit/SPEC-PREVIEW-015-review-1.md`) → D1–D12 반영, iteration 2 대기
+- plan 산출물(Tier L 5종 + 진행 기록): research.md(조사 단계), spec.md(v0.4.1), design.md, plan.md, acceptance.md, progress.md, 그리고 요약본 spec-compact.md
 - SPEC ID 정규식 검사: `SPEC-PREVIEW-015` PASS (2026-10-26, Bash 실행)
-- REQ 25건, AC 25건 (Tier L 상한 25, REQ-025·AC-025는 M1b 뒤 확정되는 잠정 항목), 모든 REQ가 AC 1건 이상에 연결됨
-- 남은 미결 표지: 없음 (`images` 옵션은 사용자가 `images: false`로 결정, plan.md D13)
-- plan-audit iteration 2: PASS 0.91 (`.moai/reports/plan-audit/SPEC-PREVIEW-015-review-2.md`) → 소견 N1–N5 반영, spec-compact.md·MX Tag Plan 추가
+- REQ 25건, AC 25건 (Tier L 상한 25), 모든 REQ가 AC 1건 이상에 연결됨. REQ-025·AC-025는 M1b 판정으로 최종 문구 확정(spec v0.4.0)
+- 남은 미결 표지: 없음
+- plan-audit: iteration 1 FAIL 0.76(`review-1.md`) → iteration 2 PASS 0.91(`review-2.md`) → M1·M1b 판정 반영 뒤 iteration 3 FAIL 0.85(`review-3.md`) → 결함 D1·D2·D4–D10 반영(spec v0.4.1, D3은 오케스트레이터가 §E.2에 반영), iteration 4 대기
+- 상태: `status: draft` 유지. M1·M1b 커밋(`20eb33f`, `d1dbc02`)은 운영 코드를 바꾸지 않는 사람 게이트용 시험 측정이므로 `draft → in-progress` 전이를 일으키는 첫 run-phase 커밋으로 보지 않는다. 전이는 manager-develop이 첫 M2 커밋에서 한다.
 - plan_complete_at: 2026-10-26T16:34:40+09:00
 - plan_status: audit-ready
 
@@ -27,7 +27,7 @@
 
 ### M1 사용자 판정 (2026-10-26, AskUserQuestion으로 수집)
 
-- 판정(통과/보류): **통과** — 다이어그램 안 수식(`$$…$$`)은 미지원으로 확정. M1 측정에서 현재 mermaid strict는 KaTeX로 수식을 그리고 pele는 원문을 보이므로 이것은 실제 퇴보이며, SPEC 제외 범위와 사용자 문서에 명시한다(D15 추정 정정).
+- 판정(통과/보류): **통과**. M1 측정에서 현재 mermaid strict는 KaTeX로 수식을 그리고 pele(해석기 없음)는 원문을 보였다(D15 추정 정정). 사용자는 처음에 "다이어그램 안 수식 미지원"으로 통과시켰다가, 같은 날 결정을 바꿔 **pele `math` 옵션에 기존 katex를 연결**하기로 했다. 그 결정은 M1b 보강 측정으로 확정됐다(아래 "M1b 측정" 판정: `mathml-bare`). 따라서 "수식 미지원"은 폐기된 중간 결정이다.
 - `responsive` 선택: **true** (패널 폭에 맞춰 축소)
 - DOCX 다크 색: **DOCX는 내보내기 테마와 상관없이 항상 라이트 색 값**을 넣는다(흰 페이지 대비). HTML·PDF는 내보내기 테마를 따른다.
 - D5 `--pele-*` 변수 목록: 출력에서 관찰된 accent, bg, border, fg, font, font-mono, heading-weight, line, muted, radius, series-1…4, surface, surface-alt, title-weight + 소스에만 있는 series-5…8, error, critical (zoom-* 제외, enableZoom 미사용). `--md-*` 대응은 M2에서 확정(보고서의 임시 대응은 제안일 뿐).

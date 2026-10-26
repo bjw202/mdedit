@@ -20,7 +20,7 @@
 | # | 결정 (요약) |
 |---|-------------|
 | D1 | 엔진 = pele 1.10.0 전면 교체 |
-| D2 | 고정 옵션 `autoDirection: false`·`links: false`·`images: false`·`responsive: true` |
+| D2 | 고정 옵션 `autoDirection: false`·`links: false`·`images: false`·`responsive: true`·`fontFamily`(앱 다이어그램 글꼴 상수) |
 | D3 | 모듈 하나, 검증과 렌더가 같은 렌더 함수 |
 | D4 | 정화 = 별도 `DOMPurify(window)` 인스턴스의 다이어그램 경로(href 훅 재등록, 수식 허용 목록) + 공유 `sanitizeSvg` 무변경 |
 | D5 | `--pele-*` ↔ `--md-*` 연결 (변수 목록은 M1 확정) |
@@ -79,7 +79,8 @@ M1 판정 뒤 사용자가 다이어그램 안 수식을 pele `math` + 기존 `k
 
 ### M2 (Priority High) — 다이어그램 모듈, 의존성, 테마 토큰
 
-- 새 모듈 `src/lib/diagram/diagramRenderer.ts`(D3·D4·D9)와 `src/test/diagramRenderer.test.ts`(실제 pele + M1 픽스처).
+- 새 모듈 `src/lib/diagram/diagramRenderer.ts`(D3·D4·D9)와 `src/test/diagramRenderer.test.ts`(실제 pele + 픽스처).
+- 다이어그램 글꼴 상수와 `--pele-font` 연결(design.md D5): 상수를 정해 `fontFamily` 고정 옵션에 넣은 뒤 `src/test/fixtures/pele/unit/` 픽스처를 다시 캡처하고 매니페스트 옵션에 `fontFamily`를 기록한다. 수식 픽스처(`mathml-bare` 정화 결과)도 이때 실제 렌더로 캡처한다(크기 결정 방법 기록, design.md D14).
 - `package.json`: `mermaid` 제거, `pele: "1.10.0"`, `patch-package` devDependency·`postinstall` 제거. `patches/mermaid+11.12.3.patch` 삭제(`patches/` 폴더가 비면 함께 삭제). `package-lock.json` 재생성.
 - `src/styles/mdedit-tokens.css` 두 블록에 `--pele-*` 정의(D5).
 - 가드 테스트: `src/test/diagramRegressionGuard.test.ts:13-50`(의존성 집합에서 `mermaid` 빼고 `pele` 넣기, `pele === '1.10.0'`), `src/test/aiDiagramTypeRegressionGuard.test.ts:13-31`(같은 핀). 프리셋·키바인딩 단언(`:52-76`, `:34`, `:60-76`)은 그대로.
@@ -103,6 +104,8 @@ Reference: research.md §1.2-§1.4, §4.2-§4.3
 - `src/lib/export/exportPdf.ts`: HTML 생성 경로 재사용이므로 원칙상 무변경. 인쇄 스타일이 다이어그램 색을 덮는지 M1 결과에 따라 확인만.
 - `src/lib/export/exportUtils.ts:43-73`: 다이어그램 배경 등 기존 mermaid 전용 CSS(`:71`, `:253-260`, `:274`)를 pele 출력에 맞게 정리(선택자 `.mermaid-container` 유지).
 - 테스트: `src/test/exportImageEmbed.test.ts:306-330` DM1을 "미리보기 DOM 없음 + 원본 펜스 → PNG `ImageRun` 1회"로 재작성, `:109` 정리 코드 정리. 새 테스트(에디터 단독·위치 대응·색 풀어 넣기·엔티티 입력 일치)는 acceptance.md 배치표.
+
+- 수식 다이어그램 내보내기 확인: AC-020 문서에 수식 다이어그램을 넣어 `foreignObject.pele-math` 안쪽까지 `var(--pele-` 치환을 단언하고, AC-025에서 `exportToHtml`과 PDF 경로 `generateHtmlContent` 모두 KaTeX CSS 없이 `<math>`를 담는지 단언한다. 앱 PDF 인쇄 결과의 수식 표시는 수동 확인(AC-025 manual)이다.
 
 Reference: research.md §2.1-§2.5, §8-1, §8-8
 
@@ -160,11 +163,11 @@ Reference: research.md §4.5
 | `src/components/preview/PreviewRenderer.tsx:7-8` | `@MX:ANCHOR` "mermaid 다이어그램을 처리하는 핵심 컴포넌트" | 문구를 "다이어그램 모듈로 렌더"로 고침, ANCHOR 유지 |
 | `src/components/preview/PreviewRenderer.tsx:16-17` | `@MX:WARN` "mermaid.render()가 forEach 내부에서 async로 실행됨" | **삭제**. 동기 렌더로 바뀌어 대상 코드가 없어진다. 다이어그램별 개별 실패 처리는 `@MX:NOTE`로 남긴다 |
 | `src/components/preview/PreviewRenderer.tsx:18` | `@MX:NOTE` "mermaid.parse()를 render() 전에 호출" | **삭제**(검증·렌더는 모듈 한 함수) |
-| `src/components/preview/PreviewRenderer.tsx:27-28` | `@MX:WARN` "securityLevel을 'strict'보다 약한 값으로…" | "strict 모드 = pele 기본 보안 + sanitizeSvg + links/images false. 옵션·정화를 약화하지 않는다"로 교체 |
+| `src/components/preview/PreviewRenderer.tsx:27-28` | `@MX:WARN` "securityLevel을 'strict'보다 약한 값으로…" | "strict 모드 = pele 기본 보안 + 다이어그램 전용 정화(별도 DOMPurify 인스턴스, 재등록한 href 차단 훅, 수식용 MathML만 추가 허용) + links/images false. 옵션·정화를 약화하지 않는다"로 교체 |
 | `src/components/preview/PreviewRenderer.tsx:11` | `@MX:SPEC: SPEC-PREVIEW-010` | 유지하고 `SPEC-PREVIEW-015` 추가 |
 | `src/components/preview/PreviewRenderer.tsx:116-119` | `@MX:NOTE` 빈 펜스 분기 | 유지(동작 무변경) |
 | `src/lib/ai/mermaidValidate.ts:3-5` | `@MX:SPEC`·`@MX:WARN`·`@MX:REASON`(securityLevel) | SPEC 줄에 `SPEC-PREVIEW-015` 추가, WARN·REASON은 위와 같은 strict 모드 문구로 교체 |
-| `src/lib/preview/svgSanitize.ts:1-2` | `@MX:ANCHOR` "fan_in >= 2" | ANCHOR 유지, REASON을 "fan_in ≥ 3 (PreviewRenderer 인라인 svg, SvgFileViewer, 다이어그램 모듈)"로 갱신. 기존 WARN(`:10-11`, `:37-39`)은 유지 |
+| `src/lib/preview/svgSanitize.ts:1-2` | `@MX:ANCHOR` "fan_in >= 2" | ANCHOR·REASON 유지. 실제 호출부는 그대로 2곳(PreviewRenderer 인라인 svg, SvgFileViewer)이다. 다이어그램 모듈은 `sanitizeSvg`를 호출하지 않고 별도 DOMPurify 인스턴스를 쓴다(design.md D4). 기존 WARN(`:10-11`, `:37-39`)은 유지 |
 | `src/lib/export/exportDocx.ts:32` | `@MX:NOTE` "mermaidImages array is consumed via shift() - order must match DOM order" | **삭제**(DOM 캡처·`shift()` 제거) 후 위 새 WARN으로 대체 |
 | `src/lib/export/exportHtml.ts:1-5`, `src/lib/export/exportDocx.ts:2-3` | `@MX:SPEC` 목록 | `SPEC-PREVIEW-015` 추가 |
 | `src/components/editor/extensions/ai-suggestion-card.ts:1287-1298` | 태그 없음 | `renderMermaidInto`에 `@MX:NOTE`(모듈 사용, 정화된 SVG, 테마는 CSS 변수로 자동 반영) 추가 |
@@ -181,11 +184,11 @@ Reference: research.md §4.5
 | 자체 레이아웃 엔진이라 기존 다이어그램 배치가 바뀜 | M1 나란히 비교로 사용자가 판정. 보류 경로가 있다 |
 | 다크 대비 부족(pele 이슈 #29, `classDef` 색 노드) | M1에서 실물 확인. 받아들일 수 없으면 보류 사유가 된다. 앱 쪽 우회(토큰 조정)가 가능하면 D5에 적는다 |
 | 내보낸 파일에서 색 소실 | D6 모든 `var(--pele-…)`를 내보내기 테마의 실제 값으로 치환. M1에서 HTML·PDF·DOCX 실물 확인, M4 단위 테스트(AC-020)로 형식·테마별 `var(--pele-` 0건 + 해당 테마 값 존재 고정 |
-| `data-diagram` 이스케이프 계약(`mermaidPlugin.ts:19`는 `"`만 바꿈)이 미리보기·내보내기 입력 차이를 만듦 | REQ-006·015로 같은 입력 요구. M1 엔티티 샘플로 차이 실측, M4 단위 테스트로 고정 |
+| `data-diagram` 이스케이프 계약(`mermaidPlugin.ts:19`는 `"`만 바꿈)이 미리보기·내보내기 입력 차이를 만듦 | **M1에서 닫힘**: 입력은 다르지만 pele 출력은 바이트 동일(checks 확인 10, `svgEqual: true`)이라 지금은 출력 차이가 없다. 그래도 REQ-006·015의 같은 입력 계약은 pele 업그레이드 대비로 유지하고, M4 단위 테스트(AC-017)로 입력 일치를 고정한다 |
 | 여러 다이어그램의 SVG 내부 `id` 충돌(화살표 마커가 다른 다이어그램 정의를 가리킴) | D3 고유 `idPrefix`. AC-PREVIEW015-010(미리보기)과 AC-PREVIEW015-017(내보낸 HTML)에서 `id` 중복 0건 단언 |
 | jsdom에 캔버스가 없어 pele 글자 폭 측정이 다르게 동작 | **M1 해소**: jsdom에서 pele가 내장 글자 폭 표로 결정적으로 렌더함을 확인했고 단위 테스트 측정기를 `jsdom-default`로 정했다(픽스처 재렌더 76/76 일치, design.md D14). 바이트 비교는 같은 측정기 픽스처끼리만 한다. 레이아웃 수치 단언은 e2e(webkit)에만 둔다 |
 | `sanitizeSvg`가 pele 출력의 일부(`<style>`, 인라인 style, `id` 참조)를 지움 | M1 "정화 후 모양 유지" 확인. 지워지면 보류 사유이거나 정화 설정 완화가 필요한데, 완화는 Out of Scope이므로 사용자에게 다시 묻는다 |
-| 다이어그램 안 외부 이미지(pele 기본 `images: true`) | D13 `images: false`로 렌더 단계에서 차단. `sanitizeSvg` 훅이 스킴 있는 `href`를 지우는 두 번째 방어선(research.md §1.6). AC-PREVIEW015-012로 외부 이미지 href 0건 고정 |
+| 다이어그램 안 외부 이미지(pele 기본 `images: true`) | D13 `images: false`로 렌더 단계에서 차단하고, 정화 단계에서 다이어그램 전용 정화 경로(별도 DOMPurify 인스턴스에 다시 등록한 href 차단 훅, design.md D4)가 스킴 있는 `href`를 다시 지운다. 공유 `sanitizeSvg` 훅은 별도 인스턴스에 물려지지 않는다(M1b 2d). AC-PREVIEW015-012로 정화 전·후 외부 이미지 href 0건 고정 |
 | Windows `open_url_in_browser` 스킴 미검증(`browser_ops.rs:11-29`) | `links: false`로 다이어그램에서 닿지 않는다. 마크다운 본문 링크 경로는 기존 그대로이며 별도 보안 정리 후보 |
 | Windows WebView2 렌더 차이 | 자동 검증 없음. Windows에서 미리보기·DOCX 수동 확인 1회 권장(acceptance.md 검증 경계) |
 | 오류 메시지 문구 변경으로 AI 재요청 품질 변화 | `이전 오류: …` 흐름은 유지. pele 메시지는 위치·코드를 담으므로 품질 저하 가능성은 낮다고 본다(추정) — e2e `ai-inline-edit` 재요청 시나리오로 흐름만 고정 |
