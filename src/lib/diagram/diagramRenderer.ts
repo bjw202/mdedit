@@ -194,7 +194,10 @@ function renderWith(source: string, measure: MathMeasure): DiagramRenderResult {
   const idPrefix = `pd${++renderSeq}`;
   try {
     const r = render(source, { ...PELE_RENDER_OPTIONS, idPrefix, math: createMathResolver(measure) });
-    return { ok: true, svg: sanitizeDiagramSvg(r.svg), width: r.width, height: r.height };
+    const svg = sanitizeDiagramSvg(r.svg);
+    // 정화가 실패(예외·빈 결과)하면 성공으로 보고하지 않는다 — 검증 통과인데 미리보기가 빈 칸인 불일치를 막는다(sync 감사 F2).
+    if (!svg) return { ok: false, error: { code: 'sanitize', message: 'Diagram output could not be sanitized', line: 0, column: 0 } };
+    return { ok: true, svg, width: r.width, height: r.height };
   } catch (e) {
     return { ok: false, error: toDiagramError(e) };
   }

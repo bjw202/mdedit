@@ -216,6 +216,35 @@ describe('AC-PREVIEW015-014 검증은 같은 렌더 함수·같은 옵션', () =
   });
 });
 
+// sync 감사 F2: 정화가 실패(예외 또는 빈 결과)하면 성공으로 보고하지 않는다 — 검증 통과·미리보기 빈 칸 불일치 방지.
+describe('sync 감사 F2 — 정화 실패는 오류 결과', () => {
+  const src = sourceOf('12-ai-mock-valid');
+
+  const throwing = (): string => {
+    throw new Error('purify boom');
+  };
+  const empty = (): string => '';
+  it.each([
+    ['예외', throwing],
+    ['빈 결과', empty],
+  ] as const)('정화 %s → ok: false, 위치 없는 sanitize 오류, 검증도 무효', (_label, impl) => {
+    const spy = vi.spyOn(getDiagramPurifier(), 'sanitize').mockImplementation(impl as never);
+    try {
+      const r = renderDiagram(src);
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.error.code).toBe('sanitize');
+      expect(r.error.message).toBeTruthy();
+      expect({ line: r.error.line, column: r.error.column }).toEqual({ line: 0, column: 0 });
+      expect(formatDiagramError(r.error)).toBe('⚠ Diagram syntax error');
+      expect(validateDiagram(src)).toEqual({ valid: false, error: r.error.message });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(renderDiagram(src).ok).toBe(true);
+  });
+});
+
 describe('REQ-PREVIEW015-014 프리셋 7종', () => {
   it.each(['04-preset-flowchart', '05-preset-sequenceDiagram', '06-preset-gantt', '07-preset-classDiagram', '08-preset-stateDiagram', '09-preset-pie', '10-preset-mindmap'])(
     '%s 렌더 성공',
