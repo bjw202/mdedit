@@ -1,6 +1,6 @@
 // @MX:NOTE: [AUTO] SPEC-PREVIEW-015 미리보기 다이어그램(pele) 동작 e2e — 테마 전환 시 노드 유지·색 변경(AC-011),
 //   다이어그램 클릭 시 이동 없음·외부 이미지 요청 없음(AC-012), 다이어그램 수식 배치·CSP 새 위반 0(AC-025).
-//   다이어그램 소스는 spike/pele/samples/18·19·20 과 같은 문법이며, SVG는 실제 pele 렌더 결과만 측정한다.
+//   다이어그램 소스는 픽스처 샘플 18·19·20(src/test/fixtures/pele/manifest.json의 source)과 같은 문법이며, SVG는 실제 pele 렌더 결과만 측정한다.
 // @MX:SPEC: SPEC-PREVIEW-015 AC-PREVIEW015-011, AC-PREVIEW015-012, AC-PREVIEW015-025
 
 import type { Page } from '@playwright/test';
@@ -16,7 +16,7 @@ flowchart LR
 \`\`\`
 `;
 
-// spike/pele/samples/19-link-click.mmd 와 같은 노드 링크 문법 + 대조용 본문 링크
+// 픽스처 샘플 19-link-click(manifest.json source)과 같은 노드 링크 문법 + 대조용 본문 링크
 const LINK_DOC = `# 링크
 
 [본문 링크](https://example.com/control)
@@ -29,7 +29,7 @@ flowchart LR
 \`\`\`
 `;
 
-// spike/pele/samples/20-image-node.mmd 와 같은 외부 이미지 문법
+// 픽스처 샘플 20-image-node(manifest.json source)와 같은 외부 이미지 문법
 const IMAGE_DOC = `# 이미지
 
 \`\`\`mermaid
@@ -39,7 +39,7 @@ flowchart LR
 \`\`\`
 `;
 
-// spike/pele/samples/18-math-label.mmd
+// 픽스처 샘플 18-math-label(manifest.json source)
 const MATH_DOC = `# 수식
 
 \`\`\`mermaid

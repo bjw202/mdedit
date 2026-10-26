@@ -311,7 +311,7 @@ describe('AC-PREVIEW015-025 수식 — mathml-bare, 별도 인스턴스 허용 �
     if (r.ok) expect(r.svg).not.toContain('<foreignObject');
   });
 
-  // 공격 탐침(손으로 쓴 적대 입력 — pele 출력 픽스처가 아니다). spike/pele/m1b/hostile.ts에서 옮김.
+  // 공격 탐침(손으로 쓴 적대 입력 — pele 출력 픽스처가 아니다). M1b 시험 코드(spike/pele/m1b/hostile.ts, M7에서 삭제)에서 옮김.
   const FO = (cls: string | null, inner: string) =>
     `<foreignObject${cls === null ? '' : ` class="${cls}"`} x="0" y="0" width="80" height="20"><div xmlns="http://www.w3.org/1999/xhtml">${inner}</div></foreignObject>`;
   const HOSTILE: Record<string, string> = {
