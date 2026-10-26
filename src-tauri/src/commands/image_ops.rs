@@ -390,4 +390,160 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("traversal"));
     }
+
+    // --- SPEC-EXPORT-004: read_relative_image_as_base64 (상위 폴더 이미지 전용 명령) ---
+
+    /// 테스트마다 고유한 임시 트리를 만든다: <root>/docs/a.md, <root>/assets/
+    fn rel_fixture(name: &str) -> (PathBuf, String) {
+        let root = env::temp_dir().join(format!("spec_export004_{}", name));
+        fs::remove_dir_all(&root).ok();
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::create_dir_all(root.join("assets")).unwrap();
+        let md = root.join("docs").join("a.md");
+        fs::write(&md, "# doc").unwrap();
+        let md_str = md.to_str().unwrap().to_string();
+        (root, md_str)
+    }
+
+    const PNG_BYTES: [u8; 4] = [0x89, 0x50, 0x4E, 0x47];
+
+    #[tokio::test]
+    async fn s1_reads_parent_dir_png_as_data_uri() {
+        let (root, md) = rel_fixture("s1");
+        fs::write(root.join("assets").join("a.png"), PNG_BYTES).unwrap();
+
+        let out = read_relative_image_as_base64(md, "../assets/a.png".to_string()).await;
+        let uri = out.expect("S1: 상위 폴더 PNG 는 읽혀야 한다");
+        assert_eq!(uri, format!("data:image/png;base64,{}", STANDARD.encode(PNG_BYTES)));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[tokio::test]
+    async fn s2_rejects_non_image_extension() {
+        let (root, md) = rel_fixture("s2");
+        fs::write(root.join("assets").join("secret.txt"), "TOP-SECRET").unwrap();
+
+        let out = read_relative_image_as_base64(md, "../assets/secret.txt".to_string()).await;
+        let err = out.expect_err("S2: 이미지가 아닌 확장자는 거부해야 한다");
+        assert!(!err.contains("TOP-SECRET"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn s3_rejects_symlink_named_png_pointing_to_text() {
+        let (root, md) = rel_fixture("s3");
+        let secret = root.join("assets").join("secret.txt");
+        fs::write(&secret, "TOP-SECRET").unwrap();
+        std::os::unix::fs::symlink(&secret, root.join("assets").join("evil.png")).unwrap();
+
+        let out = read_relative_image_as_base64(md, "../assets/evil.png".to_string()).await;
+        let err = out.expect_err("S3: 해석된 대상의 확장자로 거부해야 한다");
+        assert!(!err.contains("TOP-SECRET"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[tokio::test]
+    async fn s4_rejects_root_component_in_relative_arg() {
+        let (root, md) = rel_fixture("s4");
+        let err = read_relative_image_as_base64(md.clone(), "/etc/x.png".to_string())
+            .await
+            .expect_err("S4: 루트 구성요소가 있는 인자는 거부해야 한다");
+        assert!(err.contains("absolute"), "unexpected error: {}", err);
+
+        // Windows 형식 문자열: 비Windows 에서는 일반 파일 이름으로 해석되므로 "읽지 않음(오류)"만 단언한다.
+        for rel in ["\\x.png", "C:x.png", "C:\\x.png", "\\\\server\\share\\x.png"] {
+            let r = read_relative_image_as_base64(md.clone(), rel.to_string()).await;
+            assert!(r.is_err(), "S4: {} 는 오류여야 한다", rel);
+            #[cfg(windows)]
+            assert!(r.unwrap_err().contains("absolute"), "S4(windows): {}", rel);
+        }
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[tokio::test]
+    async fn s5_rejects_invalid_md_path() {
+        let (root, _md) = rel_fixture("s5");
+        fs::write(root.join("assets").join("a.png"), PNG_BYTES).unwrap();
+        let traversal_md = root.join("docs").join("..").join("docs").join("a.md");
+        for md in [
+            String::new(),
+            "docs/a.md".to_string(),
+            traversal_md.to_str().unwrap().to_string(),
+        ] {
+            let r = read_relative_image_as_base64(md.clone(), "../assets/a.png".to_string()).await;
+            assert!(r.is_err(), "S5: md 경로 {:?} 는 거부해야 한다", md);
+        }
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[tokio::test]
+    async fn s6_missing_file_is_error() {
+        let (root, md) = rel_fixture("s6");
+        let r = read_relative_image_as_base64(md, "../assets/missing.png".to_string()).await;
+        assert!(r.is_err());
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[tokio::test]
+    async fn s7_uppercase_extension_is_accepted() {
+        let (root, md) = rel_fixture("s7");
+        fs::write(root.join("assets").join("A.PNG"), PNG_BYTES).unwrap();
+        let uri = read_relative_image_as_base64(md, "../assets/A.PNG".to_string())
+            .await
+            .expect("S7: 대문자 확장자도 허용해야 한다");
+        assert!(uri.starts_with("data:image/png;base64,"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    /// S9: 이미지 이름의 FIFO 는 열기 전에 거부해야 하며, 쓰는 쪽이 없어도 막히면 안 된다.
+    /// 시간 제한 가드(감사 N8): 별도 스레드에서 실행하고 recv_timeout(5초)으로 기다린다.
+    /// 시간이 지나면 FIFO 를 쓰기용으로 열어 막힌 열기를 풀어 준 뒤 실패한다.
+    #[cfg(unix)]
+    #[test]
+    fn s9_fifo_named_png_is_rejected_without_blocking() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let (root, md) = rel_fixture("s9");
+        let fifo = root.join("assets").join("x.png");
+        let made = std::process::Command::new("mkfifo").arg(&fifo).status();
+        if !matches!(made, Ok(s) if s.success()) {
+            println!("S9 SKIPPED: mkfifo unavailable");
+            fs::remove_dir_all(&root).ok();
+            return;
+        }
+        println!("S9 RUNNING: fifo at {}", fifo.display());
+
+        let (tx, rx) = mpsc::channel();
+        let md_for_thread = md.clone();
+        std::thread::spawn(move || {
+            let r = tauri::async_runtime::block_on(read_relative_image_as_base64(
+                md_for_thread,
+                "../assets/x.png".to_string(),
+            ));
+            tx.send(r).ok();
+        });
+
+        match rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(r) => {
+                assert!(r.is_err(), "S9: FIFO 는 오류로 거부해야 한다");
+                fs::remove_dir_all(&root).ok();
+            }
+            Err(_) => {
+                // 막힌 읽기 열기를 풀어 준다.
+                let _ = std::fs::OpenOptions::new().write(true).open(&fifo);
+                panic!("S9 timed out — implementation opened FIFO before type check");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn s10_directory_named_png_is_rejected() {
+        let (root, md) = rel_fixture("s10");
+        fs::create_dir_all(root.join("assets").join("d.png")).unwrap();
+        let r = read_relative_image_as_base64(md, "../assets/d.png".to_string()).await;
+        assert!(r.is_err(), "S10: 디렉터리는 거부해야 한다");
+        fs::remove_dir_all(&root).ok();
+    }
 }
