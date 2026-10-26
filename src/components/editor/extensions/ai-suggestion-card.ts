@@ -15,7 +15,8 @@ import type { AiModel, AiRequestArgs } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
 import type { AiErrorKind } from '@/store/aiStore';
 import { resolveProviderId } from '@/store/aiPolicy';
-import { buildFallbackDecision, validateMermaid, MERMAID_STRICT_CONFIG } from '@/lib/ai/mermaidValidate';
+import { buildFallbackDecision, validateMermaid } from '@/lib/ai/mermaidValidate';
+import { renderDiagram } from '@/lib/diagram/diagramRenderer';
 import type { MermaidValidationResult } from '@/lib/ai/mermaidValidate';
 import { validateMarkdownTable } from '@/lib/ai/tableValidate';
 import { subscribeAiEvents } from '@/lib/ai/aiEventRouter';
@@ -1280,20 +1281,13 @@ export function ensureMermaidFence(code: string): string {
   return `\`\`\`mermaid\n${trimmed}\n\`\`\``;
 }
 
-/**
- * 카드 안 미니 다이어그램을 strict 설정으로 렌더한다(설계 §4.2 C). SVG 만 innerHTML 로 넣는다
- * (securityLevel 'strict' 로 라벨이 이스케이프됨). 사전 검증을 통과한 코드이므로 렌더 실패는 무시.
- */
-export async function renderMermaidInto(code: string, container: HTMLElement): Promise<void> {
-  try {
-    const mermaid = (await import('mermaid')).default;
-    mermaid.initialize(MERMAID_STRICT_CONFIG);
-    const id = `mdedit-ai-mmd-${Math.random().toString(36).slice(2)}`;
-    const { svg } = await mermaid.render(id, stripMermaidFence(code));
-    container.innerHTML = svg;
-  } catch {
-    // placeholder 유지 — 조용히 실패(사전 검증 통과분이라 예외적).
-  }
+// @MX:NOTE: [AUTO] 카드 안 미니 다이어그램은 다이어그램 모듈(renderDiagram)로 동기 렌더한다(SPEC-PREVIEW-015 REQ-PREVIEW015-013).
+//   넣는 값은 모듈이 정화한 SVG뿐이며, 색은 --pele-* CSS 변수를 참조하므로 테마 전환이 다시 렌더하지 않아도 반영된다.
+//   렌더 실패 시(사전 검증 통과분이라 예외적) 영역은 비워 둔다. 모듈은 예외를 던지지 않는다.
+/** 카드 안 미니 다이어그램을 다이어그램 모듈로 렌더한다(설계 §4.2 C). */
+export function renderMermaidInto(code: string, container: HTMLElement): void {
+  const result = renderDiagram(stripMermaidFence(code));
+  if (result.ok) container.innerHTML = result.svg;
 }
 
 // ============================================================

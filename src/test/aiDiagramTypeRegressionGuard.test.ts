@@ -1,4 +1,4 @@
-// @MX:SPEC: SPEC-AI-008
+// @MX:SPEC: SPEC-AI-008 SPEC-PREVIEW-015
 // AC-AI-008-013 회귀 가드: 신규 런타임 의존성 0(npm + cargo), 서브메뉴 정확히 8항목(17종 미추가),
 // mermaid 핀 무변경, SPEC-UI-008 수동 삽입 계약 무변경.
 import { describe, it, expect, vi } from 'vitest';
@@ -27,8 +27,9 @@ describe('SPEC-AI-008 regression guard', () => {
     ]) {
       expect(all[banned]).toBeUndefined();
     }
-    // mermaid 버전 핀 무변경(REQ-021).
-    expect(pkg.dependencies.mermaid).toBe('11.12.3');
+    // 다이어그램 엔진 버전 핀(REQ-021) — SPEC-PREVIEW-015로 mermaid 11.12.3 → pele 1.10.0 정확 고정.
+    expect(pkg.dependencies.pele).toBe('1.10.0');
+    expect(all.mermaid).toBeUndefined();
   });
 
   it('adds zero new cargo runtime dependencies (REQ-019)', () => {

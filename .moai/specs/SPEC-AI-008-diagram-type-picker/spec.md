@@ -1,9 +1,9 @@
 ---
 id: SPEC-AI-008
-version: "0.0.4"
+version: "0.0.5"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-30"
+updated: "2026-10-26"
 author: "jw"
 priority: medium
 issue_number: 0
@@ -33,6 +33,7 @@ lifecycle: spec-anchored
 | 0.0.2 | 2026-07-22 | jw | plan-audit 리뷰(SPEC-AI-008-review-1, FAIL 0.80) 반영 — 결함 5건 수정: **D1**(major) "자동=바이트 동일" 불변식(REQ-018/AC-004/Summary)을 잘못된 아티팩트(`Diagram.system_prompt()` 단독)에서 실제 조립 결과(`build_inline_prompt` 산출 = `system_prompt()` + `\n\n` + INLINE_SCOPE)로 재앵커. **D2**(major) Diagram 전용 조립 분기가 없고 공유 `build_inline_prompt`(비-diagram 5기능과 INLINE_SCOPE 공유)를 탄다는 사실 반영 — REQ-010/Delta를 "공유 경로 내 diagram 전용 게이팅"으로 정정하고, 비-diagram 5기능(polish/outline/table/shorten/custom) 프롬프트 바이트 동일 회귀 가드로 신규 **REQ-025 + AC-014** 추가. **D3**(minor) icons.tsx 추출 리팩터 후 UI-008 JSX 아이콘 7종 렌더 SVG 무변경 가드를 AC-014에 추가하고 REQ-023의 "단일 소스"를 "양쪽 소비자 렌더 path 문자열 동일"로 이진화. **D4**(minor) REQ-006의 "짧은 지연 후"를 정규 요구에서 제거(이진화: "hover 시 연다"), 지연은 Design Notes로 이관. **D5**(minor) REQ-017의 긍정 단언을 근거절/Design Notes로 분리해 순수 shall-not로. REQ 24→25, AC 13→14, 커버리지 대조표·Delta·Fragments 인트로 갱신. |
 | 0.0.3 | 2026-07-30 | jw | **SPEC-AI-011로 REQ-006/007 충돌 해소 — 클릭 열기 전용으로 개정.** REQ-AI-008-007의 "hover 불가 환경에서 클릭 시 토글(열림↔닫힘)"을 "포인터·키보드 어느 경로든 클릭 시 연다. 이미 열려 있으면 상태를 바꾸지 않는다"(open-only)로 개정 — 전제절 "hover 불가 환경에서"는 런타임에 판별 불가능해 삭제. REQ-AI-008-006에 "hover 열림과 클릭 열림은 상호 배타적이지 않으며 둘 다 멱등 열기 연산" 명확화를 추가. REQ-AI-008-013을 "Tab / 방향키 / Enter / Space"로 확장하고 `role="menu"`/`role="menuitem"` 요구를 추가. AC-AI-008-001의 "클릭(no-hover) → 토글"을 "클릭 → 열림(이미 열려 있으면 무변경)"으로, AC-AI-008-009를 방향키 래핑 순환 + 포커스 진입/복귀 포함으로 확장. 근거: 실제 포인터 클릭은 mouseenter → click 순으로 발화해 REQ-006(hover 열림)과 REQ-007(클릭 토글)이 포인터 입력에서 동시 만족 불가능했다(코딩 실수가 아니라 명세 충돌). 구현·검증은 SPEC-AI-011 참조. |
 | 0.0.4 | 2026-07-30 | jw | **REQ-AI-008-013/AC-AI-008-009의 방향키 확장을 되돌림(0.0.3의 개정 (c) 철회).** SPEC-AI-011 후속 조사에서 서브메뉴 방향키 내비게이션이 실제 macOS WKWebView 앱에서 도달 불가능함이 확인되어(포커스가 메뉴/버튼에 결코 들어가지 않음 — 상세는 SPEC-AI-011 spec.md HISTORY v1.1.0) 해당 키보드 요구가 SPEC-AI-011에서 철회되었다. 이에 따라 본 SPEC의 REQ-AI-008-013을 "Tab / 방향키 / Enter / Space"에서 방향키를 제거해 "Tab / Enter / Space"로, AC-AI-008-009를 방향키 래핑 순환과 "포커스 진입(트리거 활성화 → 첫 항목)"을 제거해 실제 구현(Tab 포커스 순회 + Enter/Space 선택 + Esc 복귀 + role 부여)만 서술하도록 되돌렸다. `role="menu"`/`role="menuitem"` 요구는 방향키와 무관한 접근성 표기이므로 그대로 유지한다. |
+| 0.0.5 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 mermaid 11.12.3에서 pele 1.10.0으로 바뀌었다. REQ-AI-008-017의 유일한 하드 게이트를 "`mermaid.parse` 유효성"에서 "다이어그램 모듈(pele) 검증 결과"로, REQ-AI-008-019 끝에 SPEC-PREVIEW-015의 `mermaid` → `pele` 교체 예외를, REQ-AI-008-021을 pele 버전 핀·strict 모드 불변으로 바꿨다. AC-AI-008-013 표 줄은 "pele 핀·strict 모드 무변경", 신규 의존성 0건에 SPEC-PREVIEW-015 교체 제외를 덧붙였다. 같은 날 정리 작업으로 Summary·기술 컨텍스트·Environment의 검증 엔진 표기, REQ-AI-008-014의 "mermaid 파싱 실패"를 "다이어그램 검증 실패"로, Exclusions의 하드 게이트·버전 항목, acceptance.md AC-AI-008-010·013과 품질 게이트·DoD의 같은 문구를 고쳤다. AI 프롬프트 조각의 "mermaid" 표기는 AI 입력 언어(Mermaid 문법)이므로 유지한다. 나머지 요구는 무변경. |
 
 ## Summary
 
@@ -43,15 +44,15 @@ lifecycle: spec-anchored
 
 종류를 선택하면 AI 다이어그램 생성 요청에 **그 mermaid 종류를 강제하는 제약 조각**이 실려, Rust에서 조립되는 다이어그램 시스템 프롬프트가 "정확히 그 종류만" 생성하도록 좁혀진다. "자동"을 선택하면 오늘의 프롬프트가 **바이트 단위로 동일**하게 유지된다.
 
-기존 다운스트림 흐름 — 스트리밍, `mermaidValidate.ts`의 `mermaid.parse` 사전 검증, 제안 카드(ai-suggestion-card), 자동 재요청/목록 폴백 UX(SPEC-AI-003/004/006 계보) — 는 **그대로**다. 이 SPEC이 더하는 것은 오직 프롬프트의 종류 제약뿐이다.
+기존 다운스트림 흐름 — 스트리밍, `mermaidValidate.ts`의 다이어그램 사전 검증(SPEC-PREVIEW-015 이후 다이어그램 모듈 호출), 제안 카드(ai-suggestion-card), 자동 재요청/목록 폴백 UX(SPEC-AI-003/004/006 계보) — 는 **그대로**다. 이 SPEC이 더하는 것은 오직 프롬프트의 종류 제약뿐이다.
 
 핵심 설계 결정(사용자 승인, 재검토 금지):
 
 - **진입점**: `src/components/editor/extensions/ai-selection-toolbar.ts`. `createPresetMenu`(명령형 `document.createElement` DOM)의 `diagram` 항목 클릭 핸들러를 "즉시 `fire('diagram')`"에서 "플라이아웃 서브메뉴 열기"로 바꾼다. 서브메뉴도 동일한 명령형 DOM 패턴으로 구성한다(React 리라이트 없음).
 - **자동 우선**: 서브메뉴 첫 항목은 항상 "자동 (AI 판단)"이며, 이는 오늘의 동작(AI가 종류 선택)이다. 이 항목 선택은 종류 필드 없이 `fire('diagram')`을 호출한다.
 - **프롬프트 주입 지점**: 프롬프트 조립은 전부 Rust이므로(REQ-AI-003), 종류 제약도 Rust `prompt.rs`에서 주입한다. 단 `AiFeature::Diagram`은 **전용 조립 분기가 없다** — polish/outline/table/shorten/custom과 함께 공유 `build_inline_prompt`(prompt.rs:171, mod.rs:147 `_` 암)를 타며, 그 조립 시스템 프롬프트는 `format!("{}\n\n{}", feature.system_prompt(), INLINE_SCOPE)`(prompt.rs:196)이다. 따라서 종류 제약은 이 공유 경로 안에서 **feature가 Diagram이고 `diagram_type`이 있을 때만** 조각을 덧붙이는 diagram 전용 게이팅으로 주입해야 한다. IPC는 신규 optional 필드 `diagramType`(camelCase) → Rust `diagram_type: Option<String>`로 종류를 전달한다. `diagram_type=None`(자동)이면 `build_inline_prompt`가 산출하는 Diagram `system_prompt`가 현행 조립 결과(= `AiFeature::Diagram.system_prompt()` + `\n\n` + INLINE_SCOPE)와 **바이트 단위로 동일**하다.
-- **재요청 승계**: `fireReRequest`(ai-suggestion-card.ts:1101)가 `{ ...originalArgs, ...overrides }`로 원본 args를 스프레드하므로, 초기 요청에 `diagramType`이 실리면 mermaid 파싱 실패에 따른 자동 재요청(feature 유지='diagram')에도 종류 제약이 **자동 승계·재복창**된다. 재요청 메커니즘 자체는 변경하지 않는다.
-- **AI 경계·검증 계약 무변경**: `mermaidValidate.ts`, `decideDiagramOutcome`, `buildFallbackDecision`은 그대로다. 파싱 유효성(mermaid.parse)이 **유일한 하드 게이트**로 남고, 종류 불일치는 검증 실패로 취급하지 않는다.
+- **재요청 승계**: `fireReRequest`(ai-suggestion-card.ts:1101)가 `{ ...originalArgs, ...overrides }`로 원본 args를 스프레드하므로, 초기 요청에 `diagramType`이 실리면 다이어그램 검증 실패에 따른 자동 재요청(feature 유지='diagram')에도 종류 제약이 **자동 승계·재복창**된다. 재요청 메커니즘 자체는 변경하지 않는다.
+- **AI 경계·검증 계약 무변경**: `mermaidValidate.ts`, `decideDiagramOutcome`, `buildFallbackDecision`은 그대로다. 다이어그램 모듈(pele) 검증 결과가 **유일한 하드 게이트**로 남고, 종류 불일치는 검증 실패로 취급하지 않는다.
 
 ## Background & Rationale
 
@@ -64,7 +65,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 - **프롬프트 조립 = 100% Rust**: `ai_request`(mod.rs:112)는 `AiFeature::resolve(feature, presetKind, customInstruction)`로 내부 템플릿을 정한 뒤 `build_inline_prompt`로 조립한다. 프론트는 "기능 종류 + 텍스트 조각"만 넘긴다(REQ-AI-003, ipc.ts:186). 다이어그램 프리셋은 `feature='diagram'` + `presetKind='diagram'`로 도착해 `AiFeature::Diagram`으로 매핑된다(prompt.rs:76, resolve_diagram_feature_with_and_without_preset 테스트). 종류 제약을 프론트에서 문자열로 붙일 수 없으므로 **Rust 조립 지점에서 주입**해야 한다.
 - **다이어그램 프롬프트 현행**: `AiFeature::Diagram.system_prompt()`(prompt.rs:101–106)는 "순수 mermaid 문법만, 펜스·설명 없이, mermaid 키워드로 시작"을 지시한다(BUG-3(b) 대응). 종류 제약은 이 지시에 "반드시 `<종류>`만" 절을 덧붙이는 형태다.
 - **IPC 계약**: `AiRequestArgs`(mod.rs:83, ipc.ts:195)는 camelCase→snake_case 자동 매핑, 모든 optional 필드는 `#[serde(default)]`. 신규 `diagramType?` 추가는 하위호환(자동=필드 생략).
-- **다이어그램 검증·재요청**: `mermaidValidate.ts`의 `validateMermaid`(mermaid.parse) + `buildFallbackDecision`(1회 실패→auto-retry, 2회+→목록 폴백), 카드 컨트롤러의 `decideDiagramOutcome`(ai-suggestion-card.ts:169)가 **파싱 유효성만** 본다. 종류 불일치를 감지하는 코드는 없다.
+- **다이어그램 검증·재요청**: `mermaidValidate.ts`의 `validateMermaid`(작성 당시 `mermaid.parse`, SPEC-PREVIEW-015 이후 다이어그램 모듈) + `buildFallbackDecision`(1회 실패→auto-retry, 2회+→목록 폴백), 카드 컨트롤러의 `decideDiagramOutcome`(ai-suggestion-card.ts:169)가 **파싱 유효성만** 본다. 종류 불일치를 감지하는 코드는 없다.
 - **재요청 승계 경로**: `fireReRequest`(ai-suggestion-card.ts:1091–1111, `@MX:ANCHOR`)는 `{ ...originalArgs, ...overrides, requestId }`로 발행한다. ↻/직접지시/sonnet 재요청은 `feature='diagram'`을 유지하므로 `diagramType`이 자동 승계된다. 목록 폴백만 `feature='inline-edit', presetKind='outline'`로 덮어써 종류를 의도적으로 버린다(더 이상 다이어그램이 아님).
 - **아이콘 형상**: SPEC-UI-008이 `src/components/icons/icons.tsx`에 7종 JSX 아이콘 컴포넌트(FlowchartIcon 등, `stroke="currentColor"`, 런타임 의존성 없음)를 인라인했다(icons.tsx:279–333). 단, AI 툴바는 **명령형 DOM**(document.createElement)이라 JSX 컴포넌트를 직접 마운트할 수 없다 — 아이콘 path 마크업을 명령형 서브메뉴에서 재사용하려면 SVG 마크업의 **단일 소스**를 공유해야 한다(경로 데이터 중복 금지).
 - **AI 토글**: `buildToolbarDecorations`(ai-selection-toolbar.ts:692)는 `getUiState().enabled === false`면 ✨ 데코레이션 자체를 렌더하지 않는다(SPEC-AI-005 REQ-AI5-007). 즉 AI가 꺼져 있으면 툴바가 아예 없어 서브메뉴도 도달 불가다(수동 삽입 SPEC-UI-008과 대비 — 그쪽은 토글 무관).
@@ -75,7 +76,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 - AI 툴바: `ai-selection-toolbar.ts`의 `AiSparkleWidget`(WidgetType, 명령형 DOM) + `createPresetMenu`(팝오버, 명령형 DOM). 외부 mousedown 닫기는 위젯(`onOutsideMouseDown`, ai-selection-toolbar.ts:622)이 소유한다.
 - 백엔드: Rust `src-tauri/src/ai/{mod.rs,prompt.rs}`. 프롬프트 조립·IPC 역직렬화(camelCase). `AiFeature::Diagram`가 종류 중립적으로 이미 존재.
 - 프리셋 종류·아이콘: SPEC-UI-008이 `keyboard-shortcuts.ts` `DIAGRAM_PRESETS`(7종 + custom)와 `icons.tsx` 7종 아이콘을 도입. 본 SPEC은 그중 **7종(custom 제외)**의 종류 키·라벨·아이콘 형상을 재사용한다.
-- 다이어그램 검증: mermaid 11.12.3(SPEC-PREVIEW-006 핀), `mermaidValidate.ts`(`securityLevel:'strict'`). 검증 계약 무변경.
+- 다이어그램 검증: pele 1.10.0(SPEC-PREVIEW-015 핀) 다이어그램 모듈, `mermaidValidate.ts`(strict 모드). 검증 계약 무변경.
 - 테스트 환경: vitest + @testing-library/react + jsdom(명령형 DOM 테스트 선례: `aiSelectionToolbar.test.ts` `createPresetMenu`/`AiSparkleWidget` describe). Rust는 `#[cfg(test)]` 단위 테스트(prompt.rs 하단).
 
 ## Requirements (EARS)
@@ -103,17 +104,17 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 
 ### State-Driven Requirements
 
-- **REQ-AI-008-014**: **WHILE** mermaid 파싱 실패로 인한 다이어그램 자동 재요청(feature='diagram' 유지)이 진행되는 동안, **the system shall** 최초 선택한 종류(`diagramType`)를 재요청에 승계하여 종류 제약이 재복창되게 한다(`fireReRequest`의 원본 args 스프레드 경로). 목록 폴백(outline) 경로는 오늘과 같이 종류를 버린다.
+- **REQ-AI-008-014**: **WHILE** 다이어그램 검증 실패로 인한 다이어그램 자동 재요청(feature='diagram' 유지)이 진행되는 동안, **the system shall** 최초 선택한 종류(`diagramType`)를 재요청에 승계하여 종류 제약이 재복창되게 한다(`fireReRequest`의 원본 args 스프레드 경로). 목록 폴백(outline) 경로는 오늘과 같이 종류를 버린다.
 - **REQ-AI-008-015**: **WHILE** 상위 프리셋 메뉴가 닫히는 동안(Esc/외부 클릭/발행 완료), **the system shall** 열려 있던 플라이아웃 서브메뉴도 함께 닫고 관련 리스너·타이머를 정리한다(누수 없음).
 - **REQ-AI-008-016**: **WHILE** AI 토글(SPEC-AI-005 `effectiveAiEnabled`)이 비활성인 동안, **the system shall** ✨ 선택 툴바 데코레이션 자체를 렌더하지 않아 다이어그램 서브메뉴가 도달 불가 상태가 되게 한다(REQ-AI5-007과 일관 — 수동 삽입 SPEC-UI-008과 달리 AI 생성은 토글에 종속).
 
 ### Unwanted Behavior Requirements
 
-- **REQ-AI-008-017**: The system **shall not** 다이어그램 종류 불일치(AI가 요청한 종류와 다른 mermaid 종류를 반환)를 검증 실패로 취급하거나 이를 위한 새 런타임 게이트를 추가한다. `mermaid.parse` 유효성이 유일한 하드 게이트로 남으며 `validateMermaid`/`decideDiagramOutcome`/`buildFallbackDecision` 계약은 무변경이다. (근거: 종류 준수는 검증이 아니라 프롬프트 제약(REQ-AI-008-010)과 재요청 승계(REQ-AI-008-014)로 달성한다 — Design Notes 참조.)
+- **REQ-AI-008-017**: The system **shall not** 다이어그램 종류 불일치(AI가 요청한 종류와 다른 mermaid 종류를 반환)를 검증 실패로 취급하거나 이를 위한 새 런타임 게이트를 추가한다. 다이어그램 모듈(pele) 검증 결과가 유일한 하드 게이트로 남으며 `validateMermaid`/`decideDiagramOutcome`/`buildFallbackDecision` 계약은 무변경이다. (근거: 종류 준수는 검증이 아니라 프롬프트 제약(REQ-AI-008-010)과 재요청 승계(REQ-AI-008-014)로 달성한다 — Design Notes 참조.)
 - **REQ-AI-008-018**: The system **shall not** "자동" 경로의 동작을 바꾼다 — `diagram_type=None`(자동)일 때 `build_inline_prompt`가 산출하는 Diagram 조립 시스템 프롬프트는 **현행 조립 결과(= `AiFeature::Diagram.system_prompt()` + `\n\n` + INLINE_SCOPE)와 바이트 단위로 동일**해야 한다.
-- **REQ-AI-008-019**: The system **shall not** 신규 런타임 의존성을 추가한다(`package.json` 및 `src-tauri/Cargo.toml` dependencies 무변경). 플라이아웃/포털 라이브러리 도입 금지 — 순수 CSS 포지셔닝.
+- **REQ-AI-008-019**: The system **shall not** 신규 런타임 의존성을 추가한다(`package.json` 및 `src-tauri/Cargo.toml` dependencies 무변경). 플라이아웃/포털 라이브러리 도입 금지 — 순수 CSS 포지셔닝. 단, SPEC-PREVIEW-015의 `mermaid` → `pele` 교체는 예외다.
 - **REQ-AI-008-020**: The system **shall not** SPEC-UI-008 수동 삽입 흐름(`insertDiagram`, `DIAGRAM_PRESETS`, `keyboard-shortcuts.ts` 스니펫 상수, 빈-펜스 프리뷰 플레이스홀더)의 동작·계약을 변경하거나 호출한다. AI 생성(본 SPEC)과 수동 삽입(UI-008)은 역할이 분리된다.
-- **REQ-AI-008-021**: The system **shall not** mermaid 버전 핀(11.12.3, SPEC-PREVIEW-006) 또는 `securityLevel:'strict'` 불변식을 변경한다.
+- **REQ-AI-008-021**: The system **shall not** pele 버전 핀(1.10.0, SPEC-PREVIEW-015) 또는 strict 모드를 바꾼다.
 - **REQ-AI-008-022**: The system **shall not** 나머지 17종 mermaid 유형을 서브메뉴에 추가한다(서브메뉴는 정확히 자동 + 7종 = 8항목으로 고정, v1).
 - **REQ-AI-008-023**: The system **shall not** 다이어그램 아이콘 SVG path 데이터를 복제한다 — 명령형 서브메뉴와 SPEC-UI-008 JSX 아이콘 컴포넌트가 소비하는 렌더 path 문자열이 종류별로 서로 동일해야 한다(단일 소스). 추출 리팩터 후 기존 JSX 아이콘 7종이 렌더하는 SVG(예: `d` path 문자열)는 추출 전과 무변경이어야 한다.
 - **REQ-AI-008-024**: The system **shall not** 신규 전역 키보드 단축키를 등록한다(`markdownKeyBindings` 무변경). 서브메뉴 내 키보드 조작(REQ-AI-008-013)은 전역 단축키 등록이 아니므로 이에 해당하지 않는다.
@@ -180,7 +181,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 | AC-AI-008-010 | REQ-AI-008-014, 017 | 종류 실은 초기 요청의 자동 재요청(feature='diagram')이 `diagramType` 승계(`fireReRequest` 스프레드); 종류 불일치는 검증 실패로 취급되지 않음(`decideDiagramOutcome`/`buildFallbackDecision` 무변경); 목록 폴백은 종류 버림 |
 | AC-AI-008-011 | REQ-AI-008-016 | AI 토글 OFF(`enabled:false`) → `buildToolbarDecorations`가 데코 0건 → 툴바/서브메뉴 미노출 |
 | AC-AI-008-012 | REQ-AI-008-003 | 신규 서브메뉴 CSS·아이콘이 `--md-*`/`.mdedit-*` 토큰·`currentColor`만 사용, raw hex 없음 |
-| AC-AI-008-013 | REQ-AI-008-019, 020, 021, 022, 024 | `package.json`·`Cargo.toml` 신규 의존성 0건; 서브메뉴 정확히 8항목(17종 미추가); SPEC-UI-008 `insertDiagram`/`DIAGRAM_PRESETS`/빈-펜스 플레이스홀더 무변경; mermaid 핀·`securityLevel` 무변경; `markdownKeyBindings` 무변경 |
+| AC-AI-008-013 | REQ-AI-008-019, 020, 021, 022, 024 | `package.json`·`Cargo.toml` 신규 의존성 0건(SPEC-PREVIEW-015 교체 제외); 서브메뉴 정확히 8항목(17종 미추가); SPEC-UI-008 `insertDiagram`/`DIAGRAM_PRESETS`/빈-펜스 플레이스홀더 무변경; pele 핀·strict 모드 무변경; `markdownKeyBindings` 무변경 |
 | AC-AI-008-014 | REQ-AI-008-023, 025 | 아이콘 추출 리팩터 후 SPEC-UI-008 JSX 아이콘 7종 렌더 SVG(`d` path) 무변경(스냅샷/등가 어서션); diagram 게이팅 배선 후 비-diagram 5기능(polish/outline/table/shorten/custom) 조립 시스템 프롬프트가 변경 전과 바이트 동일(Rust 스냅샷 테스트) |
 
 REQ 커버리지 대조(001–025 전수): 001→AC2, 002→AC3, 003→AC12, 004→AC2, 005→AC1, 006→AC1, 007→AC1, 008→AC4, 009→AC5, 010→AC6, 011→AC7, 012→AC8, 013→AC9, 014→AC10, 015→AC7, 016→AC11, 017→AC10, 018→AC4, 019→AC13, 020→AC13, 021→AC13, 022→AC13, 023→AC3·AC14, 024→AC13, 025→AC14. 미커버 REQ 없음.
@@ -191,11 +192,11 @@ REQ 커버리지 대조(001–025 전수): 001→AC2, 002→AC3, 003→AC12, 004
 
 - **나머지 17종 mermaid 유형 없음** — er, journey, gitGraph, quadrantChart, requirementDiagram, C4, sankey, xychart, block, packet, kanban, architecture, radar, treemap 등은 서브메뉴에서 제외(v1). "자동"이 필요 시 AI 판단으로 생성 가능.
 - **"자동" 모델 동작 변경 없음** — 자동 선택 시 AI가 종류를 고르는 오늘의 프롬프트·모델 동작은 바이트 동일 유지. 자동의 종류 선정 품질을 개선하지 않는다.
-- **런타임 종류 검증기 없음** — AI가 요청과 다른 종류를 반환해도 새 하드 게이트를 만들지 않는다. mermaid.parse 유효성만 하드 게이트. 종류 준수는 프롬프트 제약 + 재요청 승계로만.
+- **런타임 종류 검증기 없음** — AI가 요청과 다른 종류를 반환해도 새 하드 게이트를 만들지 않는다. 다이어그램 모듈(pele) 검증 결과만 하드 게이트. 종류 준수는 프롬프트 제약 + 재요청 승계로만.
 - **재요청 메커니즘 변경 없음** — `fireReRequest`/`decideDiagramOutcome`/`buildFallbackDecision`/카드 컨트롤러 계약 무변경. 종류 승계는 기존 스프레드 경로의 부수효과로 얻는다.
 - **수동 삽입(SPEC-UI-008) 변경 없음** — `insertDiagram`, `DIAGRAM_PRESETS`, 에디터 툴바 "다이어그램" 버튼, 빈-펜스 플레이스홀더 무변경. custom(빈 펜스) 항목은 AI 서브메뉴에 없음.
 - **툴바 React 리라이트 없음** — 서브메뉴는 기존 명령형 DOM 패턴을 따른다. 팝오버/floating-ui/포털 라이브러리 미도입.
 - **아이콘 형상 재디자인 없음** — SPEC-UI-008 스켈레톤 아이콘 형상을 그대로 재사용. 새 아이콘 그리지 않음.
-- **mermaid 버전·테마 연동 변경 없음** — 11.12.3 핀, `securityLevel:'strict'`, SPEC-PREVIEW-010 테마 연동 무변경.
+- **다이어그램 렌더러 버전·테마 연동 변경 없음** — pele 1.10.0 핀, strict 모드(SPEC-PREVIEW-015), SPEC-PREVIEW-010 테마 연동 무변경.
 - **키보드 단축키 없음** — 다이어그램 종류 선택 전용 전역 단축키 미도입(`markdownKeyBindings` 무변경).
 - **AI 토글 무관 노출 없음** — 수동 삽입(UI-008)과 달리, AI 생성 서브메뉴는 AI 토글이 켜져 있을 때만 도달 가능(REQ-AI5-007 상속). 토글 OFF에서 별도 노출 경로를 만들지 않는다.

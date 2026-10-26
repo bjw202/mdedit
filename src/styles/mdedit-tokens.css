@@ -8,6 +8,10 @@
    numbered ramp step directly; always go through a --md-* role below.
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* [data-theme="light"] re-declares the light roles on an element below a
+   dark root — the diagram export colour probe (SPEC-PREVIEW-015 design.md D6)
+   reads light values this way, because DOCX diagrams are always light. */
+[data-theme="light"],
 :root {
   /* ── Color · semantic roles (LIGHT) ─────────────────────────────────── */
   --md-bg:              #f2f2f3;   /* app window ground */
@@ -84,6 +88,38 @@
   --md-ease:      cubic-bezier(0.2, 0, 0, 1);
   --md-dur-fast:  120ms;
   --md-dur-base:  180ms;
+
+  /* ── Diagram (pele) — SPEC-PREVIEW-015 design.md D5 ───────────────────
+     pele SVG reads these at paint time, so a theme switch recolors diagrams
+     without re-rendering. Repeated verbatim in the dark block: a custom
+     property's var() resolves where it is declared, so an element carrying
+     data-theme="dark" below a light root needs its own declarations.
+     --pele-font / --pele-font-mono are literal lists that must equal
+     DIAGRAM_FONT_FAMILY / DIAGRAM_FONT_FAMILY_MONO in
+     src/lib/diagram/diagramRenderer.ts (pele measures text with them). */
+  --pele-bg:             var(--md-bg);
+  --pele-fg:             var(--md-text-primary);
+  --pele-muted:          var(--md-text-muted);
+  --pele-line:           var(--md-text-muted);
+  --pele-surface:        var(--md-surface);
+  --pele-surface-alt:    var(--md-surface-raised);
+  --pele-border:         var(--md-border-strong);
+  --pele-accent:         var(--md-accent);
+  --pele-error:          var(--md-danger);
+  --pele-critical:       var(--md-danger);
+  --pele-radius:         var(--md-radius-sm);
+  --pele-title-weight:   600;
+  --pele-heading-weight: 600;
+  --pele-series-1:       var(--md-accent);
+  --pele-series-2:       var(--md-dirty);
+  --pele-series-3:       var(--md-success);
+  --pele-series-4:       var(--md-danger);
+  --pele-series-5:       var(--md-ai-glow-from);
+  --pele-series-6:       var(--md-accent-active);
+  --pele-series-7:       var(--md-text-muted);
+  --pele-series-8:       var(--md-accent-hover);
+  --pele-font:           "Barlow", system-ui, sans-serif;
+  --pele-font-mono:      "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 [data-theme="dark"] {
@@ -122,4 +158,29 @@
   --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --md-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
   --md-shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.65);
+
+  /* ── Diagram (pele) — same mapping as :root, resolved against dark roles ── */
+  --pele-bg:             var(--md-bg);
+  --pele-fg:             var(--md-text-primary);
+  --pele-muted:          var(--md-text-muted);
+  --pele-line:           var(--md-text-muted);
+  --pele-surface:        var(--md-surface);
+  --pele-surface-alt:    var(--md-surface-raised);
+  --pele-border:         var(--md-border-strong);
+  --pele-accent:         var(--md-accent);
+  --pele-error:          var(--md-danger);
+  --pele-critical:       var(--md-danger);
+  --pele-radius:         var(--md-radius-sm);
+  --pele-title-weight:   600;
+  --pele-heading-weight: 600;
+  --pele-series-1:       var(--md-accent);
+  --pele-series-2:       var(--md-dirty);
+  --pele-series-3:       var(--md-success);
+  --pele-series-4:       var(--md-danger);
+  --pele-series-5:       var(--md-ai-glow-from);
+  --pele-series-6:       var(--md-accent-active);
+  --pele-series-7:       var(--md-text-muted);
+  --pele-series-8:       var(--md-accent-hover);
+  --pele-font:           "Barlow", system-ui, sans-serif;
+  --pele-font-mono:      "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }

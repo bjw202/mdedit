@@ -47,8 +47,8 @@ generated_from: spec.md
 - **REQ-AI-020** (E): WHEN ✨ 열림, the system shall 프리셋 5종(다듬기/개요로 정리/표로 만들기/다이어그램으로/짧게 줄이기) + 직접 입력(Esc/← 복귀).
 - **REQ-AI-021** (E): WHEN 편집 완료, the system shall 원문 유지 + 제안 카드(즉석 지시 입력 + 바꾸기/다시/취소, 변환 계열 [⤵ 아래에 삽입]).
 - **REQ-AI-022** (E): WHEN 확정, the system shall 단일 트랜잭션 적용(Mod+Z 1회 복원).
-- **REQ-AI-023** (E): WHEN 다이어그램 요청, the system shall 삽입 전 로컬 mermaid 파서(strict) 검증 + 카드 미니 렌더.
-- **REQ-AI-024** (E): WHEN mermaid 검증 실패, the system shall 1회 자동 재요청 → 재실패 시 "목록으로 정리" 폴백.
+- **REQ-AI-023** (E): WHEN 다이어그램 요청, the system shall 삽입 전 로컬 다이어그램 모듈(pele, strict 모드) 검증 + 카드 미니 렌더.
+- **REQ-AI-024** (E): WHEN 다이어그램 검증 실패, the system shall 1회 자동 재요청 → 재실패 시 "목록으로 정리" 폴백.
 - **REQ-AI-025** (E): WHEN ↻ 3회 소진, the system shall 방향 안내 + 1회성 sonnet 인라인 폴백 제안.
 - **REQ-AI-026** (S): WHILE 선택 >2K자, the system shall 편집 프리셋 비활성 + 안내. 변환 계열은 4K까지 삽입 전용.
 - **REQ-AI-027** (Un): The system shall not 선택 텍스트 절단 결과로 선택 전체 교체(무손실 삭제 금지).
@@ -125,7 +125,7 @@ generated_from: spec.md
 | [NEW] | `src/components/settings/SettingsModal.tsx` — 설정 모달(첫 섹션 AI)+온보딩+고지 배너 |
 | [MODIFY] | `src/components/layout/Header.tsx` — 톱니 버튼 → 모달 |
 | [MODIFY] | `src/components/layout/AppLayout.tsx` — AI 적용 핸들러·모달 마운트·오류 배너 |
-| [NEW] | `src/lib/ai/mermaidValidate.ts` — PreviewRenderer mermaid.parse 추출(strict) |
+| [NEW] | `src/lib/ai/mermaidValidate.ts` — PreviewRenderer 다이어그램 검증 추출(당시 mermaid.parse; 지금은 다이어그램 모듈 호출, strict 모드) |
 | [MODIFY] | `src/styles/mdedit-components.css` — AI 카드·툴바·모달·고스트 클래스(토큰만) |
 | [NEW] | `src/test/{aiLengthGuard,mermaidValidate,aiSuggestionApply,aiGhostConfirm}.test.ts` + Rust `#[cfg(test)]` |
 

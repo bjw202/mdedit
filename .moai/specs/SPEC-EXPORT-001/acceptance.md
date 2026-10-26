@@ -34,7 +34,7 @@ Feature: HTML 내보내기
 
   Scenario: HTML 내보내기에 Mermaid 다이어그램이 SVG로 포함된다
     Given 에디터 콘텐츠에 Mermaid 다이어그램 코드 블록이 포함되어 있다
-    And 프리뷰 패널에서 Mermaid SVG가 렌더링 완료되었다
+    And 프리뷰 패널의 렌더 여부와 무관하다 (SPEC-PREVIEW-015 이후 원본 펜스에서 렌더)
     When HTML로 내보내기 한다
     Then 생성된 HTML에 Mermaid 다이어그램이 인라인 `<svg>` 요소로 포함된다
     And Mermaid JavaScript 라이브러리 참조가 포함되지 않는다
@@ -115,12 +115,11 @@ Feature: DOCX 내보내기
     When DOCX로 내보내기 한다
     Then 다이어그램이 PNG 이미지로 DOCX에 삽입되어 있다
 
-  Scenario: Mermaid SVG -> PNG 변환 실패 시 대체 처리
-    Given Mermaid SVG의 PNG 변환이 실패했다
+  Scenario: 다이어그램 렌더 또는 PNG 변환 실패 시 대체 처리
+    Given 다이어그램 펜스의 렌더 또는 PNG 변환이 실패했다
     When DOCX 내보내기가 완료되면
-    Then 해당 위치에 "[Diagram]" 텍스트 플레이스홀더가 삽입된다
+    Then 해당 위치에 그 펜스의 코드 텍스트가 삽입된다 (SPEC-PREVIEW-015 REQ-017)
     And 내보내기 자체는 성공적으로 완료된다
-    And 사용자에게 경고가 표시된다
 ```
 
 ### ACC-04: Export UI 드롭다운
@@ -265,7 +264,7 @@ Feature: 내보내기 에러 처리
 | PDF 품질 | print 호출 및 결과물 시각적 확인 | Manual |
 | DOCX 구조 | 마크다운 요소 -> DOCX 서식 매핑 단위 테스트 | Vitest |
 | DOCX 렌더링 | Word, Google Docs, LibreOffice에서 열어 확인 | Manual |
-| Mermaid SVG 추출 | DOM에서 SVG 추출 로직 단위 테스트 | Vitest + JSDOM |
+| 다이어그램 SVG | 원본 펜스 렌더·자리 유지 단위 테스트(SPEC-PREVIEW-015, 1.0.0 당시는 DOM 추출) | Vitest + JSDOM |
 | Shiki 색상 보존 | 인라인 스타일에서 색상 추출 및 매핑 단위 테스트 | Vitest |
 | UI 드롭다운 | 렌더링, disabled 상태, 메뉴 항목 확인 | React Testing Library |
 | 파일 저장 다이얼로그 | IPC 호출 및 파일 필터 확인 | Vitest + Tauri mock |

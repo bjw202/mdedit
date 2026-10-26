@@ -1,12 +1,17 @@
-// @MX:NOTE: [AUTO] SPEC-PREVIEW-006 mermaid subgraph(cluster) 제목 1줄 렌더 회귀 가드
+// @MX:NOTE: [AUTO] SPEC-PREVIEW-006 subgraph(cluster) 제목 1줄 렌더 회귀 가드 — SPEC-PREVIEW-015에서 pele SVG 측정으로 개정
 // @MX:SPEC: SPEC-PREVIEW-006 REQ-PREVIEW006-001, REQ-PREVIEW006-002, REQ-PREVIEW006-003, REQ-PREVIEW006-007
+// @MX:SPEC: SPEC-PREVIEW-015 AC-PREVIEW015-013
 //
-// mermaid 11.12.3의 cluster `rect` 렌더러가 createText에 width를 전달하지 않아
-// 하드코딩된 200px 기본값으로 폴백 → 긴 한글 cluster 제목이 2줄로 wrap되는 버그(#6110).
-// patch-package로 chunk-JZLCHNYA.mjs의 `rect` 렌더러 createText 호출에
-// 명시적 width:100000 을 추가하여 1줄로 강제.
+// 다이어그램은 pele 1.10.0이 그린다(SPEC-PREVIEW-015). 예전 mermaid의 cluster 제목 줄바꿈 버그와
+// 그 patch-package 우회는 의존성과 함께 사라졌고, 목표(긴 한글 제목 1줄 · 자기 상자 안 · 상자끼리
+// 겹치지 않음)만 유지한다. 파일 이름은 design.md D10에 따라 그대로 둔다.
 //
-// 이 테스트는 패치 미적용·버전 드리프트 시 실패하여 누락을 즉시 드러낸다.
+// 측정 대상(실제 pele 출력 구조, src/test/fixtures/pele/browser/02·03-subgraph-*.svg 확인):
+//   - 상자: `g.pele-cluster[data-id] > rect`
+//   - 제목: `text.pele-cluster-label` — `g.pele-cluster` 안에 있거나, 다른 상자에 가려질 수 있으면
+//     `g.pele-cluster-titles > g.pele-cluster-title[data-id]` 안에 후광용 `<text fill="none">`과 함께
+//     놓인다. 어느 쪽이든 가장 가까운 `[data-id]` 조상이 소유 상자다.
+//   - 줄바꿈하면 pele는 `<tspan>`으로 줄을 나누므로 tspan 0개 + 높이 단언 두 가지로 1줄을 본다.
 
 import { test, expect } from './fixtures/tauri-mock';
 
@@ -39,11 +44,33 @@ flowchart TB
 \`\`\`
 `;
 
-/**
- * mermaid SVG가 렌더될 때까지 대기하고 cluster-label foreignObject/div 높이를 측정.
- * 단일 라인 높이(기준선)는 빈 단어 하나로 측정.
- */
-async function getMermaidClusterLabelHeights(page: import('@playwright/test').Page, content: string) {
+interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+interface TitleMeasure {
+  owner: string;
+  text: string;
+  tspans: number;
+  /** SVG 사용자 단위 높이(getBBox) — 글자 크기와 같은 단위 */
+  bboxHeight: number;
+  fontSize: number;
+  box: Box;
+}
+
+interface SubgraphMeasure {
+  titles: TitleMeasure[];
+  clusters: Array<{ id: string; box: Box }>;
+}
+
+/** 다이어그램을 렌더하고 pele 서브그래프 제목·상자를 측정한다. */
+async function measureSubgraphs(
+  page: import('@playwright/test').Page,
+  content: string,
+): Promise<SubgraphMeasure> {
   await page.goto('/');
   await page.locator('.cm-editor').waitFor({ timeout: 15_000 });
 
@@ -52,148 +79,98 @@ async function getMermaidClusterLabelHeights(page: import('@playwright/test').Pa
   await page.keyboard.press('ControlOrMeta+A');
   await editor.fill(content);
 
-  // mermaid SVG가 나타날 때까지 대기
-  await page.locator('.preview-content .mermaid-container svg').first().waitFor({ timeout: 15_000 });
+  // pele 렌더는 동기지만 미리보기 갱신은 편집 뒤에 일어나므로 제목 요소가 붙을 때까지 기다린다.
+  await page
+    .locator('.preview-content .mermaid-container svg text.pele-cluster-label')
+    .first()
+    .waitFor({ timeout: 15_000 });
+  // 글꼴이 늦게 로드되면 화면 글자 폭이 바뀔 수 있으므로 로드 완료 뒤에 잰다.
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
-  // mermaid 렌더 완료를 위해 SVG 내 cluster-label이 나타날 때까지 대기
-  await page.locator('.preview-content .mermaid-container svg .cluster-label').first().waitFor({ timeout: 10_000 });
+  return page.evaluate(() => {
+    const toBox = (r: DOMRect) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    const svg = document.querySelector('.preview-content .mermaid-container svg');
+    if (!svg) return { titles: [], clusters: [] };
 
-  // cluster-label 요소의 높이 측정 (foreignObject 또는 내부 div)
-  const labelHeights = await page.evaluate(() => {
-    const svgs = document.querySelectorAll('.preview-content .mermaid-container svg');
-    const results: { heights: number[]; singleLineHeight: number } = {
-      heights: [],
-      singleLineHeight: 0,
-    };
-
-    // 첫 번째 SVG에서 cluster-label 높이들을 측정
-    const svg = svgs[0];
-    if (!svg) return results;
-
-    const clusterLabels = svg.querySelectorAll('.cluster-label');
-    clusterLabels.forEach((label) => {
-      // foreignObject 또는 div 컨테이너의 실제 렌더 높이
-      const fo = label.querySelector('foreignObject');
-      if (fo) {
-        const div = fo.querySelector('div') || fo.querySelector('p');
-        if (div) {
-          results.heights.push(div.getBoundingClientRect().height);
-        } else {
-          results.heights.push(fo.getBoundingClientRect().height);
-        }
-      } else {
-        // SVG text 방식
-        const bbox = (label as SVGGraphicsElement).getBBox?.();
-        if (bbox) results.heights.push(bbox.height);
-      }
+    const clusters = Array.from(svg.querySelectorAll('g.pele-cluster')).map((g) => {
+      const rect = g.querySelector(':scope > rect');
+      return {
+        id: g.getAttribute('data-id') ?? '',
+        box: rect ? toBox(rect.getBoundingClientRect()) : { left: 0, top: 0, right: 0, bottom: 0 },
+      };
     });
 
-    // 단일 라인 높이 기준: 첫 번째 cluster-label의 foreignObject 내부 p/span 의 line-height
-    const firstLabel = clusterLabels[0];
-    if (firstLabel) {
-      const fo = firstLabel.querySelector('foreignObject');
-      if (fo) {
-        const innerEl = fo.querySelector('span') || fo.querySelector('p') || fo.querySelector('div');
-        if (innerEl) {
-          const style = window.getComputedStyle(innerEl);
-          const lineHeight = parseFloat(style.lineHeight);
-          const fontSize = parseFloat(style.fontSize);
-          // line-height가 'normal'이면 fontSize * 1.2 추정
-          results.singleLineHeight = isNaN(lineHeight) || lineHeight === 0
-            ? fontSize * 1.4
-            : lineHeight;
-        }
-      }
-    }
+    const titles = Array.from(svg.querySelectorAll<SVGTextElement>('text.pele-cluster-label')).map((t) => ({
+      owner: t.closest('[data-id]')?.getAttribute('data-id') ?? '',
+      text: t.textContent ?? '',
+      tspans: t.querySelectorAll('tspan').length,
+      bboxHeight: t.getBBox().height,
+      fontSize: parseFloat(window.getComputedStyle(t).fontSize),
+      box: toBox(t.getBoundingClientRect()),
+    }));
 
-    return results;
-  });
-
-  return labelHeights;
-}
-
-/**
- * 두 cluster rect의 bounding box를 구해 겹침 여부를 반환.
- */
-async function getClusterRectOverlap(page: import('@playwright/test').Page) {
-  return page.evaluate(() => {
-    const svg = document.querySelector('.preview-content .mermaid-container svg');
-    if (!svg) return { overlaps: false, bboxes: [], error: 'no svg' };
-
-    const clusters = svg.querySelectorAll('.cluster');
-    if (clusters.length < 2) return { overlaps: false, bboxes: [], error: `only ${clusters.length} clusters` };
-
-    const bboxes = Array.from(clusters).map((c) => {
-      const rect = c.querySelector('rect');
-      if (!rect) return null;
-      const r = rect.getBoundingClientRect();
-      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
-    }).filter(Boolean) as Array<{ left: number; top: number; right: number; bottom: number; width: number; height: number }>;
-
-    if (bboxes.length < 2) return { overlaps: false, bboxes, error: 'insufficient rects' };
-
-    // 모든 쌍에 대해 겹침 검사
-    let overlaps = false;
-    for (let i = 0; i < bboxes.length; i++) {
-      for (let j = i + 1; j < bboxes.length; j++) {
-        const a = bboxes[i];
-        const b = bboxes[j];
-        // 겹침: 두 사각형이 교차하는지 (1px 여유)
-        const intersects =
-          a.left < b.right - 1 &&
-          a.right > b.left + 1 &&
-          a.top < b.bottom - 1 &&
-          a.bottom > b.top + 1;
-        if (intersects) overlaps = true;
-      }
-    }
-
-    return { overlaps, bboxes, error: null };
+    return { titles, clusters };
   });
 }
 
-test.describe('SPEC-PREVIEW-006: mermaid subgraph cluster 제목 1줄 렌더', () => {
-  // 시나리오 A+B: 수직 스택 — 1줄 표시 + 무겹침
-  test('시나리오 B — 수직 스택 cluster 제목이 1줄로 렌더되고 겹치지 않는다', async ({ tauriPage }) => {
-    const result = await getMermaidClusterLabelHeights(tauriPage, VERTICAL_FIXTURE);
+function boxesIntersect(a: Box, b: Box): boolean {
+  // 1px 여유(서브픽셀 경계 접촉은 겹침으로 보지 않음)
+  return a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+}
 
-    // cluster-label 이 2개 이상 있어야 함
-    expect(result.heights.length, '수직 픽스처에 cluster-label이 2개 이상 있어야 함').toBeGreaterThanOrEqual(2);
+function boxInside(inner: Box, outer: Box): boolean {
+  const tol = 1;
+  return (
+    inner.left >= outer.left - tol &&
+    inner.right <= outer.right + tol &&
+    inner.top >= outer.top - tol &&
+    inner.bottom <= outer.bottom + tol
+  );
+}
 
-    const singleLineRef = result.singleLineHeight > 0 ? result.singleLineHeight : 30;
+function assertSubgraphs(result: SubgraphMeasure, scenario: string): void {
+  // 제목 2개(A·B)와 상자 2개가 있어야 한다.
+  expect(result.clusters.map((c) => c.id).sort(), `${scenario}: 서브그래프 상자`).toEqual(['A', 'B']);
+  expect(result.titles.map((t) => t.owner).sort(), `${scenario}: 서브그래프 제목 소유 상자`).toEqual(['A', 'B']);
 
-    for (let i = 0; i < result.heights.length; i++) {
-      const h = result.heights[i];
-      // 단일 라인 높이의 1.6배 이하이면 1줄로 판정 (2줄이면 약 2× 단일 라인 높이)
-      expect(
-        h,
-        `cluster-label[${i}] 높이(${h.toFixed(1)}px)가 1줄 기준(${(singleLineRef * 1.6).toFixed(1)}px)을 초과함 — 2줄로 wrap됨`
-      ).toBeLessThan(singleLineRef * 1.6);
-    }
+  for (const t of result.titles) {
+    // 1줄: pele는 줄바꿈 시 tspan을 만든다.
+    expect(t.tspans, `${scenario}: 제목 ${t.owner}에 tspan(줄바꿈)이 있음 — "${t.text}"`).toBe(0);
+    // 1줄: 높이가 한 줄 높이(글자 크기 × 1.4)의 1.6배 미만.
+    const singleLine = t.fontSize * 1.4;
+    expect(
+      t.bboxHeight,
+      `${scenario}: 제목 ${t.owner} 높이(${t.bboxHeight.toFixed(1)})가 1줄 기준(${(singleLine * 1.6).toFixed(1)})을 넘음`,
+    ).toBeLessThan(singleLine * 1.6);
+    // 자기 상자 안.
+    const own = result.clusters.find((c) => c.id === t.owner);
+    expect(own, `${scenario}: 제목 ${t.owner}의 상자를 찾지 못함`).toBeTruthy();
+    expect(
+      boxInside(t.box, own!.box),
+      `${scenario}: 제목 ${t.owner}이 자기 상자 밖으로 나감 ${JSON.stringify({ title: t.box, cluster: own!.box })}`,
+    ).toBe(true);
+  }
 
-    // 겹침 없음 확인
-    const overlap = await getClusterRectOverlap(tauriPage);
-    expect(overlap.overlaps, `수직 스택에서 cluster rect가 겹침: ${JSON.stringify(overlap.bboxes)}`).toBe(false);
+  // 서로 다른 상자끼리 겹치지 않음.
+  const [a, b] = result.clusters;
+  expect(
+    boxesIntersect(a.box, b.box),
+    `${scenario}: 서브그래프 상자가 겹침 ${JSON.stringify(result.clusters)}`,
+  ).toBe(false);
+}
+
+test.describe('SPEC-PREVIEW-006 / SPEC-PREVIEW-015 AC-013: 서브그래프 제목 1줄 렌더(pele)', () => {
+  test('시나리오 B — 수직 스택 서브그래프 제목이 1줄로, 자기 상자 안에 렌더되고 상자끼리 겹치지 않는다', async ({
+    tauriPage,
+  }) => {
+    const result = await measureSubgraphs(tauriPage, VERTICAL_FIXTURE);
+    assertSubgraphs(result, '수직');
   });
 
-  // 시나리오 A+C: 수평 인접 — 1줄 표시 + 무겹침
-  test('시나리오 C — 수평 인접 cluster 제목이 1줄로 렌더되고 겹치지 않는다', async ({ tauriPage }) => {
-    const result = await getMermaidClusterLabelHeights(tauriPage, HORIZONTAL_FIXTURE);
-
-    expect(result.heights.length, '수평 픽스처에 cluster-label이 2개 이상 있어야 함').toBeGreaterThanOrEqual(2);
-
-    const singleLineRef = result.singleLineHeight > 0 ? result.singleLineHeight : 30;
-
-    for (let i = 0; i < result.heights.length; i++) {
-      const h = result.heights[i];
-      expect(
-        h,
-        `cluster-label[${i}] 높이(${h.toFixed(1)}px)가 1줄 기준(${(singleLineRef * 1.6).toFixed(1)}px)을 초과함 — 2줄로 wrap됨`
-      ).toBeLessThan(singleLineRef * 1.6);
-    }
-
-    // 겹침 없음 확인
-    const overlap = await getClusterRectOverlap(tauriPage);
-    expect(overlap.overlaps, `수평 인접에서 cluster rect가 겹침: ${JSON.stringify(overlap.bboxes)}`).toBe(false);
+  test('시나리오 C — 수평 인접 서브그래프 제목이 1줄로, 자기 상자 안에 렌더되고 상자끼리 겹치지 않는다', async ({
+    tauriPage,
+  }) => {
+    const result = await measureSubgraphs(tauriPage, HORIZONTAL_FIXTURE);
+    assertSubgraphs(result, '수평');
   });
 });

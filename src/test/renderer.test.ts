@@ -14,14 +14,6 @@ vi.mock('shiki', () => ({
   }),
 }));
 
-// Mock mermaid
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn().mockResolvedValue({ svg: '<svg>diagram</svg>' }),
-  },
-}));
-
 describe('renderMarkdown', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -91,10 +91,10 @@ priority: medium
 
 ### AC-AI-008-010: 재요청 종류 승계 + 종류 불일치 비-게이트 (REQ-AI-008-014, 017)
 
-- **Given** 종류(`diagramType`)를 실은 다이어그램 요청이 발행되어 있고, AI 응답이 mermaid `parse`에 실패한 상태일 때
+- **Given** 종류(`diagramType`)를 실은 다이어그램 요청이 발행되어 있고, AI 응답이 다이어그램 검증(다이어그램 모듈, SPEC-PREVIEW-015)에 실패한 상태일 때
 - **When** 자동 재요청(feature='diagram' 유지)이 발생하면
 - **Then** `fireReRequest`(ai-suggestion-card.ts:1101, `@MX:ANCHOR`)의 `{ ...originalArgs, ... }` 스프레드로 `diagramType`이 재요청에 승계되어 종류 제약이 재복창된다.
-- **And** AI가 요청과 다른 mermaid 종류를 반환해도 이는 검증 실패로 취급되지 않는다 — `mermaid.parse` 유효성만 하드 게이트이며 `validateMermaid`/`decideDiagramOutcome`(ai-suggestion-card.ts:169)/`buildFallbackDecision`는 무변경이다.
+- **And** AI가 요청과 다른 mermaid 종류를 반환해도 이는 검증 실패로 취급되지 않는다 — 다이어그램 모듈(pele) 검증 결과만 하드 게이트이며 `validateMermaid`/`decideDiagramOutcome`(ai-suggestion-card.ts:169)/`buildFallbackDecision`는 무변경이다.
 - **And** 목록 폴백(`feature='inline-edit'`, `presetKind='outline'`, ai-suggestion-card.ts:1172) 경로는 오늘과 같이 종류를 버린다.
 
 ### AC-AI-008-011: AI 토글 OFF → 툴바/서브메뉴 미노출 (REQ-AI-008-016)
@@ -112,11 +112,11 @@ priority: medium
 ### AC-AI-008-013: 회귀 가드 — 의존성/8항목/수동삽입/핀/키맵 (REQ-AI-008-019, 020, 021, 022, 024)
 
 - **Given** 본 SPEC의 전체 변경이 적용된 상태에서
-- **When** `package.json`·`src-tauri/Cargo.toml`·서브메뉴 항목·SPEC-UI-008 파일·mermaid 설정·키 바인딩을 검사하면
+- **When** `package.json`·`src-tauri/Cargo.toml`·서브메뉴 항목·SPEC-UI-008 파일·다이어그램 모듈 고정 옵션·키 바인딩을 검사하면
 - **Then** `package.json`(dependencies/devDependencies)과 `Cargo.toml`(dependencies)에 신규 런타임 의존성이 0건이다.
 - **And** 서브메뉴가 정확히 8항목(자동 + 7종)이며 나머지 17종 mermaid 유형이 추가되지 않았다.
 - **And** SPEC-UI-008 수동 삽입 흐름(`insertDiagram`, `DIAGRAM_PRESETS`, `keyboard-shortcuts.ts` 스니펫 상수, 빈-펜스 프리뷰 플레이스홀더)이 무변경이며 본 SPEC이 이를 호출하지 않는다.
-- **And** mermaid 버전 핀(11.12.3)·`securityLevel: 'strict'`가 무변경이고, `markdownKeyBindings`에 신규 바인딩이 없다.
+- **And** pele 버전 핀(1.10.0)·strict 모드(SPEC-PREVIEW-015)가 무변경이고, `markdownKeyBindings`에 신규 바인딩이 없다.
 
 ### AC-AI-008-014: 아이콘 추출 회귀 + 비-diagram 5기능 프롬프트 스냅샷 (REQ-AI-008-023, 025)
 
@@ -137,7 +137,7 @@ priority: medium
 | Lint(프론트) | `npm run lint`(eslint, `.eslintrc.cjs`·PR #37) 통과 — lint 실패는 본 SPEC 구현의 실제 결함으로 취급 |
 | 커버리지 | 신규 코드 커밋당 80% 이상, 전체 목표 85% |
 | 의존성 | `package.json`·`src-tauri/Cargo.toml` 신규 런타임 의존성 0건 |
-| 보안 불변식 | mermaid `securityLevel: 'strict'`, `startOnLoad: false` 유지, 버전 핀 11.12.3 유지 |
+| 보안 불변식 | strict 모드 유지(SPEC-PREVIEW-015 공통 정의), pele 버전 핀 1.10.0 유지 |
 | IPC 하위호환 | `AiRequestArgs` 신규 `diagram_type`은 `#[serde(default)]` optional — 기존 역직렬화 테스트(mod.rs:381 등) 무변경 통과 |
 
 ## Definition of Done
@@ -151,5 +151,5 @@ priority: medium
 - [ ] 종류가 자동 재요청에 승계되고, 종류 불일치가 검증 실패로 취급되지 않음(`decideDiagramOutcome`/`buildFallbackDecision` 무변경)
 - [ ] AI 토글 OFF에서 툴바·서브메뉴 미노출 확인(`buildToolbarDecorations` → `Decoration.none`)
 - [ ] `npm run typecheck` 클린 · `npm test` 전체 통과 · `npm run lint` 통과 · `cargo test` 통과 · `cargo clippy` 무경고 · 기존 Playwright 무변경 통과
-- [ ] 신규 런타임 의존성 0(JS + Cargo) 확인, 서브메뉴 8항목 고정 확인, `markdownKeyBindings`·mermaid 핀 무변경 확인, 수동 삽입(SPEC-UI-008) 무변경 확인
+- [ ] 신규 런타임 의존성 0(JS + Cargo) 확인, 서브메뉴 8항목 고정 확인, `markdownKeyBindings`·pele 핀 무변경 확인, 수동 삽입(SPEC-UI-008) 무변경 확인
 - [ ] @MX 태그 적용(서브메뉴 DOM/`fire` `@MX:NOTE`, prompt.rs 게이팅 `@MX:NOTE`, `fireReRequest` `@MX:ANCHOR` 유지)

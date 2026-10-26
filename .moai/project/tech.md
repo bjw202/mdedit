@@ -40,7 +40,7 @@ markdown-editor-rust uses a deliberately lightweight technology stack optimized 
 |-----------|--------|---------|-----------|
 | Markdown Parser | markdown-it | v14.x | Performance optimized; CommonMark compliant; plugin-friendly architecture |
 | Code Highlighting | Shiki | v1.x | VS Code quality syntax highlighting; same grammar files as VS Code |
-| Diagram Rendering | mermaid.js | v11.x | Flowchart, sequence, state, Git diagrams; active development |
+| Diagram Rendering | pele | 1.10.0 (exact pin) | Renders Mermaid syntax (` ```mermaid ` fences) synchronously to SVG; theme via `--pele-*` CSS variables; replaced mermaid.js in SPEC-PREVIEW-015 |
 | Math Rendering | KaTeX | v0.16.x | Fast LaTeX rendering; ~300KB lightweight; markdown-it-katex plugin integration |
 
 ### State Management
@@ -99,7 +99,7 @@ Monaco is production-ready but brings the entire VS Code editor complexity. Code
 - Markdown.js: Too simplistic, missing feature support
 
 **Rationale**:
-markdown-it provides fast, synchronous Markdown-to-HTML compilation with strong CommonMark compliance. The plugin architecture enables custom extensions (Mermaid rendering). It's lightweight and proven in production (used by GitLab, Vue docs). The synchronous API simplifies debouncing and real-time preview logic.
+markdown-it provides fast, synchronous Markdown-to-HTML compilation with strong CommonMark compliance. The plugin architecture enables custom extensions (diagram fences rendered via pele). It's lightweight and proven in production (used by GitLab, Vue docs). The synchronous API simplifies debouncing and real-time preview logic.
 
 **Tradeoff**: AST-based parsers (remark) provide more flexibility for complex transformations, but that complexity is unnecessary for a preview renderer.
 
@@ -123,12 +123,14 @@ Shiki uses the same language grammars and theme format as VS Code, ensuring cons
 
 ---
 
-### Decision 5: Mermaid v11 for Diagrams
+### Decision 5: pele 1.10.0 for Diagrams (Mermaid syntax)
 
 **Rationale**:
-Mermaid is the de facto standard for Markdown-embedded diagrams (flowcharts, sequence, state). Version 11 significantly improved rendering performance and bundle size. Integrating through markdown-it plugin provides seamless Markdown experience.
+Mermaid syntax is the de facto standard for Markdown-embedded diagrams, so the app keeps ` ```mermaid ` fences as its input format. SPEC-PREVIEW-015 replaced the mermaid.js library (11.12.3 with a patch-package patch) with pele 1.10.0, pinned exactly. pele renders synchronously, which lets preview, AI validation, AI card mini-preview, and HTML/PDF/DOCX exports all call one module (`src/lib/diagram/diagramRenderer.ts`) from the markdown source instead of reading the preview DOM. Fixed options: `autoDirection: false`, `links: false`, `images: false`, `responsive: true`. Output passes through a diagram-only DOMPurify instance. Theme colours are `--pele-*` CSS variables mapped to `--md-*` tokens, so a theme switch recolours without re-rendering; exports resolve the variables to literal values (DOCX always light). Math inside labels (`$$…$$`) is drawn with the existing `katex` dependency as bare MathML.
 
-**Tradeoff**: Mermaid is large (~1MB uncompressed) but lazy-loaded. Not essential for V1, but diagram support is expected in professional Markdown tools.
+**Tradeoff**: Layout differs from mermaid.js for some diagram types (mindmap, horizontal subgraphs, state notes). The user accepted these differences at the M1 gate. Upgrading pele needs a new SPEC and new fixture capture tooling.
+
+**History**: Mermaid v11 (mermaid.js) was the original choice; superseded by SPEC-PREVIEW-015 (2026-10-26).
 
 **Impact**: Users can author complex architecture diagrams directly in Markdown without external tools.
 
@@ -221,7 +223,7 @@ codegen-units = 1         # Single codegen unit for better optimization
 **Markdown and Preview**:
 - markdown-it@14.x (parser)
 - shiki@1.x (code highlighting)
-- mermaid@11.x (diagram rendering)
+- pele@1.10.0 (diagram rendering, Mermaid syntax; exact pin)
 
 **Export Formats**:
 - docx@9.x (DOCX file generation)
@@ -347,7 +349,7 @@ npm run dev:tauri
 |--------|--------|-------|
 | Markdown to HTML (10KB) | < 50ms | markdown-it compilation |
 | Preview debounce | 300ms | User typing lag tolerance |
-| Mermaid diagram render | < 500ms | First render; subsequent cached |
+| Diagram render (pele) | < 500ms | Synchronous per fence; theme switch recolours via CSS variables without re-render |
 | Full page reflow | < 100ms | React reconciliation |
 
 ### Binary Size
@@ -382,7 +384,7 @@ All Tier 1 platforms have identical features and performance:
 - File watching
 - Markdown preview
 - Syntax highlighting
-- Mermaid diagrams
+- Diagrams (Mermaid syntax, rendered by pele)
 
 ---
 

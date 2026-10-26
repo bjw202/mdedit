@@ -1,7 +1,7 @@
 ---
 id: SPEC-EXPORT-004
 title: "내보내기(HTML/PDF/DOCX) 로컬 이미지 누락 수정 — 공용 이미지 경로 해석기 + 상위 폴더 이미지 제한적 허용 + 누락 보고"
-version: "0.1.3"
+version: "0.1.4"
 status: completed
 created: 2026-10-26
 updated: 2026-10-26
@@ -26,6 +26,7 @@ related_specs: [SPEC-EXPORT-001, SPEC-EXPORT-002, SPEC-PREVIEW-014, SPEC-IMG-001
 | 0.1.1 | 2026-10-26 | jw | 사용자 결정 반영(plan-phase, 미결 질문 4건 해소). (1) SPEC 번호를 EXPORT-003 → **EXPORT-004**로 변경 — SPEC-EXPORT-002가 `SPEC-EXPORT-003`을 "PDF 완료 모달" 후속 SPEC으로 이미 예약해 두었으므로(EXPORT-002 spec.md:16·52·351·390) 그 예약을 그대로 두고 다음 번호를 쓴다. (2) PDF 누락 알림을 `window.alert`에서 앱 내 `ConfirmDialog`로 변경(REQ-010) — Tauri WKWebView에서 `alert` 동작이 검증되지 않았고, `exportPdf.ts:22` 주석이 같은 WebView에서 `window.print()`가 동작하지 않는다고 기록하고 있다. (3) 전용 명령 대상은 디코드 결과에 `..`가 있는 상대경로로 한정(기존안 유지). (4) 읽기 범위에 루트 제한을 두지 않고 이미지 확장자 제한만 둔다(기존안 유지). |
 | 0.1.2 | 2026-10-26 | jw | plan-audit iteration 1(FAIL 0.75) 결함 D1–D14 반영. 요구사항 변경: REQ-005 후보 경로별 라우팅과 구성요소 구분자(`/`·`\`) 명시(D7), REQ-006 루트·접두사 구성요소 거부 목록과 "한 번 열고 그 핸들로 검사·읽기" 순서 명시(D9·D10), REQ-008 "누락 = 임베드되지 않음"으로 정의하고 미저장 문서의 절대경로 이미지는 계속 임베드(D8·D11), REQ-010 확인 대기 시점을 HTML 생성 직후·문서 제목/인쇄 요소/리스너/타이머 변경 전으로 고정(D4), REQ-012 절대경로 절을 저장 여부와 무관하게 정리. Design Note에 TOCTOU·하드링크 잔여 위험 기록(D10). 테스트 배치(D1–D3·D5·D6·D11·D12)는 acceptance.md, 누락 이름 전달 경로(D14)와 변경 표(D13)는 plan.md. REQ 12건·AC 9건 유지. |
 | 0.1.3 | 2026-10-26 | jw | plan-audit iteration 2(FAIL 0.875) 결함 N1–N7 반영. **사용자 결정(N3)**: 0.1.2의 "미저장 문서에서 절대경로 이미지 임베드"를 되돌린다 — 미저장 문서는 상대·절대 어떤 로컬 이미지도 읽지 않고 모두 누락으로 보고한다(REQ-008, REQ-012). 이유: `read_image_as_base64`에 확장자 검사가 없어, 붙여 넣은 내용의 절대경로가 임의 파일을 공유용 HTML에 넣을 수 있다. 현재 main과 미리보기 동작이 그대로 유지되므로 REQ-001의 미리보기·내보내기 동일성 모순(N1)도 해소된다. REQ-006에 열기 전 일반 파일 확인과 비일반 파일(FIFO·디렉터리) 거부를 추가(N2). REQ 12건·AC 9건 유지. |
+| 0.1.4 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 mermaid에서 pele 1.10.0으로 바뀌어 DOCX는 미리보기 화면을 캡처하지 않고 원본 펜스에서 다이어그램을 렌더한다. REQ-EXPORT004-012의 DOCX 문장을 "Mermaid 다이어그램 삽입 동작(SPEC-PREVIEW-015 REQ-015·017)"으로 바꿨다. 이 SPEC의 이미지 경로 동작과 `[alt]` 대체 동작은 무변경이다. 같은 날 정리 작업으로 acceptance.md의 격리 설명, DM1 표 행(문서 DOM 캡처 → 원본 펜스 렌더), AC-EXPORT004-08의 "DOCX Mermaid 캡처" 문구를 현재 테스트(`src/test/exportImageEmbed.test.ts` DM1)에 맞게 고쳤다. `status: completed`는 그대로 둔다(SPEC-PREVIEW-015 progress.md §E.2 "M6" 기록 참조). |
 
 ## Overview
 
@@ -127,7 +128,7 @@ related_specs: [SPEC-EXPORT-001, SPEC-EXPORT-002, SPEC-PREVIEW-014, SPEC-IMG-001
 - The export pipeline shall `http://`·`https://`·`data:` 이미지에 대해 읽기를 호출하지 않고 src를 바꾸지 않는다.
 - **While** 문서가 저장된 상태이면, the export pipeline shall `/`로 시작하는 절대경로 src를 디코드 없이 그 경로 그대로 일반 이미지 읽기 IPC로 읽는다(미저장 문서는 REQ-008에 따라 읽지 않음).
 - The HTML export shall not 내보낸 파일에 JavaScript를 넣는다(SPEC-EXPORT-001 REQ-EXPORT-020).
-- The DOCX export shall Mermaid 다이어그램 캡처·삽입 동작과, 임베드하지 못한 이미지 자리에 `[alt]` 텍스트를 넣는 동작을 지금과 같이 유지한다.
+- The DOCX export shall Mermaid 다이어그램 삽입 동작(SPEC-PREVIEW-015 REQ-015·017 — 원본에서 렌더, 실패 펜스는 코드 텍스트)과, 임베드하지 못한 이미지 자리에 `[alt]` 텍스트를 넣는 동작을 유지한다.
 - The preview image embedder shall SPEC-PREVIEW-014의 T1~T10 동작을 그대로 유지한다. T11(디코드 결과에 `..`가 생기는 경우)만 REQ-005에 따라 전용 명령 경로로 바뀐다.
 
 ## Design Note — 왜 이 범위인가

@@ -234,7 +234,7 @@ flowchart LR
 | --- | --- |
 | 프론트엔드 | React 18 · TypeScript 5 · Vite |
 | 에디터 | CodeMirror 6 |
-| 미리보기 | markdown-it 14 · Shiki 3 · Mermaid 11 · KaTeX |
+| 미리보기 | markdown-it 14 · Shiki 3 · pele 1.10(Mermaid 문법) · KaTeX |
 | 상태 관리 | Zustand |
 | 백엔드 | Rust · Tauri v2 |
 | 익스포트 | HTML · PDF · DOCX(`docx`, ImageRun) |

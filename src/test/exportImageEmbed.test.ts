@@ -22,6 +22,9 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 // jsdom 은 data URI 에 대해 Image onload 를 발생시키지 않으므로 exportDocx.test.ts 와 같은 스텁을 쓴다.
+// inImageOnload: DM1 의 canvas 스텁을 래스터 단계(onload 안)에서만 켜기 위한 표시. pele 도 글자 폭 측정에 canvas 를 쓰므로
+// 스텁을 항상 켜 두면 pele 가 그것을 측정기로 잡는다(SPEC-PREVIEW-015 design.md D14 jsdom-default).
+let inImageOnload = false;
 vi.stubGlobal(
   'Image',
   class MockImage {
@@ -36,7 +39,12 @@ vi.stubGlobal(
     set src(value: string) {
       this._src = value;
       Promise.resolve().then(() => {
-        if (this.onload) this.onload();
+        inImageOnload = true;
+        try {
+          if (this.onload) this.onload();
+        } finally {
+          inImageOnload = false;
+        }
       });
     }
   },
@@ -105,8 +113,7 @@ const originalGetContext = HTMLCanvasElement.prototype.getContext;
 const originalToBlob = HTMLCanvasElement.prototype.toBlob;
 
 afterEach(() => {
-  // DM1 격리: 다이어그램 DOM 과 canvas 스텁이 H·P1 결과에 섞이지 않게 정리한다.
-  document.querySelectorAll('.mermaid-container').forEach((el) => el.remove());
+  // DM1 격리: canvas 스텁이 다른 테스트에 섞이지 않게 되돌린다.
   HTMLCanvasElement.prototype.getContext = originalGetContext;
   HTMLCanvasElement.prototype.toBlob = originalToBlob;
 });
@@ -303,18 +310,16 @@ describe('SPEC-EXPORT-004 누락 보고', () => {
   });
 });
 
-describe('SPEC-EXPORT-004 DOCX Mermaid 회귀 (DM1)', () => {
-  it('DM1: 문서 DOM 의 Mermaid SVG 를 PNG ImageRun 으로 넣고, 펜스 코드는 텍스트로 넣지 않는다', async () => {
-    const container = document.createElement('div');
-    container.className = 'mermaid-container';
-    container.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
-    document.body.appendChild(container);
+// SPEC-PREVIEW-015 (REQ-015·016, AC-022): 미리보기 DOM 캡처 대신 원본 펜스를 다이어그램 모듈(실제 pele)로 렌더한다.
+// jsdom 에는 캔버스가 없으므로 PNG 바이트는 canvas 스텁 값이다 — 이 테스트는 "펜스 하나 → PNG ImageRun 하나"만 증명한다.
+describe('SPEC-EXPORT-004 DOCX 다이어그램 회귀 (DM1, SPEC-PREVIEW-015 재작성)', () => {
+  it('DM1: 미리보기 DOM 이 없어도 원본 펜스를 PNG ImageRun 으로 1번 넣고, 펜스 코드는 텍스트로 넣지 않는다', async () => {
+    expect(document.querySelectorAll('.mermaid-container')).toHaveLength(0);
 
     const bytes = new Uint8Array([1, 2, 3, 4]);
-    HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
-      scale: vi.fn(),
-      drawImage: vi.fn(),
-    })) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = vi.fn(() =>
+      inImageOnload ? { scale: vi.fn(), drawImage: vi.fn() } : null,
+    ) as unknown as typeof HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.toBlob = function (cb: BlobCallback) {
       cb({ arrayBuffer: () => Promise.resolve(bytes.buffer) } as unknown as Blob);
     };

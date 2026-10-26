@@ -1,9 +1,9 @@
 ---
 id: SPEC-UI-008
-version: "0.0.2"
+version: "0.0.3"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-10-26"
 author: "jw"
 priority: medium
 issue_number: 0
@@ -14,10 +14,11 @@ issue_number: 0
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.0.1 | 2026-07-22 | jw | 최초 acceptance 작성 — Given-When-Then 시나리오 13건(AC-UI-008-001~013) + 품질 게이트. plan-audit 리뷰(SPEC-UI-008-review-1) D3 반영: spec.md의 dangling `acceptance.md` 참조 해소. spec.md의 재번호(REQ-001~022) 및 AC 재구성(D1/D2/D6)과 1:1 정합. 확정 결정 반영: 7종 프리셋 + 사용자 정의 빈 펜스, 즉시 렌더, 빈-펜스 플레이스홀더, AI 흐름 무변경·AI 토글 무관, 신규 런타임 의존성/단축키 없음. |
+| 0.0.3 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — AC-UI-008-004를 "프리셋 스니펫 pele 렌더 성공"으로 바꾸고, 검증 수단을 mermaid 파싱에서 다이어그램 모듈(pele 1.10.0) 렌더로, 버전 핀 확인을 pele 1.10.0으로 고쳤다. 같은 날 정리 작업으로 머리말 검증 방식, AC-UI-008-006·007(빈 펜스 플레이스홀더·전환)의 파서 호출 문구, 품질 게이트 보안 불변식 행, DoD 프리셋 렌더 항목도 pele·strict 모드 기준으로 고쳤다. |
 
 # Acceptance Criteria — SPEC-UI-008 (다이어그램 삽입 서브메뉴)
 
-검증 방식: **컴포넌트/단위 테스트 중심** — vitest + @testing-library/react(툴바/드롭다운) + jsdom `EditorView` 직접 구성(`insertDiagram` 단위 테스트, `src/test/insertDiagram.test.ts`; `image-widget.test.ts`/`insertTable.test.ts` 선례) + `PreviewRenderer.test.tsx`(빈-펜스 플레이스홀더). 프리셋 스니펫의 mermaid 파싱 성공은 mermaid 11.12.3 `mermaid.parse`로 검증한다. 기존 Playwright E2E 스위트는 무변경 통과해야 하며, 본 SPEC은 신규 E2E를 요구하지 않는다(관련 시 선택적).
+검증 방식: **컴포넌트/단위 테스트 중심** — vitest + @testing-library/react(툴바/드롭다운) + jsdom `EditorView` 직접 구성(`insertDiagram` 단위 테스트, `src/test/insertDiagram.test.ts`; `image-widget.test.ts`/`insertTable.test.ts` 선례) + `PreviewRenderer.test.tsx`(빈-펜스 플레이스홀더). 프리셋 스니펫의 렌더 성공은 다이어그램 모듈(pele 1.10.0, SPEC-PREVIEW-015)로 검증한다. 기존 Playwright E2E 스위트는 무변경 통과해야 하며, 본 SPEC은 신규 E2E를 요구하지 않는다(관련 시 선택적).
 
 ## Given-When-Then Scenarios
 
@@ -53,12 +54,12 @@ flowchart TD
 - **And** 에디터 selection(커서)이 해당 프리셋의 첫 편집 토큰(순서도의 경우 `시작`) 위치에 놓이고 `view.focus()`로 에디터가 포커스를 가지며, 드롭다운은 닫힌다.
 - **And** 나머지 6종(시퀀스 다이어그램→`사용자`, 간트 차트→`프로젝트 일정`, 클래스 다이어그램→`동물`, 상태 다이어그램→`대기`, 파이 차트→`분포 현황`, 마인드맵→`중심 주제`)도 spec.md "Preset Snippet Definitions"의 스니펫·첫 편집 토큰과 정확히 일치한다.
 
-### AC-UI-008-004: 프리셋 스니펫 mermaid 파싱 성공 (REQ-UI-008-008, 020)
+### AC-UI-008-004: 프리셋 스니펫 pele 렌더 성공 (REQ-UI-008-008, 020)
 
 - **Given** spec.md에 정의된 7종 프리셋 스니펫(펜스 내부 본문)이 있을 때
-- **When** mermaid 11.12.3 `mermaid.parse(snippet)`를 각 스니펫에 대해 호출하면
-- **Then** flowchart / sequenceDiagram / gantt / classDiagram / stateDiagram-v2 / pie / mindmap 7종 전부가 예외/오류 없이 파싱에 성공한다(삽입 즉시 렌더 가능).
-- **And** mermaid 버전 핀(11.12.3, SPEC-PREVIEW-006)은 변경되지 않는다.
+- **When** 다이어그램 모듈(pele 1.10.0, SPEC-PREVIEW-015 고정 옵션)로 각 스니펫을 렌더하면
+- **Then** flowchart / sequenceDiagram / gantt / classDiagram / stateDiagram-v2 / pie / mindmap 7종 전부가 오류 없이 SVG를 돌려준다(삽입 즉시 렌더 가능).
+- **And** pele 버전 핀(1.10.0, SPEC-PREVIEW-015)은 변경되지 않는다.
 
 ### AC-UI-008-005: 사용자 정의 빈 펜스 삽입 (REQ-UI-008-010)
 
@@ -78,14 +79,14 @@ flowchart TD
 
 - **Given** 프리뷰에 본문이 비어 있거나 공백만 있는 `.mermaid-container`(빈 `data-diagram`)가 있을 때
 - **When** `PreviewRenderer`가 해당 컨테이너를 처리하면
-- **Then** `mermaid.parse`를 호출하지 않고 안내 플레이스홀더("다이어그램 문법을 입력하세요" 스타일)를 컨테이너에 표시한다.
+- **Then** 다이어그램 모듈(pele `render`)을 호출하지 않고 안내 플레이스홀더("다이어그램 문법을 입력하세요" 스타일)를 컨테이너에 표시한다.
 - **And** `⚠ Diagram syntax error` 폴백 문구는 표시되지 않는다.
 
 ### AC-UI-008-007: 빈 펜스에 내용 입력 시 전환 (REQ-UI-008-014) [edge]
 
 - **Given** 앞서 빈 상태였던 ```mermaid 펜스가 있을 때
 - **When** 펜스 본문에 비어 있지 않은 내용이 입력되어 `data-diagram`이 비어 있지 않게 되면
-- **Then** 플레이스홀더가 제거되고 통상적인 mermaid 파싱/렌더 경로로 전환된다 — 유효한 다이어그램이면 렌더되고, 문법 오류이면 기존 `⚠ Diagram syntax error` 폴백이 표시된다.
+- **Then** 플레이스홀더가 제거되고 통상적인 다이어그램 렌더 경로로 전환된다 — 유효한 다이어그램이면 렌더되고, 문법 오류이면 `⚠ Diagram syntax error` 폴백(위치 접미사 포함, SPEC-PREVIEW-015 REQ-009)이 표시된다.
 
 ### AC-UI-008-008: 줄 중간 삽입 — 블록 패딩 (REQ-UI-008-015) [edge]
 
@@ -142,13 +143,13 @@ flowchart TD
 | Lint | `npm run lint` 통과 — PR #37(2026-07-20)에서 eslint 설정이 추가되어 정상 게이트로 복귀했으므로, lint 실패는 본 SPEC 구현의 실제 결함으로 취급한다 |
 | 커버리지 | 신규 코드 커밋당 80% 이상, 전체 목표 85% |
 | 의존성 | `package.json` dependencies/devDependencies 무변경 |
-| 보안 불변식 | mermaid `securityLevel: 'strict'`, `startOnLoad: false` 유지(SPEC-PREVIEW-010), mermaid 버전 핀 11.12.3 유지(SPEC-PREVIEW-006) |
+| 보안 불변식 | strict 모드 유지(SPEC-PREVIEW-015 공통 정의), pele 버전 핀 1.10.0 유지(SPEC-PREVIEW-015) |
 
 ## Definition of Done
 
 - [ ] AC-UI-008-001 ~ 013 전 시나리오에 대응하는 테스트가 존재하고 통과
 - [ ] REQ-UI-008-001 ~ 022 전 요구사항이 테스트 또는 diff 리뷰로 검증됨(spec.md AC 표 하단 REQ→AC 대조 참조)
-- [ ] 프리셋 7종 스니펫이 mermaid 11.12.3 `parse`를 오류 없이 통과
+- [ ] 프리셋 7종 스니펫이 pele 1.10.0에서 오류 없이 렌더
 - [ ] 빈/공백 펜스가 플레이스홀더를 표시하고 `⚠ Diagram syntax error`를 표시하지 않음
 - [ ] `npm run typecheck` 클린, `npm test` 전체 통과, 기존 Playwright 무변경 통과, `npm run lint` 통과
 - [ ] 기존 AI 흐름(ai-suggestion-card, `mermaidValidate.ts`) 무변경 확인, AI 토글 OFF에서 삽입 동작 확인

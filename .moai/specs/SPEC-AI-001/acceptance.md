@@ -20,7 +20,7 @@ issue_number: 0
 
 검증 방식:
 - **Rust 순수 함수 유닛**: stream 파싱·stderr 분류·스폰 인자 조립·경로/정책 판정(`#[cfg(test)] mod tests`).
-- **vitest + testing-library / 가짜 view**: 설정 모달·온보딩·프리셋 메뉴·길이 가드·mermaid 검증·제안 카드 적용·고스트 확정(`insertTable.test.ts` 가짜 view 스텁 선례).
+- **vitest + testing-library / 가짜 view**: 설정 모달·온보딩·프리셋 메뉴·길이 가드·다이어그램 검증·제안 카드 적용·고스트 확정(`insertTable.test.ts` 가짜 view 스텁 선례).
 - **Playwright(webkit)**: 렌더/상호작용 위주. **Tauri IPC는 Playwright에서 실행되지 않으므로** 실제 CLI 스폰·스트리밍은 Rust 유닛 + 수동 검증에 의존한다.
 - **수동 실측(Windows 우선)**: 단축키 Ctrl 매핑, 저사양/백신 스폰 지연.
 
@@ -107,7 +107,7 @@ issue_number: 0
 ### AC-AI-010: 다이어그램 검증 + 폴백 (REQ-AI-023, 024) [edge]
 
 - **Given** 절차 문단을 선택해 "다이어그램으로"를 요청할 때
-- **When** 응답 mermaid 코드가 로컬 파서(`securityLevel:'strict'`) 검증을 통과하면
+- **When** 응답 Mermaid 코드가 로컬 다이어그램 모듈(pele, strict 모드 — SPEC-PREVIEW-015) 검증을 통과하면
 - **Then** 카드에 코드블록 + 미니 렌더 미리보기가 표시되고 [✓ 아래에 삽입]으로 원문 유지 + 코드블록 삽입된다.
 - **And** 검증이 실패하면 오류 메시지를 동봉해 1회 자동 재요청하고, 재실패 시 "목록으로 정리해드릴까요?" 대체 산출물을 제안한다.
 
@@ -191,7 +191,7 @@ issue_number: 0
 | 로그인 만료(사용 중) | 원문 무손상 + 온보딩 재사용 + 원인 분류 | AC-AI-016 |
 | 원문 범위 침범 편집 | dispatch 재검증 차단 / 스트리밍 중 배너 | AC-AI-015 |
 | 선택 > 2K자 | 편집 프리셋 비활성, 변환 계열 4K 삽입 전용 | AC-AI-012 |
-| mermaid 검증 실패 | 1회 재요청 → 목록 폴백 | AC-AI-010 |
+| 다이어그램 검증 실패 | 1회 재요청 → 목록 폴백 | AC-AI-010 |
 | 요청 연타 | in-flight만 취소, 검토 카드 유지, 동시 1개 | AC-AI-003 |
 | Mod+S 중 스트리밍 | 요청 유지(저장 독립) | AC-AI-017 |
 | 빈/동일 제안 | "바꿀 곳 없어요", 빈 교체 방지 | AC-AI-017 |
@@ -219,7 +219,7 @@ issue_number: 0
 | Lint | `npm run lint`는 **게이트 제외** — eslint config 부재로 항상 실패하는 알려진 제약. 회귀 오판 금지 |
 | 의존성 | 신규 런타임 의존성 0(claude CLI 외). `package.json`/`Cargo.toml` 런타임 의존성 무추가 확인 |
 | Windows 실측 | 단축키 Ctrl 매핑 + 저사양/백신 스폰 지연 수동 검증(M0 완료 조건) |
-| 보안 | 프로세스 스폰 격리(빈 cwd + `--setting-sources ""` + env 차단), mermaid `securityLevel:'strict'` 유지, expert-security 검토 |
+| 보안 | 프로세스 스폰 격리(빈 cwd + `--setting-sources ""` + env 차단), 다이어그램 strict 모드(SPEC-PREVIEW-015 공통 정의) 유지, expert-security 검토 |
 
 ## Definition of Done
 
@@ -227,6 +227,6 @@ issue_number: 0
 - [ ] REQ-AI-001 ~ 040 전 요구사항이 테스트 또는 수동 실측으로 검증됨
 - [ ] `tsc --noEmit` 클린 + `cargo test` 통과 + 전체 vitest 통과 + 기존 Playwright 무변경
 - [ ] 무손상 원칙 검증: 모든 실패 경로에서 문서 무변경, 변경은 사용자 확정으로만
-- [ ] @MX 태그 적용(spec.md mx_plan: 적용/확정 경로 @MX:ANCHOR, 스폰·mermaid @MX:WARN, 상한·프리셋 @MX:NOTE)
+- [ ] @MX 태그 적용(spec.md mx_plan: 적용/확정 경로 @MX:ANCHOR, 스폰·다이어그램 검증 @MX:WARN, 상한·프리셋 @MX:NOTE)
 - [ ] Windows 단축키·스폰 지연 수동 실측 완료(설계서 §11 리스크 채움)
 - [ ] 신규 런타임 의존성 0 확인

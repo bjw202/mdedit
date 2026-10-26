@@ -1,9 +1,9 @@
 ---
 id: SPEC-EXPORT-001
-version: 1.0.0
+version: 1.0.1
 status: implemented
 created: 2026-02-25
-updated: 2026-02-25
+updated: 2026-10-26
 author: jw
 priority: medium
 domain: EXPORT
@@ -26,22 +26,25 @@ lifecycle: spec-first
 | 버전 | 날짜 | 작성자 | 변경 내용 |
 |------|------|--------|-----------|
 | 1.0.0 | 2026-02-25 | jw | 초기 SPEC 작성 |
+| 1.0.1 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 pele 1.10.0으로 바뀌어도 REQ-EXPORT-003의 "인라인 SVG, JavaScript 없음"은 그대로 성립함을 확인했다(문구 무변경). REQ-EXPORT-020의 괄호 "Mermaid JS 제거"를 "다이어그램 JS 없음"으로 다듬었다. 같은 날 정리 작업으로 §1 환경에 다이어그램 현재 상태 안내를 넣고, 기술 스택·현재 상태·제약의 렌더러 표기, 가정 A3·A6, §4.2~4.4의 다이어그램 추출 단계, 외부 라이브러리 표(mermaid → pele)와 acceptance.md의 같은 시나리오 문구를 고쳤다. "Mermaid 다이어그램"은 문법 이름이라 유지한다. |
 
 ---
 
 ## 1. Environment (환경)
 
+> **다이어그램 관련 현재 상태 (SPEC-PREVIEW-015, 2026-10-26)**: 다이어그램 렌더러가 mermaid 11에서 pele 1.10.0으로 바뀌었고, HTML·PDF·DOCX 내보내기는 미리보기 DOM의 SVG를 추출하지 않고 원본 ` ```mermaid ` 펜스를 다이어그램 모듈로 직접 렌더한다(SPEC-PREVIEW-015 REQ-015). 이 문서의 다이어그램 추출 설계(A3, §4.2 2번, §4.3 3번)는 1.0.0 당시 기록이다. "Mermaid 다이어그램"은 앱이 계속 쓰는 다이어그램 문법 이름이다.
+
 ### 프로젝트 컨텍스트
 - **애플리케이션**: MdEdit (Tauri v2 + React 18 마크다운 에디터)
 - **플랫폼**: macOS, Windows, Linux (크로스 플랫폼)
-- **기술 스택**: TypeScript (strict mode), React 18, Zustand 5.x, Tauri v2, markdown-it 14.x, Shiki v1.x, Mermaid v11.x
+- **기술 스택**: TypeScript (strict mode), React 18, Zustand 5.x, Tauri v2, markdown-it 14.x, Shiki v1.x, 다이어그램 렌더러 pele 1.10.0(1.0.0 당시 Mermaid v11.x)
 - **대상 영역**: 렌더링된 마크다운 문서를 외부 파일 포맷(PDF, HTML, DOCX)으로 내보내기
 
 ### 현재 상태
 - 마크다운 렌더링 파이프라인이 완성되어 있음 (`renderer.ts:56-96` -> `PreviewRenderer.tsx:22-51`)
-- markdown-it + Shiki(구문 강조) + Mermaid(다이어그램) 조합으로 HTML 생성
+- markdown-it + Shiki(구문 강조) + 다이어그램 렌더러(1.0.0 당시 Mermaid, 지금 pele) 조합으로 HTML 생성
 - Shiki는 인라인 스타일 `<span>` 요소를 생성하여 CSS 의존성 없음
-- Mermaid는 클라이언트 사이드에서 SVG로 비동기 렌더링
+- 1.0.0 당시 Mermaid는 클라이언트 사이드에서 SVG로 비동기 렌더링했다(지금 pele는 동기 호출로 SVG를 만든다)
 - `save_file_as` Tauri 명령어와 파일 저장 다이얼로그 패턴이 이미 구현됨 (`file_ops.rs:85-111`)
 - IPC 래퍼 패턴 확립 (`ipc.ts`)
 - Header 컴포넌트에 버튼 배치 패턴 존재 (`Header.tsx:31-54`)
@@ -49,7 +52,7 @@ lifecycle: spec-first
 
 ### 제약 조건
 - `html: false` markdown-it 설정은 보안 요구사항이므로 변경 금지
-- Mermaid는 클라이언트 사이드에서만 렌더링 가능 (비동기 SVG 주입)
+- 다이어그램은 클라이언트 사이드(웹뷰)에서 렌더링한다 (1.0.0 당시 Mermaid는 비동기 SVG 주입, 지금 pele는 동기 렌더)
 - Shiki 테마는 현재 `github-light`로 하드코딩됨 (`renderer.ts:75`)
 - TypeScript strict mode 준수 필수
 - 크로스 플랫폼 경로 처리 필요 (Windows `\` vs Unix `/`)
@@ -62,10 +65,10 @@ lifecycle: spec-first
 |----|------|--------|------|-------------|
 | A1 | Webview Print-to-PDF API가 모든 타겟 플랫폼에서 동작한다 | Medium | Tauri v2의 WebView2(Windows), WKWebView(macOS), WebKitGTK(Linux) 기반이며, 각각 print 기능을 지원하나 세부 동작 차이 가능 | PDF 내보내기가 특정 OS에서 미동작, 대체 방안 필요 |
 | A2 | `docx` npm 패키지(~50KB gzip)가 Tauri 환경에서 정상 동작한다 | High | 순수 JavaScript 패키지이므로 브라우저/Node 환경 모두 호환 | DOCX 내보내기 기능 불가, 대체 패키지 탐색 필요 |
-| A3 | Mermaid SVG가 렌더링 완료된 후 DOM에서 추출 가능하다 | High | 현재 `PreviewRenderer`가 `dangerouslySetInnerHTML`로 렌더링 후 Mermaid가 SVG를 주입하는 패턴 확인 | HTML/PDF에 다이어그램 누락, 렌더링 완료 대기 로직 필요 |
+| A3 | (1.0.0 당시 가정 — SPEC-PREVIEW-015 이후 내보내기는 원본 펜스에서 렌더하므로 더 쓰지 않음) Mermaid SVG가 렌더링 완료된 후 DOM에서 추출 가능하다 | High | 당시 `PreviewRenderer`가 `dangerouslySetInnerHTML`로 렌더링 후 Mermaid가 SVG를 주입하는 패턴 확인 | HTML/PDF에 다이어그램 누락, 렌더링 완료 대기 로직 필요 |
 | A4 | 프리뷰 패널의 CSS를 인라인으로 변환하여 self-contained HTML 생성이 가능하다 | High | `index.css:25-117`의 프리뷰 CSS가 분리되어 있으며, CSS 인라인화는 표준 기법 | HTML 내보내기 파일이 스타일 없이 렌더링됨 |
 | A5 | `tauri-plugin-dialog`의 `blocking_save_file`로 PDF/HTML/DOCX 파일 필터를 적용할 수 있다 | High | 기존 `save_file_as`에서 `.md` 필터를 사용하는 패턴이 동작 중 (`file_ops.rs:85-111`) | 파일 저장 다이얼로그에서 포맷별 필터링 불가 |
-| A6 | Mermaid SVG를 canvas를 통해 PNG로 변환할 수 있다 | Medium | 표준 `canvas.drawImage` + `toDataURL` 기법이지만, SVG foreignObject 포함 시 CORS/보안 제약 가능 | DOCX에 다이어그램을 이미지로 포함 불가, 텍스트 대체 필요 |
+| A6 | 다이어그램 SVG(1.0.0 당시 Mermaid, 지금 pele)를 canvas를 통해 PNG로 변환할 수 있다 | Medium | 표준 `canvas.drawImage` + `toDataURL` 기법이지만, SVG foreignObject 포함 시 CORS/보안 제약 가능 | DOCX에 다이어그램을 이미지로 포함 불가, 텍스트 대체 필요 |
 
 ---
 
@@ -153,7 +156,7 @@ lifecycle: spec-first
 > 시스템은 내보내기 도중 에디터 콘텐츠를 수정**하지 않아야 한다**.
 
 **REQ-EXPORT-020** (Unwanted)
-> 시스템은 내보내기 파일에 JavaScript를 포함**하지 않아야 한다** (HTML 내보내기 시 Mermaid JS 제거, SVG만 포함).
+> 시스템은 내보내기 파일에 JavaScript를 포함**하지 않아야 한다** (HTML 내보내기 시 다이어그램 JS 없음, SVG만 포함).
 
 ---
 
@@ -199,7 +202,7 @@ lifecycle: spec-first
 
 #### 전략: Self-Contained HTML
 1. `renderMarkdown(content)`로 HTML 본문 생성
-2. DOM에서 렌더링된 Mermaid SVG 추출 (JavaScript 의존성 제거)
+2. Mermaid 다이어그램을 인라인 SVG로 포함 (JavaScript 의존성 없음). 지금은 자리마다 원본 펜스를 다이어그램 모듈로 렌더한다(SPEC-PREVIEW-015). 1.0.0 당시에는 DOM에서 렌더링된 SVG를 추출했다.
 3. 프리뷰 CSS (`index.css:25-117`)를 `<style>` 태그로 인라인
 4. Shiki 인라인 스타일은 이미 HTML에 포함되어 있으므로 추가 처리 불필요
 5. 완전한 HTML 문서 구조 (`<!DOCTYPE html>`, `<head>`, `<body>`) 생성
@@ -217,7 +220,7 @@ lifecycle: spec-first
 </head>
 <body>
   <div class="preview-content">
-    {렌더링된 HTML + 인라인 Mermaid SVG}
+    {렌더링된 HTML + 인라인 다이어그램 SVG}
   </div>
 </body>
 </html>
@@ -228,7 +231,7 @@ lifecycle: spec-first
 #### 전략: Webview Print-to-PDF (프론트엔드 주도)
 1. 프리뷰 패널의 렌더링된 콘텐츠를 기반으로 `window.print()` 활용
 2. 또는 숨겨진 iframe/새 창에 self-contained HTML을 로드하여 print 호출
-3. Webview의 print 기능이 Mermaid SVG와 Shiki 스타일을 자동으로 보존
+3. Webview의 print 기능이 다이어그램 SVG와 Shiki 스타일을 자동으로 보존
 4. 사용자가 OS print 다이얼로그에서 PDF 저장 위치를 선택
 
 #### Print CSS 고려사항
@@ -250,7 +253,7 @@ lifecycle: spec-first
    - `strong_open` -> `TextRun` with bold
    - `em_open` -> `TextRun` with italics
    - `link_open` -> `ExternalHyperlink`
-3. Mermaid 코드 블록: SVG -> canvas -> PNG -> `ImageRun`
+3. Mermaid 코드 블록: 다이어그램 모듈로 렌더한 SVG -> canvas -> PNG -> `ImageRun` (SPEC-PREVIEW-015 이후 원본 펜스에서 렌더)
 4. Shiki 색상 변환: `<span style="color:#xxx">` -> `TextRun({ color: "xxx" })`
 5. `docx.Packer.toBlob()`으로 바이너리 생성
 6. Tauri IPC를 통해 바이너리 파일 저장
@@ -304,7 +307,7 @@ lifecycle: spec-first
 | `src-tauri/src/commands/file_ops.rs` | Tauri 명령어 추가 | Low |
 | `src-tauri/src/lib.rs` | 명령어 등록 | Low |
 | `src/index.css` | Print CSS 미디어 쿼리 추가 | Low |
-| `src/lib/markdown/renderer.ts` | Mermaid SVG 추출 유틸리티 (선택적) | Low |
+| `src/lib/markdown/renderer.ts` | Mermaid SVG 추출 유틸리티 (선택적, 1.0.0 당시 계획) | Low |
 | `package.json` | `docx` 의존성 추가 | Low |
 
 ---
@@ -337,7 +340,7 @@ lifecycle: spec-first
 | docx | ^9.x | DOCX 파일 생성 | ~50KB gzip, 신규 추가 |
 | markdown-it | 14.x | 토큰 파싱 (DOCX 변환용) | 기존 설치됨 |
 | shiki | 1.x | 구문 강조 (색상 추출) | 기존 설치됨 |
-| mermaid | 11.x | 다이어그램 SVG (추출 대상) | 기존 설치됨 |
+| pele | 1.10.0 | 다이어그램 SVG | SPEC-PREVIEW-015에서 mermaid 11.x를 대체 |
 | tauri-plugin-dialog | 2.x | 파일 저장 다이얼로그 | 기존 설치됨 |
 
 ### 신규 Cargo 의존성

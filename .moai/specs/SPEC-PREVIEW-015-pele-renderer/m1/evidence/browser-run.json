@@ -1,0 +1,1825 @@
+{
+  "startedAt": "2026-10-26T08:16:44.478Z",
+  "url": "http://localhost:4317/compare.html",
+  "environment": "playwright 1.58.2 webkit 26.0 (headless, macOS)",
+  "sampleIds": [
+    "01-test-content",
+    "02-subgraph-B-vertical",
+    "03-subgraph-C-horizontal",
+    "04-preset-flowchart",
+    "05-preset-sequenceDiagram",
+    "06-preset-gantt",
+    "07-preset-classDiagram",
+    "08-preset-stateDiagram",
+    "09-preset-pie",
+    "10-preset-mindmap",
+    "11-ai-mock-invalid",
+    "12-ai-mock-valid",
+    "13-classdef-style",
+    "14-state-v2-composite",
+    "15-mindmap-deep",
+    "16-pie-title-showdata",
+    "17-entity",
+    "18-math-label",
+    "19-link-click",
+    "20-image-node",
+    "21-error-line-col",
+    "22-error-line0-semantic",
+    "23-error-xss-label"
+  ],
+  "violationsAfterPele": [],
+  "consoleAfterPele": [],
+  "renders": [
+    {
+      "id": "01-test-content",
+      "rtrue": {
+        "width": 342,
+        "height": 401,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "02-subgraph-B-vertical",
+      "rtrue": {
+        "width": 397,
+        "height": 472,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "03-subgraph-C-horizontal",
+      "rtrue": {
+        "width": 767,
+        "height": 316,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "04-preset-flowchart",
+      "rtrue": {
+        "width": 184,
+        "height": 293,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "05-preset-sequenceDiagram",
+      "rtrue": {
+        "width": 194,
+        "height": 204,
+        "type": "sequence"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "06-preset-gantt",
+      "rtrue": {
+        "width": 800,
+        "height": 107,
+        "type": "gantt"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "07-preset-classDiagram",
+      "rtrue": {
+        "width": 113,
+        "height": 122,
+        "type": "class"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "08-preset-stateDiagram",
+      "rtrue": {
+        "width": 76,
+        "height": 293,
+        "type": "state"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "09-preset-pie",
+      "rtrue": {
+        "width": 347,
+        "height": 296,
+        "type": "pie"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "10-preset-mindmap",
+      "rtrue": {
+        "width": 311,
+        "height": 97,
+        "type": "mindmap"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "11-ai-mock-invalid",
+      "rtrue": {
+        "error": {
+          "code": "unsupported-diagram",
+          "message": "No diagram type detected for the given text.",
+          "line": 0,
+          "column": 0
+        }
+      },
+      "mermaid": {
+        "light": "error: No diagram type detected matching given configuration for text: notarealdiagramtype foo!!!",
+        "dark": "error: No diagram type detected matching given configuration for text: notarealdiagramtype foo!!!"
+      }
+    },
+    {
+      "id": "12-ai-mock-valid",
+      "rtrue": {
+        "width": 304,
+        "height": 64,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "13-classdef-style",
+      "rtrue": {
+        "width": 368,
+        "height": 152,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "14-state-v2-composite",
+      "rtrue": {
+        "width": 224,
+        "height": 707,
+        "type": "state"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "15-mindmap-deep",
+      "rtrue": {
+        "width": 575,
+        "height": 188,
+        "type": "mindmap"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "16-pie-title-showdata",
+      "rtrue": {
+        "width": 397,
+        "height": 296,
+        "type": "pie"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "17-entity",
+      "rtrue": {
+        "width": 212,
+        "height": 64,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "18-math-label",
+      "rtrue": {
+        "width": 489,
+        "height": 64,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "19-link-click",
+      "rtrue": {
+        "width": 224,
+        "height": 64,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "ok",
+        "dark": "ok"
+      }
+    },
+    {
+      "id": "20-image-node",
+      "rtrue": {
+        "width": 210,
+        "height": 106,
+        "type": "flowchart"
+      },
+      "mermaid": {
+        "light": "error: Loading error.",
+        "dark": "error: Loading error."
+      }
+    },
+    {
+      "id": "21-error-line-col",
+      "rtrue": {
+        "error": {
+          "code": "syntax",
+          "message": "Parse error on line 2:\n  A->>B hello\n-------------^\nExpecting 'TXT', got 'NEWLINE'",
+          "line": 2,
+          "column": 14
+        }
+      },
+      "mermaid": {
+        "light": "error: Parse error on line 2:\n...iagram  A->>B hello\n----------------------^\nExpecting 'TXT', got 'NEWLINE'",
+        "dark": "error: Parse error on line 2:\n...iagram  A->>B hello\n----------------------^\nExpecting 'TXT', got 'NEWLINE'"
+      }
+    },
+    {
+      "id": "22-error-line0-semantic",
+      "rtrue": {
+        "error": {
+          "code": "semantic",
+          "message": "\"a\" has invalid value: -1. Negative values are not allowed in pie charts. All slice values must be >= 0.",
+          "line": 0,
+          "column": 0
+        }
+      },
+      "mermaid": {
+        "light": "error: \"a\" has invalid value: -1. Negative values are not allowed in pie charts. All slice values must be >= 0.",
+        "dark": "error: \"a\" has invalid value: -1. Negative values are not allowed in pie charts. All slice values must be >= 0."
+      }
+    },
+    {
+      "id": "23-error-xss-label",
+      "rtrue": {
+        "error": {
+          "code": "syntax",
+          "message": "Parse error on line 3:\n\n^\nExpecting 'NODE_STRING', got 'EOF'",
+          "line": 3,
+          "column": 1
+        }
+      },
+      "mermaid": {
+        "light": "error: Parse error on line 3:\n...ror=alert(1)>\"] -->\n----------------------^\nExpecting 'AMP', 'COLON', 'PIPE', 'TESTSTR', 'DOWN', 'DEFAULT', 'NUM', 'COMMA', 'NODE_STRI",
+        "dark": "error: Parse error on line 3:\n...ror=alert(1)>\"] -->\n----------------------^\nExpecting 'AMP', 'COLON', 'PIPE', 'TESTSTR', 'DOWN', 'DEFAULT', 'NUM', 'COMMA', 'NODE_STRI"
+      }
+    }
+  ],
+  "violationsAll": [
+    {
+      "phase": "mermaid-render-and-insert",
+      "directive": "img-src",
+      "blocked": "https://example.com/logo.png"
+    },
+    {
+      "phase": "mermaid-render-and-insert",
+      "directive": "img-src",
+      "blocked": "https://example.com/logo.png"
+    }
+  ],
+  "consoleAll": [
+    {
+      "type": "error",
+      "text": "Refused to load https://example.com/logo.png because it does not appear in the img-src directive of the Content Security Policy."
+    },
+    {
+      "type": "error",
+      "text": "Refused to load https://example.com/logo.png because it does not appear in the img-src directive of the Content Security Policy."
+    }
+  ],
+  "tokens": {
+    "light": {
+      "--pele-bg": "#f2f2f3",
+      "--pele-fg": "#1d1f20",
+      "--pele-muted": "#5d5d60",
+      "--pele-line": "#5d5d60",
+      "--pele-surface": "#e9e9ea",
+      "--pele-surface-alt": "#fbfbfc",
+      "--pele-border": "rgba(29, 31, 32, .28)",
+      "--pele-accent": "#5980a6",
+      "--pele-error": "#b0473c",
+      "--pele-critical": "#b0473c"
+    },
+    "dark": {
+      "--pele-bg": "#191b1d",
+      "--pele-fg": "#e7e7ea",
+      "--pele-muted": "#a4a6a9",
+      "--pele-line": "#a4a6a9",
+      "--pele-surface": "#212427",
+      "--pele-surface-alt": "#2b2f33",
+      "--pele-border": "rgba(231, 231, 234, .26)",
+      "--pele-accent": "#7ea6cd",
+      "--pele-error": "#d97a6f",
+      "--pele-critical": "#d97a6f"
+    }
+  },
+  "geometry": {
+    "01-test-content": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 342,
+          "h": 401
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 342,
+          "h": 401
+        }
+      }
+    },
+    "02-subgraph-B-vertical": {
+      "560": {
+        "clusters": [
+          {
+            "id": "B",
+            "rect": {
+              "x": 41.435462951660156,
+              "y": 267.99139404296875,
+              "w": 329.97906494140625,
+              "h": 203.99325561523438
+            }
+          },
+          {
+            "id": "A",
+            "rect": {
+              "x": 16.006305694580078,
+              "y": 15.999734878540039,
+              "w": 380.827392578125,
+              "h": 203.9932403564453
+            }
+          }
+        ],
+        "titles": [
+          {
+            "text": "🔵 tree-sitter (자/줄자) — 결정론적 · 100% 재현 가능",
+            "tspans": 0,
+            "rect": {
+              "x": 32.19327163696289,
+              "y": 27.186864852905273,
+              "w": 348.45721435546875,
+              "h": 19.218114852905273
+            }
+          },
+          {
+            "text": "🟢 LSP (현미경) — 의미 분석 · 타입 추론 가능",
+            "tspans": 0,
+            "rect": {
+              "x": 60.53608322143555,
+              "y": 279.17852783203125,
+              "w": 291.7716064453125,
+              "h": 19.218109130859375
+            }
+          }
+        ],
+        "clusterOverlaps": [],
+        "titleFits": [
+          {
+            "i": 0,
+            "fitsInsideSomeCluster": true
+          },
+          {
+            "i": 1,
+            "fitsInsideSomeCluster": true
+          }
+        ],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 397,
+          "h": 471.984375
+        }
+      },
+      "800": {
+        "clusters": [
+          {
+            "id": "B",
+            "rect": {
+              "x": 41.435462951660156,
+              "y": 267.99139404296875,
+              "w": 329.97906494140625,
+              "h": 203.99325561523438
+            }
+          },
+          {
+            "id": "A",
+            "rect": {
+              "x": 16.006305694580078,
+              "y": 15.999734878540039,
+              "w": 380.827392578125,
+              "h": 203.9932403564453
+            }
+          }
+        ],
+        "titles": [
+          {
+            "text": "🔵 tree-sitter (자/줄자) — 결정론적 · 100% 재현 가능",
+            "tspans": 0,
+            "rect": {
+              "x": 32.19327163696289,
+              "y": 27.186864852905273,
+              "w": 348.45721435546875,
+              "h": 19.218114852905273
+            }
+          },
+          {
+            "text": "🟢 LSP (현미경) — 의미 분석 · 타입 추론 가능",
+            "tspans": 0,
+            "rect": {
+              "x": 60.53608322143555,
+              "y": 279.17852783203125,
+              "w": 291.7716064453125,
+              "h": 19.218109130859375
+            }
+          }
+        ],
+        "clusterOverlaps": [],
+        "titleFits": [
+          {
+            "i": 0,
+            "fitsInsideSomeCluster": true
+          },
+          {
+            "i": 1,
+            "fitsInsideSomeCluster": true
+          }
+        ],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 397,
+          "h": 471.984375
+        }
+      }
+    },
+    "03-subgraph-C-horizontal": {
+      "560": {
+        "clusters": [
+          {
+            "id": "B",
+            "rect": {
+              "x": 321.10150146484375,
+              "y": 83.9276123046875,
+              "w": 240.91680908203125,
+              "h": 148.93492126464844
+            }
+          },
+          {
+            "id": "A",
+            "rect": {
+              "x": 13.857521057128906,
+              "y": 83.9276123046875,
+              "w": 278.04107666015625,
+              "h": 148.93492126464844
+            }
+          }
+        ],
+        "titles": [
+          {
+            "text": "🟢 LSP (현미경) — 의미 분석 · 타입 추론 가능",
+            "tspans": 0,
+            "rect": {
+              "x": 335.2152099609375,
+              "y": 92.09530639648438,
+              "w": 212.69085693359375,
+              "h": 14.031089782714844
+            }
+          },
+          {
+            "text": "🔵 tree-sitter (자/줄자) — 결정론적 · 100% 재현 가능",
+            "tspans": 0,
+            "rect": {
+              "x": 25.835283279418945,
+              "y": 92.09530639648438,
+              "w": 254.07688903808594,
+              "h": 14.031089782714844
+            }
+          }
+        ],
+        "clusterOverlaps": [],
+        "titleFits": [
+          {
+            "i": 0,
+            "fitsInsideSomeCluster": true
+          },
+          {
+            "i": 1,
+            "fitsInsideSomeCluster": true
+          }
+        ],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 560,
+          "h": 230.703125
+        }
+      },
+      "800": {
+        "clusters": [
+          {
+            "id": "B",
+            "rect": {
+              "x": 436.8399963378906,
+              "y": 112,
+              "w": 329.9899597167969,
+              "h": 204
+            }
+          },
+          {
+            "id": "A",
+            "rect": {
+              "x": 16,
+              "y": 112,
+              "w": 380.8399963378906,
+              "h": 204
+            }
+          }
+        ],
+        "titles": [
+          {
+            "text": "🟢 LSP (현미경) — 의미 분석 · 타입 추론 가능",
+            "tspans": 0,
+            "rect": {
+              "x": 455.953125,
+              "y": 123.1875,
+              "w": 291.78125,
+              "h": 19.21875
+            }
+          },
+          {
+            "text": "🔵 tree-sitter (자/줄자) — 결정론적 · 100% 재현 가능",
+            "tspans": 0,
+            "rect": {
+              "x": 32.1875,
+              "y": 123.1875,
+              "w": 348.46875,
+              "h": 19.21875
+            }
+          }
+        ],
+        "clusterOverlaps": [],
+        "titleFits": [
+          {
+            "i": 0,
+            "fitsInsideSomeCluster": true
+          },
+          {
+            "i": 1,
+            "fitsInsideSomeCluster": true
+          }
+        ],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 767,
+          "h": 316
+        }
+      }
+    },
+    "04-preset-flowchart": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 184,
+          "h": 293
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 184,
+          "h": 293
+        }
+      }
+    },
+    "05-preset-sequenceDiagram": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 194,
+          "h": 204
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 194,
+          "h": 204
+        }
+      }
+    },
+    "06-preset-gantt": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 560,
+          "h": 74.890625
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 800,
+          "h": 107
+        }
+      }
+    },
+    "07-preset-classDiagram": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 113,
+          "h": 121.984375
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 113,
+          "h": 121.984375
+        }
+      }
+    },
+    "08-preset-stateDiagram": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 76,
+          "h": 293
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 76,
+          "h": 293
+        }
+      }
+    },
+    "09-preset-pie": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 347,
+          "h": 296
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 347,
+          "h": 296
+        }
+      }
+    },
+    "10-preset-mindmap": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 311,
+          "h": 97
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 311,
+          "h": 97
+        }
+      }
+    },
+    "12-ai-mock-valid": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 304,
+          "h": 64
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 304,
+          "h": 64
+        }
+      }
+    },
+    "13-classdef-style": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 368,
+          "h": 152
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 368,
+          "h": 152
+        }
+      }
+    },
+    "14-state-v2-composite": {
+      "560": {
+        "clusters": [
+          {
+            "id": "검토",
+            "rect": {
+              "x": 16,
+              "y": 187,
+              "w": 114.41999816894531,
+              "h": 345
+            }
+          }
+        ],
+        "titles": [
+          {
+            "text": "검토",
+            "tspans": 0,
+            "rect": {
+              "x": 59.359375,
+              "y": 196.1875,
+              "w": 27.703125,
+              "h": 19.21875
+            }
+          }
+        ],
+        "clusterOverlaps": [],
+        "titleFits": [
+          {
+            "i": 0,
+            "fitsInsideSomeCluster": true
+          }
+        ],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 224,
+          "h": 707
+        }
+      },
+      "800": {
+        "clusters": [
+          {
+            "id": "검토",
+            "rect": {
+              "x": 16,
+              "y": 187,
+              "w": 114.41999816894531,
+              "h": 345
+            }
+          }
+        ],
+        "titles": [
+          {
+            "text": "검토",
+            "tspans": 0,
+            "rect": {
+              "x": 59.359375,
+              "y": 196.1875,
+              "w": 27.703125,
+              "h": 19.21875
+            }
+          }
+        ],
+        "clusterOverlaps": [],
+        "titleFits": [
+          {
+            "i": 0,
+            "fitsInsideSomeCluster": true
+          }
+        ],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 224,
+          "h": 707
+        }
+      }
+    },
+    "15-mindmap-deep": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 560,
+          "h": 183.09375
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 575,
+          "h": 188
+        }
+      }
+    },
+    "16-pie-title-showdata": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 397,
+          "h": 296
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 397,
+          "h": 296
+        }
+      }
+    },
+    "17-entity": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 212,
+          "h": 64
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 212,
+          "h": 64
+        }
+      }
+    },
+    "18-math-label": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 489,
+          "h": 64
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 489,
+          "h": 64
+        }
+      }
+    },
+    "19-link-click": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 224,
+          "h": 64
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 224,
+          "h": 64
+        }
+      }
+    },
+    "20-image-node": {
+      "560": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 210,
+          "h": 106
+        }
+      },
+      "800": {
+        "clusters": [],
+        "titles": [],
+        "clusterOverlaps": [],
+        "titleFits": [],
+        "labelOverflow": [],
+        "svgRect": {
+          "x": 8,
+          "y": 8,
+          "w": 210,
+          "h": 106
+        }
+      }
+    }
+  },
+  "autoDirection": {
+    "01-test-content": {
+      "falseSameLayout560vs800": true,
+      "falseSvgEqual560vs800": true,
+      "falseSize": [
+        [
+          342,
+          401
+        ],
+        [
+          342,
+          401
+        ]
+      ],
+      "trueSameLayout560vs800": true,
+      "trueSize": [
+        [
+          342,
+          401
+        ],
+        [
+          342,
+          401
+        ]
+      ]
+    },
+    "03-subgraph-C-horizontal": {
+      "falseSameLayout560vs800": false,
+      "falseSvgEqual560vs800": false,
+      "falseSize": [
+        [
+          715,
+          284
+        ],
+        [
+          767,
+          316
+        ]
+      ],
+      "trueSameLayout560vs800": false,
+      "trueSize": [
+        [
+          715,
+          284
+        ],
+        [
+          767,
+          316
+        ]
+      ]
+    },
+    "12-ai-mock-valid": {
+      "falseSameLayout560vs800": true,
+      "falseSvgEqual560vs800": true,
+      "falseSize": [
+        [
+          304,
+          64
+        ],
+        [
+          304,
+          64
+        ]
+      ],
+      "trueSameLayout560vs800": true,
+      "trueSize": [
+        [
+          304,
+          64
+        ],
+        [
+          304,
+          64
+        ]
+      ]
+    },
+    "13-classdef-style": {
+      "falseSameLayout560vs800": true,
+      "falseSvgEqual560vs800": true,
+      "falseSize": [
+        [
+          368,
+          152
+        ],
+        [
+          368,
+          152
+        ]
+      ],
+      "trueSameLayout560vs800": true,
+      "trueSize": [
+        [
+          368,
+          152
+        ],
+        [
+          368,
+          152
+        ]
+      ]
+    },
+    "15-mindmap-deep": {
+      "falseSameLayout560vs800": true,
+      "falseSvgEqual560vs800": true,
+      "falseSize": [
+        [
+          575,
+          188
+        ],
+        [
+          575,
+          188
+        ]
+      ],
+      "trueSameLayout560vs800": false,
+      "trueSize": [
+        [
+          186,
+          452
+        ],
+        [
+          575,
+          188
+        ]
+      ]
+    }
+  },
+  "sanitizeVisual": {
+    "01-test-content": {
+      "pixelIdentical": true,
+      "bytes": [
+        20727,
+        20727
+      ]
+    },
+    "02-subgraph-B-vertical": {
+      "pixelIdentical": true,
+      "bytes": [
+        23721,
+        23721
+      ]
+    },
+    "03-subgraph-C-horizontal": {
+      "pixelIdentical": true,
+      "bytes": [
+        27618,
+        27618
+      ]
+    },
+    "04-preset-flowchart": {
+      "pixelIdentical": true,
+      "bytes": [
+        9444,
+        9444
+      ]
+    },
+    "05-preset-sequenceDiagram": {
+      "pixelIdentical": true,
+      "bytes": [
+        7593,
+        7593
+      ]
+    },
+    "06-preset-gantt": {
+      "pixelIdentical": true,
+      "bytes": [
+        9972,
+        9972
+      ]
+    },
+    "07-preset-classDiagram": {
+      "pixelIdentical": true,
+      "bytes": [
+        4186,
+        4186
+      ]
+    },
+    "08-preset-stateDiagram": {
+      "pixelIdentical": true,
+      "bytes": [
+        5378,
+        5378
+      ]
+    },
+    "09-preset-pie": {
+      "pixelIdentical": true,
+      "bytes": [
+        18082,
+        18082
+      ]
+    },
+    "10-preset-mindmap": {
+      "pixelIdentical": true,
+      "bytes": [
+        8410,
+        8410
+      ]
+    },
+    "12-ai-mock-valid": {
+      "pixelIdentical": true,
+      "bytes": [
+        3875,
+        3875
+      ]
+    },
+    "13-classdef-style": {
+      "pixelIdentical": true,
+      "bytes": [
+        9032,
+        9032
+      ]
+    },
+    "14-state-v2-composite": {
+      "pixelIdentical": true,
+      "bytes": [
+        21902,
+        21902
+      ]
+    },
+    "15-mindmap-deep": {
+      "pixelIdentical": true,
+      "bytes": [
+        23872,
+        23872
+      ]
+    },
+    "16-pie-title-showdata": {
+      "pixelIdentical": true,
+      "bytes": [
+        24645,
+        24645
+      ]
+    },
+    "17-entity": {
+      "pixelIdentical": true,
+      "bytes": [
+        3116,
+        3116
+      ]
+    },
+    "18-math-label": {
+      "pixelIdentical": true,
+      "bytes": [
+        6953,
+        6953
+      ]
+    },
+    "19-link-click": {
+      "pixelIdentical": true,
+      "bytes": [
+        3058,
+        3058
+      ]
+    },
+    "20-image-node": {
+      "pixelIdentical": true,
+      "bytes": [
+        3405,
+        3405
+      ]
+    }
+  },
+  "linksImagesBrowser": {
+    "urlUnchanged": true,
+    "popups": 0,
+    "anchorsInDom": 0,
+    "requestsDuringChecks": [],
+    "externalRequests": []
+  },
+  "domIds": {
+    "diagrams": 19,
+    "idCount": 0,
+    "duplicates": []
+  },
+  "math": {
+    "pele": {
+      "foreignObject": false,
+      "texts": [
+        "$$x^2 + y^2$$",
+        "$$\\frac{a}{b}$$",
+        "일반 라벨"
+      ]
+    },
+    "mermaid": {
+      "foreignObject": true,
+      "katexMarkup": true,
+      "mathml": true
+    }
+  },
+  "exports": {
+    "ids": [
+      "13-classdef-style",
+      "09-preset-pie",
+      "05-preset-sequenceDiagram"
+    ],
+    "html": {
+      "light-literal": {
+        "file": "exports/html-light-literal.html",
+        "peleVarCount": [
+          0,
+          0,
+          0
+        ],
+        "varPeleInFile": 0,
+        "screenshot": "exports/html-light-literal.png"
+      },
+      "light-as-is": {
+        "file": "exports/html-light-as-is.html",
+        "peleVarCount": [
+          11,
+          17,
+          11
+        ],
+        "varPeleInFile": 39,
+        "screenshot": "exports/html-light-as-is.png"
+      },
+      "dark-literal": {
+        "file": "exports/html-dark-literal.html",
+        "peleVarCount": [
+          0,
+          0,
+          0
+        ],
+        "varPeleInFile": 0,
+        "screenshot": "exports/html-dark-literal.png"
+      },
+      "dark-as-is": {
+        "file": "exports/html-dark-as-is.html",
+        "peleVarCount": [
+          11,
+          17,
+          11
+        ],
+        "varPeleInFile": 39,
+        "screenshot": "exports/html-dark-as-is.png"
+      }
+    },
+    "docx": {
+      "light-literal": [
+        {
+          "id": "13-classdef-style",
+          "ok": true,
+          "file": "exports/docx-png-light-literal-13-classdef-style.png",
+          "width": 368,
+          "height": 152,
+          "stats": {
+            "pixels": 223744,
+            "opaque": 64186,
+            "colored": 46709,
+            "coloredBuckets": 39,
+            "dark": 6005,
+            "light": 22021
+          }
+        },
+        {
+          "id": "09-preset-pie",
+          "ok": true,
+          "file": "exports/docx-png-light-literal-09-preset-pie.png",
+          "width": 347,
+          "height": 296,
+          "stats": {
+            "pixels": 410848,
+            "opaque": 187459,
+            "colored": 178725,
+            "coloredBuckets": 24,
+            "dark": 3256,
+            "light": 5602
+          }
+        },
+        {
+          "id": "05-preset-sequenceDiagram",
+          "ok": true,
+          "file": "exports/docx-png-light-literal-05-preset-sequenceDiagram.png",
+          "width": 194,
+          "height": 204,
+          "stats": {
+            "pixels": 158304,
+            "opaque": 49867,
+            "colored": 0,
+            "coloredBuckets": 0,
+            "dark": 2641,
+            "light": 43678
+          }
+        }
+      ],
+      "light-as-is": [
+        {
+          "id": "13-classdef-style",
+          "ok": true,
+          "file": "exports/docx-png-light-as-is-13-classdef-style.png",
+          "width": 368,
+          "height": 152,
+          "stats": {
+            "pixels": 223744,
+            "opaque": 64532,
+            "colored": 46700,
+            "coloredBuckets": 39,
+            "dark": 6909,
+            "light": 22045
+          }
+        },
+        {
+          "id": "09-preset-pie",
+          "ok": true,
+          "file": "exports/docx-png-light-as-is-09-preset-pie.png",
+          "width": 347,
+          "height": 296,
+          "stats": {
+            "pixels": 410848,
+            "opaque": 187459,
+            "colored": 178724,
+            "coloredBuckets": 26,
+            "dark": 3256,
+            "light": 5789
+          }
+        },
+        {
+          "id": "05-preset-sequenceDiagram",
+          "ok": true,
+          "file": "exports/docx-png-light-as-is-05-preset-sequenceDiagram.png",
+          "width": 194,
+          "height": 204,
+          "stats": {
+            "pixels": 158304,
+            "opaque": 52393,
+            "colored": 0,
+            "coloredBuckets": 0,
+            "dark": 3503,
+            "light": 43672
+          }
+        }
+      ],
+      "dark-literal": [
+        {
+          "id": "13-classdef-style",
+          "ok": true,
+          "file": "exports/docx-png-dark-literal-13-classdef-style.png",
+          "width": 368,
+          "height": 152,
+          "stats": {
+            "pixels": 223744,
+            "opaque": 64186,
+            "colored": 46650,
+            "coloredBuckets": 35,
+            "dark": 15790,
+            "light": 12792
+          }
+        },
+        {
+          "id": "09-preset-pie",
+          "ok": true,
+          "file": "exports/docx-png-dark-literal-09-preset-pie.png",
+          "width": 347,
+          "height": 296,
+          "stats": {
+            "pixels": 410848,
+            "opaque": 187806,
+            "colored": 178879,
+            "coloredBuckets": 21,
+            "dark": 5777,
+            "light": 3603
+          }
+        },
+        {
+          "id": "05-preset-sequenceDiagram",
+          "ok": true,
+          "file": "exports/docx-png-dark-literal-05-preset-sequenceDiagram.png",
+          "width": 194,
+          "height": 204,
+          "stats": {
+            "pixels": 158304,
+            "opaque": 50024,
+            "colored": 0,
+            "coloredBuckets": 0,
+            "dark": 43556,
+            "light": 2862
+          }
+        }
+      ],
+      "dark-as-is": [
+        {
+          "id": "13-classdef-style",
+          "ok": true,
+          "file": "exports/docx-png-dark-as-is-13-classdef-style.png",
+          "width": 368,
+          "height": 152,
+          "stats": {
+            "pixels": 223744,
+            "opaque": 64532,
+            "colored": 46700,
+            "coloredBuckets": 39,
+            "dark": 6909,
+            "light": 22045
+          }
+        },
+        {
+          "id": "09-preset-pie",
+          "ok": true,
+          "file": "exports/docx-png-dark-as-is-09-preset-pie.png",
+          "width": 347,
+          "height": 296,
+          "stats": {
+            "pixels": 410848,
+            "opaque": 187459,
+            "colored": 178724,
+            "coloredBuckets": 26,
+            "dark": 3256,
+            "light": 5789
+          }
+        },
+        {
+          "id": "05-preset-sequenceDiagram",
+          "ok": true,
+          "file": "exports/docx-png-dark-as-is-05-preset-sequenceDiagram.png",
+          "width": 194,
+          "height": 204,
+          "stats": {
+            "pixels": 158304,
+            "opaque": 52393,
+            "colored": 0,
+            "coloredBuckets": 0,
+            "dark": 3503,
+            "light": 43672
+          }
+        }
+      ]
+    }
+  },
+  "timing": {
+    "diagrams": 32,
+    "distinctSamples": [
+      "01-test-content",
+      "02-subgraph-B-vertical",
+      "03-subgraph-C-horizontal",
+      "04-preset-flowchart",
+      "05-preset-sequenceDiagram",
+      "06-preset-gantt",
+      "07-preset-classDiagram",
+      "08-preset-stateDiagram",
+      "09-preset-pie",
+      "10-preset-mindmap",
+      "12-ai-mock-valid",
+      "13-classdef-style",
+      "14-state-v2-composite",
+      "15-mindmap-deep",
+      "16-pie-title-showdata",
+      "17-entity",
+      "18-math-label",
+      "19-link-click"
+    ],
+    "runs": [
+      {
+        "run": 1,
+        "engine": "mermaid",
+        "count": 32,
+        "totalMs": 579,
+        "totalWithLayoutMs": 585,
+        "firstMs": 126,
+        "maxMs": 576
+      },
+      {
+        "run": 1,
+        "engine": "pele",
+        "count": 32,
+        "totalMs": 32,
+        "totalWithLayoutMs": 34.000000000000014,
+        "firstMs": 3,
+        "maxMs": 3
+      },
+      {
+        "run": 2,
+        "engine": "mermaid",
+        "count": 32,
+        "totalMs": 516,
+        "totalWithLayoutMs": 522,
+        "firstMs": 99,
+        "maxMs": 513
+      },
+      {
+        "run": 2,
+        "engine": "pele",
+        "count": 32,
+        "totalMs": 33.99999999999999,
+        "totalWithLayoutMs": 36.00000000000001,
+        "firstMs": 2.999999999999993,
+        "maxMs": 2.999999999999993
+      },
+      {
+        "run": 3,
+        "engine": "mermaid",
+        "count": 32,
+        "totalMs": 507.0000000000001,
+        "totalWithLayoutMs": 512,
+        "firstMs": 95.99999999999999,
+        "maxMs": 504.0000000000001
+      },
+      {
+        "run": 3,
+        "engine": "pele",
+        "count": 32,
+        "totalMs": 31.999999999999993,
+        "totalWithLayoutMs": 33.99999999999999,
+        "firstMs": 2.999999999999993,
+        "maxMs": 2.999999999999993
+      }
+    ],
+    "single": [
+      {
+        "run": 1,
+        "engine": "mermaid",
+        "count": 1,
+        "totalMs": 27,
+        "totalWithLayoutMs": 27,
+        "firstMs": 24.999999999999993,
+        "maxMs": 24.999999999999993
+      },
+      {
+        "run": 2,
+        "engine": "mermaid",
+        "count": 1,
+        "totalMs": 47,
+        "totalWithLayoutMs": 48,
+        "firstMs": 46,
+        "maxMs": 46
+      },
+      {
+        "run": 3,
+        "engine": "mermaid",
+        "count": 1,
+        "totalMs": 23,
+        "totalWithLayoutMs": 24,
+        "firstMs": 22,
+        "maxMs": 22
+      },
+      {
+        "run": 1,
+        "engine": "pele",
+        "count": 1,
+        "totalMs": 3,
+        "totalWithLayoutMs": 3,
+        "firstMs": 3,
+        "maxMs": 3
+      },
+      {
+        "run": 2,
+        "engine": "pele",
+        "count": 1,
+        "totalMs": 3.000000000000007,
+        "totalWithLayoutMs": 3.000000000000007,
+        "firstMs": 3.000000000000007,
+        "maxMs": 3.000000000000007
+      },
+      {
+        "run": 3,
+        "engine": "pele",
+        "count": 1,
+        "totalMs": 4,
+        "totalWithLayoutMs": 4,
+        "firstMs": 4,
+        "maxMs": 4
+      }
+    ]
+  },
+  "pdfProxy": {
+    "environment": "playwright 1.58.2 chromium 145.0.7632.6",
+    "files": [
+      "exports/pdf-proxy-light-literal.pdf",
+      "exports/pdf-proxy-light-as-is.pdf",
+      "exports/pdf-proxy-dark-literal.pdf",
+      "exports/pdf-proxy-dark-as-is.pdf"
+    ]
+  },
+  "finishedAt": "2026-10-26T08:16:53.747Z"
+}

@@ -33,11 +33,11 @@ async function injectFixtureAndWaitForPreview(tauriPage: Page): Promise<void> {
   // Wait for preview to render h1 from "# E2E 테스트 픽스처"
   await expect(tauriPage.locator('.preview-content h1')).toBeVisible({ timeout: 5_000 });
 
-  // SPEC-PREVIEW-011: mermaid 다이어그램은 비동기로 렌더되며 플레이스홀더 → 최종 SVG로
-  // 높이가 바뀐다. 리스트 픽스처가 mermaid 섹션보다 뒤에 있어, SVG 렌더 완료 전에
-  // boundingBox()를 측정하면 mermaid 렌더 완료 시점의 레이아웃 시프트(수백 px)가
-  // 중간에 끼어들어 기하 어서션이 flaky해진다. SVG가 삽입될 때까지 기다려 레이아웃을
-  // 고정한 뒤 측정한다.
+  // SPEC-PREVIEW-011: 다이어그램은 플레이스홀더 → 최종 SVG로 높이가 바뀐다. 리스트 픽스처가
+  // 다이어그램 섹션보다 뒤에 있어, SVG 삽입 전에 boundingBox()를 측정하면 그 시점의
+  // 레이아웃 시프트(수백 px)가 중간에 끼어들어 기하 어서션이 flaky해진다. SVG가 삽입될
+  // 때까지 기다려 레이아웃을 고정한 뒤 측정한다. (SPEC-PREVIEW-015: pele는 미리보기 갱신
+  // 안에서 동기로 렌더하지만, 미리보기 갱신 자체가 편집 뒤에 일어나므로 이 대기는 유지한다.)
   await expect(tauriPage.locator('.preview-content .mermaid-container svg')).toBeVisible({
     timeout: 5_000,
   });

@@ -3,11 +3,13 @@
 //   embedImagesInHtml(imageResolver.ts)에 위임한다. 임베드하지 못한 이미지는 onUnembeddedImages 로 알린다.
 // @MX:SPEC: SPEC-EXPORT-001
 // @MX:SPEC: SPEC-EXPORT-004
+// @MX:SPEC: SPEC-PREVIEW-015
 
 import { renderMarkdown } from '@/lib/markdown/renderer';
 import { exportSaveDialog, writeFile } from '@/lib/tauri/ipc';
 import { embedImagesInHtml } from '@/lib/image/imageResolver';
-import { buildHtmlDocument, generateExportFilename, getPreviewCss } from './exportUtils';
+import { readPeleThemeValues } from '@/lib/diagram/diagramRenderer';
+import { buildHtmlDocument, generateExportFilename, getPreviewCss, renderExportDiagram } from './exportUtils';
 import type { ExportOptions } from './types';
 
 /**
@@ -42,8 +44,8 @@ export async function exportToHtml(options: ExportOptions): Promise<string | nul
   // Render markdown to HTML (without image resolver for export - we embed separately)
   const renderedHtml = await renderMarkdown(content, highlighter);
 
-  // Replace mermaid placeholder divs with rendered SVG from DOM (if available)
-  const htmlWithMermaid = await replaceMermaidPlaceholders(renderedHtml);
+  // 다이어그램 자리마다 원본 펜스를 렌더해 인라인 SVG로 넣는다(SPEC-PREVIEW-015)
+  const htmlWithMermaid = replaceMermaidPlaceholders(renderedHtml, theme);
 
   // Embed local images as base64 data URIs for self-contained HTML
   const htmlWithEmbeddedImages = await embedAndReport(htmlWithMermaid, options);
@@ -82,7 +84,7 @@ export async function generateHtmlContent(options: ExportOptions): Promise<strin
 
   const defaultName = generateExportFilename(filename, 'html');
   const renderedHtml = await renderMarkdown(content, highlighter);
-  const htmlWithMermaid = await replaceMermaidPlaceholders(renderedHtml);
+  const htmlWithMermaid = replaceMermaidPlaceholders(renderedHtml, theme);
   const htmlWithImages = await embedAndReport(htmlWithMermaid, options);
   const title = defaultName.replace(/\.[^.]+$/, '');
   const css = getPreviewCss(theme);
@@ -91,43 +93,29 @@ export async function generateHtmlContent(options: ExportOptions): Promise<strin
 }
 
 /**
- * Attempts to replace mermaid placeholder divs with the rendered SVG from the DOM.
- * If no rendered SVG is available (e.g., during tests), falls back to the original HTML.
+ * 다이어그램 자리(.mermaid-container)마다 그 자리의 data-diagram 원본을 다이어그램 모듈로 렌더해 인라인 SVG로 넣는다.
+ * 미리보기 DOM은 읽지 않는다(SPEC-PREVIEW-015 REQ-015·016). 빈 펜스·렌더 실패 자리는 빈 컨테이너로 둔다(REQ-017, D7).
+ * 모든 var(--pele-…)는 내보내기 테마 값으로 치환한다(REQ-018, D6).
  *
  * This implements REQ-EXPORT-003: Mermaid diagrams included as inline SVG.
  */
-async function replaceMermaidPlaceholders(html: string): Promise<string> {
-  // If we're not in a browser context (e.g., tests), return as-is
-  if (typeof document === 'undefined') {
-    return html;
-  }
+// @MX:NOTE: [AUTO] 입력은 미리보기와 같은 data-diagram 속성값이다(mermaidPlugin.ts 이스케이프 계약). 자리마다 따로 렌더하므로
+//   실패한 펜스가 다른 자리를 밀어내지 않는다. PDF(generateHtmlContent)도 이 경로를 그대로 쓴다.
+function replaceMermaidPlaceholders(html: string, theme: 'light' | 'dark'): string {
+  if (typeof document === 'undefined') return html;
 
-  // Look for rendered Mermaid SVGs in the DOM
-  const mermaidContainers = document.querySelectorAll('.mermaid-container');
-  if (mermaidContainers.length === 0) {
-    return html;
-  }
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const placeholders = tpl.content.querySelectorAll('.mermaid-container');
+  if (placeholders.length === 0) return html;
 
-  // Build a temporary div to parse the HTML
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-
-  const placeholders = tempDiv.querySelectorAll('.mermaid-container');
-
-  placeholders.forEach((placeholder, index) => {
-    const domContainer = mermaidContainers[index];
-    if (domContainer) {
-      const svg = domContainer.querySelector('svg');
-      if (svg) {
-        // Clone the SVG and inject it
-        const svgClone = svg.cloneNode(true) as SVGElement;
-        placeholder.innerHTML = '';
-        placeholder.appendChild(svgClone);
-      }
-    }
+  const values = readPeleThemeValues(theme);
+  placeholders.forEach((placeholder) => {
+    const diagram = renderExportDiagram(placeholder.getAttribute('data-diagram') ?? '', values);
+    placeholder.replaceChildren(...(diagram ? [diagram.svg] : []));
   });
 
-  return tempDiv.innerHTML;
+  return tpl.innerHTML;
 }
 
 /**

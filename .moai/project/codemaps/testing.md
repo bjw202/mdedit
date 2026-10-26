@@ -375,8 +375,8 @@ cargo test --test '*'
 
 ### 우선순위 중간
 
-4. **mermaid.render 에러 경로** — 매우 드문 경우 (파이썬 불가능한 다이어그램)
-   - 현재: 단위 테스트 mock으로 커버
+4. **다이어그램 렌더 에러 경로** — pele 1.10.0 (SPEC-PREVIEW-015)
+   - 현재: mock 없이 실제 pele로 단위 테스트(`diagramRenderer.test.ts`, `PreviewRenderer.test.tsx`) 커버. 시스템 WKWebView 실물 확인은 수동
 
 5. **Tauri IPC 타이밍** — 네트워크 지연/timeout 시나리오
    - 현재: happy path만 테스트

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "11-ai-mock-invalid",
+    "source": "notarealdiagramtype foo!!!",
+    "rendered": false,
+    "error": {
+      "isPeleError": true,
+      "code": "unsupported-diagram",
+      "message": "No diagram type detected for the given text.",
+      "line": 0,
+      "column": 0
+    }
+  },
+  {
+    "id": "21-error-line-col",
+    "source": "sequenceDiagram\n  A->>B hello",
+    "rendered": false,
+    "error": {
+      "isPeleError": true,
+      "code": "syntax",
+      "message": "Parse error on line 2:\n  A->>B hello\n-------------^\nExpecting 'TXT', got 'NEWLINE'",
+      "line": 2,
+      "column": 14
+    }
+  },
+  {
+    "id": "22-error-line0-semantic",
+    "source": "pie\n  \"a\" : -1",
+    "rendered": false,
+    "error": {
+      "isPeleError": true,
+      "code": "semantic",
+      "message": "\"a\" has invalid value: -1. Negative values are not allowed in pie charts. All slice values must be >= 0.",
+      "line": 0,
+      "column": 0
+    }
+  },
+  {
+    "id": "23-error-xss-label",
+    "source": "flowchart LR\n  A[\"<img src=x onerror=alert(1)>\"] -->",
+    "rendered": false,
+    "error": {
+      "isPeleError": true,
+      "code": "syntax",
+      "message": "Parse error on line 3:\n\n^\nExpecting 'NODE_STRING', got 'EOF'",
+      "line": 3,
+      "column": 1
+    }
+  }
+]

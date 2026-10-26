@@ -10,7 +10,7 @@
   - 실제 `renderMarkdown`과 실제 markdown-it을 쓴다. `@/lib/markdown/renderer`와 `@/lib/export/exportHtml`은 mock하지 않는다. 그래야 재현 테스트가 실제 인코딩·이스케이프를 받고, `generateHtmlContent`(P1)도 실제 함수가 실행된다.
   - `@/lib/tauri/ipc`만 mock한다: `readImageAsBase64`, 새 전용 명령 래퍼, `exportSaveDialog`, `writeFile`, `writeBinaryFile`. 경로별로 resolve/reject를 지정한다.
   - `docx`는 `exportDocx.test.ts`와 같은 방식으로 `ImageRun`·`TextRun`을 감시 래퍼로 감싸고, 전역 `Image`는 같은 `MockImage` 스텁(src 설정 시 비동기 `onload`)으로 바꾼다.
-  - **격리**: 이 파일은 `afterEach`에서 `document.body`의 `.mermaid-container`를 모두 제거하고, DM1이 바꾼 `HTMLCanvasElement.prototype.getContext`·`toBlob` 스텁을 원래대로 되돌린다(`vi.restoreAllMocks()` 또는 저장해 둔 원본 복원). `exportToHtml`·`generateHtmlContent`의 `replaceMermaidPlaceholders`가 같은 `document`를 읽으므로, 정리가 없으면 DM1의 다이어그램이 H·P1 결과 HTML에 섞인다.
+  - **격리**: 이 파일은 `afterEach`에서 DM1이 바꾼 `HTMLCanvasElement.prototype.getContext`·`toBlob` 스텁을 저장해 둔 원본으로 되돌린다. SPEC-PREVIEW-015 이후 내보내기는 미리보기 DOM을 읽지 않고 원본 펜스에서 다이어그램을 렌더하므로, 문서 DOM의 `.mermaid-container` 정리는 더 필요하지 않다(0.1.3 당시에는 `replaceMermaidPlaceholders`가 같은 `document`를 읽어 정리가 필요했다).
 - **`src/test/exportPdf.test.ts`** (PF1~PF3): 기존 3건은 그대로 두고 새 `describe` 블록을 추가한다. 실제 `exportToPdf`를 실행한다. `generateHtmlContent`는 기존처럼 mock하되, mock 구현이 `options.onUnembeddedImages?.(names)`를 호출한 뒤 HTML을 돌려주게 해 누락을 흉내 낸다.
 - **`src/test/ExportCompletionDialog.test.tsx`** (F1·F2·F4·F5·F9): 내보내기 함수는 기존처럼 mock한다. mock 구현이 `options.onUnembeddedImages` 또는 `options.confirmUnembeddedImages`를 호출해, 다이얼로그 렌더와 "다이얼로그 액션 → Promise 값" 배선만 검증한다. 실제 인쇄 흐름은 PF가 맡는다.
 - **공통 입력**: `mdFilePath = '/docs/a.md'`(Windows 케이스만 `C:\docs\a.md`).
@@ -61,7 +61,7 @@
 
 | ID | 조건 | 기대 | REQ |
 |----|------|------|-----|
-| DM1 | 문서 DOM에 `<div class="mermaid-container"><svg>…</svg></div>`를 두고, `HTMLCanvasElement.prototype.getContext`를 `{ scale, drawImage }` 스텁으로, `toBlob`을 고정 바이트의 `arrayBuffer()`를 가진 객체로 콜백하는 스텁으로 바꾼다. 마크다운은 ` ```mermaid ` 펜스 1개 | `ImageRun`이 `type: 'png'`와 스텁 바이트로 1회 생성되고, 그 펜스의 코드 텍스트(`TextRun`)는 생성되지 않는다. 수정 전에도 통과하는 회귀 가드다(변경 전 실행으로 기준선 확인) | 012 |
+| DM1 | 문서 DOM에 `.mermaid-container`가 하나도 없는 상태에서, `HTMLCanvasElement.prototype.getContext`를 래스터 단계에서만 `{ scale, drawImage }`를 돌려주는 스텁으로, `toBlob`을 고정 바이트의 `arrayBuffer()`를 가진 객체로 콜백하는 스텁으로 바꾼다. 마크다운은 ` ```mermaid ` 펜스 1개 | 원본 펜스를 다이어그램 모듈로 렌더해 `ImageRun`이 `type: 'png'`와 스텁 바이트로 1회 생성되고, 그 펜스의 코드 텍스트(`TextRun`)는 생성되지 않는다(SPEC-PREVIEW-015 REQ-015에 맞춰 재작성된 회귀 가드. 0.1.3 당시에는 문서 DOM의 미리보기 SVG를 캡처하는 형태였다) | 012 |
 
 ### 보안 (Rust 전용 명령)
 
@@ -139,7 +139,7 @@
 
 - **Given** 기존 내보내기 테스트와 Mermaid 다이어그램이 있는 DOCX 입력이 있을 때
 - **When** 전체 스위트를 실행하면
-- **Then** `exportToHtml`·`exportToDocx`는 여전히 성공 시 경로 문자열, 취소 시 `null`을 돌려주고, 내보낸 HTML에 `<script`가 없으며, `exportHtml.test.ts`·`exportDocx.test.ts`가 무수정으로 통과하고, DOCX Mermaid 캡처가 `ImageRun`을 만들며, 미리보기 T1~T10이 수정 없이 통과한다. (R1, R3, R4, R5, DM1)
+- **Then** `exportToHtml`·`exportToDocx`는 여전히 성공 시 경로 문자열, 취소 시 `null`을 돌려주고, 내보낸 HTML에 `<script`가 없으며, `exportHtml.test.ts`·`exportDocx.test.ts`가 무수정으로 통과하고, DOCX가 Mermaid 펜스를 원본에서 렌더해 `ImageRun`을 만들며(SPEC-PREVIEW-015 REQ-015), 미리보기 T1~T10이 수정 없이 통과한다. (R1, R3, R4, R5, DM1)
 
 ### AC-EXPORT004-09: 다른 폴더로 내보낸 HTML에서 이미지가 보인다 — manual (사용자 수행)
 

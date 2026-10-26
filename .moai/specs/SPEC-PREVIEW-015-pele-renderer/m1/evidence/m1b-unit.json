@@ -1,0 +1,1150 @@
+{
+  "capturedAt": "2026-10-26T08:59:12.253Z",
+  "environment": "vitest 2.1.9 jsdom 28.1.0 (node v24.12.0, setup src/test/setup.ts)",
+  "katex": "0.16.44",
+  "pele": "1.10.0",
+  "resolver": {
+    "18-math-label": {
+      "dom-html": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 497,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "x^2 + y^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\frac{a}{b}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 497,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "x^2 + y^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\frac{a}{b}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml-bare": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 497,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "x^2 + y^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\frac{a}{b}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "estimate-html": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 366,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "x^2 + y^2",
+            "size": 16,
+            "width": 48,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\frac{a}{b}",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 366,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "x^2 + y^2",
+            "size": 16,
+            "width": 48,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\frac{a}{b}",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml-bare": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 366,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "x^2 + y^2",
+            "size": 16,
+            "width": 48,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\frac{a}{b}",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimateDeterministic": true
+    },
+    "m01-inline-fraction": {
+      "dom-html": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 416,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "\\frac{1}{2}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\frac{a+b}{c-d}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 416,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "\\frac{1}{2}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\frac{a+b}{c-d}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml-bare": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 416,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "\\frac{1}{2}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\frac{a+b}{c-d}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "estimate-html": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 270,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\frac{1}{2}",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\frac{a+b}{c-d}",
+            "size": 16,
+            "width": 68,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 270,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\frac{1}{2}",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\frac{a+b}{c-d}",
+            "size": 16,
+            "width": 68,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml-bare": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 270,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\frac{1}{2}",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\frac{a+b}{c-d}",
+            "size": 16,
+            "width": 68,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimateDeterministic": true
+    },
+    "m02-sub-superscript": {
+      "dom-html": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 3,
+        "width": 216,
+        "height": 256,
+        "calls": [
+          {
+            "tex": "x_i^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "e^{i\\pi} + 1 = 0",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "a_{n+1} = a_n + d",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 3,
+        "width": 216,
+        "height": 256,
+        "calls": [
+          {
+            "tex": "x_i^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "e^{i\\pi} + 1 = 0",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "a_{n+1} = a_n + d",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml-bare": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 3,
+        "width": 216,
+        "height": 256,
+        "calls": [
+          {
+            "tex": "x_i^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "e^{i\\pi} + 1 = 0",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "a_{n+1} = a_n + d",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "estimate-html": {
+        "foreignObjects": 3,
+        "rawDollarTextLeft": 0,
+        "width": 139,
+        "height": 274,
+        "calls": [
+          {
+            "tex": "x_i^2",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "e^{i\\pi} + 1 = 0",
+            "size": 16,
+            "width": 68,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "a_{n+1} = a_n + d",
+            "size": 16,
+            "width": 87,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml": {
+        "foreignObjects": 3,
+        "rawDollarTextLeft": 0,
+        "width": 139,
+        "height": 274,
+        "calls": [
+          {
+            "tex": "x_i^2",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "e^{i\\pi} + 1 = 0",
+            "size": 16,
+            "width": 68,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "a_{n+1} = a_n + d",
+            "size": 16,
+            "width": 87,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml-bare": {
+        "foreignObjects": 3,
+        "rawDollarTextLeft": 0,
+        "width": 139,
+        "height": 274,
+        "calls": [
+          {
+            "tex": "x_i^2",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "e^{i\\pi} + 1 = 0",
+            "size": 16,
+            "width": 68,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "a_{n+1} = a_n + d",
+            "size": 16,
+            "width": 87,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimateDeterministic": true
+    },
+    "m03-text-and-math": {
+      "dom-html": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 3,
+        "width": 512,
+        "height": 82,
+        "calls": [
+          {
+            "tex": "\\pi r^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\sum_{k=1}^{n} k",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\sqrt{2}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 3,
+        "width": 512,
+        "height": 82,
+        "calls": [
+          {
+            "tex": "\\pi r^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\sum_{k=1}^{n} k",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\sqrt{2}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml-bare": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 3,
+        "width": 512,
+        "height": 82,
+        "calls": [
+          {
+            "tex": "\\pi r^2",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\sum_{k=1}^{n} k",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\sqrt{2}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "estimate-html": {
+        "foreignObjects": 3,
+        "rawDollarTextLeft": 0,
+        "width": 430,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\pi r^2",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\sum_{k=1}^{n} k",
+            "size": 16,
+            "width": 58,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\sqrt{2}",
+            "size": 16,
+            "width": 20,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml": {
+        "foreignObjects": 3,
+        "rawDollarTextLeft": 0,
+        "width": 430,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\pi r^2",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\sum_{k=1}^{n} k",
+            "size": 16,
+            "width": 58,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\sqrt{2}",
+            "size": 16,
+            "width": 20,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml-bare": {
+        "foreignObjects": 3,
+        "rawDollarTextLeft": 0,
+        "width": 430,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\pi r^2",
+            "size": 16,
+            "width": 29,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\sum_{k=1}^{n} k",
+            "size": 16,
+            "width": 58,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\sqrt{2}",
+            "size": 16,
+            "width": 20,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimateDeterministic": true
+    },
+    "m04-hostile-tex": {
+      "dom-html": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 520,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "\\href{javascript:alert(1)}{x}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\htmlClass{evil}{y}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 520,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "\\href{javascript:alert(1)}{x}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\htmlClass{evil}{y}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "dom-mathml-bare": {
+        "foreignObjects": 0,
+        "rawDollarTextLeft": 2,
+        "width": 520,
+        "height": 64,
+        "calls": [
+          {
+            "tex": "\\href{javascript:alert(1)}{x}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          },
+          {
+            "tex": "\\htmlClass{evil}{y}",
+            "size": 16,
+            "width": 0,
+            "height": 0,
+            "returned": "null",
+            "reason": "zero box (no layout)"
+          }
+        ]
+      },
+      "estimate-html": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 396,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\href{javascript:alert(1)}{x}",
+            "size": 16,
+            "width": 202,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\htmlClass{evil}{y}",
+            "size": 16,
+            "width": 58,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 396,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\href{javascript:alert(1)}{x}",
+            "size": 16,
+            "width": 202,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\htmlClass{evil}{y}",
+            "size": 16,
+            "width": 58,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimate-mathml-bare": {
+        "foreignObjects": 2,
+        "rawDollarTextLeft": 0,
+        "width": 396,
+        "height": 70,
+        "calls": [
+          {
+            "tex": "\\href{javascript:alert(1)}{x}",
+            "size": 16,
+            "width": 202,
+            "height": 26,
+            "returned": "html"
+          },
+          {
+            "tex": "\\htmlClass{evil}{y}",
+            "size": 16,
+            "width": 58,
+            "height": 26,
+            "returned": "html"
+          }
+        ]
+      },
+      "estimateDeterministic": true
+    }
+  },
+  "sanitize": {
+    "domPurifyVersion": "3.4.12",
+    "a_before": {
+      "checked": 38,
+      "mismatches": []
+    },
+    "b_math": {
+      "18-math-label.html": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 2,
+        "keptKatex": 2,
+        "rawMath": 0,
+        "keptMath": 0,
+        "keptInlineStyles": 27,
+        "rawInlineStyles": 27,
+        "scriptOrHandler": false,
+        "rawAnnotation": 0,
+        "keptAnnotation": 0,
+        "rawSemantics": 0,
+        "keptSemantics": 0,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 4908,
+        "rawLength": 4900
+      },
+      "18-math-label.mathml": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 2,
+        "keptKatex": 2,
+        "rawMath": 2,
+        "keptMath": 2,
+        "keptInlineStyles": 6,
+        "rawInlineStyles": 6,
+        "scriptOrHandler": false,
+        "rawAnnotation": 2,
+        "keptAnnotation": 2,
+        "rawSemantics": 2,
+        "keptSemantics": 2,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 3000,
+        "rawLength": 2992
+      },
+      "18-math-label.mathml-bare": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 0,
+        "keptKatex": 0,
+        "rawMath": 2,
+        "keptMath": 2,
+        "keptInlineStyles": 6,
+        "rawInlineStyles": 6,
+        "scriptOrHandler": false,
+        "rawAnnotation": 2,
+        "keptAnnotation": 2,
+        "rawSemantics": 2,
+        "keptSemantics": 2,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 2946,
+        "rawLength": 2938
+      },
+      "m01-inline-fraction.html": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 2,
+        "keptKatex": 2,
+        "rawMath": 0,
+        "keptMath": 0,
+        "keptInlineStyles": 25,
+        "rawInlineStyles": 25,
+        "scriptOrHandler": false,
+        "rawAnnotation": 0,
+        "keptAnnotation": 0,
+        "rawSemantics": 0,
+        "keptSemantics": 0,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 4567,
+        "rawLength": 4577
+      },
+      "m01-inline-fraction.mathml": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 2,
+        "keptKatex": 2,
+        "rawMath": 2,
+        "keptMath": 2,
+        "keptInlineStyles": 5,
+        "rawInlineStyles": 5,
+        "scriptOrHandler": false,
+        "rawAnnotation": 2,
+        "keptAnnotation": 2,
+        "rawSemantics": 2,
+        "keptSemantics": 2,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 2667,
+        "rawLength": 2677
+      },
+      "m01-inline-fraction.mathml-bare": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 0,
+        "keptKatex": 0,
+        "rawMath": 2,
+        "keptMath": 2,
+        "keptInlineStyles": 5,
+        "rawInlineStyles": 5,
+        "scriptOrHandler": false,
+        "rawAnnotation": 2,
+        "keptAnnotation": 2,
+        "rawSemantics": 2,
+        "keptSemantics": 2,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 2613,
+        "rawLength": 2623
+      },
+      "m02-sub-superscript.html": {
+        "rawForeignObjects": 3,
+        "keptForeignObjects": 3,
+        "rawKatex": 3,
+        "keptKatex": 3,
+        "rawMath": 0,
+        "keptMath": 0,
+        "keptInlineStyles": 40,
+        "rawInlineStyles": 40,
+        "scriptOrHandler": false,
+        "rawAnnotation": 0,
+        "keptAnnotation": 0,
+        "rawSemantics": 0,
+        "keptSemantics": 0,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 6808,
+        "rawLength": 6800
+      },
+      "m02-sub-superscript.mathml": {
+        "rawForeignObjects": 3,
+        "keptForeignObjects": 3,
+        "rawKatex": 3,
+        "keptKatex": 3,
+        "rawMath": 3,
+        "keptMath": 3,
+        "keptInlineStyles": 7,
+        "rawInlineStyles": 7,
+        "scriptOrHandler": false,
+        "rawAnnotation": 3,
+        "keptAnnotation": 3,
+        "rawSemantics": 3,
+        "keptSemantics": 3,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 3664,
+        "rawLength": 3656
+      },
+      "m02-sub-superscript.mathml-bare": {
+        "rawForeignObjects": 3,
+        "keptForeignObjects": 3,
+        "rawKatex": 0,
+        "keptKatex": 0,
+        "rawMath": 3,
+        "keptMath": 3,
+        "keptInlineStyles": 7,
+        "rawInlineStyles": 7,
+        "scriptOrHandler": false,
+        "rawAnnotation": 3,
+        "keptAnnotation": 3,
+        "rawSemantics": 3,
+        "keptSemantics": 3,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 3583,
+        "rawLength": 3575
+      },
+      "m03-text-and-math.html": {
+        "rawForeignObjects": 3,
+        "keptForeignObjects": 3,
+        "rawKatex": 3,
+        "keptKatex": 3,
+        "rawMath": 0,
+        "keptMath": 0,
+        "keptInlineStyles": 32,
+        "rawInlineStyles": 32,
+        "scriptOrHandler": false,
+        "rawAnnotation": 0,
+        "keptAnnotation": 0,
+        "rawSemantics": 0,
+        "keptSemantics": 0,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 5986,
+        "rawLength": 5990
+      },
+      "m03-text-and-math.mathml": {
+        "rawForeignObjects": 3,
+        "keptForeignObjects": 3,
+        "rawKatex": 3,
+        "keptKatex": 3,
+        "rawMath": 3,
+        "keptMath": 3,
+        "keptInlineStyles": 6,
+        "rawInlineStyles": 6,
+        "scriptOrHandler": false,
+        "rawAnnotation": 3,
+        "keptAnnotation": 3,
+        "rawSemantics": 3,
+        "keptSemantics": 3,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 3338,
+        "rawLength": 3348
+      },
+      "m03-text-and-math.mathml-bare": {
+        "rawForeignObjects": 3,
+        "keptForeignObjects": 3,
+        "rawKatex": 0,
+        "keptKatex": 0,
+        "rawMath": 3,
+        "keptMath": 3,
+        "keptInlineStyles": 6,
+        "rawInlineStyles": 6,
+        "scriptOrHandler": false,
+        "rawAnnotation": 3,
+        "keptAnnotation": 3,
+        "rawSemantics": 3,
+        "keptSemantics": 3,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 3257,
+        "rawLength": 3267
+      },
+      "m04-hostile-tex.html": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 2,
+        "keptKatex": 2,
+        "rawMath": 0,
+        "keptMath": 0,
+        "keptInlineStyles": 11,
+        "rawInlineStyles": 11,
+        "scriptOrHandler": false,
+        "rawAnnotation": 0,
+        "keptAnnotation": 0,
+        "rawSemantics": 0,
+        "keptSemantics": 0,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 2646,
+        "rawLength": 2656
+      },
+      "m04-hostile-tex.mathml": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 2,
+        "keptKatex": 2,
+        "rawMath": 2,
+        "keptMath": 2,
+        "keptInlineStyles": 5,
+        "rawInlineStyles": 5,
+        "scriptOrHandler": false,
+        "rawAnnotation": 2,
+        "keptAnnotation": 2,
+        "rawSemantics": 2,
+        "keptSemantics": 2,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 2590,
+        "rawLength": 2600
+      },
+      "m04-hostile-tex.mathml-bare": {
+        "rawForeignObjects": 2,
+        "keptForeignObjects": 2,
+        "rawKatex": 0,
+        "keptKatex": 0,
+        "rawMath": 2,
+        "keptMath": 2,
+        "keptInlineStyles": 5,
+        "rawInlineStyles": 5,
+        "scriptOrHandler": false,
+        "rawAnnotation": 2,
+        "keptAnnotation": 2,
+        "rawSemantics": 2,
+        "keptSemantics": 2,
+        "sharedSanitizeKeepsForeignObject": false,
+        "sanitizedLength": 2536,
+        "rawLength": 2546
+      }
+    },
+    "c_hostile": {
+      "foreignObjectNoClass": {
+        "survivors": [],
+        "keptPeleMath": 0,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+      },
+      "foreignObjectOtherClass": {
+        "survivors": [],
+        "keptPeleMath": 0,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+      },
+      "scriptInsideMath": {
+        "survivors": [],
+        "keptPeleMath": 1,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+      },
+      "onloadInsideMath": {
+        "survivors": [],
+        "keptPeleMath": 1,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+      },
+      "javascriptHrefInsideMath": {
+        "survivors": [],
+        "keptPeleMath": 1,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ja<span>s</span></span></div></foreignObject><text>t</text></svg>"
+      },
+      "htmlOutsideForeignObject": {
+        "survivors": [],
+        "keptPeleMath": 0,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><g></g></svg>"
+      },
+      "formsInsideMath": {
+        "survivors": [],
+        "keptPeleMath": 1,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+      },
+      "annotationXmlInsideMath": {
+        "survivors": [],
+        "keptPeleMath": 1,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><math><semantics><mi>x</mi></semantics></math></div></foreignObject></svg>"
+      },
+      "dataHrefImage": {
+        "survivors": [],
+        "keptPeleMath": 0,
+        "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><image width=\"1\" height=\"1\"></image><image width=\"1\" height=\"1\"></image></svg>"
+      }
+    },
+    "a_afterDiagramInstance": {
+      "checked": 38,
+      "mismatches": []
+    },
+    "isolation": {
+      "separateInstanceHookFiredDuringSanitizeSvg": 0,
+      "separateInstanceHookFiredOnOwnCall": 3,
+      "freshInstanceInheritsSharedHrefHook": "no (data: href kept)",
+      "sharedStripsDataHref": true,
+      "diagramPathStripsDataHref": true,
+      "diagramPathStripsExternalHref": true,
+      "diagramPathKeepsUseFragment": false,
+      "sharedKeepsUseFragment": false,
+      "globalHookSeenBySanitizeSvg": 43,
+      "globalHookAfterRemoveHook": 43,
+      "sanitizeSvgStillStripsForeignObjectAfterGlobalConfigCall": true
+    },
+    "a_final": {
+      "checked": 38,
+      "mismatches": []
+    }
+  }
+}
