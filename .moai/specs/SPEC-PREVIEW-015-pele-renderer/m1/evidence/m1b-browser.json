@@ -1,0 +1,5516 @@
+{
+  "startedAt": "2026-10-26T08:59:47.205Z",
+  "url": "http://localhost:4318/m1b.html",
+  "browserFixturePairs": 38,
+  "webkit": {
+    "environment": "playwright 1.58.2 webkit 26.0 (headless, macOS)",
+    "cold": {
+      "fontsStatusAtStart": [
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded"
+      ],
+      "log": [
+        {
+          "tex": "x^2 + y^2",
+          "size": 16,
+          "width": 53,
+          "height": 23,
+          "returned": "html"
+        },
+        {
+          "tex": "\\frac{a}{b}",
+          "size": 16,
+          "width": 12,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "\\frac{1}{2}",
+          "size": 16,
+          "width": 12,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "\\frac{a+b}{c-d}",
+          "size": 16,
+          "width": 26,
+          "height": 26,
+          "returned": "html"
+        },
+        {
+          "tex": "x_i^2",
+          "size": 16,
+          "width": 17,
+          "height": 23,
+          "returned": "html"
+        },
+        {
+          "tex": "e^{i\\pi} + 1 = 0",
+          "size": 16,
+          "width": 82,
+          "height": 23,
+          "returned": "html"
+        },
+        {
+          "tex": "a_{n+1} = a_n + d",
+          "size": 16,
+          "width": 101,
+          "height": 23,
+          "returned": "html"
+        },
+        {
+          "tex": "\\pi r^2",
+          "size": 16,
+          "width": 28,
+          "height": 23,
+          "returned": "html"
+        },
+        {
+          "tex": "\\sum_{k=1}^{n} k",
+          "size": 16,
+          "width": 49,
+          "height": 24,
+          "returned": "html"
+        },
+        {
+          "tex": "\\sqrt{2}",
+          "size": 16,
+          "width": 26,
+          "height": 23,
+          "returned": "html"
+        },
+        {
+          "tex": "\\href{javascript:alert(1)}{x}",
+          "size": 16,
+          "width": 37,
+          "height": 23,
+          "returned": "html"
+        },
+        {
+          "tex": "\\htmlClass{evil}{y}",
+          "size": 16,
+          "width": 83,
+          "height": 23,
+          "returned": "html"
+        }
+      ]
+    },
+    "fonts": [
+      {
+        "family": "KaTeX_AMS",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Caligraphic",
+        "weight": "700",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Caligraphic",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Fraktur",
+        "weight": "700",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Fraktur",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Main",
+        "weight": "700",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Main",
+        "weight": "700",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Main",
+        "weight": "400",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Main",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Math",
+        "weight": "700",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Math",
+        "weight": "400",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_SansSerif",
+        "weight": "700",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_SansSerif",
+        "weight": "400",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_SansSerif",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Script",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Size1",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Size2",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Size3",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Size4",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Typewriter",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      }
+    ],
+    "preview": {
+      "18-math-label": {
+        "html": {
+          "width": 353,
+          "height": 68,
+          "log": [
+            {
+              "tex": "x^2 + y^2",
+              "size": 16,
+              "width": 61,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a}{b}",
+              "size": 16,
+              "width": 12,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  61,
+                  24
+                ],
+                "katex": [
+                  60.4,
+                  24
+                ],
+                "overflowX": -0.6,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  12,
+                  24
+                ],
+                "katex": [
+                  11.8,
+                  23.7
+                ],
+                "overflowX": -0.2,
+                "overflowY": -0.3,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 208,
+              "insideRatio": 0
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  61,
+                  24
+                ],
+                "katex": [
+                  60.4,
+                  24
+                ],
+                "overflowX": -0.6,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  12,
+                  24
+                ],
+                "katex": [
+                  11.8,
+                  23.7
+                ],
+                "overflowX": -0.2,
+                "overflowY": -0.3,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 230,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml": {
+          "width": 351,
+          "height": 73,
+          "log": [
+            {
+              "tex": "x^2 + y^2",
+              "size": 16,
+              "width": 59,
+              "height": 23,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a}{b}",
+              "size": 16,
+              "width": 10,
+              "height": 29,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  59,
+                  23
+                ],
+                "katex": [
+                  58.2,
+                  23
+                ],
+                "overflowX": -0.8,
+                "overflowY": 0,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  10,
+                  29
+                ],
+                "katex": [
+                  9.5,
+                  28.3
+                ],
+                "overflowX": -0.5,
+                "overflowY": -0.7,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 192,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml-bare": {
+          "width": 341,
+          "height": 68,
+          "log": [
+            {
+              "tex": "x^2 + y^2",
+              "size": 16,
+              "width": 49,
+              "height": 19,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a}{b}",
+              "size": 16,
+              "width": 9,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  49,
+                  19
+                ],
+                "katex": [
+                  48.1,
+                  17
+                ],
+                "overflowX": -0.9,
+                "overflowY": -2,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  9,
+                  24
+                ],
+                "katex": [
+                  8.2,
+                  23.7
+                ],
+                "overflowX": -0.8,
+                "overflowY": -0.3,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 245,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  49,
+                  19
+                ],
+                "katex": [
+                  48.1,
+                  17
+                ],
+                "overflowX": -0.9,
+                "overflowY": -2,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  9,
+                  24
+                ],
+                "katex": [
+                  8.2,
+                  23.7
+                ],
+                "overflowX": -0.8,
+                "overflowY": -0.3,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 268,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mermaid-light": {
+          "ok": true,
+          "foreignObject": true,
+          "katex": true,
+          "mathml": true
+        },
+        "mermaid-dark": {
+          "ok": true,
+          "foreignObject": true,
+          "katex": true,
+          "mathml": true
+        }
+      },
+      "m01-inline-fraction": {
+        "html": {
+          "width": 210,
+          "height": 69,
+          "log": [
+            {
+              "tex": "\\frac{1}{2}",
+              "size": 16,
+              "width": 12,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a+b}{c-d}",
+              "size": 16,
+              "width": 29,
+              "height": 25,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  12,
+                  24
+                ],
+                "katex": [
+                  11.4,
+                  23.7
+                ],
+                "overflowX": -0.6,
+                "overflowY": -0.3,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  29,
+                  25
+                ],
+                "katex": [
+                  28.2,
+                  24.8
+                ],
+                "overflowX": -0.8,
+                "overflowY": -0.2,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 191,
+              "insideRatio": 0
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  12,
+                  24
+                ],
+                "katex": [
+                  11.4,
+                  23.7
+                ],
+                "overflowX": -0.6,
+                "overflowY": -0.3,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  29,
+                  25
+                ],
+                "katex": [
+                  28.2,
+                  24.8
+                ],
+                "overflowX": -0.8,
+                "overflowY": -0.2,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 201,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml": {
+          "width": 211,
+          "height": 78,
+          "log": [
+            {
+              "tex": "\\frac{1}{2}",
+              "size": 16,
+              "width": 9,
+              "height": 32,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a+b}{c-d}",
+              "size": 16,
+              "width": 33,
+              "height": 34,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  9,
+                  32
+                ],
+                "katex": [
+                  8.7,
+                  31.6
+                ],
+                "overflowX": -0.3,
+                "overflowY": -0.4,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  33,
+                  34
+                ],
+                "katex": [
+                  32.3,
+                  33.3
+                ],
+                "overflowX": -0.7,
+                "overflowY": -0.7,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 164,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml-bare": {
+          "width": 205,
+          "height": 72,
+          "log": [
+            {
+              "tex": "\\frac{1}{2}",
+              "size": 16,
+              "width": 8,
+              "height": 27,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a+b}{c-d}",
+              "size": 16,
+              "width": 28,
+              "height": 28,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  8,
+                  27
+                ],
+                "katex": [
+                  7.5,
+                  26.7
+                ],
+                "overflowX": -0.5,
+                "overflowY": -0.3,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  28,
+                  28
+                ],
+                "katex": [
+                  27,
+                  27.2
+                ],
+                "overflowX": -1,
+                "overflowY": -0.8,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 263,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  8,
+                  27
+                ],
+                "katex": [
+                  7.5,
+                  26.7
+                ],
+                "overflowX": -0.5,
+                "overflowY": -0.3,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  28,
+                  28
+                ],
+                "katex": [
+                  27,
+                  27.2
+                ],
+                "overflowX": -1,
+                "overflowY": -0.8,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 281,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mermaid-light": {
+          "ok": true,
+          "foreignObject": true,
+          "katex": true,
+          "mathml": true
+        },
+        "mermaid-dark": {
+          "ok": true,
+          "foreignObject": true,
+          "katex": true,
+          "mathml": true
+        }
+      },
+      "m02-sub-superscript": {
+        "html": {
+          "width": 168,
+          "height": 268,
+          "log": [
+            {
+              "tex": "x_i^2",
+              "size": 16,
+              "width": 19,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "e^{i\\pi} + 1 = 0",
+              "size": 16,
+              "width": 92,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "a_{n+1} = a_n + d",
+              "size": 16,
+              "width": 116,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  19,
+                  24
+                ],
+                "katex": [
+                  18.8,
+                  24
+                ],
+                "overflowX": -0.2,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  92,
+                  24
+                ],
+                "katex": [
+                  91.8,
+                  24
+                ],
+                "overflowX": -0.2,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  116,
+                  24
+                ],
+                "katex": [
+                  115.6,
+                  24
+                ],
+                "overflowX": -0.4,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 464,
+              "insideRatio": 0
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  19,
+                  24
+                ],
+                "katex": [
+                  18.8,
+                  24
+                ],
+                "overflowX": -0.2,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  92,
+                  24
+                ],
+                "katex": [
+                  91.8,
+                  24
+                ],
+                "overflowX": -0.2,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  116,
+                  24
+                ],
+                "katex": [
+                  115.6,
+                  24
+                ],
+                "overflowX": -0.4,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 522,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml": {
+          "width": 171,
+          "height": 265,
+          "log": [
+            {
+              "tex": "x_i^2",
+              "size": 16,
+              "width": 19,
+              "height": 23,
+              "returned": "html"
+            },
+            {
+              "tex": "e^{i\\pi} + 1 = 0",
+              "size": 16,
+              "width": 88,
+              "height": 23,
+              "returned": "html"
+            },
+            {
+              "tex": "a_{n+1} = a_n + d",
+              "size": 16,
+              "width": 119,
+              "height": 23,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  19,
+                  23
+                ],
+                "katex": [
+                  18.3,
+                  23
+                ],
+                "overflowX": -0.7,
+                "overflowY": 0,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  88,
+                  23
+                ],
+                "katex": [
+                  87.7,
+                  23
+                ],
+                "overflowX": -0.3,
+                "overflowY": 0,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  119,
+                  23
+                ],
+                "katex": [
+                  118.8,
+                  23
+                ],
+                "overflowX": -0.2,
+                "overflowY": 0,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 475,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml-bare": {
+          "width": 151,
+          "height": 256,
+          "log": [
+            {
+              "tex": "x_i^2",
+              "size": 16,
+              "width": 16,
+              "height": 19,
+              "returned": "html"
+            },
+            {
+              "tex": "e^{i\\pi} + 1 = 0",
+              "size": 16,
+              "width": 73,
+              "height": 19,
+              "returned": "html"
+            },
+            {
+              "tex": "a_{n+1} = a_n + d",
+              "size": 16,
+              "width": 99,
+              "height": 19,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  16,
+                  19
+                ],
+                "katex": [
+                  15.1,
+                  17.9
+                ],
+                "overflowX": -0.9,
+                "overflowY": -1.1,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  73,
+                  19
+                ],
+                "katex": [
+                  72.4,
+                  14
+                ],
+                "overflowX": -0.6,
+                "overflowY": -5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  99,
+                  19
+                ],
+                "katex": [
+                  98.1,
+                  15.4
+                ],
+                "overflowX": -0.9,
+                "overflowY": -3.6,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 678,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  16,
+                  19
+                ],
+                "katex": [
+                  15.1,
+                  17.9
+                ],
+                "overflowX": -0.9,
+                "overflowY": -1.1,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  73,
+                  19
+                ],
+                "katex": [
+                  72.4,
+                  14
+                ],
+                "overflowX": -0.6,
+                "overflowY": -5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  99,
+                  19
+                ],
+                "katex": [
+                  98.1,
+                  15.4
+                ],
+                "overflowX": -0.9,
+                "overflowY": -3.6,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 730,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mermaid-light": {
+          "ok": true,
+          "foreignObject": true,
+          "katex": true,
+          "mathml": true
+        },
+        "mermaid-dark": {
+          "ok": true,
+          "foreignObject": true,
+          "katex": true,
+          "mathml": true
+        }
+      },
+      "m03-text-and-math": {
+        "html": {
+          "width": 418,
+          "height": 68,
+          "log": [
+            {
+              "tex": "\\pi r^2",
+              "size": 16,
+              "width": 29,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sum_{k=1}^{n} k",
+              "size": 16,
+              "width": 61,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sqrt{2}",
+              "size": 16,
+              "width": 26,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  29,
+                  24
+                ],
+                "katex": [
+                  28.7,
+                  24
+                ],
+                "overflowX": -0.3,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Math",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  61,
+                  24
+                ],
+                "katex": [
+                  60.1,
+                  24
+                ],
+                "overflowX": -0.9,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  26,
+                  24
+                ],
+                "katex": [
+                  25.8,
+                  23.6
+                ],
+                "overflowX": -0.2,
+                "overflowY": -0.4,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 290,
+              "insideRatio": 0
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  29,
+                  24
+                ],
+                "katex": [
+                  28.7,
+                  24
+                ],
+                "overflowX": -0.3,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Math",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  61,
+                  24
+                ],
+                "katex": [
+                  60.1,
+                  24
+                ],
+                "overflowX": -0.9,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  26,
+                  24
+                ],
+                "katex": [
+                  25.8,
+                  23.6
+                ],
+                "overflowX": -0.2,
+                "overflowY": -0.4,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 320,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml": {
+          "width": 428,
+          "height": 70,
+          "log": [
+            {
+              "tex": "\\pi r^2",
+              "size": 16,
+              "width": 28,
+              "height": 23,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sum_{k=1}^{n} k",
+              "size": 16,
+              "width": 64,
+              "height": 26,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sqrt{2}",
+              "size": 16,
+              "width": 34,
+              "height": 25,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  28,
+                  23
+                ],
+                "katex": [
+                  27.7,
+                  23
+                ],
+                "overflowX": -0.3,
+                "overflowY": 0,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  64,
+                  26
+                ],
+                "katex": [
+                  63.6,
+                  25.7
+                ],
+                "overflowX": -0.4,
+                "overflowY": -0.3,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  34,
+                  25
+                ],
+                "katex": [
+                  33,
+                  24.5
+                ],
+                "overflowX": -1,
+                "overflowY": -0.5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 323,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml-bare": {
+          "width": 406,
+          "height": 65,
+          "log": [
+            {
+              "tex": "\\pi r^2",
+              "size": 16,
+              "width": 23,
+              "height": 19,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sum_{k=1}^{n} k",
+              "size": 16,
+              "width": 53,
+              "height": 21,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sqrt{2}",
+              "size": 16,
+              "width": 28,
+              "height": 21,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  23,
+                  19
+                ],
+                "katex": [
+                  22.9,
+                  14
+                ],
+                "overflowX": -0.1,
+                "overflowY": -5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  53,
+                  21
+                ],
+                "katex": [
+                  52.6,
+                  20.9
+                ],
+                "overflowX": -0.4,
+                "overflowY": -0.1,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  28,
+                  21
+                ],
+                "katex": [
+                  27.3,
+                  20.2
+                ],
+                "overflowX": -0.7,
+                "overflowY": -0.8,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 496,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  23,
+                  19
+                ],
+                "katex": [
+                  22.9,
+                  14
+                ],
+                "overflowX": -0.1,
+                "overflowY": -5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  53,
+                  21
+                ],
+                "katex": [
+                  52.6,
+                  20.9
+                ],
+                "overflowX": -0.4,
+                "overflowY": -0.1,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  28,
+                  21
+                ],
+                "katex": [
+                  27.3,
+                  20.2
+                ],
+                "overflowX": -0.7,
+                "overflowY": -0.8,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 553,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mermaid-light": {
+          "ok": false,
+          "error": "KaTeX parse error: Can't use function '$' in math mode at position 17: …sum_{k=1}^{n} k$̲$ 와 근 $$\\sqrt{2…",
+          "foreignObject": false,
+          "katex": false,
+          "mathml": false
+        },
+        "mermaid-dark": {
+          "ok": false,
+          "error": "KaTeX parse error: Can't use function '$' in math mode at position 17: …sum_{k=1}^{n} k$̲$ 와 근 $$\\sqrt{2…",
+          "foreignObject": false,
+          "katex": false,
+          "mathml": false
+        }
+      },
+      "m04-hostile-tex": {
+        "html": {
+          "width": 273,
+          "height": 67,
+          "log": [
+            {
+              "tex": "\\href{javascript:alert(1)}{x}",
+              "size": 16,
+              "width": 43,
+              "height": 23,
+              "returned": "html"
+            },
+            {
+              "tex": "\\htmlClass{evil}{y}",
+              "size": 16,
+              "width": 94,
+              "height": 23,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  43,
+                  23
+                ],
+                "katex": [
+                  42.6,
+                  23
+                ],
+                "overflowX": -0.4,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  94,
+                  23
+                ],
+                "katex": [
+                  93.8,
+                  23
+                ],
+                "overflowX": -0.2,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 490,
+              "insideRatio": 0
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  43,
+                  23
+                ],
+                "katex": [
+                  42.6,
+                  23
+                ],
+                "overflowX": -0.4,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  94,
+                  23
+                ],
+                "katex": [
+                  93.8,
+                  23
+                ],
+                "overflowX": -0.2,
+                "overflowY": 0,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 420,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml": {
+          "width": 267,
+          "height": 67,
+          "log": [
+            {
+              "tex": "\\href{javascript:alert(1)}{x}",
+              "size": 16,
+              "width": 41,
+              "height": 23,
+              "returned": "html"
+            },
+            {
+              "tex": "\\htmlClass{evil}{y}",
+              "size": 16,
+              "width": 90,
+              "height": 23,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  41,
+                  23
+                ],
+                "katex": [
+                  40.7,
+                  23
+                ],
+                "overflowX": -0.3,
+                "overflowY": 0,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  90,
+                  23
+                ],
+                "katex": [
+                  89.7,
+                  23
+                ],
+                "overflowX": -0.3,
+                "overflowY": 0,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 0,
+              "changedOutside": 478,
+              "insideRatio": 0
+            }
+          }
+        },
+        "mathml-bare": {
+          "width": 245,
+          "height": 64,
+          "log": [
+            {
+              "tex": "\\href{javascript:alert(1)}{x}",
+              "size": 16,
+              "width": 34,
+              "height": 19,
+              "returned": "html"
+            },
+            {
+              "tex": "\\htmlClass{evil}{y}",
+              "size": 16,
+              "width": 75,
+              "height": 19,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  34,
+                  19
+                ],
+                "katex": [
+                  33.7,
+                  14
+                ],
+                "overflowX": -0.3,
+                "overflowY": -5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  75,
+                  19
+                ],
+                "katex": [
+                  74.2,
+                  14
+                ],
+                "overflowX": -0.8,
+                "overflowY": -5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 640,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          },
+          "dark": {
+            "fit": [
+              {
+                "fo": [
+                  34,
+                  19
+                ],
+                "katex": [
+                  33.7,
+                  14
+                ],
+                "overflowX": -0.3,
+                "overflowY": -5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  75,
+                  19
+                ],
+                "katex": [
+                  74.2,
+                  14
+                ],
+                "overflowX": -0.8,
+                "overflowY": -5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 558,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mermaid-light": {
+          "ok": true,
+          "foreignObject": true,
+          "katex": true,
+          "mathml": true
+        },
+        "mermaid-dark": {
+          "ok": true,
+          "foreignObject": true,
+          "katex": true,
+          "mathml": true
+        }
+      }
+    },
+    "noResolver18": {
+      "width": 489,
+      "height": 64,
+      "dollars": 4
+    },
+    "renderCost": {
+      "msPerDiagram": {
+        "none": 0.052,
+        "html": 0.52,
+        "mathml": 0.284,
+        "mathml-bare": 0.26
+      },
+      "diagrams": 5
+    },
+    "sanitize": {
+      "domPurifyVersion": "3.4.12",
+      "a_before": {
+        "checked": 38,
+        "mismatches": []
+      },
+      "b_math": {
+        "18-math-label.html": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 27,
+          "rawInlineStyles": 27,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 4905,
+          "rawLength": 4897
+        },
+        "18-math-label.mathml": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 6,
+          "rawInlineStyles": 6,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3023,
+          "rawLength": 3015
+        },
+        "18-math-label.mathml-bare": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 6,
+          "rawInlineStyles": 6,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2944,
+          "rawLength": 2936
+        },
+        "m01-inline-fraction.html": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 25,
+          "rawInlineStyles": 25,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 4583,
+          "rawLength": 4593
+        },
+        "m01-inline-fraction.mathml": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 5,
+          "rawInlineStyles": 5,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2668,
+          "rawLength": 2678
+        },
+        "m01-inline-fraction.mathml-bare": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 5,
+          "rawInlineStyles": 5,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2614,
+          "rawLength": 2624
+        },
+        "m02-sub-superscript.html": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 3,
+          "keptKatex": 3,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 40,
+          "rawInlineStyles": 40,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 6786,
+          "rawLength": 6778
+        },
+        "m02-sub-superscript.mathml": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 3,
+          "keptKatex": 3,
+          "rawMath": 3,
+          "keptMath": 3,
+          "keptInlineStyles": 7,
+          "rawInlineStyles": 7,
+          "scriptOrHandler": false,
+          "rawAnnotation": 3,
+          "keptAnnotation": 3,
+          "rawSemantics": 3,
+          "keptSemantics": 3,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3680,
+          "rawLength": 3672
+        },
+        "m02-sub-superscript.mathml-bare": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 3,
+          "keptMath": 3,
+          "keptInlineStyles": 7,
+          "rawInlineStyles": 7,
+          "scriptOrHandler": false,
+          "rawAnnotation": 3,
+          "keptAnnotation": 3,
+          "rawSemantics": 3,
+          "keptSemantics": 3,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3582,
+          "rawLength": 3574
+        },
+        "m03-text-and-math.html": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 3,
+          "keptKatex": 3,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 32,
+          "rawInlineStyles": 32,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 5992,
+          "rawLength": 5996
+        },
+        "m03-text-and-math.mathml": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 3,
+          "keptKatex": 3,
+          "rawMath": 3,
+          "keptMath": 3,
+          "keptInlineStyles": 6,
+          "rawInlineStyles": 6,
+          "scriptOrHandler": false,
+          "rawAnnotation": 3,
+          "keptAnnotation": 3,
+          "rawSemantics": 3,
+          "keptSemantics": 3,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3349,
+          "rawLength": 3359
+        },
+        "m03-text-and-math.mathml-bare": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 3,
+          "keptMath": 3,
+          "keptInlineStyles": 6,
+          "rawInlineStyles": 6,
+          "scriptOrHandler": false,
+          "rawAnnotation": 3,
+          "keptAnnotation": 3,
+          "rawSemantics": 3,
+          "keptSemantics": 3,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3279,
+          "rawLength": 3289
+        },
+        "m04-hostile-tex.html": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 11,
+          "rawInlineStyles": 11,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2665,
+          "rawLength": 2675
+        },
+        "m04-hostile-tex.mathml": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 5,
+          "rawInlineStyles": 5,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2609,
+          "rawLength": 2619
+        },
+        "m04-hostile-tex.mathml-bare": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 5,
+          "rawInlineStyles": 5,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2539,
+          "rawLength": 2549
+        }
+      },
+      "c_hostile": {
+        "foreignObjectNoClass": {
+          "survivors": [],
+          "keptPeleMath": 0,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+        },
+        "foreignObjectOtherClass": {
+          "survivors": [],
+          "keptPeleMath": 0,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+        },
+        "scriptInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+        },
+        "onloadInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+        },
+        "javascriptHrefInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ja<span>s</span></span></div></foreignObject><text>t</text></svg>"
+        },
+        "htmlOutsideForeignObject": {
+          "survivors": [],
+          "keptPeleMath": 0,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><g></g></svg>"
+        },
+        "formsInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+        },
+        "annotationXmlInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><math><semantics><mi>x</mi></semantics></math></div></foreignObject></svg>"
+        },
+        "dataHrefImage": {
+          "survivors": [],
+          "keptPeleMath": 0,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><image width=\"1\" height=\"1\"></image><image width=\"1\" height=\"1\"></image></svg>"
+        }
+      },
+      "a_afterDiagramInstance": {
+        "checked": 38,
+        "mismatches": []
+      },
+      "isolation": {
+        "separateInstanceHookFiredDuringSanitizeSvg": 0,
+        "separateInstanceHookFiredOnOwnCall": 3,
+        "freshInstanceInheritsSharedHrefHook": "no (data: href kept)",
+        "sharedStripsDataHref": true,
+        "diagramPathStripsDataHref": true,
+        "diagramPathStripsExternalHref": true,
+        "diagramPathKeepsUseFragment": false,
+        "sharedKeepsUseFragment": false,
+        "globalHookSeenBySanitizeSvg": 43,
+        "globalHookAfterRemoveHook": 43,
+        "sanitizeSvgStillStripsForeignObjectAfterGlobalConfigCall": true
+      },
+      "a_final": {
+        "checked": 38,
+        "mismatches": []
+      }
+    },
+    "docx": {
+      "18-math-label.html": {
+        "loaded": true,
+        "dataUriBytes": 6510,
+        "toDataURL": "ok",
+        "toBlob": "ok 8762B",
+        "inkPixelsTotal": 2515,
+        "foRects": [
+          [
+            26,
+            22,
+            61,
+            24
+          ],
+          [
+            171,
+            22,
+            12,
+            24
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 674,
+            "opaque": 5856
+          },
+          {
+            "ink": 172,
+            "opaque": 1152
+          }
+        ],
+        "width": 353,
+        "height": 68,
+        "file": "exports/m1b/docx-png-webkit-18-math-label-html.png"
+      },
+      "18-math-label.mathml": {
+        "loaded": true,
+        "dataUriBytes": 3998,
+        "toDataURL": "ok",
+        "toBlob": "ok 8836B",
+        "inkPixelsTotal": 2086,
+        "foRects": [
+          [
+            26,
+            25,
+            59,
+            23
+          ],
+          [
+            170,
+            22,
+            10,
+            29
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 401,
+            "opaque": 5428
+          },
+          {
+            "ink": 144,
+            "opaque": 1160
+          }
+        ],
+        "width": 351,
+        "height": 73,
+        "file": "exports/m1b/docx-png-webkit-18-math-label-mathml.png"
+      },
+      "18-math-label.mathml-bare": {
+        "loaded": true,
+        "dataUriBytes": 3890,
+        "toDataURL": "ok",
+        "toBlob": "ok 8470B",
+        "inkPixelsTotal": 2086,
+        "foRects": [
+          [
+            26,
+            24.5,
+            49,
+            19
+          ],
+          [
+            160.5,
+            22,
+            9,
+            24
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 401,
+            "opaque": 3724
+          },
+          {
+            "ink": 139,
+            "opaque": 864
+          }
+        ],
+        "width": 341,
+        "height": 68,
+        "file": "exports/m1b/docx-png-webkit-18-math-label-mathml-bare.png"
+      },
+      "18-math-label.none": {
+        "loaded": true,
+        "dataUriBytes": 2638,
+        "toDataURL": "ok",
+        "toBlob": "ok 14668B",
+        "inkPixelsTotal": 5107,
+        "foRects": [],
+        "foRegions": [],
+        "width": 489,
+        "height": 64,
+        "file": "exports/m1b/docx-png-webkit-18-math-label-none.png"
+      },
+      "18-math-label.textsvg": {
+        "loaded": true,
+        "dataUriBytes": 3054,
+        "toDataURL": "ok",
+        "toBlob": "ok 12274B",
+        "inkPixelsTotal": 3541,
+        "foRects": [],
+        "foRegions": [],
+        "width": 457,
+        "height": 65,
+        "file": "exports/m1b/docx-png-webkit-18-math-label-textsvg.png"
+      },
+      "m03-text-and-math.html": {
+        "loaded": true,
+        "dataUriBytes": 8070,
+        "toDataURL": "ok",
+        "toBlob": "ok 10964B",
+        "inkPixelsTotal": 5044,
+        "foRects": [
+          [
+            71.97000122070312,
+            22,
+            29,
+            24
+          ],
+          [
+            263.04998779296875,
+            22,
+            61,
+            24
+          ],
+          [
+            365.07000732421875,
+            22,
+            26,
+            24
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 491,
+            "opaque": 2832
+          },
+          {
+            "ink": 824,
+            "opaque": 5904
+          },
+          {
+            "ink": 106,
+            "opaque": 2544
+          }
+        ],
+        "width": 418,
+        "height": 68,
+        "file": "exports/m1b/docx-png-webkit-m03-text-and-math-html.png"
+      },
+      "m03-text-and-math.mathml": {
+        "loaded": true,
+        "dataUriBytes": 4490,
+        "toDataURL": "ok",
+        "toBlob": "ok 13231B",
+        "inkPixelsTotal": 3561,
+        "foRects": [
+          [
+            71.97000122070312,
+            23.5,
+            28,
+            23
+          ],
+          [
+            262.04998779296875,
+            22,
+            64,
+            26
+          ],
+          [
+            367.07000732421875,
+            22.5,
+            34,
+            25
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 232,
+            "opaque": 2622
+          },
+          {
+            "ink": 585,
+            "opaque": 6708
+          },
+          {
+            "ink": 323,
+            "opaque": 3450
+          }
+        ],
+        "width": 428,
+        "height": 70,
+        "file": "exports/m1b/docx-png-webkit-m03-text-and-math-mathml.png"
+      },
+      "m03-text-and-math.mathml-bare": {
+        "loaded": true,
+        "dataUriBytes": 4398,
+        "toDataURL": "ok",
+        "toBlob": "ok 12808B",
+        "inkPixelsTotal": 3557,
+        "foRects": [
+          [
+            71.97000122070312,
+            23,
+            23,
+            19
+          ],
+          [
+            257.04998779296875,
+            22,
+            53,
+            21
+          ],
+          [
+            351.07000732421875,
+            22,
+            28,
+            21
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 232,
+            "opaque": 1786
+          },
+          {
+            "ink": 585,
+            "opaque": 4494
+          },
+          {
+            "ink": 319,
+            "opaque": 2394
+          }
+        ],
+        "width": 406,
+        "height": 65,
+        "file": "exports/m1b/docx-png-webkit-m03-text-and-math-mathml-bare.png"
+      },
+      "m03-text-and-math.none": {
+        "loaded": true,
+        "dataUriBytes": 2190,
+        "toDataURL": "ok",
+        "toBlob": "ok 23080B",
+        "inkPixelsTotal": 7868,
+        "foRects": [],
+        "foRegions": [],
+        "width": 495,
+        "height": 82,
+        "file": "exports/m1b/docx-png-webkit-m03-text-and-math-none.png"
+      },
+      "m03-text-and-math.textsvg": {
+        "loaded": true,
+        "dataUriBytes": 3154,
+        "toDataURL": "ok",
+        "toBlob": "ok 21217B",
+        "inkPixelsTotal": 5513,
+        "foRects": [],
+        "foRegions": [],
+        "width": 482,
+        "height": 90,
+        "file": "exports/m1b/docx-png-webkit-m03-text-and-math-textsvg.png"
+      }
+    },
+    "htmlExport": {
+      "katexCssBytes": 23804,
+      "katexWoff2Bytes": 259792,
+      "variants": {
+        "E0-html-noKatexCss-light": {
+          "file": "exports/m1b/html-E0-html-noKatexCss-light.html",
+          "bytes": 18879,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "sans-serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -8.6,
+              5.8,
+              -4.2,
+              -1.2,
+              6396.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E0-html-noKatexCss-light-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "sans-serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -8.6,
+              5.8,
+              -4.2,
+              -1.2,
+              6396.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E0-html-noKatexCss-light-chromium.png"
+        },
+        "E0-html-noKatexCss-dark": {
+          "file": "exports/m1b/html-E0-html-noKatexCss-dark.html",
+          "bytes": 18877,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "sans-serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -8.6,
+              5.8,
+              -4.2,
+              -1.2,
+              6396.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E0-html-noKatexCss-dark-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "sans-serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -8.6,
+              5.8,
+              -4.2,
+              -1.2,
+              6396.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E0-html-noKatexCss-dark-chromium.png"
+        },
+        "E1-html-katexCss-dataFonts-light": {
+          "file": "exports/m1b/html-E1-html-katexCss-dataFonts-light.html",
+          "bytes": 386784,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "KaTeX_Main, \"Times New Roman\", serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -0.6,
+              -0.2,
+              -0.3,
+              -0.9,
+              -0.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E1-html-katexCss-dataFonts-light-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "KaTeX_Main, \"Times New Roman\", serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -0.6,
+              -0.2,
+              -0.3,
+              -0.9,
+              -0.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E1-html-katexCss-dataFonts-light-chromium.png"
+        },
+        "E1-html-katexCss-dataFonts-dark": {
+          "file": "exports/m1b/html-E1-html-katexCss-dataFonts-dark.html",
+          "bytes": 386782,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "KaTeX_Main, \"Times New Roman\", serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -0.6,
+              -0.2,
+              -0.3,
+              -0.9,
+              -0.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E1-html-katexCss-dataFonts-dark-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "KaTeX_Main, \"Times New Roman\", serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -0.6,
+              -0.2,
+              -0.3,
+              -0.9,
+              -0.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E1-html-katexCss-dataFonts-dark-chromium.png"
+        },
+        "E2-html-katexCss-noFonts-light": {
+          "file": "exports/m1b/html-E2-html-katexCss-noFonts-light.html",
+          "bytes": 37600,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "KaTeX_Main, \"Times New Roman\", serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -8.1,
+              -0.6,
+              -1.9,
+              -12.9,
+              -0.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E2-html-katexCss-noFonts-light-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "KaTeX_Main, \"Times New Roman\", serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -8.1,
+              -0.6,
+              -1.9,
+              -12.9,
+              -0.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E2-html-katexCss-noFonts-light-chromium.png"
+        },
+        "E2-html-katexCss-noFonts-dark": {
+          "file": "exports/m1b/html-E2-html-katexCss-noFonts-dark.html",
+          "bytes": 37598,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "KaTeX_Main, \"Times New Roman\", serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -8.1,
+              -0.6,
+              -1.9,
+              -12.9,
+              -0.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E2-html-katexCss-noFonts-dark-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": "KaTeX_Main, \"Times New Roman\", serif",
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": false,
+            "katexHtmlVisibleInsideDiagram": true,
+            "foOverflowX": [
+              -8.1,
+              -0.6,
+              -1.9,
+              -12.9,
+              -0.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E2-html-katexCss-noFonts-dark-chromium.png"
+        },
+        "E3-mathml-noKatexCss-light": {
+          "file": "exports/m1b/html-E3-mathml-noKatexCss-light.html",
+          "bytes": 14348,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              -10.9,
+              -1.8,
+              -5.1,
+              -11.4,
+              -6.7
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E3-mathml-noKatexCss-light-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              -8.4,
+              -1.7,
+              -2.6,
+              -11.5,
+              -17.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E3-mathml-noKatexCss-light-chromium.png"
+        },
+        "E3-mathml-noKatexCss-dark": {
+          "file": "exports/m1b/html-E3-mathml-noKatexCss-dark.html",
+          "bytes": 14346,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              -10.9,
+              -1.8,
+              -5.1,
+              -11.4,
+              -6.7
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E3-mathml-noKatexCss-dark-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              -8.4,
+              -1.7,
+              -2.6,
+              -11.5,
+              -17.2
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E3-mathml-noKatexCss-dark-chromium.png"
+        },
+        "E4-mathmlBare-noKatexCss-light": {
+          "file": "exports/m1b/html-E4-mathmlBare-noKatexCss-light.html",
+          "bytes": 14199,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E4-mathmlBare-noKatexCss-light-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E4-mathmlBare-noKatexCss-light-chromium.png"
+        },
+        "E4-mathmlBare-noKatexCss-dark": {
+          "file": "exports/m1b/html-E4-mathmlBare-noKatexCss-dark.html",
+          "bytes": 14197,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E4-mathmlBare-noKatexCss-dark-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bodyMath": {
+              "mathmlVisible": true,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E4-mathmlBare-noKatexCss-dark-chromium.png"
+        },
+        "E5-mathmlBare-katexCss-dataFonts-light": {
+          "file": "exports/m1b/html-E5-mathmlBare-katexCss-dataFonts-light.html",
+          "bytes": 382104,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E5-mathmlBare-katexCss-dataFonts-light-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E5-mathmlBare-katexCss-dataFonts-light-chromium.png"
+        },
+        "E5-mathmlBare-katexCss-dataFonts-dark": {
+          "file": "exports/m1b/html-E5-mathmlBare-katexCss-dataFonts-dark.html",
+          "bytes": 382102,
+          "webkit": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "webkitScreenshot": "exports/m1b/html-E5-mathmlBare-katexCss-dataFonts-dark-webkit.png",
+          "chromium": {
+            "peleMath": 5,
+            "katexHtmlFontFamily": null,
+            "katexMainLoaded": true,
+            "mathmlVisibleInsideDiagram": true,
+            "katexHtmlVisibleInsideDiagram": false,
+            "foOverflowX": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "bodyMath": {
+              "mathmlVisible": false,
+              "htmlVisible": true
+            }
+          },
+          "chromiumScreenshot": "exports/m1b/html-E5-mathmlBare-katexCss-dataFonts-dark-chromium.png"
+        }
+      }
+    },
+    "violations": [
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      },
+      {
+        "phase": "pele-math-render",
+        "directive": "font-src",
+        "blocked": "data",
+        "sample": ""
+      }
+    ],
+    "console": [
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      },
+      {
+        "type": "error",
+        "text": "Refused to load data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO049N"
+      }
+    ],
+    "fontRequests": [
+      "http://localhost:4318/assets/KaTeX_Math-Italic-t53AETM-.woff2",
+      "http://localhost:4318/assets/KaTeX_Main-Regular-B22Nviop.woff2",
+      "http://localhost:4318/assets/KaTeX_Size1-Regular-mCD8mA8B.woff2",
+      "http://localhost:4318/assets/KaTeX_AMS-Regular-BQhdFMY1.woff2",
+      "http://localhost:4318/assets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2",
+      "http://localhost:4318/assets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2",
+      "http://localhost:4318/assets/KaTeX_Fraktur-Bold-CL6g_b3V.woff2",
+      "http://localhost:4318/assets/KaTeX_Fraktur-Regular-CTYiF6lA.woff2",
+      "http://localhost:4318/assets/KaTeX_Main-Bold-Cx986IdX.woff2",
+      "http://localhost:4318/assets/KaTeX_Main-BoldItalic-DxDJ3AOS.woff2",
+      "http://localhost:4318/assets/KaTeX_Main-Italic-NWA7e6Wa.woff2",
+      "http://localhost:4318/assets/KaTeX_Math-BoldItalic-CZnvNsCZ.woff2",
+      "http://localhost:4318/assets/KaTeX_SansSerif-Bold-D1sUS0GD.woff2",
+      "http://localhost:4318/assets/KaTeX_SansSerif-Italic-C3H0VqGB.woff2",
+      "http://localhost:4318/assets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2",
+      "http://localhost:4318/assets/KaTeX_Script-Regular-D3wIWfF6.woff2",
+      "http://localhost:4318/assets/KaTeX_Size2-Regular-Dy4dx90m.woff2",
+      "http://localhost:4318/assets/KaTeX_Size3-Regular-CTq5MqoE.woff",
+      "http://localhost:4318/assets/KaTeX_Size4-Regular-Dl5lxZxV.woff2",
+      "http://localhost:4318/assets/KaTeX_Typewriter-Regular-CO6r4hn1.woff2"
+    ]
+  },
+  "chromium": {
+    "environment": "playwright 1.58.2 chromium 145.0.7632.6 (headless, macOS)",
+    "cold": {
+      "fontsStatusAtStart": [
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded",
+        "unloaded"
+      ],
+      "log": [
+        {
+          "tex": "x^2 + y^2",
+          "size": 16,
+          "width": 55,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "\\frac{a}{b}",
+          "size": 16,
+          "width": 13,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "\\frac{1}{2}",
+          "size": 16,
+          "width": 12,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "\\frac{a+b}{c-d}",
+          "size": 16,
+          "width": 27,
+          "height": 26,
+          "returned": "html"
+        },
+        {
+          "tex": "x_i^2",
+          "size": 16,
+          "width": 17,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "e^{i\\pi} + 1 = 0",
+          "size": 16,
+          "width": 82,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "a_{n+1} = a_n + d",
+          "size": 16,
+          "width": 101,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "\\pi r^2",
+          "size": 16,
+          "width": 26,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "\\sum_{k=1}^{n} k",
+          "size": 16,
+          "width": 47,
+          "height": 25,
+          "returned": "html"
+        },
+        {
+          "tex": "\\sqrt{2}",
+          "size": 16,
+          "width": 26,
+          "height": 24,
+          "returned": "html"
+        },
+        {
+          "tex": "\\href{javascript:alert(1)}{x}",
+          "size": 16,
+          "width": 37,
+          "height": 24,
+          "returned": "html"
+        },
+        {
+          "tex": "\\htmlClass{evil}{y}",
+          "size": 16,
+          "width": 83,
+          "height": 24,
+          "returned": "html"
+        }
+      ]
+    },
+    "fonts": [
+      {
+        "family": "KaTeX_AMS",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Caligraphic",
+        "weight": "700",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Caligraphic",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Fraktur",
+        "weight": "700",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Fraktur",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Main",
+        "weight": "700",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Main",
+        "weight": "700",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Main",
+        "weight": "400",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Main",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Math",
+        "weight": "700",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Math",
+        "weight": "400",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_SansSerif",
+        "weight": "700",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_SansSerif",
+        "weight": "400",
+        "style": "italic",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_SansSerif",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Script",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Size1",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Size2",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Size3",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Size4",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      },
+      {
+        "family": "KaTeX_Typewriter",
+        "weight": "400",
+        "style": "normal",
+        "status": "loaded"
+      }
+    ],
+    "preview": {
+      "18-math-label": {
+        "html": {
+          "width": 353,
+          "height": 69,
+          "log": [
+            {
+              "tex": "x^2 + y^2",
+              "size": 16,
+              "width": 61,
+              "height": 25,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a}{b}",
+              "size": 16,
+              "width": 12,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  61,
+                  25
+                ],
+                "katex": [
+                  60.4,
+                  24.2
+                ],
+                "overflowX": -0.6,
+                "overflowY": -0.8,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  12,
+                  24
+                ],
+                "katex": [
+                  11.8,
+                  23.7
+                ],
+                "overflowX": -0.2,
+                "overflowY": -0.3,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 343,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mathml": {
+          "width": 353,
+          "height": 71,
+          "log": [
+            {
+              "tex": "x^2 + y^2",
+              "size": 16,
+              "width": 61,
+              "height": 27,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a}{b}",
+              "size": 16,
+              "width": 10,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2
+        },
+        "mathml-bare": {
+          "width": 344,
+          "height": 66,
+          "log": [
+            {
+              "tex": "x^2 + y^2",
+              "size": 16,
+              "width": 52,
+              "height": 22,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a}{b}",
+              "size": 16,
+              "width": 9,
+              "height": 20,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  52,
+                  22
+                ],
+                "katex": [
+                  51,
+                  18.5
+                ],
+                "overflowX": -1,
+                "overflowY": -3.5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  9,
+                  20
+                ],
+                "katex": [
+                  8.3,
+                  16.5
+                ],
+                "overflowX": -0.7,
+                "overflowY": -3.5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 231,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        }
+      },
+      "m01-inline-fraction": {
+        "html": {
+          "width": 209,
+          "height": 69,
+          "log": [
+            {
+              "tex": "\\frac{1}{2}",
+              "size": 16,
+              "width": 12,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a+b}{c-d}",
+              "size": 16,
+              "width": 29,
+              "height": 25,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  12,
+                  24
+                ],
+                "katex": [
+                  11.4,
+                  23.7
+                ],
+                "overflowX": -0.6,
+                "overflowY": -0.3,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  29,
+                  25
+                ],
+                "katex": [
+                  28.2,
+                  24.8
+                ],
+                "overflowX": -0.8,
+                "overflowY": -0.2,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 288,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mathml": {
+          "width": 209,
+          "height": 68,
+          "log": [
+            {
+              "tex": "\\frac{1}{2}",
+              "size": 16,
+              "width": 10,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a+b}{c-d}",
+              "size": 16,
+              "width": 31,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2
+        },
+        "mathml-bare": {
+          "width": 203,
+          "height": 64,
+          "log": [
+            {
+              "tex": "\\frac{1}{2}",
+              "size": 16,
+              "width": 9,
+              "height": 19,
+              "returned": "html"
+            },
+            {
+              "tex": "\\frac{a+b}{c-d}",
+              "size": 16,
+              "width": 26,
+              "height": 20,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  9,
+                  19
+                ],
+                "katex": [
+                  8.1,
+                  17.9
+                ],
+                "overflowX": -0.9,
+                "overflowY": -1.1,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  26,
+                  20
+                ],
+                "katex": [
+                  25.3,
+                  19.6
+                ],
+                "overflowX": -0.8,
+                "overflowY": -0.4,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 212,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        }
+      },
+      "m02-sub-superscript": {
+        "html": {
+          "width": 168,
+          "height": 271,
+          "log": [
+            {
+              "tex": "x_i^2",
+              "size": 16,
+              "width": 19,
+              "height": 25,
+              "returned": "html"
+            },
+            {
+              "tex": "e^{i\\pi} + 1 = 0",
+              "size": 16,
+              "width": 92,
+              "height": 25,
+              "returned": "html"
+            },
+            {
+              "tex": "a_{n+1} = a_n + d",
+              "size": 16,
+              "width": 116,
+              "height": 25,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  19,
+                  25
+                ],
+                "katex": [
+                  18.8,
+                  24.2
+                ],
+                "overflowX": -0.2,
+                "overflowY": -0.8,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  92,
+                  25
+                ],
+                "katex": [
+                  91.7,
+                  24.2
+                ],
+                "overflowX": -0.3,
+                "overflowY": -0.8,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  116,
+                  25
+                ],
+                "katex": [
+                  115.6,
+                  24.2
+                ],
+                "overflowX": -0.4,
+                "overflowY": -0.8,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 865,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mathml": {
+          "width": 165,
+          "height": 274,
+          "log": [
+            {
+              "tex": "x_i^2",
+              "size": 16,
+              "width": 22,
+              "height": 27,
+              "returned": "html"
+            },
+            {
+              "tex": "e^{i\\pi} + 1 = 0",
+              "size": 16,
+              "width": 83,
+              "height": 27,
+              "returned": "html"
+            },
+            {
+              "tex": "a_{n+1} = a_n + d",
+              "size": 16,
+              "width": 113,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3
+        },
+        "mathml-bare": {
+          "width": 146,
+          "height": 260,
+          "log": [
+            {
+              "tex": "x_i^2",
+              "size": 16,
+              "width": 19,
+              "height": 22,
+              "returned": "html"
+            },
+            {
+              "tex": "e^{i\\pi} + 1 = 0",
+              "size": 16,
+              "width": 69,
+              "height": 22,
+              "returned": "html"
+            },
+            {
+              "tex": "a_{n+1} = a_n + d",
+              "size": 16,
+              "width": 94,
+              "height": 19,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  19,
+                  22
+                ],
+                "katex": [
+                  18,
+                  20.5
+                ],
+                "overflowX": -1,
+                "overflowY": -1.5,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  69,
+                  22
+                ],
+                "katex": [
+                  69,
+                  16.7
+                ],
+                "overflowX": 0,
+                "overflowY": -5.3,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  94,
+                  19
+                ],
+                "katex": [
+                  93.7,
+                  15.9
+                ],
+                "overflowX": -0.3,
+                "overflowY": -3.1,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 627,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        }
+      },
+      "m03-text-and-math": {
+        "html": {
+          "width": 416,
+          "height": 69,
+          "log": [
+            {
+              "tex": "\\pi r^2",
+              "size": 16,
+              "width": 29,
+              "height": 25,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sum_{k=1}^{n} k",
+              "size": 16,
+              "width": 61,
+              "height": 25,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sqrt{2}",
+              "size": 16,
+              "width": 26,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  29,
+                  25
+                ],
+                "katex": [
+                  28.7,
+                  24.2
+                ],
+                "overflowX": -0.3,
+                "overflowY": -0.8,
+                "katexHtmlFont": "KaTeX_Math",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  61,
+                  25
+                ],
+                "katex": [
+                  60.1,
+                  24.2
+                ],
+                "overflowX": -0.9,
+                "overflowY": -0.8,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  26,
+                  24
+                ],
+                "katex": [
+                  25.8,
+                  23.8
+                ],
+                "overflowX": -0.2,
+                "overflowY": -0.2,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 620,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mathml": {
+          "width": 411,
+          "height": 71,
+          "log": [
+            {
+              "tex": "\\pi r^2",
+              "size": 16,
+              "width": 31,
+              "height": 27,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sum_{k=1}^{n} k",
+              "size": 16,
+              "width": 59,
+              "height": 25,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sqrt{2}",
+              "size": 16,
+              "width": 21,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3
+        },
+        "mathml-bare": {
+          "width": 392,
+          "height": 66,
+          "log": [
+            {
+              "tex": "\\pi r^2",
+              "size": 16,
+              "width": 26,
+              "height": 22,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sum_{k=1}^{n} k",
+              "size": 16,
+              "width": 49,
+              "height": 20,
+              "returned": "html"
+            },
+            {
+              "tex": "\\sqrt{2}",
+              "size": 16,
+              "width": 17,
+              "height": 20,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 3,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  26,
+                  22
+                ],
+                "katex": [
+                  25.8,
+                  16.8
+                ],
+                "overflowX": -0.2,
+                "overflowY": -5.2,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  49,
+                  20
+                ],
+                "katex": [
+                  48.5,
+                  18.7
+                ],
+                "overflowX": -0.5,
+                "overflowY": -1.3,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  17,
+                  20
+                ],
+                "katex": [
+                  16.9,
+                  14.7
+                ],
+                "overflowX": -0.1,
+                "overflowY": -5.3,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 406,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        }
+      },
+      "m04-hostile-tex": {
+        "html": {
+          "width": 273,
+          "height": 68,
+          "log": [
+            {
+              "tex": "\\href{javascript:alert(1)}{x}",
+              "size": 16,
+              "width": 43,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "\\htmlClass{evil}{y}",
+              "size": 16,
+              "width": 94,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  43,
+                  24
+                ],
+                "katex": [
+                  42.6,
+                  23.2
+                ],
+                "overflowX": -0.4,
+                "overflowY": -0.8,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              },
+              {
+                "fo": [
+                  94,
+                  24
+                ],
+                "katex": [
+                  93.8,
+                  23.2
+                ],
+                "overflowX": -0.2,
+                "overflowY": -0.8,
+                "katexHtmlFont": "KaTeX_Main, \"Times New Roman\", serif",
+                "mathmlDisplayed": false
+              }
+            ],
+            "paint": {
+              "changedInside": 833,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        },
+        "mathml": {
+          "width": 261,
+          "height": 68,
+          "log": [
+            {
+              "tex": "\\href{javascript:alert(1)}{x}",
+              "size": 16,
+              "width": 40,
+              "height": 24,
+              "returned": "html"
+            },
+            {
+              "tex": "\\htmlClass{evil}{y}",
+              "size": 16,
+              "width": 85,
+              "height": 24,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2
+        },
+        "mathml-bare": {
+          "width": 239,
+          "height": 64,
+          "log": [
+            {
+              "tex": "\\href{javascript:alert(1)}{x}",
+              "size": 16,
+              "width": 33,
+              "height": 19,
+              "returned": "html"
+            },
+            {
+              "tex": "\\htmlClass{evil}{y}",
+              "size": 16,
+              "width": 70,
+              "height": 19,
+              "returned": "html"
+            }
+          ],
+          "sanitizedKeepsPeleMath": 2,
+          "light": {
+            "fit": [
+              {
+                "fo": [
+                  33,
+                  19
+                ],
+                "katex": [
+                  32.7,
+                  13.3
+                ],
+                "overflowX": -0.3,
+                "overflowY": -5.7,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              },
+              {
+                "fo": [
+                  70,
+                  19
+                ],
+                "katex": [
+                  69.7,
+                  13.3
+                ],
+                "overflowX": -0.3,
+                "overflowY": -5.7,
+                "katexHtmlFont": null,
+                "mathmlDisplayed": true
+              }
+            ],
+            "paint": {
+              "changedInside": 573,
+              "changedOutside": 0,
+              "insideRatio": 1
+            }
+          }
+        }
+      }
+    },
+    "noResolver18": {
+      "width": 479,
+      "height": 64,
+      "dollars": 4
+    },
+    "renderCost": {
+      "msPerDiagram": {
+        "none": 0.061,
+        "html": 0.288,
+        "mathml": 0.185,
+        "mathml-bare": 0.144
+      },
+      "diagrams": 5
+    },
+    "sanitize": {
+      "domPurifyVersion": "3.4.12",
+      "a_before": {
+        "checked": 38,
+        "mismatches": []
+      },
+      "b_math": {
+        "18-math-label.html": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 27,
+          "rawInlineStyles": 27,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 4929,
+          "rawLength": 4921
+        },
+        "18-math-label.mathml": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 6,
+          "rawInlineStyles": 6,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3021,
+          "rawLength": 3013
+        },
+        "18-math-label.mathml-bare": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 6,
+          "rawInlineStyles": 6,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2939,
+          "rawLength": 2931
+        },
+        "m01-inline-fraction.html": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 25,
+          "rawInlineStyles": 25,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 4582,
+          "rawLength": 4592
+        },
+        "m01-inline-fraction.mathml": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 5,
+          "rawInlineStyles": 5,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2669,
+          "rawLength": 2679
+        },
+        "m01-inline-fraction.mathml-bare": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 5,
+          "rawInlineStyles": 5,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2611,
+          "rawLength": 2621
+        },
+        "m02-sub-superscript.html": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 3,
+          "keptKatex": 3,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 40,
+          "rawInlineStyles": 40,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 6804,
+          "rawLength": 6796
+        },
+        "m02-sub-superscript.mathml": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 3,
+          "keptKatex": 3,
+          "rawMath": 3,
+          "keptMath": 3,
+          "keptInlineStyles": 7,
+          "rawInlineStyles": 7,
+          "scriptOrHandler": false,
+          "rawAnnotation": 3,
+          "keptAnnotation": 3,
+          "rawSemantics": 3,
+          "keptSemantics": 3,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3677,
+          "rawLength": 3669
+        },
+        "m02-sub-superscript.mathml-bare": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 3,
+          "keptMath": 3,
+          "keptInlineStyles": 7,
+          "rawInlineStyles": 7,
+          "scriptOrHandler": false,
+          "rawAnnotation": 3,
+          "keptAnnotation": 3,
+          "rawSemantics": 3,
+          "keptSemantics": 3,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3562,
+          "rawLength": 3554
+        },
+        "m03-text-and-math.html": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 3,
+          "keptKatex": 3,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 32,
+          "rawInlineStyles": 32,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 6010,
+          "rawLength": 6014
+        },
+        "m03-text-and-math.mathml": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 3,
+          "keptKatex": 3,
+          "rawMath": 3,
+          "keptMath": 3,
+          "keptInlineStyles": 6,
+          "rawInlineStyles": 6,
+          "scriptOrHandler": false,
+          "rawAnnotation": 3,
+          "keptAnnotation": 3,
+          "rawSemantics": 3,
+          "keptSemantics": 3,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3362,
+          "rawLength": 3372
+        },
+        "m03-text-and-math.mathml-bare": {
+          "rawForeignObjects": 3,
+          "keptForeignObjects": 3,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 3,
+          "keptMath": 3,
+          "keptInlineStyles": 6,
+          "rawInlineStyles": 6,
+          "scriptOrHandler": false,
+          "rawAnnotation": 3,
+          "keptAnnotation": 3,
+          "rawSemantics": 3,
+          "keptSemantics": 3,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 3259,
+          "rawLength": 3269
+        },
+        "m04-hostile-tex.html": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 0,
+          "keptMath": 0,
+          "keptInlineStyles": 11,
+          "rawInlineStyles": 11,
+          "scriptOrHandler": false,
+          "rawAnnotation": 0,
+          "keptAnnotation": 0,
+          "rawSemantics": 0,
+          "keptSemantics": 0,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2647,
+          "rawLength": 2657
+        },
+        "m04-hostile-tex.mathml": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 2,
+          "keptKatex": 2,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 5,
+          "rawInlineStyles": 5,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2591,
+          "rawLength": 2601
+        },
+        "m04-hostile-tex.mathml-bare": {
+          "rawForeignObjects": 2,
+          "keptForeignObjects": 2,
+          "rawKatex": 0,
+          "keptKatex": 0,
+          "rawMath": 2,
+          "keptMath": 2,
+          "keptInlineStyles": 5,
+          "rawInlineStyles": 5,
+          "scriptOrHandler": false,
+          "rawAnnotation": 2,
+          "keptAnnotation": 2,
+          "rawSemantics": 2,
+          "keptSemantics": 2,
+          "sharedSanitizeKeepsForeignObject": false,
+          "sanitizedLength": 2539,
+          "rawLength": 2549
+        }
+      },
+      "c_hostile": {
+        "foreignObjectNoClass": {
+          "survivors": [],
+          "keptPeleMath": 0,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+        },
+        "foreignObjectOtherClass": {
+          "survivors": [],
+          "keptPeleMath": 0,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+        },
+        "scriptInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+        },
+        "onloadInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+        },
+        "javascriptHrefInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ja<span>s</span></span></div></foreignObject><text>t</text></svg>"
+        },
+        "htmlOutsideForeignObject": {
+          "survivors": [],
+          "keptPeleMath": 0,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><g></g></svg>"
+        },
+        "formsInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><span class=\"katex\">ok</span></div></foreignObject></svg>"
+        },
+        "annotationXmlInsideMath": {
+          "survivors": [],
+          "keptPeleMath": 1,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><foreignObject class=\"pele-math\" x=\"0\" y=\"0\" width=\"80\" height=\"20\"><div xmlns=\"http://www.w3.org/1999/xhtml\"><math><semantics><mi>x</mi></semantics></math></div></foreignObject></svg>"
+        },
+        "dataHrefImage": {
+          "survivors": [],
+          "keptPeleMath": 0,
+          "output": "<svg xmlns=\"http://www.w3.org/2000/svg\"><image width=\"1\" height=\"1\"></image><image width=\"1\" height=\"1\"></image></svg>"
+        }
+      },
+      "a_afterDiagramInstance": {
+        "checked": 38,
+        "mismatches": []
+      },
+      "isolation": {
+        "separateInstanceHookFiredDuringSanitizeSvg": 0,
+        "separateInstanceHookFiredOnOwnCall": 3,
+        "freshInstanceInheritsSharedHrefHook": "no (data: href kept)",
+        "sharedStripsDataHref": true,
+        "diagramPathStripsDataHref": true,
+        "diagramPathStripsExternalHref": true,
+        "diagramPathKeepsUseFragment": false,
+        "sharedKeepsUseFragment": false,
+        "globalHookSeenBySanitizeSvg": 43,
+        "globalHookAfterRemoveHook": 43,
+        "sanitizeSvgStillStripsForeignObjectAfterGlobalConfigCall": true
+      },
+      "a_final": {
+        "checked": 38,
+        "mismatches": []
+      }
+    },
+    "docx": {
+      "18-math-label.html": {
+        "loaded": true,
+        "dataUriBytes": 6542,
+        "toDataURL": "ok",
+        "toBlob": "ok 9797B",
+        "inkPixelsTotal": 2472,
+        "foRects": [
+          [
+            26,
+            22,
+            61,
+            25
+          ],
+          [
+            171,
+            22.5,
+            12,
+            24
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 668,
+            "opaque": 6100
+          },
+          {
+            "ink": 171,
+            "opaque": 1152
+          }
+        ],
+        "width": 353,
+        "height": 69,
+        "file": "exports/m1b/docx-png-chromium-18-math-label-html.png"
+      },
+      "18-math-label.mathml": {
+        "loaded": true,
+        "dataUriBytes": 3994,
+        "toDataURL": "ok",
+        "toBlob": "ok 9203B",
+        "inkPixelsTotal": 1993,
+        "foRects": [
+          [
+            26,
+            22,
+            61,
+            27
+          ],
+          [
+            172,
+            23.5,
+            10,
+            24
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 346,
+            "opaque": 6588
+          },
+          {
+            "ink": 142,
+            "opaque": 960
+          }
+        ],
+        "width": 353,
+        "height": 71,
+        "file": "exports/m1b/docx-png-chromium-18-math-label-mathml.png"
+      },
+      "18-math-label.mathml-bare": {
+        "loaded": true,
+        "dataUriBytes": 3886,
+        "toDataURL": "ok",
+        "toBlob": "ok 8911B",
+        "inkPixelsTotal": 1993,
+        "foRects": [
+          [
+            26,
+            22,
+            52,
+            22
+          ],
+          [
+            163.5,
+            23,
+            9,
+            20
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 346,
+            "opaque": 4576
+          },
+          {
+            "ink": 142,
+            "opaque": 720
+          }
+        ],
+        "width": 344,
+        "height": 66,
+        "file": "exports/m1b/docx-png-chromium-18-math-label-mathml-bare.png"
+      },
+      "18-math-label.none": {
+        "loaded": true,
+        "dataUriBytes": 2638,
+        "toDataURL": "ok",
+        "toBlob": "ok 16948B",
+        "inkPixelsTotal": 4996,
+        "foRects": [],
+        "foRegions": [],
+        "width": 479,
+        "height": 64,
+        "file": "exports/m1b/docx-png-chromium-18-math-label-none.png"
+      },
+      "18-math-label.textsvg": {
+        "loaded": true,
+        "dataUriBytes": 3058,
+        "toDataURL": "ok",
+        "toBlob": "ok 14244B",
+        "inkPixelsTotal": 3443,
+        "foRects": [],
+        "foRegions": [],
+        "width": 457,
+        "height": 65,
+        "file": "exports/m1b/docx-png-chromium-18-math-label-textsvg.png"
+      },
+      "m03-text-and-math.html": {
+        "loaded": true,
+        "dataUriBytes": 8094,
+        "toDataURL": "ok",
+        "toBlob": "ok 12606B",
+        "inkPixelsTotal": 4382,
+        "foRects": [
+          [
+            71.7300033569336,
+            22,
+            29,
+            25
+          ],
+          [
+            262.33123779296875,
+            22,
+            61,
+            25
+          ],
+          [
+            363.64373779296875,
+            22.5,
+            26,
+            24
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 432,
+            "opaque": 2950
+          },
+          {
+            "ink": 893,
+            "opaque": 6150
+          },
+          {
+            "ink": 53,
+            "opaque": 2544
+          }
+        ],
+        "width": 416,
+        "height": 69,
+        "file": "exports/m1b/docx-png-chromium-m03-text-and-math-html.png"
+      },
+      "m03-text-and-math.mathml": {
+        "loaded": true,
+        "dataUriBytes": 4510,
+        "toDataURL": "ok",
+        "toBlob": "ok 13901B",
+        "inkPixelsTotal": 3311,
+        "foRects": [
+          [
+            71.7300033569336,
+            22,
+            31,
+            27
+          ],
+          [
+            264.33123779296875,
+            23,
+            59,
+            25
+          ],
+          [
+            363.64373779296875,
+            23.5,
+            21,
+            24
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 223,
+            "opaque": 3402
+          },
+          {
+            "ink": 468,
+            "opaque": 5950
+          },
+          {
+            "ink": 223,
+            "opaque": 2064
+          }
+        ],
+        "width": 411,
+        "height": 71,
+        "file": "exports/m1b/docx-png-chromium-m03-text-and-math-mathml.png"
+      },
+      "m03-text-and-math.mathml-bare": {
+        "loaded": true,
+        "dataUriBytes": 4370,
+        "toDataURL": "ok",
+        "toBlob": "ok 13437B",
+        "inkPixelsTotal": 3299,
+        "foRects": [
+          [
+            71.7300033569336,
+            22,
+            26,
+            22
+          ],
+          [
+            259.33123779296875,
+            23,
+            49,
+            20
+          ],
+          [
+            348.64373779296875,
+            23,
+            17,
+            20
+          ]
+        ],
+        "foRegions": [
+          {
+            "ink": 223,
+            "opaque": 2332
+          },
+          {
+            "ink": 460,
+            "opaque": 3960
+          },
+          {
+            "ink": 212,
+            "opaque": 1400
+          }
+        ],
+        "width": 392,
+        "height": 66,
+        "file": "exports/m1b/docx-png-chromium-m03-text-and-math-mathml-bare.png"
+      },
+      "m03-text-and-math.none": {
+        "loaded": true,
+        "dataUriBytes": 2198,
+        "toDataURL": "ok",
+        "toBlob": "ok 25346B",
+        "inkPixelsTotal": 7790,
+        "foRects": [],
+        "foRegions": [],
+        "width": 497,
+        "height": 82,
+        "file": "exports/m1b/docx-png-chromium-m03-text-and-math-none.png"
+      },
+      "m03-text-and-math.textsvg": {
+        "loaded": true,
+        "dataUriBytes": 3154,
+        "toDataURL": "ok",
+        "toBlob": "ok 22496B",
+        "inkPixelsTotal": 5393,
+        "foRects": [],
+        "foRegions": [],
+        "width": 481,
+        "height": 90,
+        "file": "exports/m1b/docx-png-chromium-m03-text-and-math-textsvg.png"
+      }
+    },
+    "violations": [],
+    "console": [
+      {
+        "type": "error",
+        "text": "Loading the font 'data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAAHbQAAA3TAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgRQIDgmcDBEICo1oijYBNgIkA14LMgAEIAWJAAeBHAyBHBvbGiMRdnO0IkRRkiYDgr9KsJ1NUAf2kILNxgUmgqIgq1P89vcbIcmsQbRps3vCcXdYOKSWEPEKgZgQkprQQsxIXUgq0DqpGKmIvrgkeVGtEQD9DzAO29fM9jYhxZEsL2FeURH2JN4MIcTdO04"
+      }
+    ],
+    "fontRequests": [
+      "http://localhost:4318/assets/KaTeX_Math-Italic-t53AETM-.woff2",
+      "http://localhost:4318/assets/KaTeX_Main-Regular-B22Nviop.woff2",
+      "http://localhost:4318/assets/KaTeX_Size1-Regular-mCD8mA8B.woff2",
+      "http://localhost:4318/assets/KaTeX_AMS-Regular-BQhdFMY1.woff2",
+      "http://localhost:4318/assets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2",
+      "http://localhost:4318/assets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2",
+      "http://localhost:4318/assets/KaTeX_Fraktur-Bold-CL6g_b3V.woff2",
+      "http://localhost:4318/assets/KaTeX_Fraktur-Regular-CTYiF6lA.woff2",
+      "http://localhost:4318/assets/KaTeX_Main-Bold-Cx986IdX.woff2",
+      "http://localhost:4318/assets/KaTeX_Main-BoldItalic-DxDJ3AOS.woff2",
+      "http://localhost:4318/assets/KaTeX_Main-Italic-NWA7e6Wa.woff2",
+      "http://localhost:4318/assets/KaTeX_Math-BoldItalic-CZnvNsCZ.woff2",
+      "http://localhost:4318/assets/KaTeX_SansSerif-Bold-D1sUS0GD.woff2",
+      "http://localhost:4318/assets/KaTeX_SansSerif-Italic-C3H0VqGB.woff2",
+      "http://localhost:4318/assets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2",
+      "http://localhost:4318/assets/KaTeX_Script-Regular-D3wIWfF6.woff2",
+      "http://localhost:4318/assets/KaTeX_Size2-Regular-Dy4dx90m.woff2",
+      "http://localhost:4318/assets/KaTeX_Size3-Regular-CTq5MqoE.woff",
+      "http://localhost:4318/assets/KaTeX_Size4-Regular-Dl5lxZxV.woff2",
+      "http://localhost:4318/assets/KaTeX_Typewriter-Regular-CO6r4hn1.woff2"
+    ]
+  },
+  "finishedAt": "2026-10-26T08:59:53.677Z"
+}

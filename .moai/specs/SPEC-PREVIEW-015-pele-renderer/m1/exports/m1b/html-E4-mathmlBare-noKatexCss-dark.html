@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>m1b-export-dark</title>
+  <style>
+:root {
+  --cm-base-text: #e5e7eb;
+  --cm-content: #d4d4d4;
+  --cm-strong: #ffffff;
+  --cm-list: #cccccc;
+  --cm-punctuation: #808080;
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 16px;
+  line-height: 1.625;
+  color: #f3f4f6;
+  background: transparent;
+}
+
+.preview-content {
+  color: #f3f4f6;
+  line-height: 1.625;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.preview-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  margin-top: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #374151;
+}
+
+.preview-content h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  margin-top: 1.25rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #374151;
+}
+
+.preview-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+}
+
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.preview-content p {
+  margin-bottom: 1rem;
+}
+
+/* @MX:WARN: [AUTO] 이 규칙은 src/index.css의 .preview-content ul/ol/li 리스트 규칙과
+   동등한 렌더 결과를 유지해야 한다(SPEC-PREVIEW-011 REQ-002/008).
+   @MX:REASON: 자동 테스트가 두 파일(Tailwind @apply vs 평문 CSS 문자열)의 동등성을
+   검증하지 않는다 — Playwright는 앱 프리뷰만 렌더하고 내보내기 CSS 문자열은 렌더 대상이
+   아니므로, 한쪽만 수정하면 화면과 HTML/PDF 내보내기 출력이 조용히 어긋난다. 수정 시
+   반드시 src/index.css의 대응 규칙과 나란히 diff 리뷰할 것.
+   list-style-position은 outside로 두어 loose list(<li> > <p>)에서 마커와 텍스트가
+   분리되는 결함을 막고, 마커 공간은 padding-left: 1.5rem으로 확보한다. li의 좌측
+   여백(margin-left)은 삭제한다 — padding과 합산되면 중첩 리스트 인덴트가 과도해진다(D3).
+   항목 간격은 프리뷰의 space-y-1과 메커니즘이 다르지만(li 상단 margin이 아니라 하단
+   margin) 기존 출력물과의 차이를 최소화하기 위해 margin-bottom: 0.25rem을 유지한다
+   (plan.md 표현 차이 표 참조). */
+.preview-content ul {
+  list-style-type: disc;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.preview-content ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.preview-content li {
+  margin-bottom: 0.25rem;
+}
+
+/* loose list 항목 간격을 tight list와 동일하게 정규화한다. li의 margin-bottom과
+   <li> 내부 마지막 <p>의 margin-bottom(1rem)이 합산되면 loose list 간격이 tight list
+   보다 넓어진다(REQ-007). 마지막 문단에만 적용해야 다문단 항목의 문단 간 간격이
+   보존된다(REQ-009). */
+.preview-content li > p:last-child {
+  margin-bottom: 0;
+}
+
+.preview-content blockquote {
+  border-left: 4px solid #4b5563;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #9ca3af;
+  margin-bottom: 1rem;
+}
+
+.preview-content code {
+  background-color: #1f2937;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-size: 0.875rem;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #f472b6;
+}
+
+.preview-content pre {
+  background-color: #1f2937;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.preview-content pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.preview-content .table-scroll-wrapper {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.preview-content table {
+  min-width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #4b5563;
+}
+
+.preview-content th {
+  background-color: #1f2937;
+  border: 1px solid #4b5563;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.preview-content td {
+  border: 1px solid #4b5563;
+  padding: 0.5rem 1rem;
+}
+
+.preview-content a {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.preview-content a:hover {
+  text-decoration: none;
+}
+
+.preview-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+}
+
+.preview-content hr {
+  border-color: #374151;
+  margin: 1.5rem 0;
+}
+
+.preview-content s {
+  color: #6b7280;
+}
+
+.preview-content .shiki {
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.preview-content .mermaid-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+  background-color: #1f2937;
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .preview-content {
+    max-width: 100%;
+  }
+
+  .preview-content pre,
+  .preview-content .shiki,
+  .preview-content .mermaid-container,
+  .preview-content table,
+  .preview-content blockquote {
+    page-break-inside: avoid;
+  }
+
+  .preview-content h1,
+  .preview-content h2,
+  .preview-content h3 {
+    page-break-after: avoid;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="preview-content">
+<p>본문 수식(현행 방식 재현): <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mfrac><mi>a</mi><mi>b</mi></mfrac></mrow><annotation encoding="application/x-tex">x^2 + \frac{a}{b}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.0404em;vertical-align:-0.345em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.6954em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">a</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></p><h1>M1b 수식 내보내기 시제품</h1>
+<h2>다이어그램 1</h2>
+<div class="mermaid-container" data-diagram="flowchart LR
+  A[&quot;$$x^2 + y^2$$&quot;] --&gt; B[&quot;$$\frac{a}{b}$$&quot;]
+  B --&gt; C[일반 라벨]
+
+"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 341 68" width="341" height="68" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_A_B_0"><path d="M93,34L134,34"></path><path class="pele-marker" d="M141,34L133,37.36L133,30.64Z" fill="var(--_l)" stroke="none"></path></g><g class="pele-edge" data-id="L_B_C_0"><path d="M189,34L230,34"></path><path class="pele-marker" d="M237,34L229,37.36L229,30.64Z" fill="var(--_l)" stroke="none"></path></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="A" transform="translate(50.5,34)"><rect x="-42.5" y="-24" width="85" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" text-anchor="middle" xml:space="preserve"></text><foreignObject class="pele-math" x="-24.5" y="-9.5" width="49" height="19" overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:16px;line-height:normal;white-space:nowrap"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><msup><mi>y</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">x^2 + y^2</annotation></semantics></math></div></foreignObject></g><g class="pele-node pele-shape-rect" data-id="B" transform="translate(165,34)"><rect x="-24" y="-26" width="48" height="52" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" text-anchor="middle" xml:space="preserve"></text><foreignObject class="pele-math" x="-4.5" y="-12" width="9" height="24" overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:16px;line-height:normal;white-space:nowrap"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mi>a</mi><mi>b</mi></mfrac></mrow><annotation encoding="application/x-tex">\frac{a}{b}</annotation></semantics></math></div></foreignObject></g><g class="pele-node pele-shape-rect" data-id="C" transform="translate(284.9,34)"><rect x="-47.9" y="-24" width="95.81" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" x="0" y="5.6" text-anchor="middle">일반 라벨</text></g></g></svg></div><h2>다이어그램 2</h2>
+<div class="mermaid-container" data-diagram="flowchart LR
+  A[&quot;면적은 $$\pi r^2$$ 입니다&quot;] --&gt; B[&quot;합계 $$\sum_{k=1}^{n} k$$ 와 근 $$\sqrt{2}$$&quot;]
+
+"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 406 65" width="406" height="65" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_A_B_0"><path d="M158.93,32.5L199.93,32.5"></path><path class="pele-marker" d="M206.93,32.5L198.93,35.86L198.93,29.14Z" fill="var(--_l)" stroke="none"></path></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="A" transform="translate(83.47,32.5)"><rect x="-75.47" y="-24" width="150.93" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="-57.47" y="5.6" text-anchor="start">면적은 </tspan><tspan x="11.5" y="5.6" text-anchor="start"> 입니다</tspan></text><foreignObject class="pele-math" x="-11.5" y="-9.5" width="23" height="19" overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:16px;line-height:normal;white-space:nowrap"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>π</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\pi r^2</annotation></semantics></math></div></foreignObject></g><g class="pele-node pele-shape-rect" data-id="B" transform="translate(302,32.5)"><rect x="-95.07" y="-24.5" width="190.14" height="49" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="-77.07" y="5.6" text-anchor="start">합계 </tspan><tspan x="8.05" y="5.6" text-anchor="start"> 와 근 </tspan></text><foreignObject class="pele-math" x="-44.95" y="-10.5" width="53" height="21" overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:16px;line-height:normal;white-space:nowrap"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></msubsup><mi>k</mi></mrow><annotation encoding="application/x-tex">\sum_{k=1}^{n} k</annotation></semantics></math></div></foreignObject><foreignObject class="pele-math" x="49.07" y="-10.5" width="28" height="21" overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:16px;line-height:normal;white-space:nowrap"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msqrt><mn>2</mn></msqrt></mrow><annotation encoding="application/x-tex">\sqrt{2}</annotation></semantics></math></div></foreignObject></g></g></svg></div>
+  </div>
+</body>
+</html>

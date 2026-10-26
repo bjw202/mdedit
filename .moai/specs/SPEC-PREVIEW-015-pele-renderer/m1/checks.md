@@ -55,3 +55,35 @@ node spike/pele/merge-manifest.mjs                                              
 node spike/pele/make-report.mjs                                                          # m1/report.html
 npx vitest run --config spike/pele/vitest.capture.config.ts spike/pele/verify.capture.ts  # 픽스처 재렌더 검증
 ```
+
+## M1b — 다이어그램 수식 해석기 보강 측정 (plan.md M1b 1–5)
+
+> 기준 트리: 브랜치 `WT-pele-renderer`, HEAD `f145220` 위의 작업 트리(이 커밋에 포함). 측정일 2026-10-26, macOS(Darwin 27.0.0, Apple Silicon), node v24.12.0. 운영 코드 변경 없음(`spike/pele/` 안에서만 측정).
+> 측정 환경: 단위 = `vitest 2.1.9 jsdom 28.1.0`, 브라우저 = `playwright 1.58.2 webkit 26.0` + 비교용 `chromium 145.0.7632.6`(둘 다 헤드리스). KaTeX 0.16.44, DOMPurify 3.4.12, pele 1.10.0.
+> 원본 출력: `evidence/m1b-unit.json`, `evidence/m1b-browser.json`, `evidence/m1b-csp.json`. 보고서: `report-m1b.html`. 상태 표기는 M1과 같다. 판정은 사용자 몫이다.
+> 해석기 출력 세 방식을 함께 쟀다: `html`(KaTeX `output:'html'`), `mathml`(KaTeX `output:'mathml'`, 바깥 `<span class="katex">` 유지), `mathml-bare`(같은 MathML에서 바깥 span 제거). 구현: `spike/pele/m1b/katexResolver.ts`. 크기는 브라우저에서 pele의 `<div>`와 같은 스타일로 문서에 붙여 `getBoundingClientRect`로 잰다.
+
+| # | 항목 | 상태 | 실행 명령 | 출력 발췌 |
+|---|------|------|-----------|-----------|
+| 1 | 미리보기 렌더(라이트·다크, mermaid strict와 나란히) | `mathml-bare` PASS / `html`·`mathml` FAIL(webkit) | `node spike/pele/run-m1b.mjs` (`preview`, `paintCheck`) · `node spike/pele/run-m1b-position.mjs` | 수식 픽셀 중 `foreignObject` 상자 안 비율(webkit, 라이트): `html` 0 (예: 18번 `{"changedInside":0,"changedOutside":208}`), `mathml` 0, `mathml-bare` 1 (18번 `{"changedInside":245,"changedOutside":0}`), 5개 샘플·라이트/다크 모두 같은 결과. chromium은 `html`·`mathml-bare` 모두 1. 레이아웃 상자는 세 방식 모두 fO 안(넘침 ≤ 0px). mermaid strict도 KaTeX CSS가 실린 페이지에서는 webkit에서 수식이 왼쪽 위로 몰림(`img/m1b-18-math-label-mermaid-light.png`). `.katex{position:static}` 덮어쓰기: mathml은 제자리, html은 그대로 어긋남(`exports/m1b/position-webkit-*.png`). KaTeX CSS 위치: `src/main.tsx:6` `import 'katex/dist/katex.min.css'`(전역) — fO 안에는 따로 필요 없고(`mathml-bare`), `html`은 이 전역 CSS에 기대며 그 CSS의 위치 규칙이 webkit 어긋남과 겹친다 |
+| 1a | 크기 측정 방식(jsdom 가능 범위) | PASS(측정 기록) | `npx vitest run --config spike/pele/vitest.capture.config.ts spike/pele/m1b.capture.ts` | jsdom DOM 측정: 모든 호출 `null:0x0(zero box (no layout))` → pele가 `$$…$$` 원문 출력(`rawDollarTextLeft` 2–3). 텍스트 추정 측정: fO 생성, 두 번 렌더 `estimateDeterministic: true`. webkit 글꼴 로드 전/후 `html` 폭: `x^2 + y^2` 53×23 → 61×24 |
+| 2a | 공유 `sanitizeSvg` 결과가 M1 기록과 바이트 동일(다이어그램 경로 사용 전·중·후) | PASS | 위 vitest 명령 · `run-m1b.mjs` (`sanitize`) | jsdom: `unit/` 38쌍 `a_before 0 / a_afterDiagramInstance 0 / a_final 0` 불일치. webkit·chromium: `browser/` 38쌍 0/0/0 |
+| 2b | 다이어그램 경로가 `foreignObject.pele-math`와 수식 내용을 남김 | PASS | 같음 (`b_math`) | 5개 샘플 × 3방식 모두 `keptForeignObjects`=`rawForeignObjects`(2–3), `.katex`·`<math>`·인라인 style 개수 유지(예: 18.html style 27/27), `<semantics>`·`<annotation>` 유지(2/2, `ADD_TAGS`에 추가한 뒤). 추가 전에는 0/2였고 TeX 원문이 `<math>` 안 맨 글자로 남았음(`…</mrow>\pi r^2</math>`). 공유 `sanitizeSvg`는 같은 입력에서 fO를 모두 지움(`sharedSanitizeKeepsForeignObject: false`) |
+| 2c | 적대 입력 제거 | PASS | 같음 (`c_hostile`, 입력 `spike/pele/m1b/hostile.ts`) | 9종(클래스 없는 fO, 다른 클래스·`pele-math evil`, fO 안 `<script>`, `onload`/`onclick`/`onerror`, `javascript:` href, fO 밖 HTML·MathML, form/iframe/style, `annotation-xml` 안 HTML, `data:`·외부 href) 모두 남은 표지 0개(jsdom·webkit·chromium). KaTeX 입력 `\href{javascript:…}`·`\htmlClass`는 `trust:false`로 빨간 글자 오류 표시만 됨(`img/m1b-m04-hostile-tex-pele-mathml-bare-light.png`) |
+| 2d | DOMPurify 전역 훅 누수와 별도 인스턴스 격리 | PASS(측정 기록) | 같음 (`isolation`) | 별도 인스턴스 `DOMPurify(window)`의 훅: `sanitizeSvg` 호출 중 실행 0회, 자기 호출에서 3회. 새 인스턴스는 공유 href 훅을 물려받지 않음(`freshInstanceInheritsSharedHrefHook: "no (data: href kept)"`) → 다이어그램 경로에 다시 등록해 `data:`·외부 href 제거 확인. 대조: 전역 인스턴스에 건 훅은 `sanitizeSvg` 1회에 43회 실행(누수), `removeHook` 뒤 증가 없음. 전역 인스턴스에 다이어그램 설정으로 `sanitize`를 부른 뒤에도 `sanitizeSvg`는 fO를 지움(설정 누수 없음) |
+| 3 | HTML 내보내기(앱 밖 file://, webkit·chromium) | `mathml-bare` PASS / `html`은 KaTeX CSS+글꼴을 넣어야 표시, webkit에서는 넣어도 자리 어긋남 | `run-m1b.mjs` (`htmlExport`, `openExports`) | 파일 크기: E0 html·CSS 없음 18,879B(근호 SVG 6,396px 넘침) / E1 html+CSS+woff2 data URI 386,784B / E2 html+CSS·글꼴 없음 37,600B / E3 mathml 14,348B / E4 mathml-bare 14,199B / E5 mathml-bare+CSS+글꼴 382,104B. KaTeX CSS 23,804B, woff2 20개 259,792B. E4는 KaTeX CSS·글꼴 없이 webkit·chromium에서 수식 표시(`exports/m1b/html-E4-mathmlBare-noKatexCss-light-webkit.png`). E1은 webkit에서 수식이 그림 왼쪽 위로 몰림(`html-E1-…-light-webkit.png`). 본문 수식(현행 방식 재현)은 지금 내보내기에 KaTeX CSS가 없어 MathML·HTML이 둘 다 보임(기존 동작) |
+| 4 | DOCX PNG(`exportDocx.ts:154-201` 경로) | PASS(캔버스 오염 없음) / `html`은 깨진 글자, `mathml`·`mathml-bare`는 수식 표시 | `run-m1b.mjs` (`docx`) | webkit·chromium 모두 `toDataURL ok`, `toBlob ok …B`, `getImageData` 성공(SecurityError 없음), 10개 조합 모두. 화면 확인: `html` → `πr2`, `k=1n k`(위첨자·분수·근호 깨짐, `exports/m1b/docx-png-webkit-m03-text-and-math-html.png`), `mathml-bare` → `πr²`, `∑ₖ₌₁ⁿ k`, `√2` 정상(`…-mathml-bare.png`). 대체안 측정: `none`(해석기 없음, `$$…$$` 원문) / `textsvg`(TeX 원문 `<text>`, fO 없음) 둘 다 성공 |
+| 5 | CSP(앱 `index.html:7`과 같은 meta) | PASS(pele 경로 추가 위반 0) / 기존 결함 1건 | `node spike/pele/run-m1b-csp.mjs` (시나리오마다 새 페이지) | pele html·mathml·mathml-bare 렌더: 위반 이벤트 0, 콘솔 거부 1 — 같은 1건이 `load-only`(수식 렌더 없음)에도 있음. 원인: Vite가 `KaTeX_Size3-Regular.woff2`(3,624B < 4,096B)를 `data:font/woff2`로 CSS에 넣고, CSP에 `font-src`가 없어 `default-src`(data: 없음)로 막힘. 앱 프로덕션 빌드(`npx vite build`) CSS에서도 같은 `data:font/woff2;base64,d09GMgABAAAAAA4oAA4AAAAA` 확인. 글꼴 강제 로드 시 KaTeX 글꼴 20개 모두 `loaded`(woff 파일로 대체 로드). mermaid 수식 렌더(webkit)에서만 위반 이벤트 5건 |
+
+### M1b 추가 기록
+
+- **pele `math` 계약(소스 확인, `node_modules/pele/dist/pele.js`)** — 라벨에서 `/\$\$(.+?)\$\$/g`(한 줄, 최단 일치)로 찾고, `tex`는 `$$`를 뺀 안쪽 문자열을 pele 엔티티 디코드(`at()`) 한 값이다. `size`는 라벨 글자 크기(px)이며 pele가 `<div style="…font-size:${size}px…">`에 그대로 쓴다. `width`·`height`는 유한한 양수여야 하고(`ch()`), 아니면 결과를 버리고 `$$tex$$`를 글자로 그린다. 결과는 렌더마다 `${size}\n${tex}` 키로 캐시된다. 돌려준 `html`은 이스케이프 없이 그대로 들어간다.
+- **mermaid와의 차이** — 한 라벨에 글자와 수식 여러 개를 섞은 `m03`은 mermaid strict가 `KaTeX parse error: Can't use function '$' in math mode`로 실패하고, pele는 렌더한다.
+- **렌더 비용(웹킷, 수식 다이어그램 5개 평균, 글꼴 로드 뒤)** — ms/개: 해석기 없음 0.052, `html` 0.52, `mathml` 0.284, `mathml-bare` 0.26. chromium: 0.061 / 0.288 / 0.185 / 0.144. 해석기마다 DOM 측정이 있다.
+- **번들 영향** — 측정하지 않음. `katex`는 이미 `src/lib/markdown/renderer.ts:4`(플러그인)와 `src/main.tsx:6`(CSS)에서 정적으로 쓰인다(grep 확인).
+- **수식 픽스처** — `src/test/fixtures/pele/`에 넣지 않았다. 해석기 출력 방식이 아직 정해지지 않았기 때문이다.
+
+### M1b MANUAL 항목
+
+- **MANUAL-3 (재강조)** — 앱(WKWebView)에서 `spike/pele/samples/18-math-label.mmd`를 펜스로 넣고 수식이 상자 안에 보이는지 확인한다. M1b 측정에서는 KaTeX CSS가 실린 페이지의 mermaid 수식이 webkit에서 왼쪽 위로 몰렸으므로, 지금 앱에서도 같은 현상이 있을 수 있다(추정, 미확인).
+- **MANUAL-4 (M3 이후)** — pele 경로 연결 뒤 같은 샘플이 WKWebView에서 상자 안에 그려지는지 확인한다. Playwright webkit 26.0과 시스템 WKWebView는 같은 엔진이 아닐 수 있다.

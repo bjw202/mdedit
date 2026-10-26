@@ -34,6 +34,22 @@
 - D14 단위 테스트 측정기: **`jsdom-default`** — 근거: 픽스처 재렌더 검증 `unitChecked=76 browserChecked=76 mismatches=0` (오케스트레이터가 `npx vitest run --config spike/pele/vitest.capture.config.ts spike/pele/verify.capture.ts`로 직접 재실행, exit 0)
 - 남은 수동 확인: MANUAL-1(앱 클릭, M3 이후), MANUAL-2(앱 PDF 내보내기), MANUAL-3(현재 앱의 수식 표시 기준선)
 
+### M1b 측정 (2026-10-26, 기준 HEAD f145220 위 작업 트리)
+
+- 범위: `spike/pele/` 안에서만 측정(운영 코드·의존성 변경 없음). 해석기 출력 세 방식 `html` / `mathml` / `mathml-bare`(KaTeX MathML에서 바깥 `<span class="katex">` 제거). 다이어그램 전용 정화 시제품 `spike/pele/m1b/diagramSanitize.ts`(별도 `DOMPurify(window)` 인스턴스).
+- 산출물: `m1/checks.md` "M1b" 표, `m1/report-m1b.html`(M1 `report.html`에서 링크), `m1/evidence/m1b-unit.json`·`m1b-browser.json`·`m1b-csp.json`, `m1/img/m1b-*.png`(43개), `m1/exports/m1b/`(HTML 내보내기 12개, DOCX PNG 20개, 위치 탐색 PNG 8개).
+- 측정 환경: `vitest 2.1.9 jsdom 28.1.0`, `playwright 1.58.2 webkit 26.0`, 비교 `chromium 145.0.7632.6`, KaTeX 0.16.44, DOMPurify 3.4.12.
+- 확인 1 미리보기: `mathml-bare`만 webkit에서 제자리(수식 픽셀의 fO 안 비율 1). `html`·`mathml`은 webkit에서 비율 0(SVG 왼쪽 위로 몰림), chromium에서는 1. 같은 어긋남이 KaTeX CSS가 실린 페이지의 mermaid 수식에도 보임.
+- 확인 2 정화: 공유 `sanitizeSvg` × M1 픽스처 38쌍 바이트 동일(jsdom·webkit·chromium, 사용 전·중·후 모두 불일치 0). 다이어그램 경로는 fO·수식 내용 유지, 적대 입력 9종 남은 표지 0. 별도 인스턴스 훅은 `sanitizeSvg`에서 0회 실행, 전역 인스턴스 훅은 43회 실행(대조). 새 인스턴스는 공유 href 훅을 물려받지 않음 → 다시 등록 필요.
+- 확인 3 HTML 내보내기: `mathml-bare`는 KaTeX CSS·글꼴 없이 표시(14,199B). `html`은 CSS+woff2 data URI가 필요하고(386,784B) webkit에서는 넣어도 자리 어긋남.
+- 확인 4 DOCX PNG: webkit·chromium 모두 캔버스 오염 없음(`toDataURL`·`toBlob`·`getImageData` 성공). `html`은 위첨자·분수·근호가 깨진 글자, `mathml`·`mathml-bare`는 수식 표시. 대체안 `none`·`textsvg`도 측정(성공).
+- 확인 5 CSP: pele 수식 렌더로 늘어난 위반 0. 모든 시나리오(수식 없는 load-only 포함)에 콘솔 거부 1건 — Vite가 `KaTeX_Size3-Regular.woff2`를 `data:` URI로 넣고 CSP에 `font-src`가 없어 막힘(앱 프로덕션 빌드에서도 확인, 기존 결함).
+- jsdom: DOM 측정은 크기 0 → `null` → `$$…$$` 원문. 단위 테스트에서 실제 수식 크기는 확인 불가.
+- 판정(통과/보류): **pending user verdict**
+- 해석기 출력 방식(`html` / `mathml-bare` / 기타): **pending user verdict**
+- DOCX 처리 방식: **pending user verdict**
+- 남은 수동 확인: MANUAL-3(현재 앱 mermaid 수식이 WKWebView에서 제자리인지 — M1b에서 어긋남 가능성 관찰), MANUAL-4(M3 이후 pele 수식 WKWebView 확인)
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_
