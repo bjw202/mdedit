@@ -429,3 +429,32 @@ describe('SPEC-EXPORT-004: 누락 이미지 보고', () => {
     });
   }
 });
+
+describe('SPEC-EXPORT-004: PDF 확인 다이얼로그 언마운트 정리 (sync-audit F5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useEditorStore.setState({
+      content: '# 테스트 문서',
+      dirty: false,
+      currentFilePath: '/tmp/test.md',
+      cursorLine: 1,
+      cursorCol: 1,
+    });
+    window.alert = vi.fn();
+  });
+
+  it('F5-unmount: 다이얼로그가 열린 채 언마운트되면 확인 Promise 가 false 로 정리된다', async () => {
+    let recorded: boolean | undefined;
+    mockExportToPdf.mockImplementationOnce(async (opts: ExportOpts) => {
+      recorded = await opts.confirmUnembeddedImages?.(['a.png']);
+    });
+    const { unmount } = render(<App />);
+    await openExportMenu();
+    await clickExportItem('Export as PDF');
+    await screen.findByRole('dialog');
+
+    unmount();
+
+    await waitFor(() => expect(recorded).toBe(false));
+  });
+});

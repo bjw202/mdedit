@@ -110,6 +110,16 @@
 - DOCX 이미지 분기의 `mdFilePath &&` 조건은 공용 `readLocalImage`로 옮겼다(미저장 문서면 읽기 IPC 0회 + 누락 반환). 동작은 같고 F3(DOCX)가 고정한다.
 - 테스트 F2(연속)·F1(DOCX)를 추가로 넣었다(단일 슬롯에서 이전 누락 목록이 남지 않음, DOCX 배선).
 
+### sync-audit 대응 (PASS-WITH-DEBT, `.moai/reports/sync-audit/SPEC-EXPORT-004.md`)
+
+- **F1 (치환 패턴 버그)**: `embedImagesInHtml`이 `result.replace(full, <문자열>)`로 태그를 바꿔, alt의 `$'`·`$&`·`` $` ``·`$$`가 치환 패턴으로 해석됐다. 재현 테스트 `F1-$'`·`F1-$&`·``F1-$` ``·`F1-$$`·`F1-$1`(대조군)을 `exportImageEmbed.test.ts`에 먼저 넣었다.
+  - RED(수정 전): `npx vitest run src/test/exportImageEmbed.test.ts -t "F1-"` → exit 1, `Tests  4 failed | 1 passed | 21 skipped (26)`, 예: ``expected '<!DOCTYPE html>…' to contain 'alt="cost $' tail"'``. `$1`은 문자열 패턴이라 원래도 그대로 남는다(대조군 통과).
+  - 수정: 함수 치환자 `result.replace(full, () => tag)`. 공용 해석기·export 모듈의 다른 `.replace(` 호출은 모두 정규식·고정 문자열이거나 치환값이 `/`·`\`뿐이라 해당 없음.
+  - GREEN: `npx vitest run src/test/exportImageEmbed.test.ts src/test/imageResolver.test.ts` → exit 0, `Tests  41 passed (41)`.
+- **F5 (언마운트 시 대기 Promise)**: `AppLayout`에 언마운트 정리(`useEffect` cleanup)를 두어 대기 중인 PDF 확인 Promise를 `false`로 끝낸다. 테스트 `F5-unmount`(`ExportCompletionDialog.test.tsx`)는 정리를 뺀 상태에서 `expected undefined to be false`로 실패하고, 넣은 상태에서 통과함을 확인했다.
+- **F6 (plan D8 문서 차이)**: plan D8은 DOCX 이미지 분기의 `mdFilePath &&` 조건을 남긴다고 적었지만, run 단계에서 이 조건을 공용 `readLocalImage`로 옮겼다. `readLocalImage`는 `mdFilePath`가 `null`이면 읽기 IPC를 하나도 호출하지 않고 `dataUri: null`(누락)을 돌려주므로 동작은 같다. 테스트 F3(DOCX)가 읽기 0회·`[alt]` 폴백 3개·누락 이름 3개를 고정한다. 조건은 복원하지 않는다.
+- **F7 (rustfmt)**: `rustfmt --edition 2021 src-tauri/src/commands/image_ops.rs` 결과 중 SPEC-EXPORT-004 테스트 두 곳(S1 `assert_eq!`, S4 배열)만 반영했다. 기존 코드 6곳(64·117·133·251·306·345행 근처)의 서식 차이는 이 SPEC과 무관해 되돌렸다.
+
 ### 커밋
 
 - `3d32c0b` docs(spec): SPEC-EXPORT-004 계획 산출물 추가 및 in-progress 전이

@@ -173,7 +173,9 @@ export async function embedImagesInHtml(
     }
     if (r.dataUri !== null) {
       const dataUri = r.dataUri;
-      result = result.replace(full, full.replace(`src="${src}"`, () => `src="${dataUri}"`));
+      // 치환값은 함수로 넘긴다 — 문자열로 넘기면 alt 의 `$'`·`$&`·`` $` ``·`$$` 가 치환 패턴으로 해석된다(sync-audit F1).
+      const tag = full.replace(`src="${src}"`, () => `src="${dataUri}"`);
+      result = result.replace(full, () => tag);
     } else {
       unembedded.add(r.displayName);
     }

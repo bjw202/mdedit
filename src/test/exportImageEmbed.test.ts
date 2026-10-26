@@ -329,3 +329,20 @@ describe('SPEC-EXPORT-004 DOCX Mermaid 회귀 (DM1)', () => {
     expect(texts.some((t) => t.includes('DIAGRAM_SRC'))).toBe(false);
   });
 });
+
+// SPEC-EXPORT-004 sync-audit F1: img 태그 치환 문자열 안의 `$'`·`$&` 등이 String.replace 의
+// 특수 치환 패턴으로 해석되면 alt 와 그 뒤 문서 내용이 깨진다.
+describe('SPEC-EXPORT-004 치환 패턴 회귀 (sync-audit F1)', () => {
+  for (const pattern of ["$'", '$&', '$`', '$$', '$1']) {
+    it(`F1-${pattern}: alt 에 ${pattern} 가 있어도 alt 와 뒤 문서 텍스트가 그대로다`, async () => {
+      readable('/docs/a.png');
+      await exportToHtml(htmlOpts(`![cost ${pattern} tail](a.png) END`));
+      const html = writtenHtml();
+      expect(html).toContain(`src="${DATA}"`);
+      // markdown-it 은 alt 의 & 를 &amp; 로 이스케이프한다
+      expect(html).toContain(`alt="cost ${pattern.replace(/&/g, '&amp;')} tail"`);
+      expect(html.match(/ END/g)).toHaveLength(1);
+      expect(html).toMatch(/alt="cost [^"]* tail"[^>]*> END<\/p>/);
+    });
+  }
+});

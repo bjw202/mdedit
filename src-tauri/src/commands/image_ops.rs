@@ -500,7 +500,10 @@ mod tests {
 
         let out = read_relative_image_as_base64(md, "../assets/a.png".to_string()).await;
         let uri = out.expect("S1: 상위 폴더 PNG 는 읽혀야 한다");
-        assert_eq!(uri, format!("data:image/png;base64,{}", STANDARD.encode(PNG_BYTES)));
+        assert_eq!(
+            uri,
+            format!("data:image/png;base64,{}", STANDARD.encode(PNG_BYTES))
+        );
         fs::remove_dir_all(&root).ok();
     }
 
@@ -538,7 +541,12 @@ mod tests {
         assert!(err.contains("absolute"), "unexpected error: {}", err);
 
         // Windows 형식 문자열: 비Windows 에서는 일반 파일 이름으로 해석되므로 "읽지 않음(오류)"만 단언한다.
-        for rel in ["\\x.png", "C:x.png", "C:\\x.png", "\\\\server\\share\\x.png"] {
+        for rel in [
+            "\\x.png",
+            "C:x.png",
+            "C:\\x.png",
+            "\\\\server\\share\\x.png",
+        ] {
             let r = read_relative_image_as_base64(md.clone(), rel.to_string()).await;
             assert!(r.is_err(), "S4: {} 는 오류여야 한다", rel);
             #[cfg(windows)]

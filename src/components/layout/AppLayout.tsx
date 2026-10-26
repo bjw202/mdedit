@@ -136,6 +136,15 @@ export function AppLayout({ guard }: AppLayoutProps): JSX.Element {
   // SPEC-EXPORT-004 (REQ-010): PDF 인쇄 전 누락 확인 다이얼로그. resolve 는 정확히 한 번만 호출된다.
   const [pdfConfirmNames, setPdfConfirmNames] = useState<string[] | null>(null);
   const pdfConfirmResolveRef = useRef<((proceed: boolean) => void) | null>(null);
+  // 확인 다이얼로그가 열린 채로 언마운트되면 대기 중인 Promise 를 false 로 정리한다(인쇄 안 함, sync-audit F5).
+  useEffect(
+    () => () => {
+      const resolve = pdfConfirmResolveRef.current;
+      pdfConfirmResolveRef.current = null;
+      resolve?.(false);
+    },
+    [],
+  );
   const themeRaw = useUIStore((s) => s.theme);
   // Resolve 'system' theme to actual light/dark for export CSS
   // 'system' must check OS preference; themeRaw !== 'dark' alone would always export as light
