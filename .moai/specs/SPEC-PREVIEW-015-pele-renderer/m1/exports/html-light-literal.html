@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>pele-export-light</title>
+  <style>
+:root {
+  --cm-base-text: #111827;
+  --cm-content: #111827;
+  --cm-strong: #111827;
+  --cm-list: #374151;
+  --cm-punctuation: #6b7280;
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 16px;
+  line-height: 1.625;
+  color: #111827;
+  background: transparent;
+}
+
+.preview-content {
+  color: #111827;
+  line-height: 1.625;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.preview-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  margin-top: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.preview-content h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  margin-top: 1.25rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.preview-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+}
+
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.preview-content p {
+  margin-bottom: 1rem;
+}
+
+/* @MX:WARN: [AUTO] 이 규칙은 src/index.css의 .preview-content ul/ol/li 리스트 규칙과
+   동등한 렌더 결과를 유지해야 한다(SPEC-PREVIEW-011 REQ-002/008).
+   @MX:REASON: 자동 테스트가 두 파일(Tailwind @apply vs 평문 CSS 문자열)의 동등성을
+   검증하지 않는다 — Playwright는 앱 프리뷰만 렌더하고 내보내기 CSS 문자열은 렌더 대상이
+   아니므로, 한쪽만 수정하면 화면과 HTML/PDF 내보내기 출력이 조용히 어긋난다. 수정 시
+   반드시 src/index.css의 대응 규칙과 나란히 diff 리뷰할 것.
+   list-style-position은 outside로 두어 loose list(<li> > <p>)에서 마커와 텍스트가
+   분리되는 결함을 막고, 마커 공간은 padding-left: 1.5rem으로 확보한다. li의 좌측
+   여백(margin-left)은 삭제한다 — padding과 합산되면 중첩 리스트 인덴트가 과도해진다(D3).
+   항목 간격은 프리뷰의 space-y-1과 메커니즘이 다르지만(li 상단 margin이 아니라 하단
+   margin) 기존 출력물과의 차이를 최소화하기 위해 margin-bottom: 0.25rem을 유지한다
+   (plan.md 표현 차이 표 참조). */
+.preview-content ul {
+  list-style-type: disc;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.preview-content ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.preview-content li {
+  margin-bottom: 0.25rem;
+}
+
+/* loose list 항목 간격을 tight list와 동일하게 정규화한다. li의 margin-bottom과
+   <li> 내부 마지막 <p>의 margin-bottom(1rem)이 합산되면 loose list 간격이 tight list
+   보다 넓어진다(REQ-007). 마지막 문단에만 적용해야 다문단 항목의 문단 간 간격이
+   보존된다(REQ-009). */
+.preview-content li > p:last-child {
+  margin-bottom: 0;
+}
+
+.preview-content blockquote {
+  border-left: 4px solid #d1d5db;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #4b5563;
+  margin-bottom: 1rem;
+}
+
+.preview-content code {
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-size: 0.875rem;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #db2777;
+}
+
+.preview-content pre {
+  background-color: #f3f4f6;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.preview-content pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.preview-content .table-scroll-wrapper {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.preview-content table {
+  min-width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #d1d5db;
+}
+
+.preview-content th {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.preview-content td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 1rem;
+}
+
+.preview-content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.preview-content a:hover {
+  text-decoration: none;
+}
+
+.preview-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+}
+
+.preview-content hr {
+  border-color: #e5e7eb;
+  margin: 1.5rem 0;
+}
+
+.preview-content s {
+  color: #6b7280;
+}
+
+.preview-content .shiki {
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.preview-content .mermaid-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+  background-color: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .preview-content {
+    max-width: 100%;
+  }
+
+  .preview-content pre,
+  .preview-content .shiki,
+  .preview-content .mermaid-container,
+  .preview-content table,
+  .preview-content blockquote {
+    page-break-inside: avoid;
+  }
+
+  .preview-content h1,
+  .preview-content h2,
+  .preview-content h3 {
+    page-break-after: avoid;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+  </style>
+</head>
+<body>
+  <div class="preview-content">
+<h1>pele 내보내기 시제품</h1>
+<h2>다이어그램 1</h2>
+<div class="mermaid-container" data-diagram="flowchart LR
+  A[긴급 요청] --&gt; B[분류]
+  B --&gt; C[처리 완료]
+  B --&gt; D[보류]
+  classDef hot fill:#f96,stroke:#333,stroke-width:2px,color:#000
+  classDef cool fill:#9cf,stroke:#036
+  class A hot
+  class C cool
+  style D fill:#ffd54f,stroke:#8d6e00,color:#3e2723
+
+"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 368 152" width="368" height="152" style="max-width:100%;height:auto;--_bg:#f2f2f3;--_fg:#1d1f20;--_m:#5d5d60;--_l:#5d5d60;--_s:#e9e9ea;--_a:#fbfbfc;--_b:rgba(29, 31, 32, .28);--_c:#5980a6;color:var(--_fg);--_r:4px;--_fm:monospace;font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:sans-serif" fill="var(--_fg)" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_A_B_0"><path d="M103.81,76L144.81,76"></path><path class="pele-marker" d="M151.81,76L143.81,79.36L143.81,72.64Z" fill="var(--_l)" stroke="none"></path></g><g class="pele-edge" data-id="L_B_C_0"><path d="M215.49,68C232.99,68 232.99,32 250.49,32L256.49,32"></path><path class="pele-marker" d="M263.49,32L255.49,35.36L255.49,28.64Z" fill="var(--_l)" stroke="none"></path></g><g class="pele-edge" data-id="L_B_D_0"><path d="M215.49,84C232.99,84 232.99,120 250.49,120L256.49,120"></path><path class="pele-marker" d="M263.49,120L255.49,123.36L255.49,116.64Z" fill="var(--_l)" stroke="none"></path></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect hot" data-id="A" transform="translate(55.9,76)"><rect x="-47.9" y="-24" width="95.81" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r);fill:#f96;stroke:#333;stroke-width:2px;"></rect><text class="pele-label" style="fill:#000;" x="0" y="5.6" text-anchor="middle">긴급 요청</text></g><g class="pele-node pele-shape-rect" data-id="B" transform="translate(183.65,76)"><rect x="-31.84" y="-24" width="63.68" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" x="0" y="5.6" text-anchor="middle">분류</text></g><g class="pele-node pele-shape-rect cool" data-id="C" transform="translate(311.39,32)"><rect x="-47.9" y="-24" width="95.81" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r);fill:#9cf;stroke:#036;"></rect><text class="pele-label" x="0" y="5.6" text-anchor="middle">처리 완료</text></g><g class="pele-node pele-shape-rect" data-id="D" transform="translate(295.33,120)"><rect x="-31.84" y="-24" width="63.68" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r);fill:#ffd54f;stroke:#8d6e00;"></rect><text class="pele-label" style="fill:#3e2723;" x="0" y="5.6" text-anchor="middle">보류</text></g></g></svg></div><h2>다이어그램 2</h2>
+<div class="mermaid-container" data-diagram="pie title 분포 현황
+    &quot;항목 A&quot; : 40
+    &quot;항목 B&quot; : 35
+    &quot;항목 C&quot; : 25
+"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-pie" viewBox="0 0 347 296" width="347" height="296" style="max-width:100%;height:auto;--_bg:#f2f2f3;--_fg:#1d1f20;--_m:#5d5d60;--_l:#5d5d60;--_s:#e9e9ea;--_a:#fbfbfc;--_b:rgba(29, 31, 32, .28);--_c:#5980a6;color:var(--_fg);--_tw:bold;--_fm:monospace;font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:sans-serif" fill="var(--_fg)" aria-roledescription="pie"><text class="pele-title" font-weight="var(--_tw)" text-anchor="middle" xml:space="preserve"><tspan x="173.5" y="25.6">분포 현황</tspan></text><g class="pele-slices" transform="translate(128,168)" stroke="var(--_bg)" stroke-width="1" stroke-linejoin="round"><path class="pele-slice" data-id="항목 A" d="M0,0L0,-120A120,120 0 0 1 70.53,97.08Z" fill="#4c78a8"></path><path class="pele-slice" data-id="항목 B" d="M0,0L70.53,97.08A120,120 0 0 1 -120,0Z" fill="#f58518"></path><path class="pele-slice" data-id="항목 C" d="M0,0L-120,0A120,120 0 0 1 0,-120Z" fill="#54a24b"></path></g><g class="pele-slice-labels" transform="translate(128,168)" font-size="14" text-anchor="middle" fill="var(--_bg)"><text x="85.6" y="-22.91">40%</text><text x="-40.86" y="85.09">35%</text><text x="-63.64" y="-58.74">25%</text></g><g class="pele-legend" font-size="14"><g class="pele-legend-item" data-id="항목 A"><rect x="280" y="136" width="12" height="12" rx="2" fill="#4c78a8"></rect><text x="318.72" y="146.9" text-anchor="middle">항목 A</text></g><g class="pele-legend-item" data-id="항목 B"><rect x="280" y="162" width="12" height="12" rx="2" fill="#f58518"></rect><text x="318.72" y="172.9" text-anchor="middle">항목 B</text></g><g class="pele-legend-item" data-id="항목 C"><rect x="280" y="188" width="12" height="12" rx="2" fill="#54a24b"></rect><text x="319.11" y="198.9" text-anchor="middle">항목 C</text></g></g></svg></div><h2>다이어그램 3</h2>
+<div class="mermaid-container" data-diagram="sequenceDiagram
+    participant 사용자
+    participant 서버
+    사용자-&gt;&gt;서버: 요청
+    서버--&gt;&gt;사용자: 응답
+"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-sequence" viewBox="0 0 194 204" width="194" height="204" style="max-width:100%;height:auto;--_bg:#f2f2f3;--_fg:#1d1f20;--_m:#5d5d60;--_l:#5d5d60;--_s:#e9e9ea;--_a:#fbfbfc;--_b:rgba(29, 31, 32, .28);--_c:#5980a6;color:var(--_fg);--_r:4px;--_fm:monospace;font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:sans-serif" fill="var(--_fg)" aria-roledescription="sequence"><g transform="translate(44.76,8)"><g class="pele-lifelines" fill="none" stroke="var(--_b)"><path class="pele-lifeline" data-id="사용자" d="M0,44V144"></path><path class="pele-lifeline" data-id="서버" d="M108.76,44V144"></path></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge pele-message" data-id="i0"><path d="M0,87H101.76"></path><path class="pele-marker" d="M108.76,87L100.76,90.36L100.76,83.64Z" fill="var(--_l)" stroke="none"></path></g><g class="pele-edge pele-message" data-id="i1"><path d="M108.76,124H7" stroke-dasharray="4 4"></path><path class="pele-marker" d="M0,124L8,120.64L8,127.36Z" fill="var(--_l)" stroke="none"></path></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="i0"><text x="54.38" y="77.4" text-anchor="middle">요청</text></g><g class="pele-edge-label" data-id="i1"><text x="54.38" y="114.4" text-anchor="middle">응답</text></g></g><g class="pele-nodes"><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="사용자"><rect x="-36.76" y="144" width="73.52" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" x="0" y="171.6" text-anchor="middle">사용자</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="서버"><rect x="76.76" y="144" width="64" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" x="108.76" y="171.6" text-anchor="middle">서버</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="사용자"><rect x="-36.76" y="0" width="73.52" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" x="0" y="27.6" text-anchor="middle">사용자</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="서버"><rect x="76.76" y="0" width="64" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"></rect><text class="pele-label" x="108.76" y="27.6" text-anchor="middle">서버</text></g></g></g></svg></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,1200 @@
+{
+  "capturedAt": "2026-10-26T08:12:32.982Z",
+  "environment": "vitest 2.1.9 jsdom 28.1.0 (node v24.12.0, setup src/test/setup.ts)",
+  "peleVersion": "1.10.0",
+  "jsdom": {
+    "offscreenCanvas": "undefined",
+    "canvasGetContext2d": "null",
+    "documentFonts": "undefined"
+  },
+  "presetVerbatim": [
+    {
+      "preset": "flowchart",
+      "sample": "04-preset-flowchart.mmd",
+      "verbatim": true
+    },
+    {
+      "preset": "sequenceDiagram",
+      "sample": "05-preset-sequenceDiagram.mmd",
+      "verbatim": true
+    },
+    {
+      "preset": "gantt",
+      "sample": "06-preset-gantt.mmd",
+      "verbatim": true
+    },
+    {
+      "preset": "classDiagram",
+      "sample": "07-preset-classDiagram.mmd",
+      "verbatim": true
+    },
+    {
+      "preset": "stateDiagram",
+      "sample": "08-preset-stateDiagram.mmd",
+      "verbatim": true
+    },
+    {
+      "preset": "pie",
+      "sample": "09-preset-pie.mmd",
+      "verbatim": true
+    },
+    {
+      "preset": "mindmap",
+      "sample": "10-preset-mindmap.mmd",
+      "verbatim": true
+    }
+  ],
+  "entity": {
+    "tokenContent": "flowchart LR\n  A[R&amp;D] --> B[\"따옴표\"]\n",
+    "dataDiagramAttr": "flowchart LR\n  A[R&D] --> B[\"따옴표\"]\n",
+    "inputsEqual": false,
+    "tokenLabels": [
+      "R&amp;D",
+      "따옴표"
+    ],
+    "attrLabels": [
+      "R&amp;D",
+      "따옴표"
+    ],
+    "svgEqual": true
+  },
+  "ids": {
+    "withoutIdPrefix": {
+      "totalIds": 0,
+      "duplicates": []
+    },
+    "withIdPrefix": {
+      "totalIds": 0,
+      "duplicates": []
+    }
+  },
+  "peleVarsEmitted": [
+    "--pele-accent",
+    "--pele-bg",
+    "--pele-border",
+    "--pele-fg",
+    "--pele-font",
+    "--pele-font-mono",
+    "--pele-heading-weight",
+    "--pele-line",
+    "--pele-muted",
+    "--pele-radius",
+    "--pele-series-1",
+    "--pele-series-2",
+    "--pele-series-3",
+    "--pele-series-4",
+    "--pele-surface",
+    "--pele-surface-alt",
+    "--pele-title-weight"
+  ],
+  "linksImages": {
+    "linksFalse": {
+      "anchorWithHref": false,
+      "linksInfo": []
+    },
+    "linksDefault": {
+      "anchorWithHref": true,
+      "linksInfo": [
+        {
+          "id": "A",
+          "href": "https://example.com/",
+          "internal": false
+        }
+      ],
+      "sanitizedKeepsHref": false
+    },
+    "imagesFalse": {
+      "imageEl": false,
+      "externalUrl": false
+    },
+    "imagesDefault": {
+      "imageEl": true,
+      "externalUrl": true,
+      "sanitizedKeepsUrl": false
+    }
+  },
+  "math": {
+    "foreignObject": false,
+    "labels": [
+      "$$x^2 + y^2$$",
+      "$$\\frac{a}{b}$$",
+      "일반 라벨"
+    ],
+    "labelsAfterSanitize": [
+      "$$x^2 + y^2$$",
+      "$$\\frac{a}{b}$$",
+      "일반 라벨"
+    ]
+  },
+  "results": [
+    {
+      "id": "01-test-content",
+      "rtrue": {
+        "width": 369,
+        "height": 409,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          311,
+          388
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 3431,
+        "sanitizedLen": 3496,
+        "styleAttrRaw": 6,
+        "styleAttrSan": 6,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 369,
+        "height": 409,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          311,
+          388
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 3404,
+        "sanitizedLen": 3469,
+        "styleAttrRaw": 6,
+        "styleAttrSan": 6,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "02-subgraph-B-vertical",
+      "rtrue": {
+        "width": 414,
+        "height": 472,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          438,
+          472
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 3288,
+        "sanitizedLen": 3326,
+        "styleAttrRaw": 7,
+        "styleAttrSan": 7,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 414,
+        "height": 472,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          438,
+          472
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 3261,
+        "sanitizedLen": 3299,
+        "styleAttrRaw": 7,
+        "styleAttrSan": 7,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "03-subgraph-C-horizontal",
+      "rtrue": {
+        "width": 806,
+        "height": 316,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          804,
+          316
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 4047,
+        "sanitizedLen": 4103,
+        "styleAttrRaw": 8,
+        "styleAttrSan": 8,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 806,
+        "height": 316,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          804,
+          316
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 4020,
+        "sanitizedLen": 4076,
+        "styleAttrRaw": 8,
+        "styleAttrSan": 8,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "04-preset-flowchart",
+      "rtrue": {
+        "width": 192,
+        "height": 295,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          167,
+          287
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2754,
+        "sanitizedLen": 2795,
+        "styleAttrRaw": 4,
+        "styleAttrSan": 4,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 192,
+        "height": 295,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          167,
+          287
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2727,
+        "sanitizedLen": 2768,
+        "styleAttrRaw": 4,
+        "styleAttrSan": 4,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "05-preset-sequenceDiagram",
+      "rtrue": {
+        "width": 200,
+        "height": 204,
+        "type": "sequence",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          184,
+          204
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2633,
+        "sanitizedLen": 2659,
+        "styleAttrRaw": 5,
+        "styleAttrSan": 5,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 200,
+        "height": 204,
+        "type": "sequence",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          184,
+          204
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2606,
+        "sanitizedLen": 2632,
+        "styleAttrRaw": 5,
+        "styleAttrSan": 5,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "06-preset-gantt",
+      "rtrue": {
+        "width": 800,
+        "height": 107,
+        "type": "gantt",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          800,
+          107
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2227,
+        "sanitizedLen": 2217,
+        "styleAttrRaw": 2,
+        "styleAttrSan": 2,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 12,
+        "peleVarSan": 12,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 800,
+        "height": 107,
+        "type": "gantt",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          800,
+          107
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2200,
+        "sanitizedLen": 2190,
+        "styleAttrRaw": 2,
+        "styleAttrSan": 2,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 12,
+        "peleVarSan": 12,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "07-preset-classDiagram",
+      "rtrue": {
+        "width": 117,
+        "height": 122,
+        "type": "class",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          124,
+          122
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1380,
+        "sanitizedLen": 1358,
+        "styleAttrRaw": 2,
+        "styleAttrSan": 2,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 12,
+        "peleVarSan": 12,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 117,
+        "height": 122,
+        "type": "class",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          124,
+          122
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1353,
+        "sanitizedLen": 1331,
+        "styleAttrRaw": 2,
+        "styleAttrSan": 2,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 12,
+        "peleVarSan": 12,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "08-preset-stateDiagram",
+      "rtrue": {
+        "width": 80,
+        "height": 293,
+        "type": "state",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          72,
+          293
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2289,
+        "sanitizedLen": 2333,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 10,
+        "peleVarSan": 10,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 80,
+        "height": 293,
+        "type": "state",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          72,
+          293
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2262,
+        "sanitizedLen": 2306,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 10,
+        "peleVarSan": 10,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "09-preset-pie",
+      "rtrue": {
+        "width": 350,
+        "height": 296,
+        "type": "pie",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          342,
+          296
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2170,
+        "sanitizedLen": 2172,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 17,
+        "peleVarSan": 17,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 350,
+        "height": 296,
+        "type": "pie",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          342,
+          296
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2143,
+        "sanitizedLen": 2145,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 17,
+        "peleVarSan": 17,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "10-preset-mindmap",
+      "rtrue": {
+        "width": 328,
+        "height": 105,
+        "type": "mindmap",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          291,
+          92
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2037,
+        "sanitizedLen": 2029,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 13,
+        "peleVarSan": 13,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 328,
+        "height": 105,
+        "type": "mindmap",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          291,
+          92
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2010,
+        "sanitizedLen": 2002,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 13,
+        "peleVarSan": 13,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "12-ai-mock-valid",
+      "rtrue": {
+        "width": 316,
+        "height": 64,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          278,
+          64
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1898,
+        "sanitizedLen": 1906,
+        "styleAttrRaw": 4,
+        "styleAttrSan": 4,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 316,
+        "height": 64,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          278,
+          64
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1871,
+        "sanitizedLen": 1879,
+        "styleAttrRaw": 4,
+        "styleAttrSan": 4,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "13-classdef-style",
+      "rtrue": {
+        "width": 389,
+        "height": 152,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          336,
+          152
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2602,
+        "sanitizedLen": 2628,
+        "styleAttrRaw": 7,
+        "styleAttrSan": 7,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 389,
+        "height": 152,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          336,
+          152
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2575,
+        "sanitizedLen": 2601,
+        "styleAttrRaw": 7,
+        "styleAttrSan": 7,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "14-state-v2-composite",
+      "rtrue": {
+        "width": 237,
+        "height": 707,
+        "type": "state",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          206,
+          707
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 5511,
+        "sanitizedLen": 5699,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 10,
+        "peleVarSan": 10,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 237,
+        "height": 707,
+        "type": "state",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          206,
+          707
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 5484,
+        "sanitizedLen": 5672,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 10,
+        "peleVarSan": 10,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "15-mindmap-deep",
+      "rtrue": {
+        "width": 610,
+        "height": 188,
+        "type": "mindmap",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          525,
+          188
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 4140,
+        "sanitizedLen": 4192,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 19,
+        "peleVarSan": 19,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 610,
+        "height": 188,
+        "type": "mindmap",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          525,
+          188
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 4113,
+        "sanitizedLen": 4165,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 19,
+        "peleVarSan": 19,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "16-pie-title-showdata",
+      "rtrue": {
+        "width": 397,
+        "height": 296,
+        "type": "pie",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          418,
+          296
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2590,
+        "sanitizedLen": 2604,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 19,
+        "peleVarSan": 19,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 397,
+        "height": 296,
+        "type": "pie",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          418,
+          296
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 2563,
+        "sanitizedLen": 2577,
+        "styleAttrRaw": 1,
+        "styleAttrSan": 1,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 19,
+        "peleVarSan": 19,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "17-entity",
+      "rtrue": {
+        "width": 218,
+        "height": 64,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          194,
+          64
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1516,
+        "sanitizedLen": 1506,
+        "styleAttrRaw": 3,
+        "styleAttrSan": 3,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 218,
+        "height": 64,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          194,
+          64
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1489,
+        "sanitizedLen": 1479,
+        "styleAttrRaw": 3,
+        "styleAttrSan": 3,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "18-math-label",
+      "rtrue": {
+        "width": 497,
+        "height": 64,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          537,
+          64
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1981,
+        "sanitizedLen": 1989,
+        "styleAttrRaw": 4,
+        "styleAttrSan": 4,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 497,
+        "height": 64,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          537,
+          64
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1954,
+        "sanitizedLen": 1962,
+        "styleAttrRaw": 4,
+        "styleAttrSan": 4,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "19-link-click",
+      "rtrue": {
+        "width": 237,
+        "height": 64,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          204,
+          64
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1552,
+        "sanitizedLen": 1542,
+        "styleAttrRaw": 3,
+        "styleAttrSan": 3,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 237,
+        "height": 64,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          204,
+          64
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1525,
+        "sanitizedLen": 1515,
+        "styleAttrRaw": 3,
+        "styleAttrSan": 3,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    },
+    {
+      "id": "20-image-node",
+      "rtrue": {
+        "width": 225,
+        "height": 106,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          185,
+          106
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1417,
+        "sanitizedLen": 1401,
+        "styleAttrRaw": 2,
+        "styleAttrSan": 2,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      },
+      "rfalse": {
+        "width": 225,
+        "height": 106,
+        "type": "flowchart",
+        "deterministic": true,
+        "fixedWidthDiffers": true,
+        "fixedWidthSize": [
+          185,
+          106
+        ],
+        "sanitizedEqualsRaw": false,
+        "rawLen": 1390,
+        "sanitizedLen": 1374,
+        "styleAttrRaw": 2,
+        "styleAttrSan": 2,
+        "styleTagRaw": 0,
+        "styleTagSan": 0,
+        "idsRaw": 0,
+        "idsSan": 0,
+        "peleVarRaw": 11,
+        "peleVarSan": 11,
+        "anchorHref": false,
+        "foreignObject": false,
+        "script": false
+      }
+    }
+  ],
+  "errors": [
+    {
+      "id": "11-ai-mock-invalid",
+      "source": "notarealdiagramtype foo!!!",
+      "rendered": false,
+      "error": {
+        "isPeleError": true,
+        "code": "unsupported-diagram",
+        "message": "No diagram type detected for the given text.",
+        "line": 0,
+        "column": 0,
+        "snippet": "",
+        "type": null,
+        "mermaidType": null
+      }
+    },
+    {
+      "id": "21-error-line-col",
+      "source": "sequenceDiagram\n  A->>B hello",
+      "rendered": false,
+      "error": {
+        "isPeleError": true,
+        "code": "syntax",
+        "message": "Parse error on line 2:\n  A->>B hello\n-------------^\nExpecting 'TXT', got 'NEWLINE'",
+        "line": 2,
+        "column": 14,
+        "snippet": "  A->>B hello\n-------------^",
+        "type": "sequence",
+        "mermaidType": "sequence"
+      }
+    },
+    {
+      "id": "22-error-line0-semantic",
+      "source": "pie\n  \"a\" : -1",
+      "rendered": false,
+      "error": {
+        "isPeleError": true,
+        "code": "semantic",
+        "message": "\"a\" has invalid value: -1. Negative values are not allowed in pie charts. All slice values must be >= 0.",
+        "line": 0,
+        "column": 0,
+        "snippet": "",
+        "type": "pie",
+        "mermaidType": "pie"
+      }
+    },
+    {
+      "id": "23-error-xss-label",
+      "source": "flowchart LR\n  A[\"<img src=x onerror=alert(1)>\"] -->",
+      "rendered": false,
+      "error": {
+        "isPeleError": true,
+        "code": "syntax",
+        "message": "Parse error on line 3:\n\n^\nExpecting 'NODE_STRING', got 'EOF'",
+        "line": 3,
+        "column": 1,
+        "snippet": "\n^",
+        "type": "flowchart",
+        "mermaidType": "flowchart-v2"
+      }
+    }
+  ]
+}

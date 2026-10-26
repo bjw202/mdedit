@@ -1,0 +1,8 @@
+flowchart TB
+  subgraph A["🔵 tree-sitter (자/줄자) — 결정론적 · 100% 재현 가능"]
+    A1[파싱] --> A2[AST]
+  end
+  subgraph B["🟢 LSP (현미경) — 의미 분석 · 타입 추론 가능"]
+    B1[심볼] --> B2[정의]
+  end
+  A --> B

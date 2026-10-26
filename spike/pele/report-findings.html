@@ -1,0 +1,24 @@
+<h2>주요 결과 (판정에 참고할 점)</h2>
+<p class="note">아래는 이번 실행에서 관찰·측정한 사실입니다. 관찰 없이 추론한 부분은 <b>(추정)</b>으로 표시했습니다. 수치의 원본은 <code>evidence/*.json</code>입니다.</p>
+<ol>
+<li><b>렌더 성공·거부</b>: 유효 샘플 19개(프리셋 7종, <code>stateDiagram-v2</code>, <code>mindmap</code>, <code>pie title</code>, <code>classDef</code>·<code>style</code> 포함)가 jsdom·webkit 두 환경 모두 <code>PeleError</code> 없이 렌더됐습니다. AI 모의 1차 응답 <code>notarealdiagramtype foo!!!</code>는 <code>PeleError</code> <code>code: "unsupported-diagram"</code>(line 0, column 0)으로 거부됐습니다. 실제 AI 응답 샘플은 <b>미수집</b>입니다.</li>
+<li><b>배치 차이 — 눈으로 볼 곳</b>:
+ <ul>
+ <li><code>03-subgraph-C-horizontal</code>: mermaid는 서브그래프 안 노드를 가로(파싱→AST)로 놓고, pele는 소스대로 세로(TB)로 놓습니다. 두 서브그래프 제목은 pele에서도 한 줄이고 상자는 겹치지 않습니다.</li>
+ <li><code>15-mindmap-deep</code>·<code>10-preset-mindmap</code>: mermaid는 방사형·채색 노드, pele는 좌우로 펼친 트리와 계열색 선으로 모양이 크게 다릅니다.</li>
+ <li><code>14-state-v2-composite</code>: mermaid는 노트를 아래쪽에, pele는 <code>게시</code> 옆에 둡니다. 전체적으로 pele 출력이 더 작고 촘촘합니다(예: 01번 mermaid 대비 노드 간격이 좁음).</li>
+ <li><code>06-preset-gantt</code>: mermaid는 폭 전체로 늘어나 글자가 아주 작아지고, pele는 날짜 눈금이 읽힐 크기를 유지합니다.</li>
+ <li><code>20-image-node</code>: mermaid는 앱 CSP 아래에서 <code>Loading error.</code>로 실패합니다. pele는 <code>images: false</code>로 이미지 없이 라벨과 화살표만 그립니다(이미지 자리 빈 공간이 남음).</li>
+ </ul></li>
+<li><b>F1 수식 라벨(측정만)</b>: 지금 앱과 같은 mermaid strict 설정은 webkit에서 <code>$$x^2 + y^2$$</code>를 KaTeX(foreignObject 안 MathML)로 <b>수식으로 표시</b>했습니다(<code>img/18-math-label-mermaid.png</code>). pele는 <code>math</code> 해석기를 주지 않으면 foreignObject를 만들지 않고 <code>$$…$$</code> 원문을 일반 글자로 보입니다(<code>img/18-math-label-pele.png</code>). design.md D15는 "foreignObject라서 정화기가 지운다"고 적었지만 실제 1.10.0 기본 출력에는 foreignObject가 없습니다. 교체하면 다이어그램 안 수식은 원문 TeX로 보이게 됩니다. 실제 앱 미리보기에서의 표시는 MANUAL 항목입니다.</li>
+<li><b>F2 내보내기 색</b>: 값을 풀어 넣은(literal) HTML·DOCX는 <code>var(--pele-</code> 0건이고 색이 남습니다. 풀어 넣지 않은(as-is) 결과는 라이트·다크 모두 pele 라이트 대체값으로 그려져, 다크 HTML에서 파이 제목·범례 글자가 어두운 배경에 거의 안 보입니다(<code>exports/html-dark-as-is.png</code>).</li>
+<li><b>F3 다크 내보내기의 대비 문제</b>: DOCX 페이지는 항상 흰색인데(<code>exportDocx.ts</code>는 테마를 쓰지 않음), 다크 literal PNG는 배경이 투명하고 글자가 밝은색이라 시퀀스 메시지·파이 제목·범례가 흰 페이지에서 거의 안 보입니다(<code>exports/docx-dark-literal.docx.png</code>). 또 <code>classDef cool fill:#9cf</code>처럼 채우기만 정하고 글자색을 정하지 않은 노드는 다크에서 밝은 글자 + 밝은 채우기가 됩니다(pele 이슈 #29와 같은 현상). 같은 현상이 mermaid dark에도 있습니다(<code>13-classdef-style</code> 다크 칸).</li>
+<li><b>F4 글꼴과 측정</b>: pele는 <code>fontFamily</code> 옵션(기본 sans-serif)으로 글자 폭을 재고, 화면에는 <code>--pele-font</code>로 그립니다(<code>dist/types.d.ts</code> <code>RenderOptions.fontFamily</code>). <code>--pele-font</code>를 앱 글꼴(Barlow)에 연결하면서 <code>fontFamily</code>를 같이 넘기지 않으면 측정 폭과 표시 폭이 달라질 수 있습니다 <b>(추정, 이번에 측정하지 않음)</b>. 그래서 이 보고서는 글꼴 변수를 연결하지 않았습니다.</li>
+<li><b>F5 오류 위치</b>: 샘플 변형 6,264개를 렌더해 본 결과 pele 오류 위치는 <code>line≥1·column≥1</code>(syntax) 또는 <code>line 0·column 0</code>(unsupported-diagram, semantic, 일부 syntax) 두 가지뿐이었고, <code>line≥1·column 0</code>은 한 번도 나오지 않았습니다. AC-PREVIEW015-007의 가운데 경우 <code>(L행)</code>에 맞는 소스를 M1에서 찾지 못했습니다(존재하지 않는다고 단정하지는 않음).</li>
+<li><b>F6 정화 후 모양</b>: webkit에서 정화 전·후 픽셀이 19개 샘플 모두 같았습니다. 인라인 style 개수와 <code>var(--pele-</code> 개수는 그대로이고, pele 출력에는 <code>&lt;style&gt;</code>와 <code>id</code>가 원래 없습니다. 정화기가 루트의 <code>role="graphics-document document"</code> 속성은 지웁니다(<code>aria-roledescription</code>은 남음).</li>
+<li><b>F7 <code>maxWidth</code>는 배치를 바꿈</b>: <code>autoDirection: false</code>에서도 <code>maxWidth</code>를 넘기면 간격이 줄어듭니다(03번 767×316 → 715×284, 방향은 TB 그대로). 고정 옵션에 <code>maxWidth</code>가 없으므로 모듈 출력은 칸 폭과 무관하게 같습니다. 대조로 <code>autoDirection: true</code> + <code>maxWidth: 560</code>은 15번 마인드맵을 575×188 → 186×452로 바꿨습니다.</li>
+<li><b>F8 측정기에 따른 크기 차이</b>: 같은 입력이라도 jsdom(내장 글자 폭 표)과 webkit(캔버스)의 결과 크기가 다릅니다(예: 01번 369×409 vs 342×401). D14대로 <code>unit/</code>은 바이트 비교, <code>browser/</code>는 구조 확인에만 써야 합니다.</li>
+<li><b>F9 pele 내부 변수</b>: pele는 루트 style에 <code>--_bg:var(--pele-bg,#fff)</code> 같은 내부 변수를 두고 요소는 <code>var(--_bg)</code>를 씁니다. literal 치환 뒤에도 <code>var(--_…)</code>는 남지만 SVG 안에서 정의되므로 data URI 래스터에서도 색이 나옵니다. AC-020의 "0건" 확인은 <code>var(--pele-</code> 문자열에만 걸어야 합니다.</li>
+<li><b>F10 <code>responsive</code></b>: <code>true</code>는 루트 style에 <code>max-width:100%;height:auto</code>를 넣어 560px 칸에서 넓은 다이어그램(03번 767px, 06번 800px, 15번 575px)을 줄여 보입니다. <code>false</code>는 그 두 속성만 빠지고 자연 크기로 그려져 560px 칸에서 가로 스크롤이 생깁니다. 레이아웃·크기 값은 두 값에서 같았습니다(19개 샘플).</li>
+<li><b>시간</b>: 다이어그램 32개 문서에서 mermaid 507–579ms, pele 32–34ms(3회, 레이아웃 포함 시 각각 512–585ms, 34–36ms). 다이어그램 1개 콜드 렌더는 mermaid 23–47ms, pele 3–4ms.</li>
+</ol>

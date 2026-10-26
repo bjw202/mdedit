@@ -1,0 +1,9 @@
+flowchart LR
+  A[긴급 요청] --> B[분류]
+  B --> C[처리 완료]
+  B --> D[보류]
+  classDef hot fill:#f96,stroke:#333,stroke-width:2px,color:#000
+  classDef cool fill:#9cf,stroke:#036
+  class A hot
+  class C cool
+  style D fill:#ffd54f,stroke:#8d6e00,color:#3e2723
