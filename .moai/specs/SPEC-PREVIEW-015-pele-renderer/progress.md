@@ -382,9 +382,132 @@ SPEC 본문은 manager-spec 소유라 오케스트레이터가 M6을 manager-spe
 
 남은 한계: SPEC-EXPORT-001 DOCX 실패 시나리오의 "사용자에게 경고가 표시된다"는 지금 코드에 해당 동작이 없어 지웠다. 1.0.0 구현에 경고가 있었는지는 확인하지 않았다. frontmatter `tags`의 `mermaid`·`patch-package`(PREVIEW-006 등)와 SPEC-AI-001 `spec-compact.md`·`acceptance.md`의 `version: "0.1.1"`은 버전·frontmatter를 바꾸지 말라는 지시에 따라 그대로 두었다.
 
+### M7 정리·게이트·MX (2026-10-26, 기준 HEAD 33a0fa0)
+
+#### 변경
+
+| 커밋 | 내용 |
+|---|---|
+| `802da12` | `git rm -r spike/pele` — 55개 파일(비교 페이지·렌더·캡처·검증 스크립트, `samples/`·`samples-m1b/`·`m1b/`) 삭제(D11). spike 경로를 가리키던 주석 4곳 정정: `e2e/diagram-preview-behavior.spec.ts` 3곳(→ 픽스처 샘플 18·19·20, `manifest.json`의 `source`), `src/test/diagramRenderer.test.ts:314`(→ "M1b 시험 코드, M7에서 삭제") |
+| `1233f89` | MX 최종 점검 — ANCHOR REASON 3곳을 측정한 호출부 수로 정정(아래 MX 표) |
+
+- **삭제 전 참조 확인**: `grep -rn "spike" src e2e scripts vite.config.ts tsconfig.json tsconfig.node.json .eslintrc.cjs package.json playwright.config.ts .gitignore .github` → 주석 4줄과 `manifest.json`만 나왔다. import·설정·스크립트 참조는 0이다. `diagramRenderer.test.ts`는 렌더 입력을 `manifest.json` 각 항목의 `source` 필드(소스 전문 인라인)에서 읽으므로 spike 파일 없이 동작한다.
+- **유지**: `src/test/fixtures/pele/`(`m1-frozen/`·`unit/`·`browser/`·`manifest.json`)는 그대로다.
+- **재캡처 도구는 spike와 함께 사라졌다**: `manifest.json`의 `sourceOrigin` 170개는 `spike/pele/samples/…`(154)·`spike/pele/samples-m1b/…`(16)를 가리키는 출처 표기로 남는다(이제 없는 경로). `unit/`·`browser/` 재캡처 명령(위 M2 픽스처 표의 `spike/pele/vitest.capture.config.ts`·`m2-unit.capture.ts`·`vite.spike.config.ts`·`run-m2-browser.mjs`)과 M1 픽스처 재렌더 검증(`spike/pele/verify.capture.ts`)도 더는 실행할 수 없다. 다시 만들지 않았다. pele를 올리는 별도 SPEC은 캡처 도구를 새로 만들어야 한다. 단, `unit/` 재렌더 바이트 비교(AC-002)는 `diagramRenderer.test.ts` 안에서 계속 돈다.
+
+#### 검증 (이 worktree에서 직접 실행, 출력 전문 `.moai/state/verify/pele-015-m7/`)
+
+acceptance.md "기계 검증 게이트" 7종을 표에 적힌 순서와 상관없이 `npm ci`부터 실행해 깨끗한 설치 위에서 나머지를 돌렸다. 커밋 `1233f89` 작업 트리 기준.
+
+| # | 명령 | exit | 핵심 출력 | 증거 |
+|---|---|---|---|---|
+| 6a | `npm ci --no-audit --no-fund` | 0 | `added 501 packages in 3s` | `npm-ci.txt` |
+| 6b | `npm ls mermaid patch-package` | 1 | `mdedit@0.16.1 …/pele-015` `└── (empty)` — 두 패키지 모두 없음(npm은 찾는 패키지가 하나도 없으면 exit 1). `ls node_modules/mermaid node_modules/patch-package` → 둘 다 No such file | `npm-ls.txt` |
+| 7 | `grep -rn "from 'mermaid'\|import('mermaid')\|vi.mock('mermaid'" src e2e` | 1 | 0건 | `grep-imports.txt`(빈 파일) |
+| 2 | `npm run typecheck` (`tsc --noEmit`) | 0 | 출력 없음 | `typecheck.txt` |
+| 3 | `npm run lint` (`eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0`, 저장소 전체) | 0 | 출력 없음 | `lint.txt` |
+| 1 | `npx vitest run` | 0 | `Test Files  108 passed (108)`, `Tests  1751 passed (1751)` | `vitest-full.txt` |
+| 4 | `CI=1 npx playwright test` (프로젝트 `webkit` 하나) | 0 | `69 passed (21.2s)`, `1 skipped` — skip = `spec-img-mode-003.spec.ts:143` 기존 `.skip`(실제 DataTransfer 필요, 이 SPEC과 무관). 실행 전후 `lsof -nP -iTCP:1420 -sTCP:LISTEN` → 출력 없음(exit 1) | `playwright-full.txt` |
+| 5 | `cargo test --manifest-path src-tauri/Cargo.toml` (`~/.cargo/bin/cargo`, 셸 PATH에 cargo 없음) | 0 | `test result: ok. 367 passed; 0 failed` (+ 0개짜리 대상 3개) | `cargo-test.txt` |
+| + | `npx vite build --outDir <scratchpad>/m7-dist --emptyOutDir` | 0 | `✓ 609 modules transformed.`, `✓ built in 2.83s` | `vite-build.txt` |
+| + | `git diff --stat 929d116 HEAD -- src-tauri src/lib/preview/svgSanitize.ts index.html src/lib/export/types.ts src/lib/image/imageResolver.ts src/components/editor/extensions/keyboard-shortcuts.ts` | 0 | 출력 없음(plan.md "변경하지 않는 파일" 무변경) | `unchanged-files.txt` |
+
+커버리지(게이트 항목은 아니며 TRUST 5 확인용). 프로젝트에 커버리지 도구가 없어 `npm i --no-save @vitest/coverage-v8@2.1.9`로 `node_modules`에만 잠시 설치하고(`package.json`·`package-lock.json` 무변경, `git status` 확인) 측정 뒤 `npm ci`로 되돌렸다(`npm-ci-restore.txt`, `node_modules/@vitest/coverage-*` 0).
+
+| 명령 | 결과 | 증거 |
+|---|---|---|
+| `npx vitest run --coverage.enabled --coverage.provider=v8 --coverage.include=src/lib/diagram/diagramRenderer.ts --coverage.include=src/lib/export/exportUtils.ts --coverage.reporter=text` | exit 0, `Tests 1751 passed`. `diagramRenderer.ts` Stmts 98.06 / Branch 86.59 / Funcs 100 / Lines 98.06 (미실행 52-53, 171-172). `exportUtils.ts` 97.33 / 93.18 / 100 / 97.33 (미실행 63-64) | `coverage.txt` |
+
+#### MX 최종 점검 (plan.md "MX Tag Plan" 전 행, `grep -n "@MX:"`로 확인)
+
+| 대상 | 계획 | 현재 코드 | 결과 |
+|---|---|---|---|
+| `diagramRenderer.ts` 렌더 진입 `renderDiagram` | ANCHOR + REASON | `:203-206` ANCHOR+REASON. 운영 코드 직접 호출 4곳(`PreviewRenderer.tsx:93`, `ai-suggestion-card.ts:1289`, `diagramRenderer.ts` `validateDiagram`, `exportUtils.ts:34`) | REASON "5곳 이상" → `fan_in = 4`(5경로)로 정정 (`1233f89`) |
+| 같은 파일 검증 진입 `validateDiagram` | ANCHOR + REASON | `:216-219`. 직접 호출 1곳(`mermaidValidate.ts:22`) | 유지. REASON에 fan_in = 1과 계약 근거 명시 (`1233f89`) |
+| 고정 옵션 상수 | NOTE + WARN + REASON | `:14-16` | 일치 |
+| 색 값 치환 함수 | WARN + REASON | `resolvePeleVars` 위 WARN+REASON | 일치 |
+| 다이어그램 전용 정화 경로 | WARN + REASON | `:131-132` | 일치 |
+| KaTeX 해석기 | NOTE | `:44` (`mathml-bare`, `trust: false`) | 일치 |
+| `idPrefix` 생성부 | NOTE | `:193` | 일치 |
+| `diagramRegressionGuard.test.ts` pele 핀 | NOTE | `:48` | 일치 |
+| `mermaidPlugin.ts:19` 이스케이프 | NOTE 추가 | `:19` | 일치 |
+| `exportDocx.ts` 펜스별 렌더·PNG 변환 | WARN + REASON | `:126-127` | 일치 |
+| `PreviewRenderer.tsx` ANCHOR | 문구 수정, 유지 | `:6` "다이어그램 모듈로 렌더" | 일치. 단 REASON "MarkdownPreview, 내보내기 함수 등 … fan_in >= 3"이 낡아 정정: 운영 사용처 `MarkdownPreview.tsx:5,32` 1곳(M4 이후 내보내기는 미리보기 DOM을 읽지 않음), NOTE 강등 후보로 표시하고 태그는 유지 (`1233f89`) |
+| `PreviewRenderer.tsx` async forEach WARN | 삭제 | 없음. 개별 실패 처리 NOTE `:15-16` | 일치 |
+| `PreviewRenderer.tsx` parse 선행 NOTE | 삭제 | 없음 | 일치 |
+| `PreviewRenderer.tsx` securityLevel WARN/REASON | strict 모드 문구로 교체 | `:25-29` 표 문구 그대로 | 일치 |
+| `PreviewRenderer.tsx` `@MX:SPEC` | SPEC-PREVIEW-015 추가 | `:10` `SPEC-PREVIEW-010 SPEC-PREVIEW-015` | 일치 |
+| `PreviewRenderer.tsx` 빈 펜스 NOTE | 유지 | `:85-88` | 일치 |
+| `mermaidValidate.ts:3-5` | SPEC 줄 추가, WARN·REASON 교체 | `:3` SPEC-PREVIEW-015, `:4-8` strict 모드 문구 | 일치 |
+| `svgSanitize.ts` ANCHOR(fan_in >= 2)·WARN 2개 | 유지 | `:1-2`, `:10-11`, `:37-39`, 파일 diff 0줄 | 일치 |
+| `exportDocx.ts:32` shift() NOTE | 삭제 → 새 WARN | shift NOTE 없음(`shift()`는 새 WARN REASON의 설명문에만 남음), 새 WARN `:126` | 일치 |
+| `exportHtml.ts`·`exportDocx.ts` `@MX:SPEC` | SPEC-PREVIEW-015 추가 | `exportHtml.ts:6`, `exportDocx.ts:4` | 일치 |
+| `ai-suggestion-card.ts` `renderMermaidInto` | NOTE 추가 | `:1284-1286` | 일치 |
+| 확인만 하는 태그(`exportUtils.ts`, `exportPdf.ts`, `keyboard-shortcuts.ts`) | 무변경 | mermaid 라이브러리를 가리키는 MX 없음 | 일치 |
+
+- `@MX` 줄 중 `securityLevel`·`mermaid.render`·`mermaid.parse`·"mermaid 다이어그램을 처리" 검색 → 0건.
+- 모듈의 나머지 공개 함수 운영 호출부(grep): `readPeleThemeValues` 2(`exportDocx.ts:95`, `exportHtml.ts:112`), `resolveDiagramColors` 1, `formatDiagramError` 1, `sanitizeDiagramSvg`·`createMathResolver`·`katexMathMarkup`·`getDiagramPurifier`·`resolvePeleVars`는 모듈 내부만, `renderDiagramForTest` 0(테스트 전용). 모두 fan_in < 3이라 ANCHOR를 새로 붙이지 않았다. 파일당 상한(ANCHOR 3, WARN 5): `diagramRenderer.ts` ANCHOR 2·WARN 3, `exportDocx.ts` ANCHOR 1·WARN 2.
+
+#### Gaps (확인하지 않은 것)
+
+- 실제 Tauri 앱(시스템 WKWebView)은 실행하지 않았다. MANUAL-1~4, 앱 PDF·DOCX 실물 색·표시, Windows WebView2는 여전히 사람 확인 대상이다(§E.3).
+- 깨끗한 체크아웃의 실제 CI는 돌리지 않았다. 이 worktree는 주 체크아웃 폴더 안이라 `npm ci` 뒤에도 상위 `node_modules`가 해석 경로에 남는다. 패키지 부재는 `npm ls`·`ls node_modules`와 M4의 scratch 복사 측정(`pele-015-m4/cleansim-*`)을 근거로 한다.
+- 프로덕션 빌드는 만들기만 했고 `vite preview`로 띄워 e2e를 돌리지 않았다(KaTeX `data:` 글꼴 CSP 백로그 `t1` 확인 안 함).
+- 커버리지 수치는 일회성 설치 도구로 잰 것이며 프로젝트에 고정된 커버리지 게이트는 없다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
-_<pending run-phase>_
+- `run_status: audit-ready`
+- `run_complete_at: 2026-10-26T12:37:09Z`
+- 브랜치 `WT-pele-renderer`, 작업 트리 `.claude/worktrees/pele-015`, 기준 `929d116`(origin/main). push 하지 않음. SPEC `status: in-progress` 유지(sync 단계가 옮김).
+
+### 마일스톤과 커밋 범위
+
+| 마일스톤 | 커밋 | 내용 |
+|---|---|---|
+| M1 / M1b | `20eb33f`, `d1dbc02` (판정·계획 반영 `f145220`, `c0fee35`, `0fac523`, `fd0df84`) | 시험 렌더링 비교 보고서·실측 픽스처, 수식 처리기 측정. 사용자 판정 통과(AC-001 HUMAN GATE) |
+| M2 | `73ddd04`..`be76af2` | 다이어그램 모듈·`--pele-*` 토큰·픽스처 재캡처 |
+| M3 | `6f529e2`..`e9c7470` | 미리보기·AI 검증·AI 카드를 모듈로 |
+| M4 | `828dd92`..`a84b8e1` | 내보내기 원본 렌더·색 값 치환, mermaid·patch-package 제거 |
+| M5 | `26caee8`..`200f171` | e2e 개정·추가 |
+| M6 | `e07649d`..`33a0fa0` | 다른 SPEC 7건 문구 개정(manager-spec) |
+| M7 | `802da12`..(이 기록 커밋) | spike 삭제, 게이트, MX 최종 점검 |
+
+### AC 대응 (어디서 증명했는가)
+
+| AC | unit | e2e | 사람 확인 / 증거 |
+|---|---|---|---|
+| 001 | — | — | M1 보고서 + 사용자 판정 통과(§E.2 M1 사용자 판정) |
+| 002 | `diagramRenderer.test.ts`(unit/ 재렌더 바이트 동일, browser/ 구조) | — | 픽스처 매니페스트 |
+| 003, 004, 005, 006, 007, 009, 010, 016, 017, 019, 021, 022, 023 | 통과 | — | — |
+| 008 | 통과(PreviewRenderer) | — | — |
+| 011 | 통과(같은 SVG 노드, 재렌더 0) | 통과(채움·선 색이 토큰 값으로 바뀜) | — |
+| 012 | 통과(href·외부 이미지 0) | 통과(클릭 이동 0, 외부 요청 0) | MANUAL-1(앱 클릭) 미확인 |
+| 013 | — | 통과(서브그래프 제목 1줄·겹침 없음) | — |
+| 014 | 통과(같은 엔진, `PeleError.message`) | 통과(AI 재요청 흐름) | — |
+| 015 | 통과 | — | — |
+| 018 | 통과(미리보기 DOM 없이 내보내기, 옛 코드에서 실패 확인 `pele-015-m4/red-oldcode.txt`) | — | **manual 미확인**(앱 에디터 단독 보기 내보내기) |
+| 019 | 통과(옛 코드에서 실패 확인 `red-oldcode.txt`) | — | — |
+| 020 | 통과(형식·테마 6조합 `var(--pele-` 0, 테마 값 존재) | — | **manual 미확인**(내보낸 HTML·PDF·DOCX 실제 색) |
+| 024 | — | — | 문구 검사 1~25·27행 PASS(`pele-015-m6/ac024-cleanup-out.txt`). 26행(README·USER_MANUAL·USER_GUIDE)은 sync 범위, **앱 전체 흐름 manual 미확인** |
+| 025 | 통과(수식 구조, 별도 인스턴스 허용 목록) | 통과(수식 상자 배치, CSP 새 위반 0, 개발 서버) | **MANUAL-3·MANUAL-4 미확인**, 앱 PDF 수식 표시 미확인 |
+
+### 기계 게이트 (M7, 위 표)
+
+7종 모두 기대대로: vitest 1751/1751, typecheck 0, lint 0(저장소 전체), Playwright webkit 69 passed·1 기존 skip, cargo 367 passed, `npm ci` 후 mermaid·patch-package 없음, mermaid import grep 0. 추가로 `vite build` exit 0, 무변경 파일 diff 0, `diagramRenderer.ts` 줄 커버리지 98.06%.
+
+### 남은 사람 확인 (sync 전 또는 머지 전)
+
+- MANUAL-1: 앱에서 미리보기 본문 링크 클릭이 시스템 브라우저로 열리고, 다이어그램 노드 클릭은 아무 데도 가지 않는다.
+- MANUAL-2: 앱 PDF 내보내기(인쇄 → PDF 저장) 결과의 다이어그램 표시·색.
+- MANUAL-3: 현재 앱(교체 전) mermaid 수식 표시 기준선.
+- MANUAL-4: 시스템 WKWebView에서 pele 수식이 상자 안에 그려짐, `m03` 오류 없음, 라이트·다크 PDF의 수식 표시.
+- AC-018: 에디터 단독 보기에서 HTML·PDF·DOCX 내보내기에 다이어그램이 들어감.
+- AC-020: 내보낸 HTML·PDF가 내보내기 테마 색, DOCX는 다크 앱에서도 라이트 색(라이트 탐침 선택자 효과), Word에서 열었을 때 표시.
+- AC-024: 앱에서 전체 흐름(미리보기·AI·내보내기) 확인.
+- Windows WebView2: 미리보기 렌더·DOCX 내보내기 1회(권장, 필수 아님).
+- 앱 안 Barlow 글꼴 로드 전 첫 렌더 시 측정 글꼴과 표시 글꼴 어긋남 여부.
+- 다크 테마의 `--pele-series-*`(파이·간트 계열 색)·선·글자 대비.
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
