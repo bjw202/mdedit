@@ -1,6 +1,6 @@
 # SPEC-PREVIEW-015 — 요약본 (spec-compact)
 
-> spec.md v0.2.0, acceptance.md, plan.md에서 기계적으로 뽑은 요약본이다. 요구사항·수용 기준·변경 파일·제외 범위만 담고 개요·접근 방식·조사 근거·이력은 뺐다. 원문과 다르면 원문(spec.md·acceptance.md·plan.md)이 우선한다. 결정 번호 D1–D15는 design.md 참조.
+> spec.md v0.3.0, acceptance.md, plan.md에서 기계적으로 뽑은 요약본이다. 요구사항·수용 기준·변경 파일·제외 범위만 담고 개요·접근 방식·조사 근거·이력은 뺐다. 원문과 다르면 원문(spec.md·acceptance.md·plan.md)이 우선한다. 결정 번호 D1–D15는 design.md 참조. REQ-025·AC-025는 M1b 보강 측정 뒤 확정되는 잠정 항목이다.
 
 ## Requirements (GEARS)
 
@@ -14,12 +14,12 @@
 #### REQ-PREVIEW015-002: 렌더 옵션은 고정이다 (Ubiquitous)
 
 - The diagram module shall 모든 pele 호출에 `autoDirection: false`, `links: false`, `images: false`를 넘긴다.
-- The diagram module shall `responsive` 값을 M1 판정에서 정한 하나의 값으로 고정하고, 호출자가 pele 옵션을 바꿀 수 있는 경로를 열지 않는다.
+- The diagram module shall `responsive: true`(M1 판정)로 고정하고, 호출자가 pele 옵션을 바꿀 수 있는 경로를 열지 않는다.
 
 #### REQ-PREVIEW015-003: 출력은 기존 정화기를 거친다 (Ubiquitous)
 
-- The diagram module shall pele가 만든 SVG를 문서(미리보기 DOM, AI 카드, 내보낸 파일)에 넣기 전에 `src/lib/preview/svgSanitize.ts`의 `sanitizeSvg`로 정화한다.
-- The diagram module shall not `svgSanitize.ts`의 설정이나 훅을 바꾼다(SVG 파일 뷰어와 공유하는 설정이다).
+- The diagram module shall pele가 만든 SVG를 문서(미리보기 DOM, AI 카드, 내보낸 파일)에 넣기 전에 정화한다. 정화 기준은 `src/lib/preview/svgSanitize.ts`의 `sanitizeSvg`와 같은 규칙이며, 수식 영역에 한해 REQ-PREVIEW015-025의 다이어그램 전용 허용 목록(`foreignObject.pele-math`와 그 안의 KaTeX HTML)만 더한다(**잠정 — M1b 보강 측정 뒤 확정**).
+- The diagram module shall not `svgSanitize.ts`의 공유 설정이나 훅을 바꾼다(SVG 파일 뷰어와 공유하는 설정이다). 다이어그램 전용 허용 목록은 공유 설정에 영향을 주지 않는 별도 정화 경로로 둔다.
 
 #### REQ-PREVIEW015-004: 오류 문구는 텍스트로만 넣는다 (Unwanted)
 
@@ -52,8 +52,8 @@
 
 - **When** 비어 있지 않은 다이어그램 소스를 pele가 거부하면(`PeleError`), the preview renderer shall 그 컨테이너에 지금과 같은 마크업(`<p class="text-sm text-amber-500 italic py-2">`)으로 `⚠ Diagram syntax error`를 표시하고, 위치를 다음 규칙으로 덧붙인다.
   - `line ≥ 1`이고 `column ≥ 1`이면 `⚠ Diagram syntax error (3행 12열)` 형식
-  - `line ≥ 1`이고 `column`이 `0`이면 `⚠ Diagram syntax error (3행)` 형식
-  - `line`이 `0`이거나 위치 정보가 없으면 접미사 없이 `⚠ Diagram syntax error`
+  - 그 밖의 경우(`line`이나 `column`이 `0`이거나 위치 정보가 없음)는 접미사 없이 `⚠ Diagram syntax error`
+  - (M1 측정: pele 1.10.0은 위치를 "line·column 모두" 또는 "0/0"으로만 알렸다. design.md D9)
 - **When** 한 다이어그램이 실패하면, the preview renderer shall 같은 문서의 다른 다이어그램과 나머지 미리보기를 그대로 렌더하고 앱을 중단시키지 않는다.
 
 #### REQ-PREVIEW015-010: 빈 펜스 안내는 그대로다 (Event-driven)
@@ -103,8 +103,8 @@
 
 #### REQ-PREVIEW015-018: 내보낸 다이어그램의 색은 앱 밖에서도 남는다 (Ubiquitous)
 
-- The exports shall 내보내기 `theme` 옵션(`'light' | 'dark'`)에 해당하는 `--pele-*` 값을 실제 색 값으로 풀어 내보낸 SVG에 직접 넣는다. 그래서 앱 CSS가 없는 브라우저·인쇄·Word에서도 다이어그램의 색과 글자가 보인다.
-- The DOCX export shall 값을 풀어 넣은 SVG를 PNG로 바꾸며, 결과 PNG에 글자와 색이 나타난다.
+- The HTML and PDF exports shall 내보내기 `theme` 옵션(`'light' | 'dark'`)에 해당하는 `--pele-*` 값을 실제 색 값으로 풀어 내보낸 SVG에 직접 넣는다. 그래서 앱 CSS가 없는 브라우저·인쇄에서도 다이어그램의 색과 글자가 보인다.
+- The DOCX export shall 내보내기 `theme`과 상관없이 **라이트 테마**의 `--pele-*` 값을 풀어 넣은 SVG를 PNG로 바꾸며, 결과 PNG는 흰 페이지에서 글자와 색이 보인다(M1 사용자 판정, design.md D6).
 
 #### REQ-PREVIEW015-019: DOCX 다이어그램 크기는 pele가 알려 준 크기를 따른다 (Ubiquitous)
 
@@ -137,6 +137,15 @@
 
 - The SPEC records shall 아래 "다른 SPEC 개정" 절의 요구 문구를 새 문구로 바꾸고, 각 SPEC의 HISTORY에 이 SPEC을 근거로 한 행을 남긴다.
 - The user documentation shall `docs/USER_MANUAL.md` Mermaid 부록(`:498-665`)과 목차의 깨진 앵커(`:15`), `docs/USER_GUIDE.md:206-208`(`### Mermaid 다이어그램` 절), `README.md:15,104`를 pele 기준으로 고친다.
+
+#### REQ-PREVIEW015-025: 다이어그램 안 수식을 KaTeX로 그린다 (Event-driven) — 잠정, M1b 보강 측정 뒤 확정
+
+> 이 요구는 사용자 결정(2026-10-26, M1 판정 뒤)을 담은 **잠정 문구**다. 최종 문구는 plan.md M1b 보강 측정과 그 사람 게이트 판정 뒤에 확정한다. M1b 이전에는 이 요구를 근거로 운영 코드를 바꾸지 않는다.
+
+- **When** 다이어그램 라벨에 `$$…$$` 수식이 있으면, the diagram module shall pele `math` 옵션(`MathResolver = (tex, size) => { svg | html, width, height }`, `node_modules/pele/dist/types.d.ts:5-14, 35`)에 기존 `katex` 의존성으로 만든 해석기를 넘겨 수식으로 렌더한다. 새 의존성은 추가하지 않는다.
+- The diagram module shall 다이어그램 출력 정화에서 `class="pele-math"`인 `foreignObject`와 그 안의 KaTeX HTML만 추가로 허용하고, 그 밖의 `foreignObject`·`<script>`·이벤트 핸들러 속성은 지금처럼 지운다.
+- The SVG file viewer shall 지금과 같은 공유 `sanitizeSvg` 설정을 그대로 쓴다(수식 허용 목록의 영향을 받지 않는다).
+- **Where** M1b에서 DOCX의 캔버스 래스터화가 `foreignObject` 수식을 그리지 못한다고 측정되면, the DOCX export shall M1b 게이트에서 사용자가 정한 DOCX 전용 처리 방식을 따른다(방식은 이 문구에 미리 정하지 않는다).
 
 ## 시나리오 (Given-When-Then)
 
@@ -178,13 +187,13 @@
 
 - **Given** pele `render`를 감시하는 상태에서
 - **When** 미리보기·AI 검증·AI 카드·내보내기·프리셋 경로로 각각 렌더하면
-- **Then** 모든 호출의 옵션에 `autoDirection: false`, `links: false`, `images: false`, M1에서 정한 `responsive` 값이 있고, 호출자가 넘긴 값으로 바뀌지 않는다. (REQ-002)
+- **Then** 모든 호출의 옵션에 `autoDirection: false`, `links: false`, `images: false`, `responsive: true`가 있고, 호출자가 넘긴 값으로 바뀌지 않는다. (REQ-002)
 
 ### AC-PREVIEW015-005: 출력은 sanitizeSvg를 거친다 — must-pass (unit)
 
 - **Given** `sanitizeSvg`를 감시하는 상태에서
 - **When** 모듈이 렌더 결과를 돌려주면
-- **Then** 돌려준 SVG는 `sanitizeSvg` 결과와 같고, 그 안에 `<script>`·`foreignObject`·`on*` 속성이 없다. `git diff`로 `src/lib/preview/svgSanitize.ts`가 바뀌지 않았음을 확인한다(코드 리뷰). (REQ-003)
+- **Then** 수식이 없는 다이어그램에서 돌려준 SVG는 `sanitizeSvg` 결과와 같고, 그 안에 `<script>`·`foreignObject`·`on*` 속성이 없다. 수식이 있는 다이어그램의 `foreignObject.pele-math` 허용은 AC-025(잠정)가 다룬다. `git diff`로 `src/lib/preview/svgSanitize.ts`가 바뀌지 않았음을 확인한다(코드 리뷰). (REQ-003)
 
 ### AC-PREVIEW015-006: 오류 문구에 소스·메시지가 HTML로 들어가지 않는다 — must-pass (unit)
 
@@ -194,9 +203,10 @@
 
 ### AC-PREVIEW015-007: 오류 위치 접미사 형식 — must-pass (unit)
 
-- **Given** pele가 거부하는 소스 세 가지(위치 `line ≥ 1, column ≥ 1` / `line ≥ 1, column = 0` / `line = 0`)가 있을 때 — 위치가 실제로 그렇게 나오는 소스는 M1에서 고른다
+- **Given** M1에서 실제 pele 출력으로 확인한 거부 소스 두 종류가 있을 때: (a) 위치가 있는 소스 `sequenceDiagram\n  A->>B hello`(pele `line 2`, `column 14`) (b) 위치가 없는 소스 `pie\n  "a" : -1`(`semantic`, 0/0)과 `notarealdiagramtype foo!!!`(`unsupported-diagram`, 0/0)
 - **When** 미리보기가 렌더하면
-- **Then** 표시 문구가 각각 `⚠ Diagram syntax error (L행 C열)`, `⚠ Diagram syntax error (L행)`, `⚠ Diagram syntax error`이고, 마크업은 `<p class="text-sm text-amber-500 italic py-2">`이다. (REQ-009)
+- **Then** (a)는 `⚠ Diagram syntax error (2행 14열)`, (b)의 두 소스는 접미사 없는 `⚠ Diagram syntax error`이고, 마크업은 `<p class="text-sm text-amber-500 italic py-2">`이다. 위치 숫자는 하드코딩하지 않고, 같은 소스로 모듈이 받은 `PeleError`의 `line`·`column`과 같음을 단언한다. (REQ-009)
+- 참고: M1에서 "line만 있고 column은 0"인 출력은 변형 6,264개에서 한 번도 나오지 않아(report F5) 그 갈래는 요구에서 뺐다.
 
 ### AC-PREVIEW015-008: 한 다이어그램 실패가 다른 다이어그램을 막지 않는다 — must-pass (unit)
 
@@ -277,10 +287,20 @@
 - **Given** 라이트·다크 색 값 표(서로 다른 값)를 주입하고, `classDef`·`style` 색 지정 샘플과 일반 flowchart가 든 문서일 때
 - **When** 아래 6가지 조합으로 각각 내보내면: HTML × `light`/`dark`, PDF(`generateHtmlContent`) × `light`/`dark`, DOCX(래스터 입력 SVG) × `light`/`dark`
 - **Then** (unit) 6가지 조합 **각각**에서 다음이 모두 참이다.
-  1. 다이어그램 SVG 문자열에 `var(--pele-` 부분 문자열이 **0번** 나온다.
-  2. 그 조합의 테마에 주입한 값이 SVG 안에 1개 이상 있고, 다른 테마에만 있는 값은 없다.
+  1. 다이어그램 SVG 문자열에 `var(--pele-` 부분 문자열이 **0번** 나온다(pele 내부 `var(--_…)`는 검사 대상이 아니다, report F9).
+  2. 기대 테마의 값이 SVG 안에 1개 이상 있고, 다른 테마에만 있는 값은 없다. 기대 테마는 조합마다 다음과 같다.
+
+     | 조합 | 기대 테마 |
+     |------|-----------|
+     | HTML × light | light |
+     | HTML × dark | dark |
+     | PDF × light | light |
+     | PDF × dark | dark |
+     | DOCX × light | light |
+     | DOCX × dark | **light** — 다크 테마로 내보낸 DOCX도 라이트 값을 담고 다크에만 있는 값은 담지 않는다(design.md D6) |
+
   3. 사용자가 `classDef`·`style`로 지정한 색 값은 그대로 남는다.
-- **And** (manual) 내보낸 HTML을 다른 브라우저에서, PDF를 미리보기 앱에서, DOCX를 Word에서 열면 다이어그램 색과 글자가 앱 미리보기와 같은 테마로 보인다. (REQ-018)
+- **And** (manual) 내보낸 HTML을 다른 브라우저에서, PDF를 미리보기 앱에서 열면 다이어그램 색과 글자가 내보내기 테마로 보이고, DOCX를 Word에서 열면 내보내기 테마와 상관없이 흰 페이지에 라이트 색으로 글자가 읽힌다. (REQ-018)
 
 ### AC-PREVIEW015-021: DOCX 다이어그램 크기는 pele 크기를 따른다 — must-pass (unit)
 
@@ -341,6 +361,13 @@
 - **And** 위 7개 SPEC 각각의 HISTORY 표에 `SPEC-PREVIEW-015`를 담은 행이 1개 이상 있다. USER_MANUAL 목차 `:15` 링크가 실제 부록 제목으로 이동한다.
 - **And** (manual, macOS 앱) 다이어그램이 많은 실제 문서를 열어 라이트·다크 전환, 문법 오류 위치 표시, 빈 펜스 안내, 삽입 메뉴 7종, AI "다이어그램으로"(다크 모드 미니 미리보기 포함), HTML·PDF·DOCX 내보내기를 한 번씩 확인한다. (REQ-024)
 
+### AC-PREVIEW015-025: 다이어그램 안 수식이 KaTeX로 그려지고 허용 목록은 수식에만 걸린다 — must-pass (unit + evidence), **잠정 — M1b 보강 측정 뒤 확정**
+
+- **Given** `18-math-label` 샘플(라벨에 `$$x^2 + y^2$$`)과, `class`가 `pele-math`가 아닌 `foreignObject`·`<script>`·`onload` 속성을 섞어 넣은 SVG 문자열이 있을 때
+- **When** (unit) diagram module로 렌더·정화하고, 같은 악성 SVG를 공유 `sanitizeSvg`(SVG 파일 뷰어 경로)로도 정화하면
+- **Then** 다이어그램 결과에는 `foreignObject.pele-math`가 1개 이상 있고 그 안에 KaTeX 출력(`class="katex"`)이 있으며, 다른 `foreignObject`·`<script>`·`on*` 속성은 0개다. 공유 `sanitizeSvg` 결과에는 `foreignObject`가 0개이고 M1 때와 같다.
+- **And** (evidence) M1b 결과표(`m1/checks.md` "M1b")에 미리보기 렌더, 허용 목록 왕복, HTML 내보내기, DOCX PNG, CSP 다섯 항목의 명령·출력·PASS/FAIL과 사용자 판정이 있다. DOCX가 실패했다면 사용자가 정한 DOCX 처리 방식과 그에 맞춰 확정한 문구가 이 AC에 반영되어 있다. (REQ-003, REQ-025)
+
 ## 변경 파일
 
 | 파일 | 마일스톤 | 변경 |
@@ -348,7 +375,7 @@
 | `spike/pele/**` | M1 생성 → M7 삭제 | 시험 렌더링 코드 |
 | `.moai/specs/SPEC-PREVIEW-015-pele-renderer/m1/{report.html,checks.md}` | M1 | 비교 보고서·기계 확인 표 |
 | `src/test/fixtures/pele/**` | M1 | 실제 렌더 캡처 픽스처 + `manifest.json` |
-| `src/lib/diagram/diagramRenderer.ts` (신규) | M2 | 렌더·검증·위치 문구·색 풀어 넣기 |
+| `src/lib/diagram/diagramRenderer.ts` (신규) | M2 | 렌더·검증·위치 문구·색 풀어 넣기, KaTeX 수식 해석기와 다이어그램 전용 정화 경로(M1b 확정 뒤) |
 | `src/test/diagramRenderer.test.ts` (신규) | M2 | 모듈 단위 테스트 |
 | `package.json`, `package-lock.json` | M1·M2 | pele 추가, mermaid·patch-package·postinstall 제거 |
 | `patches/mermaid+11.12.3.patch` | M2 | 삭제 |
@@ -384,9 +411,12 @@
 
 ### Out of Scope — 수식 라벨
 
-- 다이어그램 안 수식 라벨은 지원하지 않는다. pele는 수식만 `foreignObject`로 그리는데, `sanitizeSvg`가 `foreignObject`를 지우며(`svgSanitize.ts:15`) 이 SPEC은 정화기 설정을 완화하지 않는다. 현재 mermaid strict 설정에서의 수식 표시 여부는 M1에서 측정만 한다(design.md D15).
+- 다이어그램 안 수식은 REQ-PREVIEW015-025(잠정)대로 기존 `katex`로 그린다. KaTeX 외의 수식 엔진(MathJax 등)이나 새 의존성은 도입하지 않는다.
+- `class="pele-math"`가 아닌 `foreignObject`는 다이어그램에서도 허용하지 않는다. 공유 `sanitizeSvg` 설정과 SVG 파일 뷰어의 정화 동작은 바꾸지 않는다.
+- DOCX에서 수식이 그려지지 않을 때의 대체 방식은 이 SPEC이 미리 정하지 않는다. M1b 게이트에서 사용자가 정한다(design.md D15).
+- 마크다운 본문 수식(KaTeX)의 동작은 바꾸지 않는다.
 
 ### Out of Scope — 정화기·비다이어그램 내보내기
 
-- `svgSanitize.ts`의 설정 완화나 다이어그램 전용 정화 설정은 만들지 않는다.
+- `svgSanitize.ts`의 공유 설정 완화는 하지 않는다. 다이어그램 전용 정화 경로는 REQ-PREVIEW015-025의 수식 허용 목록(`foreignObject.pele-math`와 KaTeX HTML)만 더하며, 그 밖의 허용 확대는 하지 않는다.
 - 다이어그램이 아닌 내보내기 동작(이미지 임베드, 표, 코드 하이라이트, 완료 모달 등)은 바꾸지 않는다.

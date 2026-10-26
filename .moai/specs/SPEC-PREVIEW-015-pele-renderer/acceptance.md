@@ -6,7 +6,7 @@
 ## 사전 준비
 
 - **픽스처 원칙**: pele 출력을 비교하거나 대신하는 픽스처는 모두 M1에서 실제 pele 1.10.0 렌더로 캡처한 `src/test/fixtures/pele/` 파일이다. `unit/` 묶음은 단위 테스트와 같은 측정기로 캡처해 바이트 비교에 쓰고, `browser/` 묶음은 캔버스 측정기로 캡처해 구조 확인과 e2e 참고에만 쓴다(design.md D14). 손으로 쓴 SVG 문자열을 pele 출력이라고 가정하는 테스트는 두지 않는다(프로젝트 교훈: 손으로 쓴 외부 출력 픽스처는 테스트는 전부 통과하고 실기기에서는 한 번도 동작하지 않았다).
-- **mock 원칙**: 모듈 자체(`diagramRenderer.test.ts`)와 프리셋·AI 검증 테스트는 pele를 mock하지 않는다. 호출 순서·옵션만 볼 때는 실제 pele 함수를 감시(spy)한다. **통과형 감시 래퍼는 mock으로 보지 않는다**: vitest ESM에서는 모듈 네임스페이스에 `vi.spyOn`을 걸 수 없으므로, `vi.mock('pele', async (importOriginal) => …)`로 원래 모듈을 받아 각 함수를 `vi.fn(real)`처럼 **실제 구현에 그대로 위임**하는 래퍼를 쓸 수 있다. 반환값을 바꾸거나 가짜 SVG를 돌려주는 래퍼는 이 예외에 들지 않는다. jsdom에서 pele 렌더가 안 되면(AC-001 확인 항목 11) pele `measurer` 옵션으로 고정 폭 측정기를 테스트에서만 주입하며, 레이아웃 수치 단언은 e2e에만 둔다.
+- **mock 원칙**: 모듈 자체(`diagramRenderer.test.ts`)와 프리셋·AI 검증 테스트는 pele를 mock하지 않는다. 호출 순서·옵션만 볼 때는 실제 pele 함수를 감시(spy)한다. **통과형 감시 래퍼는 mock으로 보지 않는다**: vitest ESM에서는 모듈 네임스페이스에 `vi.spyOn`을 걸 수 없으므로, `vi.mock('pele', async (importOriginal) => …)`로 원래 모듈을 받아 각 함수를 `vi.fn(real)`처럼 **실제 구현에 그대로 위임**하는 래퍼를 쓸 수 있다. 반환값을 바꾸거나 가짜 SVG를 돌려주는 래퍼는 이 예외에 들지 않는다. 단위 테스트 측정기는 M1에서 `jsdom-default`로 확정되었다(jsdom에서 pele가 내장 글자 폭 표를 고른다, design.md D14). 테스트 전용 측정기는 주입하지 않으며, 레이아웃 수치 단언은 e2e에만 둔다.
 - **색 값 주입**: jsdom은 앱 CSS를 읽지 않으므로 내보내기 색 테스트는 모듈의 시험용 진입점으로 라이트·다크 색 값 표를 주입한다(design.md D6). 실제 색이 나오는지는 M1 증거와 manual 항목이 맡는다.
 - **공통 입력**: 엔티티 샘플 `flowchart LR\n  A[R&amp;D] --> B["따옴표"]`, 실패 샘플 `notarealdiagramtype foo!!!`, 위치가 있는 문법 오류 샘플은 M1에서 pele가 실제로 `line`·`column`을 돌려준 소스를 쓴다.
 
@@ -50,13 +50,13 @@
 
 - **Given** pele `render`를 감시하는 상태에서
 - **When** 미리보기·AI 검증·AI 카드·내보내기·프리셋 경로로 각각 렌더하면
-- **Then** 모든 호출의 옵션에 `autoDirection: false`, `links: false`, `images: false`, M1에서 정한 `responsive` 값이 있고, 호출자가 넘긴 값으로 바뀌지 않는다. (REQ-002)
+- **Then** 모든 호출의 옵션에 `autoDirection: false`, `links: false`, `images: false`, `responsive: true`가 있고, 호출자가 넘긴 값으로 바뀌지 않는다. (REQ-002)
 
 ### AC-PREVIEW015-005: 출력은 sanitizeSvg를 거친다 — must-pass (unit)
 
 - **Given** `sanitizeSvg`를 감시하는 상태에서
 - **When** 모듈이 렌더 결과를 돌려주면
-- **Then** 돌려준 SVG는 `sanitizeSvg` 결과와 같고, 그 안에 `<script>`·`foreignObject`·`on*` 속성이 없다. `git diff`로 `src/lib/preview/svgSanitize.ts`가 바뀌지 않았음을 확인한다(코드 리뷰). (REQ-003)
+- **Then** 수식이 없는 다이어그램에서 돌려준 SVG는 `sanitizeSvg` 결과와 같고, 그 안에 `<script>`·`foreignObject`·`on*` 속성이 없다. 수식이 있는 다이어그램의 `foreignObject.pele-math` 허용은 AC-025(잠정)가 다룬다. `git diff`로 `src/lib/preview/svgSanitize.ts`가 바뀌지 않았음을 확인한다(코드 리뷰). (REQ-003)
 
 ### AC-PREVIEW015-006: 오류 문구에 소스·메시지가 HTML로 들어가지 않는다 — must-pass (unit)
 
@@ -66,9 +66,10 @@
 
 ### AC-PREVIEW015-007: 오류 위치 접미사 형식 — must-pass (unit)
 
-- **Given** pele가 거부하는 소스 세 가지(위치 `line ≥ 1, column ≥ 1` / `line ≥ 1, column = 0` / `line = 0`)가 있을 때 — 위치가 실제로 그렇게 나오는 소스는 M1에서 고른다
+- **Given** M1에서 실제 pele 출력으로 확인한 거부 소스 두 종류가 있을 때: (a) 위치가 있는 소스 `sequenceDiagram\n  A->>B hello`(pele `line 2`, `column 14`) (b) 위치가 없는 소스 `pie\n  "a" : -1`(`semantic`, 0/0)과 `notarealdiagramtype foo!!!`(`unsupported-diagram`, 0/0)
 - **When** 미리보기가 렌더하면
-- **Then** 표시 문구가 각각 `⚠ Diagram syntax error (L행 C열)`, `⚠ Diagram syntax error (L행)`, `⚠ Diagram syntax error`이고, 마크업은 `<p class="text-sm text-amber-500 italic py-2">`이다. (REQ-009)
+- **Then** (a)는 `⚠ Diagram syntax error (2행 14열)`, (b)의 두 소스는 접미사 없는 `⚠ Diagram syntax error`이고, 마크업은 `<p class="text-sm text-amber-500 italic py-2">`이다. 위치 숫자는 하드코딩하지 않고, 같은 소스로 모듈이 받은 `PeleError`의 `line`·`column`과 같음을 단언한다. (REQ-009)
+- 참고: M1에서 "line만 있고 column은 0"인 출력은 변형 6,264개에서 한 번도 나오지 않아(report F5) 그 갈래는 요구에서 뺐다.
 
 ### AC-PREVIEW015-008: 한 다이어그램 실패가 다른 다이어그램을 막지 않는다 — must-pass (unit)
 
@@ -149,10 +150,20 @@
 - **Given** 라이트·다크 색 값 표(서로 다른 값)를 주입하고, `classDef`·`style` 색 지정 샘플과 일반 flowchart가 든 문서일 때
 - **When** 아래 6가지 조합으로 각각 내보내면: HTML × `light`/`dark`, PDF(`generateHtmlContent`) × `light`/`dark`, DOCX(래스터 입력 SVG) × `light`/`dark`
 - **Then** (unit) 6가지 조합 **각각**에서 다음이 모두 참이다.
-  1. 다이어그램 SVG 문자열에 `var(--pele-` 부분 문자열이 **0번** 나온다.
-  2. 그 조합의 테마에 주입한 값이 SVG 안에 1개 이상 있고, 다른 테마에만 있는 값은 없다.
+  1. 다이어그램 SVG 문자열에 `var(--pele-` 부분 문자열이 **0번** 나온다(pele 내부 `var(--_…)`는 검사 대상이 아니다, report F9).
+  2. 기대 테마의 값이 SVG 안에 1개 이상 있고, 다른 테마에만 있는 값은 없다. 기대 테마는 조합마다 다음과 같다.
+
+     | 조합 | 기대 테마 |
+     |------|-----------|
+     | HTML × light | light |
+     | HTML × dark | dark |
+     | PDF × light | light |
+     | PDF × dark | dark |
+     | DOCX × light | light |
+     | DOCX × dark | **light** — 다크 테마로 내보낸 DOCX도 라이트 값을 담고 다크에만 있는 값은 담지 않는다(design.md D6) |
+
   3. 사용자가 `classDef`·`style`로 지정한 색 값은 그대로 남는다.
-- **And** (manual) 내보낸 HTML을 다른 브라우저에서, PDF를 미리보기 앱에서, DOCX를 Word에서 열면 다이어그램 색과 글자가 앱 미리보기와 같은 테마로 보인다. (REQ-018)
+- **And** (manual) 내보낸 HTML을 다른 브라우저에서, PDF를 미리보기 앱에서 열면 다이어그램 색과 글자가 내보내기 테마로 보이고, DOCX를 Word에서 열면 내보내기 테마와 상관없이 흰 페이지에 라이트 색으로 글자가 읽힌다. (REQ-018)
 
 ### AC-PREVIEW015-021: DOCX 다이어그램 크기는 pele 크기를 따른다 — must-pass (unit)
 
@@ -213,6 +224,13 @@
 - **And** 위 7개 SPEC 각각의 HISTORY 표에 `SPEC-PREVIEW-015`를 담은 행이 1개 이상 있다. USER_MANUAL 목차 `:15` 링크가 실제 부록 제목으로 이동한다.
 - **And** (manual, macOS 앱) 다이어그램이 많은 실제 문서를 열어 라이트·다크 전환, 문법 오류 위치 표시, 빈 펜스 안내, 삽입 메뉴 7종, AI "다이어그램으로"(다크 모드 미니 미리보기 포함), HTML·PDF·DOCX 내보내기를 한 번씩 확인한다. (REQ-024)
 
+### AC-PREVIEW015-025: 다이어그램 안 수식이 KaTeX로 그려지고 허용 목록은 수식에만 걸린다 — must-pass (unit + evidence), **잠정 — M1b 보강 측정 뒤 확정**
+
+- **Given** `18-math-label` 샘플(라벨에 `$$x^2 + y^2$$`)과, `class`가 `pele-math`가 아닌 `foreignObject`·`<script>`·`onload` 속성을 섞어 넣은 SVG 문자열이 있을 때
+- **When** (unit) diagram module로 렌더·정화하고, 같은 악성 SVG를 공유 `sanitizeSvg`(SVG 파일 뷰어 경로)로도 정화하면
+- **Then** 다이어그램 결과에는 `foreignObject.pele-math`가 1개 이상 있고 그 안에 KaTeX 출력(`class="katex"`)이 있으며, 다른 `foreignObject`·`<script>`·`on*` 속성은 0개다. 공유 `sanitizeSvg` 결과에는 `foreignObject`가 0개이고 M1 때와 같다.
+- **And** (evidence) M1b 결과표(`m1/checks.md` "M1b")에 미리보기 렌더, 허용 목록 왕복, HTML 내보내기, DOCX PNG, CSP 다섯 항목의 명령·출력·PASS/FAIL과 사용자 판정이 있다. DOCX가 실패했다면 사용자가 정한 DOCX 처리 방식과 그에 맞춰 확정한 문구가 이 AC에 반영되어 있다. (REQ-003, REQ-025)
+
 ## 추적표 (REQ → AC)
 
 | REQ | AC |
@@ -241,6 +259,7 @@
 | 022 | 023 |
 | 023 | 001, 002 |
 | 024 | 024 |
+| 025 | 005, 025 (잠정) |
 
 ## 기계 검증 게이트
 
@@ -265,6 +284,7 @@
 ## Definition of Done
 
 - AC-001 사용자 통과 판정이 progress.md에 기록됨(보류이면 이 SPEC은 M1에서 끝나고 나머지 AC는 대상이 아님).
+- M1b 판정이 기록되고, REQ-025·AC-025와 design.md D4·D15의 잠정 표시가 최종 문구로 바뀜.
 - 기계 검증 게이트 7종 결과를 명령 출력과 함께 progress.md §E.2에 인용.
 - AC-019(DOCX 밀림)·AC-018(에디터 단독)의 재현 테스트가 교체 전 코드에서 실패했음을 기록.
 - 변경 파일이 plan.md 변경 표 안으로 한정되고 `spike/pele/`가 삭제됨.

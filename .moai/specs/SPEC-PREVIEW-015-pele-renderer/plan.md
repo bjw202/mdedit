@@ -20,20 +20,20 @@
 | # | 결정 (요약) |
 |---|-------------|
 | D1 | 엔진 = pele 1.10.0 전면 교체 |
-| D2 | 고정 옵션 `autoDirection: false`·`links: false`·`images: false`, `responsive`는 M1 판정 |
+| D2 | 고정 옵션 `autoDirection: false`·`links: false`·`images: false`·`responsive: true` |
 | D3 | 모듈 하나, 검증과 렌더가 같은 렌더 함수 |
-| D4 | 정화 = 기존 `sanitizeSvg` 그대로 |
+| D4 | 정화 = `sanitizeSvg` 규칙 + `foreignObject.pele-math` 허용 목록만 추가 (공유 설정 무변경, 수식 부분 M1b 뒤 확정) |
 | D5 | `--pele-*` ↔ `--md-*` 연결 (변수 목록은 M1 확정) |
-| D6 | 내보내기 = 원본 렌더 + 모든 `var(--pele-…)`를 실제 값으로 치환 (단일 방식) |
+| D6 | 내보내기 = 원본 렌더 + 모든 `var(--pele-…)`를 실제 값으로 치환 (HTML·PDF는 내보내기 테마, DOCX는 항상 라이트) |
 | D7 | 실패·빈 펜스 자리 = 형식별 현재 동작 + 위치 고정 |
 | D8 | DOCX 크기 = pele `width`·`height` |
-| D9 | 오류 문구 형식, `error` = `PeleError.message` |
+| D9 | 오류 문구 형식(`(L행 C열)` 또는 접미사 없음), `error` = `PeleError.message` |
 | D10 | 클래스·파일 이름 유지 |
 | D11 | 시험 렌더링 코드 `spike/pele/`, M7에서 삭제 |
 | D12 | M1 보고서 `m1/report.html` + `m1/checks.md` |
 | D13 | `images: false` 고정 |
-| D14 | 픽스처 두 묶음(`unit/`·`browser/`), 매니페스트에 캡처 환경·측정기 기록 |
-| D15 | 수식 라벨(`foreignObject`) 미지원 |
+| D14 | 픽스처 두 묶음(`unit/`·`browser/`), 매니페스트에 캡처 환경·측정기 기록, 단위 테스트 측정기 `jsdom-default` |
+| D15 | 다이어그램 안 수식 = pele `math` + 기존 `katex` (M1b 보강 측정 뒤 확정) |
 
 ## 마일스톤 (우선순위 순, 시간 추정 없음)
 
@@ -59,9 +59,21 @@
 
 **게이트:** 보고서를 사용자에게 보이고 통과/보류를 사용자가 정한다. 오케스트레이터가 `AskUserQuestion`으로 묻고, 결과(판정, `responsive` 선택, D5 변수 목록, D14 단위 테스트 측정기)를 progress.md §E.2에 기록하고, 확정 값은 manager-spec 재위임으로 design.md에 반영한다.
 - **보류**: 여기서 멈춘다. 브랜치는 머지하지 않고 그대로 두며, 보류 이유와 다시 볼 조건(예: pele 다음 버전, 이슈 #29 해결)을 progress.md에 적는다. M2 이후 작업은 하지 않는다.
-- **통과**: M2로 간다.
+- **통과**: M1b로 간다.
 
 Reference: research.md §1.7, §4.5, §8 / `.moai/reports/mermaid-pele-feasibility-2026-10-24.md` §5(주 체크아웃)
+
+### M1b (Priority High, **HUMAN GATE — M1 보강**) — 다이어그램 수식 해석기 시험
+
+M1 판정 뒤 사용자가 다이어그램 안 수식을 pele `math` + 기존 `katex`로 지원하기로 정했다(design.md D15). M1과 같이 운영 코드를 바꾸지 않고 `spike/pele/` 안에서 측정만 한다. 모든 항목은 측정으로 확인하고, 추정으로 채우지 않는다.
+
+1. **미리보기 렌더**: KaTeX 해석기를 넘긴 pele 출력을 webkit 비교 페이지에서 렌더해 `foreignObject.pele-math` 안에 수식이 보이는지, `width`·`height`가 맞는지 기록한다(`18-math-label` 샘플, 스크린숏).
+2. **정화 허용 목록 왕복**: 다이어그램 전용 정화 경로(D4)를 거친 뒤 `foreignObject.pele-math`와 KaTeX HTML이 남고, `class`가 다른 `foreignObject`·`<script>`·`on*` 속성은 지워지는지 확인한다. 같은 실행에서 공유 `sanitizeSvg`의 결과(SVG 파일 뷰어 경로)가 M1과 바이트 단위로 같은지도 확인한다(공유 설정 무영향).
+3. **HTML 내보내기**: 내보낸 HTML을 앱 밖 브라우저로 열어 수식이 보이는지 확인한다. KaTeX CSS가 없을 때의 표시도 함께 기록한다.
+4. **DOCX PNG**: 현재 DOCX 래스터화 방식(SVG→data URI→`Image`→canvas)으로 `foreignObject` 수식이 PNG에 그려지는지 확인한다.
+5. **CSP**: 앱 CSP(`index.html:7`) 아래에서 콘솔 CSP 오류가 없는지 확인한다.
+
+결과는 `m1/checks.md`에 "M1b" 표로 덧붙인다. **게이트**: 오케스트레이터가 결과를 사용자에게 보이고 `AskUserQuestion`으로 판정을 받는다. DOCX(항목 4)가 실패하면 DOCX만의 처리 방식도 이 게이트에서 사용자가 정한다. 판정 뒤 manager-spec 재위임으로 spec REQ-025·AC-025와 design.md D4·D15의 잠정 표시를 지우고 최종 문구로 바꾼다. 그 전에는 M2로 가지 않는다.
 
 ### M2 (Priority High) — 다이어그램 모듈, 의존성, 테마 토큰
 
@@ -107,7 +119,7 @@ Reference: research.md §4.5
 
 ### M7 (Priority Low) — 정리, 게이트, MX
 
-- `spike/pele/` 삭제(D11). `node_modules`에 mermaid가 남지 않았는지 확인.
+- `spike/pele/` 삭제(D11). 캡처한 픽스처 `src/test/fixtures/pele/`(`unit/`·`browser/`)와 `manifest.json`은 **남긴다**(단위 테스트·구조 확인의 기준). `node_modules`에 mermaid가 남지 않았는지 확인.
 - 남은 mermaid 참조 검사: `grep -rn "from 'mermaid'\|import('mermaid')\|vi.mock('mermaid'" src e2e` 결과 0건.
 - 게이트: acceptance.md "기계 검증 게이트".
 - MX: 새 모듈 공개 함수에 `@MX:ANCHOR`(호출부 4곳 이상), `PreviewRenderer.tsx:25-28`·`mermaidValidate.ts:4-5`의 `securityLevel` 경고 주석을 "strict 모드 = pele + sanitizeSvg + links:false" 경고로 교체.
@@ -116,6 +128,7 @@ Reference: research.md §4.5
 
 - `docs/USER_MANUAL.md:498-665` 부록 갱신, 목차 `:15` 앵커 수정, `:29`, `:75-80`, `:94` 언급 확인.
 - `docs/USER_GUIDE.md:206-208`(`### Mermaid 다이어그램` 절, 테마 전환 즉시 재채색 → 재렌더 없이 색 전환), `:236`, `:320` 확인.
+- **다이어그램 수식·DOCX 색 안내**: `docs/USER_MANUAL.md` Mermaid 부록과 `docs/USER_GUIDE.md` `### Mermaid 다이어그램` 절에 다이어그램 안 `$$…$$` 수식 지원 범위를 M1b 판정 결과대로 적는다(DOCX 처리 방식 포함, design.md D15). DOCX 다이어그램은 항상 라이트 색으로 들어간다는 안내도 함께 넣는다(design.md D6).
 - `README.md:15, 104`("Mermaid 11.12.3" → pele 1.10.0, Mermaid 문법 지원).
 - `.moai/project/tech.md:43, 126-131, 224, 350`, `.moai/project/structure.md:229, 250, 335, 508`, `.moai/project/codemaps/*`의 mermaid 언급.
 
@@ -166,7 +179,7 @@ Reference: research.md §4.5
 | 내보낸 파일에서 색 소실 | D6 모든 `var(--pele-…)`를 내보내기 테마의 실제 값으로 치환. M1에서 HTML·PDF·DOCX 실물 확인, M4 단위 테스트(AC-020)로 형식·테마별 `var(--pele-` 0건 + 해당 테마 값 존재 고정 |
 | `data-diagram` 이스케이프 계약(`mermaidPlugin.ts:19`는 `"`만 바꿈)이 미리보기·내보내기 입력 차이를 만듦 | REQ-006·015로 같은 입력 요구. M1 엔티티 샘플로 차이 실측, M4 단위 테스트로 고정 |
 | 여러 다이어그램의 SVG 내부 `id` 충돌(화살표 마커가 다른 다이어그램 정의를 가리킴) | D3 고유 `idPrefix`. AC-PREVIEW015-010(미리보기)과 AC-PREVIEW015-017(내보낸 HTML)에서 `id` 중복 0건 단언 |
-| jsdom에 캔버스가 없어 pele 글자 폭 측정이 다르게 동작 | M1 항목 8에서 확인하고 측정기를 정한다(design.md D14 — 바이트 비교는 같은 측정기 픽스처끼리만). 실제 pele 렌더가 jsdom에서 되면 실제 엔진으로, 안 되면 pele `measurer` 옵션의 고정 폭 측정기를 테스트 전용으로 주입(운영 옵션 D2와 별개). 레이아웃 수치 단언은 e2e(webkit)에만 둔다 |
+| jsdom에 캔버스가 없어 pele 글자 폭 측정이 다르게 동작 | **M1 해소**: jsdom에서 pele가 내장 글자 폭 표로 결정적으로 렌더함을 확인했고 단위 테스트 측정기를 `jsdom-default`로 정했다(픽스처 재렌더 76/76 일치, design.md D14). 바이트 비교는 같은 측정기 픽스처끼리만 한다. 레이아웃 수치 단언은 e2e(webkit)에만 둔다 |
 | `sanitizeSvg`가 pele 출력의 일부(`<style>`, 인라인 style, `id` 참조)를 지움 | M1 "정화 후 모양 유지" 확인. 지워지면 보류 사유이거나 정화 설정 완화가 필요한데, 완화는 Out of Scope이므로 사용자에게 다시 묻는다 |
 | 다이어그램 안 외부 이미지(pele 기본 `images: true`) | D13 `images: false`로 렌더 단계에서 차단. `sanitizeSvg` 훅이 스킴 있는 `href`를 지우는 두 번째 방어선(research.md §1.6). AC-PREVIEW015-012로 외부 이미지 href 0건 고정 |
 | Windows `open_url_in_browser` 스킴 미검증(`browser_ops.rs:11-29`) | `links: false`로 다이어그램에서 닿지 않는다. 마크다운 본문 링크 경로는 기존 그대로이며 별도 보안 정리 후보 |
@@ -180,7 +193,7 @@ Reference: research.md §4.5
 | `spike/pele/**` | M1 생성 → M7 삭제 | 시험 렌더링 코드 |
 | `.moai/specs/SPEC-PREVIEW-015-pele-renderer/m1/{report.html,checks.md}` | M1 | 비교 보고서·기계 확인 표 |
 | `src/test/fixtures/pele/**` | M1 | 실제 렌더 캡처 픽스처 + `manifest.json` |
-| `src/lib/diagram/diagramRenderer.ts` (신규) | M2 | 렌더·검증·위치 문구·색 풀어 넣기 |
+| `src/lib/diagram/diagramRenderer.ts` (신규) | M2 | 렌더·검증·위치 문구·색 풀어 넣기, KaTeX 수식 해석기와 다이어그램 전용 정화 경로(M1b 확정 뒤) |
 | `src/test/diagramRenderer.test.ts` (신규) | M2 | 모듈 단위 테스트 |
 | `package.json`, `package-lock.json` | M1·M2 | pele 추가, mermaid·patch-package·postinstall 제거 |
 | `patches/mermaid+11.12.3.patch` | M2 | 삭제 |
