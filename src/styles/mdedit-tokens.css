@@ -8,6 +8,10 @@
    numbered ramp step directly; always go through a --md-* role below.
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* [data-theme="light"] re-declares the light roles on an element below a
+   dark root — the diagram export colour probe (SPEC-PREVIEW-015 design.md D6)
+   reads light values this way, because DOCX diagrams are always light. */
+[data-theme="light"],
 :root {
   /* ── Color · semantic roles (LIGHT) ─────────────────────────────────── */
   --md-bg:              #f2f2f3;   /* app window ground */

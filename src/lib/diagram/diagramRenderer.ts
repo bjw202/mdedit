@@ -1,4 +1,4 @@
-// @MX:SPEC: SPEC-PREVIEW-015 REQ-PREVIEW015-001 REQ-PREVIEW015-002 REQ-PREVIEW015-003 REQ-PREVIEW015-025
+// @MX:SPEC: SPEC-PREVIEW-015 REQ-PREVIEW015-001 REQ-PREVIEW015-002 REQ-PREVIEW015-003 REQ-PREVIEW015-018 REQ-PREVIEW015-025
 // 다이어그램(Mermaid 문법) 렌더·검증의 유일한 경로. pele 1.10.0을 이 파일에서만 import한다(design.md D3).
 // 정화는 전역 DOMPurify가 아닌 별도 인스턴스로 하며, 공유 sanitizeSvg(svgSanitize.ts)는 호출도 수정도 하지 않는다(D4).
 
@@ -217,6 +217,87 @@ export function renderDiagramForTest(source: string, deps: { measureMath: MathMe
 export function validateDiagram(source: string): DiagramValidation {
   const r = renderDiagram(source);
   return r.ok ? { valid: true } : { valid: false, error: r.error.message };
+}
+
+// ── 내보내기용 색 값 치환 (design.md D6) ──────────────────────────────────
+
+/** mdedit-tokens.css가 정의하는 --pele-* 변수 목록(design.md D5). */
+export const PELE_THEME_VARS = [
+  '--pele-accent', '--pele-bg', '--pele-border', '--pele-fg', '--pele-font', '--pele-font-mono',
+  '--pele-heading-weight', '--pele-line', '--pele-muted', '--pele-radius',
+  '--pele-series-1', '--pele-series-2', '--pele-series-3', '--pele-series-4',
+  '--pele-series-5', '--pele-series-6', '--pele-series-7', '--pele-series-8',
+  '--pele-surface', '--pele-surface-alt', '--pele-title-weight', '--pele-error', '--pele-critical',
+] as const;
+
+/** 변수 이름(`--pele-…`) → 실제 값. 빠진 이름은 pele 대체값으로 채운다. */
+export type PeleThemeValues = Readonly<Record<string, string>>;
+
+/**
+ * 쓸 테마의 --pele-* 값을 앱 CSS에서 읽는다. data-theme를 단 탐침 요소를 잠깐 붙여 getComputedStyle로 읽고 바로 뗀다.
+ * 라이트 탐침은 mdedit-tokens.css의 `[data-theme="light"], :root` 블록이 다크 루트 아래에서도 라이트 값을 다시 선언해 준다.
+ * jsdom처럼 값을 계산하지 못하는 환경에서는 빈 표를 돌려주며, 치환은 pele 대체값으로 채워진다.
+ */
+export function readPeleThemeValues(theme: 'light' | 'dark'): PeleThemeValues {
+  const out: Record<string, string> = {};
+  if (typeof document === 'undefined' || !document.body || typeof getComputedStyle !== 'function') return out;
+  const probe = document.createElement('div');
+  probe.setAttribute('data-theme', theme);
+  probe.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;visibility:hidden';
+  document.body.appendChild(probe);
+  try {
+    const cs = getComputedStyle(probe);
+    for (const name of PELE_THEME_VARS) {
+      const value = cs.getPropertyValue(name).trim();
+      if (value) out[name] = value;
+    }
+  } finally {
+    probe.remove();
+  }
+  return out;
+}
+
+const PELE_VAR_MARK = 'var(--pele-';
+
+// @MX:WARN: [AUTO] 내보내기 테마 기준으로 모든 var(--pele-…)를 치환해야 한다 — 하나라도 남기지 말 것
+// @MX:REASON: [AUTO] pele는 항상 라이트 대체값(var(--pele-bg,#fff) 등)을 붙여 출력하므로, 참조가 하나라도 남으면 앱 밖에서
+//   그 부분이 조용히 라이트로 그려져 다크 내보내기가 라이트가 된다(AC-020). 표에 없는 이름은 대체값으로 채워 0건을 지킨다.
+/** CSS 텍스트 안의 모든 `var(--pele-이름[, 대체값])`을 표의 값(없으면 대체값, 중첩 해석)으로 바꾼다. 다른 var()는 그대로 둔다. */
+export function resolvePeleVars(css: string, values: PeleThemeValues): string {
+  let out = '';
+  let from = 0;
+  for (;;) {
+    const start = css.indexOf(PELE_VAR_MARK, from);
+    if (start < 0) return out + css.slice(from);
+    let depth = 0;
+    let comma = -1;
+    let end = start + 3; // '(' 위치
+    for (; end < css.length; end++) {
+      const ch = css[end];
+      if (ch === '(') depth++;
+      else if (ch === ')' && --depth === 0) break;
+      else if (ch === ',' && depth === 1 && comma < 0) comma = end;
+    }
+    if (end >= css.length) return out + css.slice(from); // 괄호가 닫히지 않은 비정상 입력은 건드리지 않는다
+    const name = css.slice(start + 4, comma >= 0 ? comma : end).trim();
+    const fallback = comma >= 0 ? css.slice(comma + 1, end).trim() : '';
+    out += css.slice(from, start) + (values[name] || resolvePeleVars(fallback, values));
+    from = end + 1;
+  }
+}
+
+/** 다이어그램 SVG 요소(정화된 모듈 결과)의 속성 값과 <style> 텍스트에서 var(--pele-…)를 모두 치환한다(제자리 변경). */
+export function resolveDiagramColors(root: Element, values: PeleThemeValues): void {
+  const visit = (el: Element): void => {
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.value.includes(PELE_VAR_MARK)) attr.value = resolvePeleVars(attr.value, values);
+    }
+    if (el.localName === 'style' && el.textContent?.includes(PELE_VAR_MARK)) {
+      el.textContent = resolvePeleVars(el.textContent, values);
+    }
+    for (const child of Array.from(el.children)) visit(child);
+  };
+  visit(root);
 }
 
 /** 미리보기 오류 문구(design.md D9): line·column이 모두 1 이상이면 "(L행 C열)"을 붙이고, 그 밖에는 접미사 없이. */

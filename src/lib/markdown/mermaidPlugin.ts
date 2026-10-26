@@ -16,6 +16,9 @@ export function mermaidPlugin(md: MarkdownIt): void {
     const token = tokens[idx];
     if (token.info.trim() === 'mermaid') {
       const diagram = token.content;
+      // @MX:NOTE: [AUTO] `"`만 `&quot;`로 바꾸는 이 계약이 다이어그램 렌더러 입력을 정한다 — 미리보기는 속성 파싱으로 엔티티가
+      //   디코드된 data-diagram 값을 받는다. 내보내기(exportUtils.previewDiagramInput)도 같은 문자열을 써야 하므로(SPEC-PREVIEW-015
+      //   REQ-006·015) 이스케이프 범위를 바꾸면 previewDiagramInput도 함께 바꿔야 한다.
       const escaped = diagram.replace(/"/g, '&quot;');
       return `<div class="mermaid-container" data-diagram="${escaped}"></div>`;
     }

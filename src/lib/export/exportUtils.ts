@@ -4,6 +4,42 @@
 // @MX:NOTE: [AUTO] getPreviewCss returns a large static CSS string embedding all preview styles inline for self-contained HTML export
 
 import type { HtmlDocumentOptions } from './types';
+import { renderDiagram, resolveDiagramColors, type PeleThemeValues } from '@/lib/diagram/diagramRenderer';
+
+/**
+ * 펜스 원문을 미리보기가 받는 문자열로 바꾼다(SPEC-PREVIEW-015 REQ-006·015).
+ * mermaidPlugin.ts는 `"`만 `&quot;`로 바꿔 data-diagram 속성에 넣고, 미리보기는 그 속성값(엔티티가 디코드된 값)을 읽는다.
+ * 같은 이스케이프 + 같은 HTML 속성 파싱을 거쳐야 내보내기 입력이 미리보기와 같아진다(예: `A[R&amp;D]` → `A[R&D]`).
+ */
+export function previewDiagramInput(fenceContent: string): string {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = `<div data-diagram="${fenceContent.replace(/"/g, '&quot;')}"></div>`;
+  return tpl.content.firstElementChild?.getAttribute('data-diagram') ?? '';
+}
+
+export interface ExportDiagram {
+  /** 정화·색 값 치환이 끝난 SVG 요소(비활성 template 문서 소유) */
+  svg: SVGSVGElement;
+  /** pele가 알려 준 자연 크기(px) */
+  width: number;
+  height: number;
+}
+
+/**
+ * 내보내기용 다이어그램 1개를 원본에서 렌더하고 모든 var(--pele-…)를 주어진 테마 값으로 치환한다(design.md D6).
+ * 빈 소스와 렌더 실패는 null — 자리 처리는 호출자가 형식별로 한다(D7).
+ */
+export function renderExportDiagram(source: string, values: PeleThemeValues): ExportDiagram | null {
+  if (!source.trim()) return null;
+  const result = renderDiagram(source);
+  if (!result.ok) return null;
+  const tpl = document.createElement('template');
+  tpl.innerHTML = result.svg; // 모듈이 정화한 SVG
+  const svg = tpl.content.querySelector('svg');
+  if (!svg) return null;
+  resolveDiagramColors(svg, values);
+  return { svg, width: result.width, height: result.height };
+}
 
 /**
  * Generates an export filename by replacing the markdown extension with the
@@ -68,7 +104,9 @@ export function getPreviewCss(theme: 'light' | 'dark'): string {
   const tableBorder = theme === 'dark' ? '#4b5563' : '#d1d5db';
   const linkColor = theme === 'dark' ? '#60a5fa' : '#2563eb';
   const hrColor = theme === 'dark' ? '#374151' : '#e5e7eb';
-  const mermaidBg = theme === 'dark' ? '#1f2937' : '#f9fafb';
+  // 다이어그램 카드 바탕 = --md-bg(= --pele-bg) 값. pele 간선 라벨 상자가 --pele-bg로 칠해지므로 같은 색이어야 이음매가 없다
+  // (mdedit-tokens.css 라이트 #f2f2f3 / 다크 #191b1d, SPEC-PREVIEW-015 D5·D6).
+  const mermaidBg = theme === 'dark' ? '#191b1d' : '#f2f2f3';
 
   return `:root {${themeVars}
 }
