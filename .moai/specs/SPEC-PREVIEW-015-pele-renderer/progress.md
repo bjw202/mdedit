@@ -175,6 +175,65 @@
 - M4 전까지의 내보내기: `exportHtml`·`exportDocx`가 미리보기 DOM의 다이어그램을 그대로 가져가므로, 이 브랜치에서는 M4 전까지 내보낸 파일에 `var(--pele-*)`가 풀리지 않은 pele SVG가 들어갈 수 있다(측정하지 않음, M4가 해소).
 - 저장소 전체 `npm run lint`와 `vite build`는 실행하지 않았다.
 
+### M4 내보내기 원본 렌더·의존성 제거 (2026-10-26, 기준 HEAD e9c7470)
+
+#### 변경
+
+| 커밋 | 내용 |
+|---|---|
+| `828dd92` | `diagramRenderer.ts`: `PELE_THEME_VARS`(D5 목록 23개), `readPeleThemeValues(theme)`(`data-theme` 탐침 요소 + `getComputedStyle`, 읽은 뒤 바로 제거), `resolvePeleVars(css, values)`(모든 `var(--pele-…)`를 표 값으로, 없으면 대체값을 중첩 해석해 채움 — 0건 보장), `resolveDiagramColors(svg, values)`(속성 값·`<style>` 텍스트 제자리 치환, `foreignObject` 안쪽 포함). `exportUtils.ts`: `previewDiagramInput`(mermaidPlugin과 같은 `"`→`&quot;` + HTML 속성 파싱 → 미리보기와 같은 문자열), `renderExportDiagram`(빈 소스·실패 → null), 다이어그램 카드 바탕을 `--md-bg` 값(#f2f2f3 / #191b1d)으로. `mdedit-tokens.css`: 라이트 블록 선택자를 `[data-theme="light"],\n:root`로 확장. `mermaidPlugin.ts:19` `@MX:NOTE` |
+| `2c12807` | `exportHtml.ts`: `replaceMermaidPlaceholders(html, theme)` — 자리마다 `data-diagram`을 렌더해 내보내기 테마 값으로 치환, 전역 `document.querySelectorAll` 제거, 빈·실패 자리는 빈 컨테이너. PDF(`generateHtmlContent`)도 같은 경로. `exportDocx.ts`: `captureMermaidImages`·`shift()` 제거, 펜스 토큰 자리에서 `renderFenceDiagramPng`(입력 `previewDiagramInput`, 색 항상 라이트, 크기 = pele `width`·`height` × 0.75pt, 2배 래스터, 415pt 넘으면 비율 유지 축소), 실패·빈 펜스는 코드 텍스트. 테스트 `exportDiagram.test.ts` 신설, DM1 재작성 |
+| `dafc840` | `m2-dependency-removal.patch` 적용(`git apply --check` 통과 후): `mermaid`·`patch-package`·`postinstall` 제거, `patches/` 삭제, `package-lock.json` 재생성(`npm install` → `removed 142 packages`), 가드 테스트 2개 개정(`pele === '1.10.0'`, mermaid·patch-package·postinstall·패치 파일 재유입 시 실패, 핀 `@MX:NOTE`) |
+
+- **라이트 선택자 확장 이유(계획 밖 1줄 변경)**: D6은 DOCX 색을 항상 라이트로 정했는데, `--pele-*`는 `var(--md-*)`를 선언한 요소에서 풀린다. M2는 "라이트 루트 아래 다크 탐침"만 다뤘으므로, 다크 앱에서 `data-theme="light"` 탐침을 붙이면 다크 값이 상속되어 DOCX가 다크 색이 된다. 라이트 블록을 `[data-theme="light"]`에도 걸어 탐침에서 라이트 `--md-*`·`--pele-*`가 다시 선언되게 했다. 영향 확인: 앱에서 `data-theme`를 다는 곳은 `useTheme.ts:24`(`<html>`, 루트 테마와 같은 값)와 `ImageFileViewer.tsx:138`(스토어 원값 `light|dark|system` — `light`일 때 루트도 라이트이므로 값 변화 없음)뿐이다(`grep -rn "data-theme" src`). 기존 CSS 텍스트 테스트(`:root {` 검색)는 그대로 통과한다.
+- MX: 색 치환 함수 `@MX:WARN`+`@MX:REASON`(diagramRenderer), `exportDocx.ts:32` shift NOTE 삭제 → 펜스별 렌더·PNG 변환부 `@MX:WARN`+`@MX:REASON`, `exportHtml.ts` 자리별 렌더 `@MX:NOTE`, `exportHtml`·`exportDocx`·`diagramRenderer`(REQ-018) `@MX:SPEC` 추가, `mermaidPlugin.ts:19` NOTE, 가드 테스트 핀 NOTE(패치에 포함).
+- `exportPdf.ts`: 무변경. 인쇄 스타일(`exportPdf.ts:73-91`)은 `img` 규칙과 내보내기 CSS만 넣고 SVG 색을 덮는 규칙이 없다. 내보낸 SVG에는 `var(--pele-`가 없어 앱 문서의 토큰에도 기대지 않는다.
+
+#### 단위 테스트가 증명하는 것 / 대체하는 것
+
+- **실제**: `renderMarkdown`·markdown-it·pele 1.10.0·다이어그램 모듈(정화 포함)·`resolvePeleVars`·`previewDiagramInput`·DOCX 토큰 변환.
+- **대체**: (1) IPC(저장 대화상자·파일 쓰기). (2) pele `render`는 통과형 감시 래퍼(`vi.fn(real.render)`) — 입력 기록용, 출력은 실제 pele. (3) 수식 크기 측정: `renderDiagram`을 `renderDiagramForTest(src, {measureMath: 48×20})`로 감싼 통과형 래퍼(D14, jsdom은 크기 0). (4) 테마 값: `readPeleThemeValues`를 서로 다른 라이트·다크 주입 표로 대체(D6 시험용 진입점). 실제 `readPeleThemeValues`는 jsdom에서 빈 표를 돌려줌을 따로 확인(대체값으로 채워 `var(--pele-` 0, 탐침 잔류 0). (5) `Image`는 src(래스터 입력 SVG data URI)를 기록하고 onload만 부르며, canvas `getContext`·`toBlob`은 **래스터 단계(onload 안)에서만** 스텁을 돌려준다 — pele도 글자 폭 측정에 canvas를 쓰므로, 항상 켜 두면 pele가 스텁을 측정기로 잡아 `n.measureText is not a function`으로 렌더가 실패했다(측정으로 발견). 따라서 **PNG 픽셀·DOCX 실제 표시는 증명하지 않는다**. 증명하는 것은 래스터 입력 SVG 내용, canvas 폭(= pele 폭 × 2), `ImageRun` 크기·개수·위치다.
+- 실제 `readPeleThemeValues`가 앱 CSS에서 올바른 값을 읽는지(특히 다크 앱의 라이트 탐침)는 jsdom이 사용자 정의 속성 연쇄를 계산하지 않아 단위 테스트로 증명하지 않았다. 선택자 존재만 CSS 텍스트로 단언했다.
+
+#### 검증 (이 worktree에서 직접 실행, 출력 전문 `.moai/state/verify/pele-015-m4/`)
+
+| 명령 | 결과 |
+|---|---|
+| `npx vitest run src/test/exportDiagram.test.ts src/test/exportImageEmbed.test.ts` (구현 전, RED) | exit 1 — `Tests  20 failed \| 27 passed (47)` (`red.txt`) |
+| 같은 명령, 새 모듈·CSS 위에 **옛 `exportHtml.ts`·`exportDocx.ts`**(HEAD 내용을 잠시 되돌림) | exit 1 — `Tests  18 failed \| 29 passed (47)`. AC-017·018(미리보기 DOM 없음·잔재 DOM 사용), AC-019(HTML·DOCX 밀림 재현), AC-020 6조합, AC-021, AC-025 내보내기, DM1 모두 실패 (`red-oldcode.txt`). 확인 뒤 새 파일로 복원 |
+| `npx vitest run src/test/exportDiagram.test.ts src/test/exportImageEmbed.test.ts src/test/diagramRenderer.test.ts` | exit 0 — `Test Files  3 passed (3)`, `Tests  125 passed (125)` (exportDiagram 21, exportImageEmbed 26, diagramRenderer 78) (`green.txt`) |
+| `npx vitest run src/test/export.test.ts src/test/exportDocx.test.ts src/test/exportHtml.test.ts src/test/exportPdf.test.ts src/test/exportOpenRegressionGuard.test.ts src/test/renderer.test.ts src/test/useTheme.test.ts` | exit 0 — `Tests  108 passed (108)` (`export-suite.txt`) |
+| `npx tsc --noEmit` (의존성 제거 전 / 후) | exit 0 / exit 0, 출력 없음 (`tsc.txt`, `tsc-post-removal.txt`) |
+| `npx eslint <변경 파일 7개>` / `npx eslint <가드 테스트 2개>` | exit 0 / exit 0, 출력 없음 (`eslint.txt`, `eslint-guards.txt`) |
+| `npx vitest run src/test/diagramRegressionGuard.test.ts src/test/aiDiagramTypeRegressionGuard.test.ts` (제거 후) | exit 0 — `Tests  7 passed (7)` (`guards.txt`) |
+| `npx vitest run` (전체, 제거 후 작업 트리 = `dafc840`) | exit 0 — `Test Files  108 passed (108)`, `Tests  1751 passed (1751)`. M1부터의 `diagramRegressionGuard` 실패 해소 (`vitest-full.txt`) |
+| `npm ls mermaid patch-package pele` | exit 0 — `mdedit@0.16.1 …/pele-015` `└── pele@1.10.0` (mermaid·patch-package 없음). `ls node_modules/mermaid` → No such file; `package-lock.json`의 `node_modules/mermaid`·`node_modules/patch-package` 항목 0 (`npm-ls.txt`) |
+
+#### 깨끗한 체크아웃 흉내 (worktree가 주 체크아웃 폴더 안이라 패키지 해석으로는 제거를 증명할 수 없음)
+
+- 저장소 밖 scratch 폴더에 `src`·`e2e`·`public`·`index.html`·`package.json`·`package-lock.json`·`tsconfig*.json`·`vite.config.ts`·`postcss.config.js`·`tailwind.config.js`·`.eslintrc.cjs`·`playwright.config.ts`·`src-tauri/capabilities`·`src-tauri/src/lib.rs`·`src-tauri/Cargo.toml`을 복사하고 worktree `node_modules`만 심볼릭 링크로 연결(`dafc840` 기준).
+- `npx tsc --noEmit -p <scratch>/tsconfig.json` → exit 0, 출력 없음. `--listFilesOnly`로 scratch `src/` 파일 187개를 검사했고 mermaid 패키지 파일은 0(이름에 mermaid가 든 파일은 `mermaidValidate.ts`·`mermaidPlugin.ts`·`mermaidValidate.test.ts`뿐) (`cleansim-tsc.txt`).
+- `npx vitest run --root <scratch>` → exit 0, `RUN v2.1.9 <scratch>`, `Test Files  108 passed (108)`, `Tests  1751 passed (1751)` (`cleansim-vitest.txt`). M2 측정의 `Failed to resolve import "mermaid"`(37파일 실패)가 사라졌다.
+- `npx vite build <scratch> --outDir <scratch-dist>` → exit 0, `611 modules transformed`, `built in 2.92s`(500kB 청크 경고만) (`cleansim-vite-build.txt`). 산출물의 `mermaid-*.js`(29,511 B)는 Shiki의 mermaid 문법 하이라이트 정의(`{"displayName":"Mermaid",…"injectionSelector":"L:text.html.markdown"`)이며 mermaid 라이브러리가 아니다.
+- scratch 복사본·산출물은 확인 뒤 삭제했다.
+
+#### 남은 mermaid 참조 (dafc840)
+
+- `grep -rn "from 'mermaid'\|import('mermaid')\|vi.mock('mermaid'\|from \"mermaid\"" src e2e` → 0건(grep exit 1, `grep-imports.txt`).
+- 저장소 전체 import: `spike/pele/compare.ts`, `spike/pele/m1b.ts`(M7 삭제 대상, 이제 실행 불가).
+- 패키지 이름·펜스 info(import 아님): `src/test/diagramRegressionGuard.test.ts:51-53`(재유입 금지 단언), `src/lib/markdown/mermaidPlugin.ts:17`·`src/lib/export/exportDocx.ts:244`(펜스 info `'mermaid'` 비교 — 문법 이름이라 유지, D10), `src/test/aiSuggestionCard.test.ts:78`(펜스 문자열), `e2e/mermaid-subgraph-label.spec.ts:6` patch-package 주석(M5 범위).
+- 문서: `docs/USER_MANUAL.md`·`docs/USER_GUIDE.md`·`docs/AI-Best-Practice-MdEdit*.md`·`.moai/project/{tech,structure}.md`·`.moai/project/codemaps/*`(sync 범위).
+
+#### Gaps (확인하지 않은 것)
+
+- 앱(WKWebView)에서 HTML·PDF·DOCX 실제 내보내기를 하지 않았다: 다크 앱에서 DOCX가 라이트 색으로 나오는지(라이트 탐침 선택자 효과), HTML·PDF 색이 내보내기 테마인지, 앱 PDF 인쇄의 수식 표시(AC-025 manual), DOCX를 Word에서 열었을 때의 표시(AC-020 manual), 에디터 단독 보기 내보내기(AC-018 manual).
+- `readPeleThemeValues`의 실제 값 읽기는 브라우저에서 측정하지 않았다(jsdom 한계). M5 e2e나 수동 확인 대상.
+- DOCX PNG 픽셀(foreignObject 수식 포함)은 단위 테스트가 스텁이다. M1b 4에서 같은 래스터 방식으로 수식이 그려짐을 측정했지만, 이번 색 치환 뒤 결과로는 다시 측정하지 않았다.
+- 목록·인용 안의 다이어그램 펜스는 DOCX 변환기가 원래 처리하지 않는다(기존 동작, 범위 밖). 예전에는 그 펜스의 DOM 그림이 뒤 펜스로 밀려 들어갔으나 이제는 빠지기만 한다.
+- Windows(WebView2)는 확인하지 않았다.
+- 저장소 전체 `npm run lint`(`eslint .`)는 실행하지 않았다. `spike/pele/`의 mermaid import가 lint 규칙에 걸리는지는 측정하지 않았다(M7에서 삭제).
+- `npm ci`(깨끗한 설치)는 하지 않고 `npm install` + scratch 복사로 대신했다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_
