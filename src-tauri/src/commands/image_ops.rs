@@ -156,6 +156,92 @@ pub async fn read_image_as_base64(image_path: String) -> Result<String, String> 
     Ok(format!("data:{};base64,{}", mime, encoded))
 }
 
+/// 상위 폴더 이미지 전용 명령이 읽을 수 있는 확장자(소문자)와 MIME.
+const RELATIVE_IMAGE_MIME: [(&str, &str); 7] = [
+    ("png", "image/png"),
+    ("jpg", "image/jpeg"),
+    ("jpeg", "image/jpeg"),
+    ("gif", "image/gif"),
+    ("webp", "image/webp"),
+    ("svg", "image/svg+xml"),
+    ("bmp", "image/bmp"),
+];
+
+/// 마크다운 파일 기준 상대경로(`..` 포함 가능)의 이미지를 읽어 data URI 로 돌려준다.
+/// `..` 구성요소가 있는 후보만 프런트가 이 명령으로 보낸다(SPEC-EXPORT-004 REQ-005).
+// @MX:ANCHOR: [AUTO] 상위 폴더 이미지 읽기 보안 경계 — validate_path 의 `..` 거부를 우회하는 유일한 경로
+// @MX:REASON: [AUTO] 미리보기·HTML·PDF·DOCX 가 `..` 이미지를 모두 이 명령으로 읽는다. 순서
+//   (md 경로 검증 → 루트·접두사 구성요소 거부 → canonicalize → 해석된 경로 확장자 → 열기 전 일반 파일
+//   확인 → 한 번 열기 → 핸들 재확인 → 같은 핸들 읽기)가 바뀌면 임의 파일 노출이나 FIFO 대기가 생긴다.
+// @MX:WARN: [AUTO] 확장자 검사는 canonicalize 이후 경로로만 한다. 상대경로 인자의 루트·접두사 거부를 제거하지 말 것
+// @MX:REASON: [AUTO] 심볼릭 링크 이름(evil.png)으로 비이미지를 읽거나, join 이 앞 경로를 버려 절대경로를 읽게 된다(S3·S4)
+// @MX:SPEC: SPEC-EXPORT-004
+#[tauri::command]
+pub async fn read_relative_image_as_base64(
+    md_file_path: String,
+    relative_src: String,
+) -> Result<String, String> {
+    use std::io::Read;
+    use std::path::{Component, Path};
+
+    // (1) 마크다운 경로: 기존 validate_path + 절대경로
+    let md_path = validate_path(&md_file_path)?;
+    if !md_path.is_absolute() {
+        return Err("Invalid markdown path: must be absolute".to_string());
+    }
+    let md_dir = md_path
+        .parent()
+        .ok_or_else(|| "Cannot determine parent directory of markdown file".to_string())?;
+
+    // (2) 상대경로 인자에 루트·드라이브/UNC 접두사 구성요소가 있으면 거부 (is_absolute 만으로는 `\x`·`C:x` 를 놓친다)
+    if relative_src.is_empty()
+        || Path::new(&relative_src)
+            .components()
+            .any(|c| matches!(c, Component::Prefix(_) | Component::RootDir))
+    {
+        return Err("Invalid image path: absolute or prefixed path not allowed".to_string());
+    }
+
+    // (3) 이어 붙인 뒤 실제 경로로 해석(심볼릭 링크 해소)
+    let canonical = md_dir
+        .join(&relative_src)
+        .canonicalize()
+        .map_err(|e| format!("Image file not found: {}", e))?;
+
+    // (4) 해석된 경로의 확장자 화이트리스트
+    let ext = canonical
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let mime = RELATIVE_IMAGE_MIME
+        .iter()
+        .find(|(e, _)| *e == ext)
+        .map(|(_, m)| *m)
+        .ok_or_else(|| "Not an image file".to_string())?;
+
+    // (5) 열기 전에 일반 파일인지 확인 — FIFO 를 읽기용으로 열면 쓰는 쪽이 올 때까지 막힌다
+    let meta = std::fs::metadata(&canonical).map_err(|e| format!("Failed to stat image: {}", e))?;
+    if !meta.is_file() {
+        return Err("Not a regular file".to_string());
+    }
+
+    // (6) 한 번만 열고 (7) 그 핸들로 다시 확인한 뒤 (8) 같은 핸들에서 읽는다
+    let mut file =
+        std::fs::File::open(&canonical).map_err(|e| format!("Failed to open image: {}", e))?;
+    let handle_meta = file
+        .metadata()
+        .map_err(|e| format!("Failed to stat image: {}", e))?;
+    if !handle_meta.is_file() {
+        return Err("Not a regular file".to_string());
+    }
+    let mut data = Vec::new();
+    file.read_to_end(&mut data)
+        .map_err(|e| format!("Failed to read image file: {}", e))?;
+
+    Ok(format!("data:{};base64,{}", mime, STANDARD.encode(&data)))
+}
+
 /// Opens a native file dialog filtered for image files.
 /// Returns the selected file path, or None if the user cancels.
 #[tauri::command]

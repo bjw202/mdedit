@@ -94,6 +94,7 @@ pub fn run() {
             image_ops::save_image_from_clipboard,
             image_ops::copy_image_to_folder,
             image_ops::read_image_as_base64,
+            image_ops::read_relative_image_as_base64,
             image_ops::open_image_dialog,
             browser_ops::open_url_in_browser,
             ai::ai_request,
