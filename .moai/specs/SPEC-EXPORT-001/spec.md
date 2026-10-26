@@ -1,9 +1,9 @@
 ---
 id: SPEC-EXPORT-001
-version: 1.0.0
+version: 1.0.1
 status: implemented
 created: 2026-02-25
-updated: 2026-02-25
+updated: 2026-10-26
 author: jw
 priority: medium
 domain: EXPORT
@@ -26,6 +26,7 @@ lifecycle: spec-first
 | 버전 | 날짜 | 작성자 | 변경 내용 |
 |------|------|--------|-----------|
 | 1.0.0 | 2026-02-25 | jw | 초기 SPEC 작성 |
+| 1.0.1 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 pele 1.10.0으로 바뀌어도 REQ-EXPORT-003의 "인라인 SVG, JavaScript 없음"은 그대로 성립함을 확인했다(문구 무변경). REQ-EXPORT-020의 괄호 "Mermaid JS 제거"를 "다이어그램 JS 없음"으로 다듬었다. |
 
 ---
 
@@ -153,7 +154,7 @@ lifecycle: spec-first
 > 시스템은 내보내기 도중 에디터 콘텐츠를 수정**하지 않아야 한다**.
 
 **REQ-EXPORT-020** (Unwanted)
-> 시스템은 내보내기 파일에 JavaScript를 포함**하지 않아야 한다** (HTML 내보내기 시 Mermaid JS 제거, SVG만 포함).
+> 시스템은 내보내기 파일에 JavaScript를 포함**하지 않아야 한다** (HTML 내보내기 시 다이어그램 JS 없음, SVG만 포함).
 
 ---
 

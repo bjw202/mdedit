@@ -1,9 +1,9 @@
 ---
 id: SPEC-AI-001
-version: "0.1.1"
+version: "0.1.2"
 status: draft
 created: "2026-07-16"
-updated: "2026-07-16"
+updated: "2026-10-26"
 author: "jw"
 priority: high
 issue_number: 13
@@ -22,6 +22,7 @@ lifecycle: spec-anchored
 |---------|------|--------|---------|
 | 0.1.0 | 2026-07-16 | jw | 최초 SPEC 작성 — AI 기능 MVP M0+M1. 설계서 `.moai/design/ai-features-mvp-design.md` v0.4 확정 범위. M0 = Rust `ai/` 모듈(claude CLI 어댑터·스트리밍 릴레이·감지·설정 모달·연결 온보딩·정책 kill-switch·Windows 우선 검증), M1 = 축1 인라인 편집(✨ 선택 편집·프리셋 5종·제안 카드·적용 안전장치·선택 길이 가드·mermaid 사전 검증) + 시나리오 F 빈 섹션 채우기(고스트, Mod+Enter 확정, Tab 확정 아님). 사용자 확정 결정 5건 반영: (1) MVP는 claude CLI 단독(codex는 M4, AiProvider trait 계약만 확정), (2) 설정 UI = 새 설정 모달 다이얼로그(Header 톱니 버튼), (3) 프리셋 = 다듬기/개요로 정리/표로 만들기/다이어그램으로/짧게 줄이기(+직접 입력), 번역 프리셋 없음, (4) Tab은 고스트 확정 키 아님(indentWithTab 유지, 확정 = 넣기 버튼/Mod+Enter), (5) 모든 단축키 CodeMirror `Mod-` 접두어, 주 검증 플랫폼 Windows. 방법론 TDD(RED-first). M2/M3/M4는 Exclusions. |
 | 0.1.1 | 2026-07-16 | jw | plan-audit 리뷰(SPEC-AI-001-review-1, FAIL 0.72) 반영. **D1** REQ-AI-001(AiProvider trait 계약)에 AC-AI-021 신설·매핑. **D2** REQ-AI-016(고급 모델 sonnet 지속 토글, REQ-AI-025의 3회 폴백과 구분)에 AC-AI-022 신설 + acceptance.md 전용 Given/When/Then 추가. 전 REQ-AI-001~040이 최소 1개 AC 보유 확인, "1:1 매핑" 문구를 "전 REQ 최소 1개 AC 매핑"으로 정정(자기모순 제거). **D3** REQ-002/017/023의 하드코딩(`--setting-sources ""`·`MDEDIT_AI_DISABLED`·`securityLevel:'strict'`)을 행동 서술 + "설계 제약" 표기로 이동. **D4** REQ-AI-001 복합 요구(trait 계약 형태 절) 축소 → Design Notes 포인터. **D5** unwanted 7건(008/009/018/027/031/032/040)을 "If … then the system shall …" 정규 EARS 형태로 재서술. REQ-AI-008 원문 침범 상호참조 오류(REQ-AI-030→036) 정정. |
+| 0.1.2 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 mermaid에서 pele 1.10.0으로 바뀌었다. REQ-AI-023의 "로컬 mermaid 파서" 검증을 로컬 다이어그램 모듈(pele) 검증으로, 설계 제약 `securityLevel:'strict'`를 strict 모드(SPEC-PREVIEW-015 공통 정의)로 바꿨다. REQ-AI-024는 "mermaid 검증"을 "다이어그램 검증"으로만 고쳤고 흐름은 유지한다. |
 
 ## Summary
 
@@ -121,8 +122,8 @@ lifecycle: spec-anchored
 - **REQ-AI-020**: **WHEN** 사용자가 ✨ 버튼을 열면, **the system shall** 고정 프리셋 5종(다듬기 / 개요로 정리 / 표로 만들기 / 다이어그램으로 / 짧게 줄이기)과 "직접 입력..." 항목을 표시하고, "직접 입력..." 선택 시 한 줄 입력창으로 전환하며 Esc 또는 ← 버튼으로 프리셋 메뉴에 복귀할 수 있게 한다.
 - **REQ-AI-021**: **WHEN** 프리셋 또는 직접 입력으로 편집 요청이 완료되면, **the system shall** 원문을 그대로 위에 두고 제안 카드에 결과를 표시하며, 카드에 즉석 방향 지시 입력칸과 [✓ 바꾸기]·[↻ 다시]·[✕ 취소] 동작을 제공한다(변환 계열은 [⤵ 아래에 삽입] 포함).
 - **REQ-AI-022**: **WHEN** 사용자가 제안 카드의 [✓ 바꾸기] 또는 [삽입]을 확정하면, **the system shall** 변경을 단일 CodeMirror 트랜잭션으로 적용하여 Undo(Mod+Z) 한 번에 원문이 복원되게 한다.
-- **REQ-AI-023**: **WHEN** 사용자가 "다이어그램으로"를 요청하면, **the system shall** 삽입 전 로컬 mermaid 파서로 코드를 스크립트 실행이 차단된 안전 모드에서 검증하고, 성공 시 카드에 코드블록과 미니 렌더 미리보기를 함께 표시한다. (설계 제약: `securityLevel:'strict'` 유지, XSS 방지)
-- **REQ-AI-024**: **WHEN** "다이어그램으로" 결과의 mermaid 검증이 실패하면, **the system shall** 오류 메시지를 동봉해 1회 자동 재요청하고, 재실패 시 "목록으로 정리" 대체 산출물을 제안한다.
+- **REQ-AI-023**: **WHEN** 사용자가 "다이어그램으로"를 요청하면, **the system shall** 삽입 전 로컬 다이어그램 모듈(pele)로 코드를 검증하고, 성공 시 카드에 코드블록과 미니 렌더 미리보기를 함께 표시한다. (설계 제약: strict 모드 — SPEC-PREVIEW-015 공통 정의)
+- **REQ-AI-024**: **WHEN** "다이어그램으로" 결과의 다이어그램 검증이 실패하면, **the system shall** 오류 메시지를 동봉해 1회 자동 재요청하고, 재실패 시 "목록으로 정리" 대체 산출물을 제안한다.
 - **REQ-AI-025**: **WHEN** ↻ 방향 없는 재요청이 연속 3회 소진되면, **the system shall** 방향 지시 입력을 안내하고 설정 진입 없이 1회성 sonnet 재시도(고급 모델)를 인라인 제안한다.
 
 #### State-Driven

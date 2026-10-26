@@ -1,9 +1,9 @@
 ---
 id: SPEC-UI-008
-version: "0.0.2"
+version: "0.0.3"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-10-26"
 author: "jw"
 priority: medium
 issue_number: 0
@@ -28,6 +28,7 @@ lifecycle: spec-anchored
 |---------|------|--------|---------|
 | 0.0.1 | 2026-07-22 | jw | 최초 SPEC 작성 — 에디터 툴바 "다이어그램" 버튼 + 드롭다운 서브메뉴(7종 프리셋 + 사용자 정의 빈 펜스). 사용자 확정 결정 반영: (1) 진입점 = EditorToolbar.tsx 신규 "다이어그램" 버튼(SPEC-UI-007 Insert Table 팝오버 선례 재사용), (2) 프리셋 7종 = flowchart/sequenceDiagram/gantt/classDiagram/stateDiagram-v2/pie/mindmap, 각 항목 = 흑백 스켈레톤 아이콘(16–24px 가독) + 한글 라벨, (3) 프리셋 선택 = 즉시 오류 없이 렌더되는 3–5줄 한글 예제 ```mermaid 펜스 삽입 + 첫 편집 토큰에 커서, (4) 사용자 정의(8번째) = 빈 ```mermaid 펜스 삽입 + 프리뷰 플레이스홀더("다이어그램 문법을 입력하세요"), (5) AI 경계 = 수동 삽입 전용, 기존 AI 생성 흐름(ai-suggestion-card + mermaidValidate, SPEC-AI-003/004) 무변경·AI 토글(SPEC-AI-005) 상태 무관. |
 | 0.0.2 | 2026-07-22 | jw | plan-audit 리뷰(SPEC-UI-008-review-1, FAIL 0.71) 반영 — 결함 6건 수정: **D1** REQ-016(AI 토글 무관, 긍정형)을 Unwanted→Ubiquitous로 이동하고 "정상 동작" weasel을 이진 술어("AI 토글 상태를 참조하지 않고 노출·삽입 동작 수행")로 치환(신 REQ-006). **D6** REQ-002(아이콘 렌더+판독성+테마+raw hex 4관심사)를 002(SVG+currentColor)/003(종류별 형상 구별)/005(토큰·raw hex)로 분해, REQ-020(17종+단축키)을 021(프리셋 8항목 고정)/022(markdownKeyBindings 무변경)로 분해. **D4** REQ-002 "16–24px 판독 가능" 비이진 문구를 정규 요구에서 제거하고 Design Notes로 완전 이관. **분해에 따른 클린 재번호(001–022, 순차·결번 0)** 및 전 cross-reference 갱신. **D2** AC 표를 재구성하여 REQ-001~022 전수 커버(신 AC-013 = REQ-019/021/022 회귀 가드: package.json 의존성 0·프리셋 8항목·keymap 무변경), 표 하단에 REQ→AC 전수 대조 추가. **D3** acceptance.md 신규 작성(dangling 참조 해소, Given-When-Then 13건 + Quality Gate Criteria). **D5** Delta에 `PreviewRenderer.test.tsx`(빈-펜스 플레이스홀더 검증) 추가. 스니펫 코드·lint 게이트 노트(PR #37 반영)는 무변경. |
+| 0.0.3 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 mermaid 11.12.3에서 pele 1.10.0으로 바뀌었다. REQ-008 마지막 문장(삽입 펜스는 pele 1.10.0에서 즉시 렌더), REQ-019 끝에 SPEC-PREVIEW-015의 `mermaid` → `pele` 교체 예외 추가, REQ-020을 pele 버전 핀·strict 모드·위치 접미사 포함 폴백으로 바꿨다. AC-UI-008-004 표 줄, "Preset Snippet Definitions"의 검증 문구, 빈 펜스 판정 힌트의 파서 호출 문구도 pele·다이어그램 모듈 기준으로 고쳤다(acceptance.md AC-UI-008-004 블록 동시 개정). 스니펫 코드는 무변경. |
 
 ## Summary
 
@@ -80,7 +81,7 @@ lifecycle: spec-anchored
 ### Event-Driven Requirements
 
 - **REQ-UI-008-007**: **WHEN** 사용자가 다이어그램 버튼을 클릭하면, **the system shall** 버튼 아래(`top-full`, `z-50`)에 8개 항목(7종 프리셋 + 사용자 정의)을 세로로 나열한 드롭다운 서브메뉴를 연다.
-- **REQ-UI-008-008**: **WHEN** 사용자가 프리셋 항목(flowchart / sequenceDiagram / gantt / classDiagram / stateDiagram-v2 / pie / mindmap 중 하나)을 선택하면, **the system shall** 커서 위치에 해당 프리셋의 3–5줄 한글 최소 예제를 담은 ```mermaid 펜스 블록(아래 "Preset Snippet Definitions" 참조)을 삽입하고 드롭다운을 닫는다. 삽입된 펜스는 mermaid 11.12.3에서 파싱/렌더 오류 없이 즉시 렌더된다.
+- **REQ-UI-008-008**: **WHEN** 사용자가 프리셋 항목(flowchart / sequenceDiagram / gantt / classDiagram / stateDiagram-v2 / pie / mindmap 중 하나)을 선택하면, **the system shall** 커서 위치에 해당 프리셋의 3–5줄 한글 최소 예제를 담은 ```mermaid 펜스 블록(아래 "Preset Snippet Definitions" 참조)을 삽입하고 드롭다운을 닫는다. 삽입된 펜스는 pele 1.10.0에서 오류 없이 즉시 렌더된다.
 - **REQ-UI-008-009**: **WHEN** 프리셋 삽입이 완료되면, **the system shall** 커서를 해당 프리셋의 첫 사용자 편집 토큰(아래 스니펫 표의 "첫 편집 토큰")에 놓고 에디터에 포커스를 복귀시켜, 즉시 타이핑하면 그 토큰이 편집되게 한다.
 - **REQ-UI-008-010**: **WHEN** 사용자가 사용자 정의 항목을 선택하면, **the system shall** 커서 위치에 본문이 빈 ```mermaid 펜스를 삽입하고, 커서를 펜스 본문(빈 줄)에 놓은 뒤 에디터 포커스를 복귀시키고 드롭다운을 닫는다.
 - **REQ-UI-008-011**: **WHEN** 드롭다운이 열린 상태에서 팝오버·트리거 외부에 mousedown이 발생하거나 Escape 키가 눌리면, **the system shall** 드롭다운을 닫는다.
@@ -97,14 +98,14 @@ lifecycle: spec-anchored
 
 - **REQ-UI-008-017**: The system **shall not** 기존 AI 다이어그램 생성 흐름(ai-suggestion-card, `src/lib/ai/mermaidValidate.ts`; SPEC-AI-003/004 계보)의 동작·계약을 변경하거나 호출한다. 수동 삽입(본 SPEC)과 AI 생성(기존 흐름)은 역할이 분리되며, 수동 삽입 경로는 AI 검증/제안 로직을 거치지 않는다.
 - **REQ-UI-008-018**: The system **shall not** 기존 `FormatAction` 유니언 타입, `onFormat` 콜백, `onInsertTable` 콜백, `handleFormat` switch(@MX:ANCHOR)를 변경한다. 다이어그램 삽입은 별도 `onInsertDiagram(preset)` prop으로 전달된다.
-- **REQ-UI-008-019**: The system **shall not** 신규 런타임 의존성(`lucide-react`, floating-ui, 팝오버/드롭다운 라이브러리 등)을 추가한다(`package.json` dependencies/devDependencies 무변경).
-- **REQ-UI-008-020**: The system **shall not** mermaid 버전 핀(SPEC-PREVIEW-006, 11.12.3), `securityLevel: 'strict'` 불변식, 또는 비어 있지 않은 잘못된 다이어그램에 대한 기존 `⚠ Diagram syntax error` 폴백을 변경한다.
+- **REQ-UI-008-019**: The system **shall not** 신규 런타임 의존성(`lucide-react`, floating-ui, 팝오버/드롭다운 라이브러리 등)을 추가한다(`package.json` dependencies/devDependencies 무변경). 단, SPEC-PREVIEW-015의 `mermaid` → `pele` 교체는 예외다.
+- **REQ-UI-008-020**: The system **shall not** pele 버전 핀(1.10.0), strict 모드(SPEC-PREVIEW-015 공통 정의), 비어 있지 않은 잘못된 다이어그램에 대한 `⚠ Diagram syntax error` 폴백(위치 접미사 포함, SPEC-PREVIEW-015 REQ-009)을 바꾼다.
 - **REQ-UI-008-021**: The system **shall not** 나머지 17종 mermaid 다이어그램 유형을 프리셋 목록에 추가한다(프리셋은 정확히 7종 + 사용자 정의 = 8항목으로 고정, v1).
 - **REQ-UI-008-022**: The system **shall not** 신규 키보드 단축키 바인딩을 등록한다(`markdownKeyBindings` 무변경). 드롭다운 내 키보드 조작(REQ-UI-008-012)은 전역 단축키 등록이 아니므로 이에 해당하지 않는다.
 
 ## Preset Snippet Definitions
 
-아래 7개 스니펫은 각각 ```mermaid 펜스로 감싸 삽입되며, mermaid 11.12.3 문법으로 검증되었다(즉시 파싱/렌더 성공). "첫 편집 토큰"은 REQ-UI-008-009의 커서 배치 대상이다. 한글 라벨을 사용하되 구조 키워드(`flowchart TD`, `participant`, `class` 등)는 영어를 유지한다.
+아래 7개 스니펫은 각각 ```mermaid 펜스로 감싸 삽입되며, pele 1.10.0으로 검증되었다(즉시 렌더 성공). "첫 편집 토큰"은 REQ-UI-008-009의 커서 배치 대상이다. 한글 라벨을 사용하되 구조 키워드(`flowchart TD`, `participant`, `class` 등)는 영어를 유지한다.
 
 ### 1. flowchart — 라벨 "순서도"
 
@@ -217,7 +218,7 @@ mindmap
 
 - **아이콘 형태/판독성 힌트(비이진, Run phase 재량)**: 프리셋 아이콘은 골격형 추상 — flowchart(상자→화살표), sequenceDiagram(2 라이프라인+화살표), gantt(수평 막대), classDiagram(제목 칸+속성 칸 상자), stateDiagram(원+전이 화살표), pie(원+파이 슬라이스), mindmap(중심 원+방사 가지). 정확한 SVG path는 Run phase 재량이며, "16–24px 크기에서 종류 판독 가능"은 디자인 목표(수용 기준이 아닌 참고 지표)다. 이진 검증 대상은 REQ-UI-008-002(SVG+currentColor)·003(종류별 형상 구별)에 한한다.
 - **커서/포커스 구현 힌트**: REQ-UI-008-009/010은 CodeMirror `EditorSelection.range`(또는 `cursor`)로 삽입 텍스트 내 대상 토큰 오프셋을 선택하고 `view.focus()`를 호출하는 방식을 상정한다(`insertTable` 선례). 구현 세부는 Run phase 재량.
-- **빈 펜스 플레이스홀더 판정 힌트**: REQ-UI-008-013의 "빈 본문" 판정은 `data-diagram` 문자열을 `trim()`했을 때 빈 문자열인지로 결정하고, 이 경우 `mermaid.parse`를 호출하지 않고 플레이스홀더 마크업을 컨테이너에 주입하는 방식을 상정한다(`PreviewRenderer.tsx:113–124` 분기 추가). 플레이스홀더 문구/스타일은 `--md-text-muted` 등 토큰 사용을 권장한다.
+- **빈 펜스 플레이스홀더 판정 힌트**: REQ-UI-008-013의 "빈 본문" 판정은 `data-diagram` 문자열을 `trim()`했을 때 빈 문자열인지로 결정하고, 이 경우 다이어그램 모듈 호출 없이 플레이스홀더 마크업을 컨테이너에 주입하는 방식을 상정한다(`PreviewRenderer.tsx:113–124` 분기 추가). 플레이스홀더 문구/스타일은 `--md-text-muted` 등 토큰 사용을 권장한다.
 - **드롭다운 vs 그리드 셸 차이**: SPEC-UI-007은 8×8 그리드였고 본 SPEC은 세로 리스트 메뉴다. 팝오버 컨테이너(relative 래퍼 + `absolute top-full z-50`, 외부 mousedown + Esc 닫힘)는 재사용하되 내부 레이아웃은 리스트로 구성한다.
 
 ## Delta (Brownfield Changes)
@@ -245,7 +246,7 @@ mindmap
 | AC-UI-008-001 | REQ-UI-008-004, 007 | 다이어그램 버튼 클릭 → 드롭다운 열림(`aria-expanded` 토글) + 8개 항목(7 프리셋 + 사용자 정의) 표시 |
 | AC-UI-008-002 | REQ-UI-008-001, 002, 003 | 8개 항목 전부 개별 `aria-label` + 한글 라벨 보유; 프리셋 아이콘 `<svg>` 렌더 + `stroke="currentColor"` 상속; 7종 아이콘 마크업이 서로 구별됨(중복 없음) |
 | AC-UI-008-003 | REQ-UI-008-008, 009 | 각 프리셋 선택 → 정확한 스니펫이 ```mermaid 펜스로 삽입, 커서가 첫 편집 토큰에 위치, 드롭다운 닫힘 |
-| AC-UI-008-004 | REQ-UI-008-008, 020 | 프리셋 7종 스니펫 각각 mermaid 11.12.3 `parse`가 오류 없이 통과(즉시 렌더 가능); mermaid 버전 핀 무변경 |
+| AC-UI-008-004 | REQ-UI-008-008, 020 | 프리셋 7종 스니펫이 각각 pele 1.10.0에서 오류 없이 렌더된다; pele 버전 핀 무변경. |
 | AC-UI-008-005 | REQ-UI-008-010 | 사용자 정의 선택 → 빈 ```mermaid 펜스 삽입, 커서가 본문 빈 줄, 드롭다운 닫힘 |
 | AC-UI-008-006 | REQ-UI-008-013 | 빈/공백 펜스 → 프리뷰가 플레이스홀더 표시, `⚠ Diagram syntax error` 미표시 |
 | AC-UI-008-007 | REQ-UI-008-014 | 빈 펜스에 유효 내용 입력 → 플레이스홀더 사라지고 다이어그램 렌더; 잘못된 내용 → 기존 오류 폴백 |

@@ -1,9 +1,9 @@
 ---
 id: SPEC-PREVIEW-006
-version: "1.0.0"
+version: "1.0.1"
 status: planned
 created: "2026-06-26"
-updated: "2026-06-26"
+updated: "2026-10-26"
 author: "jw"
 priority: medium
 issue_number: 0
@@ -23,6 +23,7 @@ lifecycle: spec-anchored
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-06-26 | jw | 최초 SPEC 작성 — mermaid 11.12.3의 flowchart subgraph(cluster) 제목이 하드코딩 `foreignObject width=200` 때문에 긴 한글 제목에서 2줄로 줄바꿈되는 문제(mermaid #6110)를, patch-package로 mermaid 소스를 패치하여 1줄 표시로 고정. config-only / CSS·JS patchwork / ELK 대안은 소스 검증·spike로 기각. 신규 런타임 의존성 0, mermaid 정확 버전 고정(`11.12.3`), patch-package devDependency + postinstall 추가. |
+| 1.0.1 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 mermaid에서 pele 1.10.0으로 바뀌어 패치가 사라졌다. REQ-001~003의 목표(긴 한글 subgraph 제목 1줄, 클리핑·겹침 없음)는 유지하고 REQ-003의 "Tier 2 패치" 언급만 지웠다. REQ-004(패치 결정론적 적용)는 폐기하고 "패치를 쓰지 않음"으로 대체, REQ-005는 pele `1.10.0` 정확 고정, REQ-006은 "패치 적용" 전제를 없앤 무회귀 요구, REQ-007은 pele 버전 변경·mermaid 재유입 가드로 바꿨다. 이 SPEC의 배경·근거·결정 기록 절은 mermaid 시절 기록으로 그대로 둔다. |
 
 ## Overview
 
@@ -86,23 +87,23 @@ mermaid 11.12.3 `node_modules` 직접 검사로 확인된 사실:
 
 ### REQ-PREVIEW006-003: 수평 인접 subgraph 무겹침 (Event-driven)
 
-- **WHEN** subgraph가 수평으로 인접 배치되면, **the system shall** 인접 cluster끼리 **겹치지 않게** 렌더한다. (Tier 1로 무겹침이 보장되지 않으면 Tier 2 패치를 적용한다.)
+- **WHEN** subgraph가 수평으로 인접 배치되면, **the system shall** 인접 cluster끼리 **겹치지 않게** 렌더한다.
 
-### REQ-PREVIEW006-004: 패치 결정론적 적용 (Ubiquitous)
+### REQ-PREVIEW006-004: 다이어그램 렌더 무패치 (Ubiquitous)
 
-- The system **shall** patch-package를 통해 매 `npm install`마다(`postinstall`) mermaid 패치를 **결정론적으로** 적용한다.
+- The system **shall** 다이어그램 렌더에 패치를 쓰지 않는다. subgraph 제목 1줄 배치는 pele 1.10.0 기본 동작으로 만족한다(SPEC-PREVIEW-015).
 
-### REQ-PREVIEW006-005: mermaid 정확 버전 고정 (Ubiquitous)
+### REQ-PREVIEW006-005: 다이어그램 렌더러 정확 버전 고정 (Ubiquitous)
 
-- The system **shall** `package.json`에서 mermaid 의존성을 캐럿(`^`) 없이 **정확히 `11.12.3`** 으로 고정한다.
+- The system **shall** `package.json`에서 다이어그램 렌더러 `pele`를 정확히 `1.10.0`으로 고정한다(SPEC-PREVIEW-015 REQ-021).
 
-### REQ-PREVIEW006-006: 비대상 렌더 무회귀 (Unwanted behavior)
+### REQ-PREVIEW006-006: 비대상 렌더 무회귀 (Ubiquitous)
 
-- **IF** 패치가 적용된 상태에서 subgraph가 아닌 다이어그램·노드 라벨·기존 마크다운 렌더 경로(SPEC-PREVIEW-001/002/003)를 렌더하면, **then the system shall** 패치 적용 전과 **동일하게** 렌더한다(어떤 회귀도 발생시키지 않는다).
+- The system **shall** pele 교체(SPEC-PREVIEW-015) 뒤에도 subgraph가 아닌 다이어그램·노드 라벨·기존 마크다운 렌더 경로(SPEC-PREVIEW-001/002/003)를 회귀 없이 렌더한다.
 
-### REQ-PREVIEW006-007: 패치 부재·버전 드리프트 가드 (Unwanted behavior)
+### REQ-PREVIEW006-007: 버전 드리프트·mermaid 재유입 가드 (Event-driven)
 
-- **IF** 패치가 적용되지 않았거나 mermaid 버전이 `11.12.3`에서 드리프트하면, **then the system shall** 회귀 가드 테스트를 **실패**시켜 누락을 즉시 드러낸다.
+- **When** pele 버전이 `1.10.0`에서 바뀌거나 mermaid가 다시 의존성에 들어오면, the regression guard tests **shall** 실패한다.
 
 ## [DELTA] Brownfield Change Map
 

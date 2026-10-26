@@ -1,9 +1,9 @@
 ---
 id: SPEC-AI-008
-version: "0.0.4"
+version: "0.0.5"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-30"
+updated: "2026-10-26"
 author: "jw"
 priority: medium
 issue_number: 0
@@ -33,6 +33,7 @@ lifecycle: spec-anchored
 | 0.0.2 | 2026-07-22 | jw | plan-audit 리뷰(SPEC-AI-008-review-1, FAIL 0.80) 반영 — 결함 5건 수정: **D1**(major) "자동=바이트 동일" 불변식(REQ-018/AC-004/Summary)을 잘못된 아티팩트(`Diagram.system_prompt()` 단독)에서 실제 조립 결과(`build_inline_prompt` 산출 = `system_prompt()` + `\n\n` + INLINE_SCOPE)로 재앵커. **D2**(major) Diagram 전용 조립 분기가 없고 공유 `build_inline_prompt`(비-diagram 5기능과 INLINE_SCOPE 공유)를 탄다는 사실 반영 — REQ-010/Delta를 "공유 경로 내 diagram 전용 게이팅"으로 정정하고, 비-diagram 5기능(polish/outline/table/shorten/custom) 프롬프트 바이트 동일 회귀 가드로 신규 **REQ-025 + AC-014** 추가. **D3**(minor) icons.tsx 추출 리팩터 후 UI-008 JSX 아이콘 7종 렌더 SVG 무변경 가드를 AC-014에 추가하고 REQ-023의 "단일 소스"를 "양쪽 소비자 렌더 path 문자열 동일"로 이진화. **D4**(minor) REQ-006의 "짧은 지연 후"를 정규 요구에서 제거(이진화: "hover 시 연다"), 지연은 Design Notes로 이관. **D5**(minor) REQ-017의 긍정 단언을 근거절/Design Notes로 분리해 순수 shall-not로. REQ 24→25, AC 13→14, 커버리지 대조표·Delta·Fragments 인트로 갱신. |
 | 0.0.3 | 2026-07-30 | jw | **SPEC-AI-011로 REQ-006/007 충돌 해소 — 클릭 열기 전용으로 개정.** REQ-AI-008-007의 "hover 불가 환경에서 클릭 시 토글(열림↔닫힘)"을 "포인터·키보드 어느 경로든 클릭 시 연다. 이미 열려 있으면 상태를 바꾸지 않는다"(open-only)로 개정 — 전제절 "hover 불가 환경에서"는 런타임에 판별 불가능해 삭제. REQ-AI-008-006에 "hover 열림과 클릭 열림은 상호 배타적이지 않으며 둘 다 멱등 열기 연산" 명확화를 추가. REQ-AI-008-013을 "Tab / 방향키 / Enter / Space"로 확장하고 `role="menu"`/`role="menuitem"` 요구를 추가. AC-AI-008-001의 "클릭(no-hover) → 토글"을 "클릭 → 열림(이미 열려 있으면 무변경)"으로, AC-AI-008-009를 방향키 래핑 순환 + 포커스 진입/복귀 포함으로 확장. 근거: 실제 포인터 클릭은 mouseenter → click 순으로 발화해 REQ-006(hover 열림)과 REQ-007(클릭 토글)이 포인터 입력에서 동시 만족 불가능했다(코딩 실수가 아니라 명세 충돌). 구현·검증은 SPEC-AI-011 참조. |
 | 0.0.4 | 2026-07-30 | jw | **REQ-AI-008-013/AC-AI-008-009의 방향키 확장을 되돌림(0.0.3의 개정 (c) 철회).** SPEC-AI-011 후속 조사에서 서브메뉴 방향키 내비게이션이 실제 macOS WKWebView 앱에서 도달 불가능함이 확인되어(포커스가 메뉴/버튼에 결코 들어가지 않음 — 상세는 SPEC-AI-011 spec.md HISTORY v1.1.0) 해당 키보드 요구가 SPEC-AI-011에서 철회되었다. 이에 따라 본 SPEC의 REQ-AI-008-013을 "Tab / 방향키 / Enter / Space"에서 방향키를 제거해 "Tab / Enter / Space"로, AC-AI-008-009를 방향키 래핑 순환과 "포커스 진입(트리거 활성화 → 첫 항목)"을 제거해 실제 구현(Tab 포커스 순회 + Enter/Space 선택 + Esc 복귀 + role 부여)만 서술하도록 되돌렸다. `role="menu"`/`role="menuitem"` 요구는 방향키와 무관한 접근성 표기이므로 그대로 유지한다. |
+| 0.0.5 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 mermaid 11.12.3에서 pele 1.10.0으로 바뀌었다. REQ-AI-008-017의 유일한 하드 게이트를 "`mermaid.parse` 유효성"에서 "다이어그램 모듈(pele) 검증 결과"로, REQ-AI-008-019 끝에 SPEC-PREVIEW-015의 `mermaid` → `pele` 교체 예외를, REQ-AI-008-021을 pele 버전 핀·strict 모드 불변으로 바꿨다. AC-AI-008-013 표 줄은 "pele 핀·strict 모드 무변경", 신규 의존성 0건에 SPEC-PREVIEW-015 교체 제외를 덧붙였다. 나머지 요구는 무변경. |
 
 ## Summary
 
@@ -109,11 +110,11 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 
 ### Unwanted Behavior Requirements
 
-- **REQ-AI-008-017**: The system **shall not** 다이어그램 종류 불일치(AI가 요청한 종류와 다른 mermaid 종류를 반환)를 검증 실패로 취급하거나 이를 위한 새 런타임 게이트를 추가한다. `mermaid.parse` 유효성이 유일한 하드 게이트로 남으며 `validateMermaid`/`decideDiagramOutcome`/`buildFallbackDecision` 계약은 무변경이다. (근거: 종류 준수는 검증이 아니라 프롬프트 제약(REQ-AI-008-010)과 재요청 승계(REQ-AI-008-014)로 달성한다 — Design Notes 참조.)
+- **REQ-AI-008-017**: The system **shall not** 다이어그램 종류 불일치(AI가 요청한 종류와 다른 mermaid 종류를 반환)를 검증 실패로 취급하거나 이를 위한 새 런타임 게이트를 추가한다. 다이어그램 모듈(pele) 검증 결과가 유일한 하드 게이트로 남으며 `validateMermaid`/`decideDiagramOutcome`/`buildFallbackDecision` 계약은 무변경이다. (근거: 종류 준수는 검증이 아니라 프롬프트 제약(REQ-AI-008-010)과 재요청 승계(REQ-AI-008-014)로 달성한다 — Design Notes 참조.)
 - **REQ-AI-008-018**: The system **shall not** "자동" 경로의 동작을 바꾼다 — `diagram_type=None`(자동)일 때 `build_inline_prompt`가 산출하는 Diagram 조립 시스템 프롬프트는 **현행 조립 결과(= `AiFeature::Diagram.system_prompt()` + `\n\n` + INLINE_SCOPE)와 바이트 단위로 동일**해야 한다.
-- **REQ-AI-008-019**: The system **shall not** 신규 런타임 의존성을 추가한다(`package.json` 및 `src-tauri/Cargo.toml` dependencies 무변경). 플라이아웃/포털 라이브러리 도입 금지 — 순수 CSS 포지셔닝.
+- **REQ-AI-008-019**: The system **shall not** 신규 런타임 의존성을 추가한다(`package.json` 및 `src-tauri/Cargo.toml` dependencies 무변경). 플라이아웃/포털 라이브러리 도입 금지 — 순수 CSS 포지셔닝. 단, SPEC-PREVIEW-015의 `mermaid` → `pele` 교체는 예외다.
 - **REQ-AI-008-020**: The system **shall not** SPEC-UI-008 수동 삽입 흐름(`insertDiagram`, `DIAGRAM_PRESETS`, `keyboard-shortcuts.ts` 스니펫 상수, 빈-펜스 프리뷰 플레이스홀더)의 동작·계약을 변경하거나 호출한다. AI 생성(본 SPEC)과 수동 삽입(UI-008)은 역할이 분리된다.
-- **REQ-AI-008-021**: The system **shall not** mermaid 버전 핀(11.12.3, SPEC-PREVIEW-006) 또는 `securityLevel:'strict'` 불변식을 변경한다.
+- **REQ-AI-008-021**: The system **shall not** pele 버전 핀(1.10.0, SPEC-PREVIEW-015) 또는 strict 모드를 바꾼다.
 - **REQ-AI-008-022**: The system **shall not** 나머지 17종 mermaid 유형을 서브메뉴에 추가한다(서브메뉴는 정확히 자동 + 7종 = 8항목으로 고정, v1).
 - **REQ-AI-008-023**: The system **shall not** 다이어그램 아이콘 SVG path 데이터를 복제한다 — 명령형 서브메뉴와 SPEC-UI-008 JSX 아이콘 컴포넌트가 소비하는 렌더 path 문자열이 종류별로 서로 동일해야 한다(단일 소스). 추출 리팩터 후 기존 JSX 아이콘 7종이 렌더하는 SVG(예: `d` path 문자열)는 추출 전과 무변경이어야 한다.
 - **REQ-AI-008-024**: The system **shall not** 신규 전역 키보드 단축키를 등록한다(`markdownKeyBindings` 무변경). 서브메뉴 내 키보드 조작(REQ-AI-008-013)은 전역 단축키 등록이 아니므로 이에 해당하지 않는다.
@@ -180,7 +181,7 @@ SPEC-UI-008이 **수동 삽입**용 7종 프리셋(아이콘 + 한글 라벨 + �
 | AC-AI-008-010 | REQ-AI-008-014, 017 | 종류 실은 초기 요청의 자동 재요청(feature='diagram')이 `diagramType` 승계(`fireReRequest` 스프레드); 종류 불일치는 검증 실패로 취급되지 않음(`decideDiagramOutcome`/`buildFallbackDecision` 무변경); 목록 폴백은 종류 버림 |
 | AC-AI-008-011 | REQ-AI-008-016 | AI 토글 OFF(`enabled:false`) → `buildToolbarDecorations`가 데코 0건 → 툴바/서브메뉴 미노출 |
 | AC-AI-008-012 | REQ-AI-008-003 | 신규 서브메뉴 CSS·아이콘이 `--md-*`/`.mdedit-*` 토큰·`currentColor`만 사용, raw hex 없음 |
-| AC-AI-008-013 | REQ-AI-008-019, 020, 021, 022, 024 | `package.json`·`Cargo.toml` 신규 의존성 0건; 서브메뉴 정확히 8항목(17종 미추가); SPEC-UI-008 `insertDiagram`/`DIAGRAM_PRESETS`/빈-펜스 플레이스홀더 무변경; mermaid 핀·`securityLevel` 무변경; `markdownKeyBindings` 무변경 |
+| AC-AI-008-013 | REQ-AI-008-019, 020, 021, 022, 024 | `package.json`·`Cargo.toml` 신규 의존성 0건(SPEC-PREVIEW-015 교체 제외); 서브메뉴 정확히 8항목(17종 미추가); SPEC-UI-008 `insertDiagram`/`DIAGRAM_PRESETS`/빈-펜스 플레이스홀더 무변경; pele 핀·strict 모드 무변경; `markdownKeyBindings` 무변경 |
 | AC-AI-008-014 | REQ-AI-008-023, 025 | 아이콘 추출 리팩터 후 SPEC-UI-008 JSX 아이콘 7종 렌더 SVG(`d` path) 무변경(스냅샷/등가 어서션); diagram 게이팅 배선 후 비-diagram 5기능(polish/outline/table/shorten/custom) 조립 시스템 프롬프트가 변경 전과 바이트 동일(Rust 스냅샷 테스트) |
 
 REQ 커버리지 대조(001–025 전수): 001→AC2, 002→AC3, 003→AC12, 004→AC2, 005→AC1, 006→AC1, 007→AC1, 008→AC4, 009→AC5, 010→AC6, 011→AC7, 012→AC8, 013→AC9, 014→AC10, 015→AC7, 016→AC11, 017→AC10, 018→AC4, 019→AC13, 020→AC13, 021→AC13, 022→AC13, 023→AC3·AC14, 024→AC13, 025→AC14. 미커버 REQ 없음.

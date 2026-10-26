@@ -1,9 +1,9 @@
 ---
 id: SPEC-PREVIEW-010
-version: "1.0.0"
+version: "1.0.1"
 status: draft
 created: "2026-07-16"
-updated: "2026-07-16"
+updated: "2026-10-26"
 author: "jw"
 priority: medium
 issue_number: 0
@@ -23,6 +23,7 @@ lifecycle: spec-anchored
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-07-16 | jw | 최초 SPEC 작성 — 마크다운 프리뷰의 mermaid 다이어그램 테마를 앱의 라이트/다크 테마에 연동한다. 현재 `PreviewRenderer.tsx:24`가 `theme: 'default'`(mermaid 라이트 테마)를 모듈 로드 시 1회 하드코딩하므로, 다크 모드에서 다이어그램의 밝은 배경/색이 튄다. 핵심 요구는 **테마 토글 시 이미 그려진 다이어그램을 재렌더하여 재채색**하는 것(렌더된 SVG는 색을 굽어 넣으므로 자동 재채색되지 않음)이다. `securityLevel: 'strict'` 보안 불변식과 `⚠ Diagram syntax error` 폴백은 유지한다. 내보내기 경로(`exportUtils.ts`)는 이미 테마 대응하므로 범위 제외. |
+| 1.0.1 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 pele 1.10.0으로 바뀌면서 테마는 `--pele-*` CSS 변수를 앱 `--md-*` 토큰에 연결해 처리한다. REQ-001은 토큰 색 표시로, REQ-002·003은 "재렌더 없이 CSS 변수만으로 색 전환"으로 바꾸고 `initialize`·`render` 재호출 문구를 지웠다. REQ-004는 strict 모드(SPEC-PREVIEW-015 공통 정의), REQ-005는 위치 접미사가 붙는 오류 폴백으로, REQ-006은 둘째 줄(내보내기 색 = SPEC-PREVIEW-015 REQ-018)과 셋째 줄(pele 버전 핀 1.10.0)을 바꿨다. Overview·Glossary는 mermaid 시절 기록으로 그대로 둔다. |
 
 ## Overview
 
@@ -60,37 +61,29 @@ lifecycle: spec-anchored
 
 ### REQ-PREVIEW010-001: 앱 테마에 맞는 초기 다이어그램 렌더 (State-driven)
 
-- **WHILE** 앱이 다크 모드인 동안(`document.documentElement`에 `.dark`/`data-theme="dark"`가 설정됨), **the system shall** mermaid 다이어그램을 다크 테마(권장: `theme: 'dark'`)로 렌더하여 다이어그램 배경/색이 다크 UI와 조화되게 한다.
-- **WHILE** 앱이 라이트 모드인 동안, **the system shall** mermaid 다이어그램을 라이트 테마(권장: `theme: 'default'`)로 렌더한다.
-- **WHEN** 프리뷰가 다크 모드에서 처음 열려 다이어그램이 최초 렌더되면, **the system shall** 라이트 테마로 먼저 그린 뒤 교체하지 않고, 처음부터 현재(다크) 테마로 렌더한다.
+- **While** 앱이 다크(라이트) 모드이면, the preview **shall** 다이어그램을 `--pele-*`가 연결된 다크(라이트) 토큰 색으로 표시하고, 다크 모드에서 처음 열 때 라이트 색으로 먼저 그리지 않는다.
 
 ### REQ-PREVIEW010-002: 테마 토글 시 라이브 재채색 (Event-driven) — 핵심
 
-- **WHEN** 사용자가 앱 테마를 라이트↔다크로 토글하면, **the system shall** 프리뷰에 **이미 보이는** mermaid 다이어그램을 편집·재입력 없이 새 테마로 재렌더하여 재채색한다.
-- The system **shall** 테마 토글 시 현재 테마로 mermaid를 다시 초기화(`initialize`)한 뒤 `.mermaid-container`의 다이어그램을 다시 `render`하여, 이전 테마 색이 굽어 있는 기존 SVG를 교체한다.
-- The system **shall** 재채색을 문서 내용 변경(`safeHtml` 변경)에 의존하지 않고 테마 신호 변경만으로 트리거한다.
+- **When** 사용자가 테마를 토글하면, the preview **shall** 이미 보이는 다이어그램을 다시 렌더하지 않고 CSS 변수만으로 새 테마 색을 적용한다.
 
 ### REQ-PREVIEW010-003: system 테마 모드 대응 (Event-driven)
 
-- **WHEN** 앱 테마가 `system`으로 설정되어 있고 OS 색 구성(`prefers-color-scheme`)이 변경되면, **the system shall** 결과적으로 반영된 라이트/다크 상태에 맞춰 다이어그램을 재렌더한다.
-- The system **shall** `system` 모드에서의 실효 테마(effective theme) 판정을 `.dark`/`data-theme` 신호 또는 `useUIStore`/`useTheme` 파생 값에서 읽어, dark/light 명시 모드와 동일한 재채색 경로를 사용한다.
+- **When** system 모드에서 OS 색 구성이 바뀌면, the preview **shall** REQ-PREVIEW010-002와 같이 재렌더 없이 색을 바꾼다.
 
-### REQ-PREVIEW010-004: 보안 불변식 유지 (Unwanted behavior)
+### REQ-PREVIEW010-004: 보안 불변식 유지 (Ubiquitous)
 
-- The system **shall** 모든 `mermaid.initialize` 호출에서 `securityLevel: 'strict'`를 유지한다.
-- **IF** 테마 연동을 위해 `mermaid.initialize`가 재호출되더라도, **then the system shall** `securityLevel`을 `'strict'`보다 약한 값(`'loose'`, `'antiscript'`, `'sandbox'` 등)으로 변경하지 않는다.
-- The system **shall** `startOnLoad: false`를 유지하여 mermaid 자동 스캔/실행이 켜지지 않도록 한다.
+- The diagram module **shall** 모든 렌더를 strict 모드(SPEC-PREVIEW-015 "다른 SPEC 개정" 절의 공통 정의)로 한다.
 
-### REQ-PREVIEW010-005: 문법 오류 폴백 유지 (Unwanted behavior)
+### REQ-PREVIEW010-005: 문법 오류 폴백 유지 (Event-driven)
 
-- **IF** 다이어그램 소스에 문법 오류가 있어 `mermaid.parse`/`render`가 실패하면, **then the system shall** 현재와 동일하게 `⚠ Diagram syntax error` 안내를 표시하고 앱이나 다른 다이어그램/프리뷰 전체를 중단시키지 않는다.
-- The system **shall** 테마 재렌더 경로에서도 다이어그램별 개별 오류 처리를 유지하여, 한 다이어그램의 실패가 다른 다이어그램의 재채색을 막지 않도록 한다.
+- **When** pele가 다이어그램을 거부하면, the preview **shall** `⚠ Diagram syntax error`에 위치 접미사(SPEC-PREVIEW-015 REQ-009)를 붙여 표시하고, 다른 다이어그램을 막지 않는다.
 
 ### REQ-PREVIEW010-006: 기존 프리뷰·인라인 SVG·내보내기 회귀 차단 (Unwanted behavior)
 
 - The system **shall** 마크다운 렌더 파이프라인(SPEC-PREVIEW-001), 인라인 SVG sanitize/복원(SPEC-PREVIEW-008), zoom 규약을 회귀 없이 유지한다.
-- **IF** 내보내기(`exportUtils.ts`) 경로가 호출되면, **then the system shall** 기존의 자체 테마 대응 mermaid 배경 로직을 그대로 사용하고 본 SPEC은 이를 변경하지 않는다.
-- The system **shall** mermaid 버전 핀(SPEC-PREVIEW-006, mermaid 11.12.3)을 변경하지 않는다.
+- 내보내기 다이어그램 색은 SPEC-PREVIEW-015 REQ-018을 따른다.
+- The system **shall** pele 버전 핀(1.10.0, SPEC-PREVIEW-015)을 바꾸지 않는다.
 
 ## Security
 

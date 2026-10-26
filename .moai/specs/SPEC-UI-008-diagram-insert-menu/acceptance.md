@@ -1,9 +1,9 @@
 ---
 id: SPEC-UI-008
-version: "0.0.2"
+version: "0.0.3"
 status: draft
 created: "2026-07-22"
-updated: "2026-07-22"
+updated: "2026-10-26"
 author: "jw"
 priority: medium
 issue_number: 0
@@ -14,6 +14,7 @@ issue_number: 0
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.0.1 | 2026-07-22 | jw | 최초 acceptance 작성 — Given-When-Then 시나리오 13건(AC-UI-008-001~013) + 품질 게이트. plan-audit 리뷰(SPEC-UI-008-review-1) D3 반영: spec.md의 dangling `acceptance.md` 참조 해소. spec.md의 재번호(REQ-001~022) 및 AC 재구성(D1/D2/D6)과 1:1 정합. 확정 결정 반영: 7종 프리셋 + 사용자 정의 빈 펜스, 즉시 렌더, 빈-펜스 플레이스홀더, AI 흐름 무변경·AI 토글 무관, 신규 런타임 의존성/단축키 없음. |
+| 0.0.3 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — AC-UI-008-004를 "프리셋 스니펫 pele 렌더 성공"으로 바꾸고, 검증 수단을 mermaid 파싱에서 다이어그램 모듈(pele 1.10.0) 렌더로, 버전 핀 확인을 pele 1.10.0으로 고쳤다. 다른 시나리오는 무변경. |
 
 # Acceptance Criteria — SPEC-UI-008 (다이어그램 삽입 서브메뉴)
 
@@ -53,12 +54,12 @@ flowchart TD
 - **And** 에디터 selection(커서)이 해당 프리셋의 첫 편집 토큰(순서도의 경우 `시작`) 위치에 놓이고 `view.focus()`로 에디터가 포커스를 가지며, 드롭다운은 닫힌다.
 - **And** 나머지 6종(시퀀스 다이어그램→`사용자`, 간트 차트→`프로젝트 일정`, 클래스 다이어그램→`동물`, 상태 다이어그램→`대기`, 파이 차트→`분포 현황`, 마인드맵→`중심 주제`)도 spec.md "Preset Snippet Definitions"의 스니펫·첫 편집 토큰과 정확히 일치한다.
 
-### AC-UI-008-004: 프리셋 스니펫 mermaid 파싱 성공 (REQ-UI-008-008, 020)
+### AC-UI-008-004: 프리셋 스니펫 pele 렌더 성공 (REQ-UI-008-008, 020)
 
 - **Given** spec.md에 정의된 7종 프리셋 스니펫(펜스 내부 본문)이 있을 때
-- **When** mermaid 11.12.3 `mermaid.parse(snippet)`를 각 스니펫에 대해 호출하면
-- **Then** flowchart / sequenceDiagram / gantt / classDiagram / stateDiagram-v2 / pie / mindmap 7종 전부가 예외/오류 없이 파싱에 성공한다(삽입 즉시 렌더 가능).
-- **And** mermaid 버전 핀(11.12.3, SPEC-PREVIEW-006)은 변경되지 않는다.
+- **When** 다이어그램 모듈(pele 1.10.0, SPEC-PREVIEW-015 고정 옵션)로 각 스니펫을 렌더하면
+- **Then** flowchart / sequenceDiagram / gantt / classDiagram / stateDiagram-v2 / pie / mindmap 7종 전부가 오류 없이 SVG를 돌려준다(삽입 즉시 렌더 가능).
+- **And** pele 버전 핀(1.10.0, SPEC-PREVIEW-015)은 변경되지 않는다.
 
 ### AC-UI-008-005: 사용자 정의 빈 펜스 삽입 (REQ-UI-008-010)
 
