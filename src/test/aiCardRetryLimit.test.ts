@@ -20,14 +20,9 @@ vi.mock('@/lib/tauri/ipc', () => ({
   ipcErrorMessage: (reason: unknown) => (typeof reason === 'string' ? reason : 'error'),
 }));
 
-// 다이어그램 자동 재시도 케이스(AC-AI10-018)용 — 'BADSYNTAX' 는 항상 무효로 판정시킨다.
-const parseMock = vi.fn();
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    parse: (...args: unknown[]) => parseMock(...args),
-  },
-}));
+// SPEC-PREVIEW-015: 다이어그램 검증은 mock 없이 실제 pele(다이어그램 모듈)로 한다.
+// 'BADSYNTAX'(다이어그램 종류 없음)와 펜스가 남은 코드는 pele가 unsupported-diagram으로 거부하고,
+// 'flowchart LR ...'은 통과한다(실제 렌더로 확인한 동작).
 
 import {
   createAiSuggestionCard,
@@ -56,7 +51,6 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
   beforeEach(() => {
     aiRequestMock.mockClear();
     aiCancelMock.mockClear();
-    parseMock.mockReset();
     clearCardRegistry();
     useAiStore.setState({ requestState: 'idle', streamBuffer: '', requestId: null, errorInfo: null });
     view = mountEditor('hello world');
@@ -379,9 +373,6 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
   });
 
   it('the diagram auto-retry does not touch the retry counter', async () => {
-    parseMock.mockImplementation((code: string) =>
-      code.includes('BADSYNTAX') ? Promise.reject(new Error('Parse error')) : Promise.resolve(true),
-    );
     const controller = startSuggestionCard(
       makeRequest({ requestId: 'dia-1', feature: 'diagram', presetKind: 'diagram' }),
     );

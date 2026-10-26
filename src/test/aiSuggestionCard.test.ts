@@ -593,3 +593,62 @@ describe('createAiSuggestionCard: extension factory', () => {
     expect(createAiSuggestionCard()).toBeDefined();
   });
 });
+
+// ---- SPEC-PREVIEW-015 AC-PREVIEW015-015: 운영 렌더러(renderMermaidInto)는 다이어그램 모듈 결과(정화됨)를 넣는다 ----
+// 모듈은 통과형 감시 래퍼로만 감싼다(실제 pele 렌더에 그대로 위임, 반환값을 바꾸지 않음).
+vi.mock('@/lib/diagram/diagramRenderer', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/diagram/diagramRenderer')>();
+  return { ...real, renderDiagram: vi.fn(real.renderDiagram) };
+});
+
+describe('renderMermaidInto: 다이어그램 모듈 미니 렌더 (SPEC-PREVIEW-015 AC-015)', () => {
+  beforeEach(async () => {
+    const { renderDiagram } = await import('@/lib/diagram/diagramRenderer');
+    vi.mocked(renderDiagram).mockClear();
+  });
+
+  it('펜스를 벗긴 코드를 모듈로 렌더하고, 영역 안 SVG는 모듈이 돌려준 정화된 SVG와 같다', async () => {
+    const { renderMermaidInto } = await import('@/components/editor/extensions/ai-suggestion-card');
+    const { renderDiagram } = await import('@/lib/diagram/diagramRenderer');
+    const box = document.createElement('div');
+    const ret = renderMermaidInto('```mermaid\nflowchart LR\n A-->B\n```', box);
+    // 동기 렌더 — 비동기 대기 없이 바로 채워진다.
+    expect(ret).toBeUndefined();
+    const spy = vi.mocked(renderDiagram);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0][0]).toBe('flowchart LR\n A-->B');
+    const result = spy.mock.results[0].value as ReturnType<typeof renderDiagram>;
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(box.querySelector('svg')).not.toBeNull();
+    expect(box.innerHTML).toBe(result.svg);
+    expect(box.querySelector('script')).toBeNull();
+  });
+
+  it('렌더가 실패하면 영역은 비어 있다', async () => {
+    const { renderMermaidInto } = await import('@/components/editor/extensions/ai-suggestion-card');
+    const box = document.createElement('div');
+    renderMermaidInto('notarealdiagramtype foo!!!', box);
+    expect(box.innerHTML).toBe('');
+  });
+
+  it('운영 렌더러를 주입한 diagram-valid 카드는 미니 미리보기에 SVG를 그리고 삽입·닫기 동작이 그대로다', async () => {
+    const mod = await import('@/components/editor/extensions/ai-suggestion-card');
+    const callbacks = { onApply: vi.fn(), onCancel: vi.fn(), onReRequest: vi.fn(), onListFallback: vi.fn() };
+    const dom = mod.renderSuggestionCard({
+      callbacks,
+      state: { phase: 'diagram-valid', suggestion: '```mermaid\nflowchart LR\n A-->B\n```', retryCount: 0 },
+      actions: { modes: ['insert-below'], primary: 'insert-below' },
+      presetKind: 'diagram',
+      streamBuffer: '',
+      renderMermaid: mod.renderMermaidInto,
+    } as never);
+    document.body.appendChild(dom);
+    expect(dom.querySelector('.mdedit-ai-mermaid-preview svg')).not.toBeNull();
+    dom.querySelector<HTMLButtonElement>('.mdedit-ai-apply[data-mode="insert-below"]')!.click();
+    expect(callbacks.onApply).toHaveBeenCalled();
+    dom.querySelector<HTMLButtonElement>('.mdedit-ai-cancel')!.click();
+    expect(callbacks.onCancel).toHaveBeenCalled();
+    dom.remove();
+  });
+});

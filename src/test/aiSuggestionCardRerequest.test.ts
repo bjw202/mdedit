@@ -19,15 +19,9 @@ vi.mock('@/lib/tauri/ipc', () => ({
   ipcErrorMessage: (reason: unknown) => (typeof reason === 'string' ? reason : 'error'),
 }));
 
-// mermaid.parse 를 스텁해 펜스 유무에 따라 결정적으로 성공/실패시킨다(mermaidValidate.test.ts 선례).
-// 'BADSYNTAX' 를 담은 코드는 항상 실패 — 펜스 제거와 무관한 "진짜 무효" 1차 응답을 재현한다.
-const parseMock = vi.fn();
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    parse: (...args: unknown[]) => parseMock(...args),
-  },
-}));
+// SPEC-PREVIEW-015: 다이어그램 검증은 mock 없이 실제 pele(다이어그램 모듈)로 한다.
+// 'BADSYNTAX'(다이어그램 종류 없음)와 펜스가 남은 코드는 pele가 unsupported-diagram으로 거부하고,
+// 'flowchart LR ...'은 통과한다(실제 렌더로 확인한 동작).
 
 import {
   createAiSuggestionCard,
@@ -70,7 +64,6 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
   beforeEach(() => {
     aiRequestMock.mockClear();
     aiCancelMock.mockClear();
-    parseMock.mockReset();
     clearCardRegistry();
     useAiStore.setState({ requestState: 'idle', streamBuffer: '', requestId: null, errorInfo: null });
     view = mountEditor('hello world');
@@ -85,9 +78,6 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
 
   it('BUG-1: 자동 재요청의 새 requestId 스트림을 수신해 diagram-valid 까지 도달한다(현재는 streaming 에 멈춤)', async () => {
     // 1차 응답: 펜스 안에 진짜 무효 문법(BADSYNTAX) — 펜스 제거와 무관하게 실패해야 하는 케이스.
-    parseMock.mockImplementation((code: string) =>
-      code.includes('BADSYNTAX') ? Promise.reject(new Error('Parse error')) : Promise.resolve(true),
-    );
 
     startSuggestionCard(makeDiagramRequest());
     useAiStore.setState({ requestId: 'orig-1', requestState: 'streaming', streamBuffer: '' });
@@ -119,10 +109,6 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
   });
 
   it('BUG-2: 재요청이 원본 selection/contextBefore/contextAfter 를 그대로 담아 보낸다', async () => {
-    parseMock.mockImplementation((code: string) =>
-      code.includes('BADSYNTAX') ? Promise.reject(new Error('Parse error')) : Promise.resolve(true),
-    );
-
     startSuggestionCard(makeDiagramRequest());
     useAiStore.setState({ requestId: 'orig-1', requestState: 'streaming', streamBuffer: '' });
     useAiStore.setState({
@@ -147,10 +133,6 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
   // AC-AI-008-010: 종류(diagramType)를 실은 초기 요청의 자동 재요청(feature='diagram' 유지)이
   // fireReRequest 의 원본 args 스프레드로 diagramType 을 승계한다(부수효과, fireReRequest 무변경).
   it('SPEC-AI-008: 종류(diagramType)가 자동 재요청에 승계된다(fireReRequest 스프레드)', async () => {
-    parseMock.mockImplementation((code: string) =>
-      code.includes('BADSYNTAX') ? Promise.reject(new Error('Parse error')) : Promise.resolve(true),
-    );
-
     startSuggestionCard(makeDiagramRequest({ diagramType: 'gantt' }));
     useAiStore.setState({ requestId: 'orig-1', requestState: 'streaming', streamBuffer: '' });
     useAiStore.setState({
@@ -167,11 +149,8 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
   });
 
   it('BUG-3(a): 펜스로 감싼 유효 다이어그램은 펜스를 제거한 뒤 검증되어 즉시 diagram-valid 로 간다', async () => {
-    // 펜스가 없는 순수 코드만 valid 로 취급하는 스텁 — 사전 검증에 펜스가 그대로 전달되면
-    // 이 테스트는 실패한다(현재 프로덕션 코드는 stripMermaidFence 를 검증 전에 적용하지 않는다).
-    parseMock.mockImplementation((code: string) =>
-      code.includes('```') ? Promise.reject(new Error('Parse error: unexpected token')) : Promise.resolve(true),
-    );
+    // 실제 pele는 펜스가 남은 코드를 unsupported-diagram으로 거부한다 — 사전 검증에 펜스가 그대로
+    // 전달되면 이 테스트는 실패한다(stripMermaidFence 를 검증 전에 적용해야 통과).
 
     startSuggestionCard(makeDiagramRequest({ requestId: 'orig-2' }));
     useAiStore.setState({ requestId: 'orig-2', requestState: 'streaming', streamBuffer: '' });
@@ -193,8 +172,6 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
   // 삽입한다 — 검증/미니 렌더에는 옳지만, 문서에 펜스 없는 맨 코드가 들어가면 마크다운 미리보기가
   // 다이어그램이 아니라 그냥 텍스트로 렌더한다.
   it('BUG-5: diagram-valid 카드를 삽입하면 문서에 ```mermaid 펜스가 복원되어야 한다', async () => {
-    parseMock.mockImplementation(() => Promise.resolve(true)); // 사용자의 실제 그래프 — validateMermaid 통과.
-
     // range/originalText 는 mountEditor('hello world') 의 실제 문서와 일치해야 재검증(REQ-AI-035)을
     // 통과한다 — makeDiagramRequest 의 기본 range/originalText(Korean)는 이 문서와 무관하다.
     startSuggestionCard({
@@ -266,9 +243,6 @@ describe('startSuggestionCard: 다이어그램 펜스 무효 → 자동 재요�
   // 넣는다 — 검증 실패 → diagramAttempts>=2 → diagram-fallback 재진입(무한 루프).
   it('BUG-6: 목록 폴백 재요청은 mermaid 검증을 타지 않고 일반 제안으로 도착한다(무한루프 아님)', async () => {
     // 두 번의 완료가 전부 진짜 무효 문법 — 1차: 자동 재요청, 2차: diagram-fallback 진입.
-    parseMock.mockImplementation((code: string) =>
-      code.includes('BADSYNTAX') ? Promise.reject(new Error('Parse error')) : Promise.resolve(true),
-    );
 
     startSuggestionCard({
       ...makeDiagramRequest({ requestId: 'orig-6' }),
@@ -347,7 +321,6 @@ describe('fireReRequest: providerId override (SPEC-AI-009)', () => {
   beforeEach(() => {
     aiRequestMock.mockClear();
     aiCancelMock.mockClear();
-    parseMock.mockReset();
     clearCardRegistry();
     useAiStore.setState({ requestState: 'idle', streamBuffer: '', requestId: null, errorInfo: null });
     view = mountEditor('hello world');
@@ -363,9 +336,6 @@ describe('fireReRequest: providerId override (SPEC-AI-009)', () => {
   it('auto-retry uses the current aiSelectedProvider, not the original trigger selection', async () => {
     // 준비: 사용자가 "claude" 로 발행했지만, 재요청 시점에 "codex" 로 바꾼 상태를 재현.
     const { useUIStore } = await import('@/store/uiStore');
-    parseMock.mockImplementation((code: string) =>
-      code.includes('BADSYNTAX') ? Promise.reject(new Error('Parse error')) : Promise.resolve(true),
-    );
 
     // 원본 발행 인자에는 providerId:'claude' 가 박혀 있다(발행 시점의 resolveProviderId() 결과).
     startSuggestionCard({
