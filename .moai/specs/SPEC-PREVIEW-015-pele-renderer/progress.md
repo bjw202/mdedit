@@ -282,6 +282,90 @@ M4 CSS 변경(`mdedit-tokens.css` 라이트 블록 선택자 `[data-theme="light
 - 서브그래프 1줄 판정의 "글자 크기 × 1.4" 한 줄 기준은 추정치다(측정 19.22 대 상한 35.84). 2줄 렌더를 실제로 만들어 이 단언이 실패하는지는 확인하지 않았고, 대신 `tspan` 0개 단언을 함께 둔다.
 - Windows(WebView2)는 확인하지 않았다.
 
+### M6 다른 SPEC 개정 (2026-10-26, 기준 HEAD 200f171, manager-spec)
+
+SPEC 본문은 manager-spec 소유라 오케스트레이터가 M6을 manager-spec에 재위임했다. 이 절도 그 위임 지시에 따라 manager-spec이 적는다. 코드는 바꾸지 않았다.
+
+#### 개정한 SPEC (`status`는 모두 그대로)
+
+| SPEC | version | 바꾼 요구 |
+|------|---------|-----------|
+| SPEC-PREVIEW-006 | 1.0.0 → 1.0.1 | REQ-PREVIEW006-003("Tier 2 패치" 삭제), 004(폐기 → 무패치로 대체), 005(pele `1.10.0` 고정), 006(패치 전제 삭제), 007(pele 버전·mermaid 재유입 가드) |
+| SPEC-PREVIEW-010 | 1.0.0 → 1.0.1 | REQ-PREVIEW010-001~006(006은 둘째·셋째 줄만) |
+| SPEC-UI-008 | spec.md·acceptance.md 각 0.0.2 → 0.0.3 | REQ-UI-008-008, 019, 020, AC-UI-008-004(spec.md 표 줄 + acceptance.md 블록), "Preset Snippet Definitions" 검증 문구, "빈 펜스 플레이스홀더 판정 힌트" |
+| SPEC-AI-001 | 0.1.1 → 0.1.2 | REQ-AI-023, REQ-AI-024 |
+| SPEC-AI-008 | 0.0.4 → 0.0.5 | REQ-AI-008-017, 019, 021, AC-AI-008-013 |
+| SPEC-EXPORT-004 | 0.1.3 → 0.1.4 | REQ-EXPORT004-012(DOCX 문장) |
+| SPEC-EXPORT-001 | 1.0.0 → 1.0.1 | REQ-EXPORT-020 괄호만. REQ-EXPORT-003은 확인만(pele에서도 "인라인 SVG, JavaScript 없음" 성립, 문구 무변경) |
+
+각 SPEC HISTORY에 "SPEC-PREVIEW-015로 개정" 행 1개, `updated: 2026-10-26`. 같은 M6에서 이 SPEC의 design.md D6에 라이트 색 값 읽기(임시 `data-theme="light"` 요소, `mdedit-tokens.css` 라이트 블록 선택자 `[data-theme="light"], :root`, 커밋 828dd92)를 적고 spec.md를 0.4.2 → 0.4.3으로 올렸다(`status: in-progress` 유지).
+
+#### SPEC-EXPORT-004(완료 SPEC) 처리 판단
+
+편집 전에 실행한 명령과 출력:
+
+- `moai spec audit --spec SPEC-EXPORT-004` → `Unknown flag: --spec.` (이 CLI에는 `--spec`이 없고 `--filter-spec`이 있다)
+- MCP `spec_audit`(`filter_spec: SPEC-EXPORT-004`, `include_grandfathered: true`) → `{"total_specs":0,"grandfathered":0,"modern_era_clean":0,"drift_findings":[]}` — 감사기는 SPEC ID를 폴더 이름으로 잡으므로 `SPEC-EXPORT-004`로는 아무것도 걸리지 않는다.
+- `moai spec audit --filter-spec SPEC-EXPORT-004-export-image-path --include-grandfathered --json` (exit 0):
+
+```
+{
+  "audited_at": "2026-10-26T11:46:43.082391Z",
+  "total_specs": 1,
+  "grandfathered": 0,
+  "modern_era_clean": 1,
+  "drift_findings": [
+    {
+      "spec_id": "SPEC-EXPORT-004-export-image-path",
+      "era": "V3R6",
+      "finding_type": "EraAutoDetected",
+      "severity": "INFO",
+      "details": {
+        "heuristic_matched": "H-4 (§E.2 + §E.4 + sync_commit_sha)"
+      }
+    }
+  ]
+}
+```
+
+판단: **기본안(HISTORY 1행 + `version` 패치 증가, `status: completed` 유지)을 택했다.** 근거는 셋이다.
+
+1. 감사기의 drift 규칙(`moai spec audit --help`)은 progress.md 단계 표지와 `status`의 조합만 본다. 본문 편집은 drift 조건이 아니다. V3R6 규칙 중 `Y_Y_Y_Y_StatusDrift`는 "단계 표지 4개와 SHA가 모두 있는데 `status`가 `completed`가 아님"이므로, EXPORT-004를 `in-progress`로 되돌리면 오히려 이 규칙에 걸릴 수 있다.
+2. `spec-frontmatter-schema.md`(주 체크아웃 `.claude/rules/moai/development/`, 이 worktree에는 그 파일이 없음)의 `completed → in-progress (amendment)` 전이는 **MAY**이고, 완료 SPEC을 다시 열어 고치는 경우를 위한 것이다. 이번 변경은 다른 SPEC(SPEC-PREVIEW-015)이 바꾼 동작을 가리키도록 회귀 금지 문장 하나를 고치는 것이며 EXPORT-004 자체의 구현을 다시 열지 않는다.
+3. `status`를 바꾸지 않으므로 `amendment_of:`와 HISTORY `## Amendments`는 붙이지 않았다.
+
+편집 뒤 같은 명령의 결과는 편집 전과 같다(V3R6, `modern_era_clean: 1`, INFO 1건, 아래 "편집 뒤 감사").
+
+#### AC-PREVIEW015-024 문구 검사 (출력 `.moai/state/verify/pele-015-m6/ac024-out.txt`)
+
+`python3 -I .moai/state/verify/pele-015-m6/ac024.py <worktree>` — AC-024 표의 1~25·27행을 블록 정의대로 잘라 금지·필수 문자열을 센다. 결과: 26행 모두 PASS(`FAILS 0`), 8개 파일(7개 SPEC + UI-008 acceptance.md) HISTORY에 `SPEC-PREVIEW-015` 행 각 1개. 26행(README·USER_MANUAL·USER_GUIDE)은 sync 범위라 검사하지 않았다.
+
+첫 실행에서 16행이 FAIL이었다. 원인은 UI-008 HISTORY 0.0.3 행이 "빈 펜스 플레이스홀더 판정 힌트"와 `mermaid.parse`를 그대로 인용해, "첫 번째로 맞는 줄"을 고르는 검사가 내용 줄 대신 HISTORY 행을 집은 것이다. HISTORY 행 문구를 바꿔 다시 실행했다.
+
+#### 편집 뒤 감사 (출력 `.moai/state/verify/pele-015-m6/audit-*.json`)
+
+`moai spec audit --filter-spec <폴더 이름> --include-grandfathered --json`, 모두 exit 0, 편집 전 전체 감사(`--json --include-grandfathered`)와 시대 분류가 같다.
+
+| SPEC 폴더 | 시대 | 결과 |
+|-----------|------|------|
+| SPEC-PREVIEW-015-pele-renderer | V3R5 | INFO 2(EraAutoDetected, Grandfathered) |
+| SPEC-PREVIEW-006 | V2.x | INFO 2 |
+| SPEC-PREVIEW-010-mermaid-dark-theme | V2.x | INFO 2 |
+| SPEC-UI-008-diagram-insert-menu | V2.x | INFO 2 |
+| SPEC-AI-001 | V3R2-R4 | INFO 2 |
+| SPEC-AI-008-diagram-type-picker | V2.x | INFO 2 |
+| SPEC-EXPORT-004-export-image-path | V3R6 | INFO 1(EraAutoDetected), `modern_era_clean: 1` |
+| SPEC-EXPORT-001 | V2.x | INFO 2 |
+
+`moai spec audit --strict` 전체 → exit 0(MUST-FIX 0건).
+
+#### Gaps (확인하지 않은 것)
+
+- `moai spec lint`는 돌리지 않았다. 개정한 SPEC 중 여섯 개(EXPORT-004 제외)는 이전부터 12개 필수 필드(`title`·`phase`·`module` 등)가 빠진 grandfather 시대 frontmatter다. M6 범위가 아니라 고치지 않았다.
+- 개정 대상 표에 없는 mermaid 시절 문구(예: PREVIEW-006·010의 Overview·근거 절, UI-008 acceptance.md 머리말의 "mermaid 11.12.3 `mermaid.parse`로 검증", UI-008 Exclusions의 "11.12.3 핀 유지")는 표대로 손대지 않았다. AC-024는 표에 적힌 블록만 검사한다.
+- AC-024의 manual 부분(앱에서 전체 흐름 확인)과 26행(사용자 문서)은 sync 단계 몫이다.
+- SPEC-PREVIEW-010 REQ-006 둘째 줄은 표의 문구("내보내기 다이어그램 색은 SPEC-PREVIEW-015 REQ-018을 따른다.")를 그대로 옮겼고, `shall` 형식이 아닌 참조 문장이다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_

@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-015
 title: "Mermaid 렌더러를 pele로 전면 교체 — 미리보기·AI 검증·내보내기를 한 엔진으로"
-version: "0.4.2"
+version: "0.4.3"
 status: in-progress
 created: 2026-10-26
 updated: 2026-10-26
@@ -28,6 +28,7 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 | 0.4.0 | 2026-10-26 | jw | M1b 판정 반영(사용자 통과 판정, 근거 `m1/checks.md` "M1b"·`m1/report-m1b.html`). REQ-025·AC-025의 잠정 표시를 지우고 최종 문구로 확정: 해석기는 KaTeX `output:'mathml'`에서 바깥 `.katex` span을 걷어 낸 `mathml-bare`(`trust:false` 유지, HTML 출력은 webkit 어긋남·CSS+글꼴 386,784 B로 탈락), 크기는 브라우저 `getBoundingClientRect` 측정. REQ-003: 다이어그램 정화는 별도 `DOMPurify(window)` 인스턴스에서 href 차단 훅을 다시 등록하고 `HTML_INTEGRATION_POINTS: {foreignobject: true}`로 수식 허용 목록만 더함(전역 인스턴스 훅 누수 43회 측정), 공유 `sanitizeSvg`는 M1 픽스처와 바이트 동일. HTML·PDF는 KaTeX CSS·글꼴 불필요, DOCX는 별도 대체안 없음. CSP는 "다이어그램 수식으로 생기는 새 위반 0"(기존 KaTeX_Size3 결함은 범위 밖, 백로그 `t1`). Exclusions(수식 라벨) 최종 문구. REQ 25건·AC 25건 유지. |
 | 0.4.1 | 2026-10-26 | jw | plan-audit 3회차 반영(FAIL 0.85, `.moai/reports/plan-audit/SPEC-PREVIEW-015-review-3.md`). D2: 공유 `sanitizeSvg` 훅을 다이어그램 경로의 방어선으로 적은 곳을 모두 "다이어그램 전용 정화 경로(별도 DOMPurify 인스턴스, 재등록한 href 훅)"로 고치고, M6이 7개 SPEC에 옮겨 적는 "strict 모드" 공통 정의를 그 자체로 완결된 문구로 다시 씀. D1: AC-005를 감시 없는 출력 비교(수식 없는 `unit/` 픽스처에서 두 경로 결과 바이트 동일, M2 첫 확인)로 다시 씀. D8: `fontFamily`를 고정 옵션에 넣고(REQ-002, AC-004) M2에서 `unit/` 픽스처를 다시 캡처하는 규칙으로 정함. D4: 픽스처 출처(M1·M2)와 수식 픽스처 크기 결정 방법을 매니페스트 계약에 넣음(REQ-023, AC-002). D5: AC-025 CSP 확인이 이벤트와 콘솔 거부를 각각 셈. D6: 엔티티 근거를 M1 측정(출력 바이트 동일)으로 고침. D7: REQ-003 추적에 AC-025 추가, 전역 설정 무변경 단언. D10: 수식 다이어그램의 PDF·색 치환 확인 추가. REQ 25건·AC 25건 유지. |
 | 0.4.2 | 2026-10-26 | jw | plan-audit 4회차 반영 (PASS-WITH-DEBT 조건 해소, 0.88, `.moai/reports/plan-audit/SPEC-PREVIEW-015-review-4.md`). N1: M1 `unit/` 캡처 38쌍을 다시 캡처하지 않는 고정 기준 묶음 `src/test/fixtures/pele/m1-frozen/`(매니페스트 `frozen: true`)으로 두고, REQ-003·AC-005·AC-025 4번·design.md D4·D5·D14의 공유 `sanitizeSvg` 비교 기준을 그 묶음으로 통일. N2: "strict 모드" 공통 정의의 추가 허용 목록을 REQ-003·D4와 같게(`foreignObject.pele-math`·감싸기 `div`·MathML 태그·`semantics`·`annotation[encoding]`). N3: M7 MX 문구를 MX 표 기준으로. N4: AC-020 수식 다이어그램에 크기 주입과 `foreignObject.pele-math` 존재 전제 추가. N5: AC-025 CSP를 기준 렌더 이하 비교로. N6·N7: `fontFamilyMono`를 고정 옵션에 추가하고 두 글꼴 상수를 기준으로 CSS 리터럴과 문자열 비교. N8: 위험 행·결정 이력 정리, M2에서 `browser/`도 다시 캡처. REQ 25건·AC 25건 유지. |
+| 0.4.3 | 2026-10-26 | jw | run-phase M6. design.md D6에 라이트 색 값 읽기 방식을 적었다 — 라이트 값은 `data-theme="light"`를 단 임시 요소로 읽으며, 이를 위해 `src/styles/mdedit-tokens.css`의 라이트 토큰 블록 선택자가 `[data-theme="light"], :root`로 바뀌었다(커밋 828dd92, 사용자 유지 결정 2026-10-26). 같은 M6에서 "다른 SPEC 개정" 표대로 7개 SPEC 본문을 고쳤다(기록은 progress.md §E.2 "M6"). REQ·AC 문구는 무변경, REQ 25건·AC 25건 유지. |
 
 ## Overview
 
