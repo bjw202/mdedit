@@ -22,14 +22,14 @@ lifecycle: spec-anchored
 |---------|------|--------|---------|
 | 0.1.0 | 2026-07-16 | jw | 최초 SPEC 작성 — AI 기능 MVP M0+M1. 설계서 `.moai/design/ai-features-mvp-design.md` v0.4 확정 범위. M0 = Rust `ai/` 모듈(claude CLI 어댑터·스트리밍 릴레이·감지·설정 모달·연결 온보딩·정책 kill-switch·Windows 우선 검증), M1 = 축1 인라인 편집(✨ 선택 편집·프리셋 5종·제안 카드·적용 안전장치·선택 길이 가드·mermaid 사전 검증) + 시나리오 F 빈 섹션 채우기(고스트, Mod+Enter 확정, Tab 확정 아님). 사용자 확정 결정 5건 반영: (1) MVP는 claude CLI 단독(codex는 M4, AiProvider trait 계약만 확정), (2) 설정 UI = 새 설정 모달 다이얼로그(Header 톱니 버튼), (3) 프리셋 = 다듬기/개요로 정리/표로 만들기/다이어그램으로/짧게 줄이기(+직접 입력), 번역 프리셋 없음, (4) Tab은 고스트 확정 키 아님(indentWithTab 유지, 확정 = 넣기 버튼/Mod+Enter), (5) 모든 단축키 CodeMirror `Mod-` 접두어, 주 검증 플랫폼 Windows. 방법론 TDD(RED-first). M2/M3/M4는 Exclusions. |
 | 0.1.1 | 2026-07-16 | jw | plan-audit 리뷰(SPEC-AI-001-review-1, FAIL 0.72) 반영. **D1** REQ-AI-001(AiProvider trait 계약)에 AC-AI-021 신설·매핑. **D2** REQ-AI-016(고급 모델 sonnet 지속 토글, REQ-AI-025의 3회 폴백과 구분)에 AC-AI-022 신설 + acceptance.md 전용 Given/When/Then 추가. 전 REQ-AI-001~040이 최소 1개 AC 보유 확인, "1:1 매핑" 문구를 "전 REQ 최소 1개 AC 매핑"으로 정정(자기모순 제거). **D3** REQ-002/017/023의 하드코딩(`--setting-sources ""`·`MDEDIT_AI_DISABLED`·`securityLevel:'strict'`)을 행동 서술 + "설계 제약" 표기로 이동. **D4** REQ-AI-001 복합 요구(trait 계약 형태 절) 축소 → Design Notes 포인터. **D5** unwanted 7건(008/009/018/027/031/032/040)을 "If … then the system shall …" 정규 EARS 형태로 재서술. REQ-AI-008 원문 침범 상호참조 오류(REQ-AI-030→036) 정정. |
-| 0.1.2 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 mermaid에서 pele 1.10.0으로 바뀌었다. REQ-AI-023의 "로컬 mermaid 파서" 검증을 로컬 다이어그램 모듈(pele) 검증으로, 설계 제약 `securityLevel:'strict'`를 strict 모드(SPEC-PREVIEW-015 공통 정의)로 바꿨다. REQ-AI-024는 "mermaid 검증"을 "다이어그램 검증"으로만 고쳤고 흐름은 유지한다. |
+| 0.1.2 | 2026-10-26 | jw | SPEC-PREVIEW-015로 개정 — 다이어그램 렌더러가 mermaid에서 pele 1.10.0으로 바뀌었다. REQ-AI-023의 "로컬 mermaid 파서" 검증을 로컬 다이어그램 모듈(pele) 검증으로, 설계 제약 `securityLevel:'strict'`를 strict 모드(SPEC-PREVIEW-015 공통 정의)로 바꿨다. REQ-AI-024는 "mermaid 검증"을 "다이어그램 검증"으로만 고쳤고 흐름은 유지한다. 같은 날 정리 작업으로 Summary의 M1 설명, Environment의 렌더러 표기(pele 1.10.0), [DELTA]의 카드·`mermaidValidate.ts` 행, MX 계획의 strict 모드 문구, 코드베이스 근거 절(작성 당시 mermaid 기준으로 표시)과 spec-compact.md·acceptance.md의 같은 문구도 고쳤다. |
 
 ## Summary
 
 `mdedit`(Tauri 2 + React 18 + CodeMirror 6 + zustand)에 로컬 설치 `claude` CLI(`claude -p`)를 백엔드로 하는 AI 기능의 첫 출시 묶음(M0+M1)을 추가한다. 앱은 API 키를 다루지 않고, 요청마다 CLI 프로세스를 빈 스크래치 디렉토리에서 스폰해 stdout 델타를 Tauri 이벤트(`ai://chunk|done|error`)로 프론트에 릴레이한다.
 
 - **M0 (기반)**: `AiProvider` trait 어댑터 구조(claude 단독 구현) + 프로세스 스폰·스트리밍·취소·동시 1개 제한, CLI 감지(설치·버전·**로그인 상태 선제 판정**), 새 설정 모달 다이얼로그(Header 톱니 버튼 → AI 섹션), 연결 온보딩 위저드, 1회성 데이터 전송 고지 배너, 조직 정책 kill-switch(`MDEDIT_AI_DISABLED`), Windows 우선 단축키·스폰 지연 검증.
-- **M1 (인라인 편집 + 섹션 채우기)**: 텍스트 선택 시 ✨ 진입 버튼 + 프리셋 메뉴(다듬기 / 개요로 정리 / 표로 만들기 / 다이어그램으로 / 짧게 줄이기 + 직접 입력), 스트리밍 제안 카드(즉석 지시 입력 + ↻ 3회 소진 시 sonnet 인라인 폴백), 단일 트랜잭션 적용(Mod+Z 1회 복원) + dispatch 직전 원문 재검증 + 선택 길이 가드 + mermaid 삽입 전 로컬 파서 검증, 그리고 빈 섹션/문서 끝에서 고스트 텍스트로 초안을 채우는 시나리오 F(Mod+Enter/버튼 확정, Tab은 확정 키 아님).
+- **M1 (인라인 편집 + 섹션 채우기)**: 텍스트 선택 시 ✨ 진입 버튼 + 프리셋 메뉴(다듬기 / 개요로 정리 / 표로 만들기 / 다이어그램으로 / 짧게 줄이기 + 직접 입력), 스트리밍 제안 카드(즉석 지시 입력 + ↻ 3회 소진 시 sonnet 인라인 폴백), 단일 트랜잭션 적용(Mod+Z 1회 복원) + dispatch 직전 원문 재검증 + 선택 길이 가드 + 다이어그램 삽입 전 로컬 검증(다이어그램 모듈, SPEC-PREVIEW-015), 그리고 빈 섹션/문서 끝에서 고스트 텍스트로 초안을 채우는 시나리오 F(Mod+Enter/버튼 확정, Tab은 확정 키 아님).
 
 모든 실패는 문서를 건드리지 않으며(무손상 원칙), 문서 변경은 오직 사용자의 [바꾸기/넣기/삽입] 확정으로만 발생하고 그 위치·범위는 카드·하이라이트에서 확인한 것과 정확히 일치해야 한다.
 
@@ -45,13 +45,13 @@ lifecycle: spec-anchored
 
 ## Background & Rationale
 
-설계서 v0.4는 마크다운 편집의 3가지 마찰(고치기 번거로운 문장 / 막힌 진도 / 문서 질문) 중 첫 출시로 인라인 편집과 빈 섹션 채우기를 선택했다. 킬러 유스케이스는 절차 문단 → mermaid 다이어그램 변환(앱의 기존 mermaid 투자와 직접 시너지)이다. 아래는 코드베이스 통합 근거(research.md file:line)다.
+설계서 v0.4는 마크다운 편집의 3가지 마찰(고치기 번거로운 문장 / 막힌 진도 / 문서 질문) 중 첫 출시로 인라인 편집과 빈 섹션 채우기를 선택했다. 킬러 유스케이스는 절차 문단 → Mermaid 문법 다이어그램 변환(앱의 기존 다이어그램 미리보기와 직접 시너지)이다. 아래는 0.1.x 작성 당시의 코드베이스 통합 근거(research.md file:line)다.
 
 - **CodeMirror widget 선례**: `src/components/editor/extensions/image-widget.ts`가 제안 카드/고스트 텍스트의 직접 원형이다 — `WidgetType` 서브클래스 + `toDOM()`(image-widget.ts:82–140), `ViewPlugin.fromClass` + `RangeSetBuilder<Decoration>`(image-widget.ts:155–198), `atomicRanges`(image-widget.ts:193–197). 뷰 레이어 전용이라 문서 텍스트를 오염시키지 않는다(설계서 §4.3 block widget 요구와 일치).
 - **트랜잭션 dispatch(P5 무손상)**: `state.changeByRange` 후 `view.dispatch` + `EditorSelection.range`로 삽입 텍스트 선택(keyboard-shortcuts.ts:16–52, insertTable 119–145). `history()`/historyKeymap이 번들에 포함되어(markdown-extensions.ts:107–110) Undo 스택이 무료로 확보된다.
 - **스트리밍 릴레이 선례**: `src-tauri/src/commands/watcher.rs`가 별도 스레드에서 `app_handle.emit()`으로 이벤트를 릴레이하고(watcher.rs:95,138) 프론트가 `listen<T>` 후 unlisten을 반환한다(useFileWatcher.ts:68–79). `ai://chunk|done|error`는 이 패턴을 그대로 확장한다. 다만 stdout 파이프 캡처·자식 프로세스 kill·라인 스트리밍은 선례가 없어 M0의 핵심 신규성이다(스폰 자체는 browser_ops.rs:20–23 fire-and-forget만 존재).
 - **Mod- 키맵 자동 매핑**: 모든 기존 단축키가 `Mod-s`/`Mod-Shift-i`/`Mod-b`로 정의되어(MarkdownEditor.tsx:113–218) 플랫폼 자동 매핑이 코드 레벨에서 이미 만족된다. Tab은 `indentWithTab`으로 바인딩되어(markdown-extensions.ts:110) 설계서 §5의 "Tab 확정 키 제외"와 정합한다.
-- **mermaid 사전 검증**: `PreviewRenderer.tsx:114`가 render 전 `await mermaid.parse(diagram)`를 호출한다 — 설계서 §4.2 시나리오 C의 "삽입 전 로컬 파서 검증"이 이미 구현되어 있어 재사용 가능하다. `MERMAID_BASE_CONFIG={startOnLoad:false, securityLevel:'strict'}` 고정은 약화 금지(XSS).
+- **다이어그램 사전 검증** (작성 당시 mermaid 기준 — 지금은 SPEC-PREVIEW-015의 다이어그램 모듈이 미리보기 렌더와 같은 함수·같은 strict 모드 고정 옵션으로 검증한다): `PreviewRenderer.tsx:114`가 render 전 `await mermaid.parse(diagram)`를 호출한다 — 설계서 §4.2 시나리오 C의 "삽입 전 로컬 파서 검증"이 이미 구현되어 있어 재사용 가능하다. `MERMAID_BASE_CONFIG={startOnLoad:false, securityLevel:'strict'}` 고정은 약화 금지(XSS).
 - **zustand 컨벤션**: 트랜지언트 값은 `persist`의 `partialize`에서 제외(uiStore.ts:123–126) → aiStore 스트림 버퍼·요청 상태는 비영속. EditorView는 store에 넣지 않고 AppLayout이 `viewRef`(useRef)로 소유한다(AppLayout.tsx:163, @MX 주석 "NOT stored in Zustand").
 - **설정 UI 부재**: 전용 설정 화면이 없고 설정성 컨트롤이 Header.tsx에 인라인 렌더된다(Header.tsx:171–188) → 설계서 §8.2의 AI 설정·온보딩·고지 배너는 새 모달 다이얼로그가 필요하다(핵심 설계 결정 2).
 - **팝오버 선례**: `TableGridPicker`(EditorToolbar.tsx:97–178)가 relative 래퍼 + `absolute z-50` + 외부 mousedown/Escape 양쪽 닫기를 제공한다 → ✨ 선택 툴바·프리셋 메뉴의 직접 선례. 우클릭 중복 노출은 FileTreeNode.tsx:156–158의 `onContextMenu` 좌표 팝업 선례를 재사용한다.
@@ -61,7 +61,7 @@ lifecycle: spec-anchored
 
 - **백엔드**: Rust / Tauri 2. `capabilities/main.json`에 `shell:allow-execute`/`shell:allow-spawn` 이미 허용. `ai://` 이벤트는 `emit`이라 추가 capability 불필요.
 - **CLI 실측 기준**(설계서 부록 A, macOS): `claude -p <prompt> --system-prompt <sys> --model haiku --output-format stream-json --include-partial-messages --verbose --setting-sources ""` + env `MAX_THINKING_TOKENS=0`, 빈 스크래치 cwd. 첫 텍스트 ~2.3초 / 완료 ~2.7초 / 건당 $0.0078. 스트림 라인 `stream_event → content_block_delta → text_delta`에서 `text` 추출, 종료 `result.subtype=success`. **저사양 Windows + 실시간 백신 환경은 미검증 — M0에서 보완 실측**(설계서 §11 리스크).
-- **프론트엔드**: React 18, TypeScript strict, CodeMirror 6(`@codemirror/view ^6.39`, autocomplete ^6.20 설치됨), zustand ^5, `mermaid@11.12.3`(핀 + patch-package). 신규 런타임 의존성은 없을 것으로 예상한다(plan.md에서 확인).
+- **프론트엔드**: React 18, TypeScript strict, CodeMirror 6(`@codemirror/view ^6.39`, autocomplete ^6.20 설치됨), zustand ^5, 다이어그램 렌더러 `pele@1.10.0`(핀, SPEC-PREVIEW-015 — 작성 당시는 `mermaid@11.12.3`). 신규 런타임 의존성은 없을 것으로 예상한다(plan.md에서 확인).
 - **테스트**: vitest(jsdom) + Playwright(webkit 단일). `insertTable.test.ts`의 가짜 view 스텁으로 CodeMirror 트랜잭션을 DOM 없이 검증. Rust는 각 command 하단 `#[cfg(test)] mod tests`로 순수 함수 검증. Tauri IPC는 Playwright에서 실행되지 않으므로 스트리밍 릴레이는 Rust 유닛 + 수동 검증에 의존한다.
 - **알려진 제약**: `npm run lint`는 eslint config 부재로 main 포함 항상 실패한다(package.json:17) — 실질 게이트는 `tsc --noEmit` + `vitest run` + Playwright이며, lint 실패를 회귀로 오판하지 않는다.
 - **프론트매터 포맷터 충돌**: `.md` 쓰기 시 포맷터가 프론트매터를 손상시킨 이력이 있어, AI는 프론트매터 자동 갱신을 하지 않는다(설계서 §1 비목표).
@@ -199,7 +199,7 @@ lifecycle: spec-anchored
 | [MODIFY] | `src/lib/tauri/ipc.ts` | `aiRequest`/`aiCancel`/`aiDetectProviders`/`aiPolicyStatus` invoke 래퍼 |
 | [NEW] | `src/hooks/useAiRelay.ts` | `ai://chunk|done|error` listen 훅(useFileWatcher 구조 복제, module-ref unlisten) |
 | [NEW] | `src/components/editor/extensions/ai-selection-toolbar.ts` | ✨ 선택 툴바 + 프리셋 메뉴(팝오버 선례 복제) |
-| [NEW] | `src/components/editor/extensions/ai-suggestion-card.ts` | 제안 카드 block widget(즉석 지시 입력·미니 mermaid 렌더·적용 재검증) |
+| [NEW] | `src/components/editor/extensions/ai-suggestion-card.ts` | 제안 카드 block widget(즉석 지시 입력·미니 다이어그램 렌더·적용 재검증) |
 | [NEW] | `src/components/editor/extensions/ai-ghost-text.ts` | 고스트 텍스트 inline widget + `Mod-Enter` keymap(확장 앞쪽 등록) |
 | [NEW] | `src/components/editor/extensions/ai-length-guard.ts` | 선택 길이 가드(2K/4K 분기, 순수 함수) |
 | [MODIFY] | `src/components/editor/extensions/markdown-extensions.ts` | AI 확장 번들 등록(고스트 keymap을 `indentWithTab`보다 높은 precedence로) |
@@ -207,7 +207,7 @@ lifecycle: spec-anchored
 | [NEW] | `src/components/settings/SettingsModal.tsx` | 새 설정 모달 다이얼로그(첫 섹션 AI) + 온보딩 위저드 + 고지 배너 |
 | [MODIFY] | `src/components/layout/Header.tsx` | 설정(톱니) 버튼 추가 → 모달 오픈 |
 | [MODIFY] | `src/components/layout/AppLayout.tsx` | AI 적용 핸들러 배선(viewRef null 가드), 설정 모달 마운트 |
-| [NEW] | `src/lib/ai/mermaidValidate.ts` | PreviewRenderer의 `mermaid.parse` 로직 추출·공유(strict 유지) |
+| [NEW] | `src/lib/ai/mermaidValidate.ts` | PreviewRenderer의 다이어그램 검증 로직 추출·공유(당시 `mermaid.parse`; SPEC-PREVIEW-015 이후 다이어그램 모듈 호출, strict 모드 유지) |
 | [MODIFY] | `src/styles/mdedit-components.css` | AI 카드·툴바·모달·고스트 클래스(`--md-*` 토큰만) |
 | [NEW] | `src-tauri/src/ai/stream.rs` 등 테스트 | Rust `#[cfg(test)]` 파싱·가드 유닛 |
 | [NEW] | `src/test/aiLengthGuard.test.ts`, `aiSuggestionApply.test.ts`, `aiGhostConfirm.test.ts`, `mermaidValidate.test.ts` | vitest(가짜 view 방식) |
@@ -252,7 +252,7 @@ code_comments = ko (`language.yaml`). `@MX:SPEC: SPEC-AI-001` 공통 부착.
 | `ai-suggestion-card.ts` 적용 경로 + `ai-ghost-text.ts` 확정 경로 | `@MX:ANCHOR` | 문서 변경이 발생하는 단일 트랜잭션 지점 — 무손상 불변식(REQ-AI-022/030/033) 계약 |
 | `ai/stream.rs` 파싱 함수 | `@MX:ANCHOR` | CLI 출력 계약 파싱 — 버전업 취약, 다수 호출 경로의 진입점 |
 | `ai/claude_cli.rs` 프로세스 스폰 | `@MX:WARN` | 외부 프로세스 스폰(`@MX:REASON`: 임의 경로 CLI 실행, 격리 cwd·설정 차단 필수, expert-security 검토) |
-| `mermaidValidate.ts` / 카드 미니 렌더 | `@MX:WARN` | `securityLevel:'strict'` 약화 금지(`@MX:REASON`: XSS), CSP null에서 AI 출력·사용자 문서 escape |
+| `mermaidValidate.ts` / 카드 미니 렌더 | `@MX:WARN` | strict 모드(SPEC-PREVIEW-015 공통 정의) 약화 금지(`@MX:REASON`: XSS), CSP null에서 AI 출력·사용자 문서 escape |
 | `ai/prompt.rs` 컨텍스트 상한 | `@MX:NOTE` | 기능별 토큰 상한·절단 규칙(§7)과 프리셋 프롬프트 의도 기록 |
 | `ai-length-guard.ts` | `@MX:NOTE` | 2K/4K 분기 근거(절단 교체 금지, §4.4) |
 

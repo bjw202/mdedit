@@ -366,6 +366,22 @@ SPEC 본문은 manager-spec 소유라 오케스트레이터가 M6을 manager-spe
 - AC-024의 manual 부분(앱에서 전체 흐름 확인)과 26행(사용자 문서)은 sync 단계 몫이다.
 - SPEC-PREVIEW-010 REQ-006 둘째 줄은 표의 문구("내보내기 다이어그램 색은 SPEC-PREVIEW-015 REQ-018을 따른다.")를 그대로 옮겼고, `shall` 형식이 아닌 참조 문장이다.
 
+#### M6 후속 — 표 밖 mermaid 문구 정리 (2026-10-26, 사용자 결정, 기준 HEAD f651a90)
+
+위 Gaps의 둘째 항목을 사용자가 M7 전에 정리하기로 했다. 7개 SPEC의 `spec.md`·`acceptance.md`(SPEC-AI-001은 `spec-compact.md` 포함)에서 `mermaid`를 하나씩 보고, 지금 엔진에 대해 틀린 문장만 고쳤다. 판단 기준: (1) 지금도 참인 역사 기록(HISTORY 행, "1.0.0 당시" 근거)은 남기고 필요하면 당시 기록임을 밝힌다. (2) 다이어그램 문법을 가리키는 "Mermaid"(` ```mermaid ` 펜스, 다이어그램 종류, AI 프롬프트 입력 언어)와 D10으로 유지된 이름(`.mermaid-container`, `mermaidPlugin.ts`, `mermaidValidate.ts`, `validateMermaid`)은 그대로 둔다. (3) `plan.md`·`research.md`·`progress.md`·`tasks.md`·`handoff.md`는 그 시점의 작업 기록이라 손대지 않았다. 버전은 다시 올리지 않고 각 SPEC의 기존 SPEC-PREVIEW-015 HISTORY 행 문구를 늘렸다. frontmatter 변경 0줄(`git diff -U0 -- .moai/specs | grep -E '^[-+][a-z_]+:'` 출력 없음).
+
+- SPEC-PREVIEW-006: Overview를 현재 상태 중심으로 고치고, 근거·결정 기록·선택한 해결 방향·[DELTA]에 1.0.0 기록 표시, Glossary·Exclusions·References 정리. acceptance.md 시나리오 A~E·측정 방법·엣지·DoD에서 패치 전제 제거(측정 대상은 M5 e2e와 같은 `text.pele-cluster-label`).
+- SPEC-PREVIEW-010: Overview 현재 상태 안내, Glossary·Security·Exclusions·References 정리. acceptance.md는 mermaid `initialize`/`render` 스파이 시나리오가 모두 틀려져 A~F를 개정 REQ 기준으로 다시 썼고, 각 시나리오를 고정하는 이 SPEC의 AC(004·005·007·008·011·012·020·023)를 적었다.
+- SPEC-UI-008: Summary·기술 컨텍스트·Environment·REQ-013·014("mermaid 파싱" → 다이어그램 렌더)·[DELTA]·Exclusions, acceptance.md 머리말·AC-006·007·품질 게이트·DoD.
+- SPEC-AI-001: Summary·근거 절·Environment·[DELTA]·MX 계획, `spec-compact.md` REQ-AI-023·024·[DELTA], acceptance.md 검증 문구·보안 행·DoD.
+- SPEC-AI-008: Summary·기술 컨텍스트·Environment·REQ-AI-008-014("mermaid 파싱 실패" → 다이어그램 검증 실패)·Exclusions, acceptance.md AC-010·013·품질 게이트·DoD.
+- SPEC-EXPORT-004: acceptance.md 격리 설명, DM1 행, AC-EXPORT004-08을 현재 테스트(`src/test/exportImageEmbed.test.ts:315-334` DM1, 미리보기 DOM 없이 원본 펜스 렌더)에 맞춤. `status: completed` 유지.
+- SPEC-EXPORT-001: §1 다이어그램 현재 상태 안내, 기술 스택·현재 상태·제약·A3·A6·§4.2~4.4·외부 라이브러리 표(mermaid → pele), acceptance.md HTML 시나리오 전제·DOCX 실패 시나리오(코드 텍스트 대체, `src/lib/export/exportDocx.ts:130-142,242-262`)·테스트 표.
+
+검증: `python3 -I .moai/state/verify/pele-015-m6/ac024.py <worktree>` → `FAILS 0`(26행 PASS, 출력 `ac024-cleanup-out.txt`). `moai spec audit --strict` → exit 0, MUST-FIX 0건(출력 `audit-strict-cleanup.txt`).
+
+남은 한계: SPEC-EXPORT-001 DOCX 실패 시나리오의 "사용자에게 경고가 표시된다"는 지금 코드에 해당 동작이 없어 지웠다. 1.0.0 구현에 경고가 있었는지는 확인하지 않았다. frontmatter `tags`의 `mermaid`·`patch-package`(PREVIEW-006 등)와 SPEC-AI-001 `spec-compact.md`·`acceptance.md`의 `version: "0.1.1"`은 버전·frontmatter를 바꾸지 말라는 지시에 따라 그대로 두었다.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_
