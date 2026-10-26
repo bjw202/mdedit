@@ -1,6 +1,7 @@
 // @MX:NOTE: [AUTO] DOCX export using docx npm package for SPEC-EXPORT-001
 // @MX:SPEC: SPEC-EXPORT-001
 // @MX:SPEC: SPEC-EXPORT-004
+// @MX:SPEC: SPEC-PREVIEW-015
 
 import {
   Document,
@@ -21,7 +22,8 @@ import MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
 import { exportSaveDialog, writeBinaryFile } from '@/lib/tauri/ipc';
 import { isLocalImageSrc, readLocalImage } from '@/lib/image/imageResolver';
-import { generateExportFilename } from './exportUtils';
+import { readPeleThemeValues, type PeleThemeValues } from '@/lib/diagram/diagramRenderer';
+import { generateExportFilename, previewDiagramInput, renderExportDiagram } from './exportUtils';
 import type { ExportOptions } from './types';
 
 // @MX:NOTE: [AUTO] DOCX page width in points (~595pt A4) minus margins (~1.25in each side = 180pt)
@@ -29,7 +31,6 @@ const DOCX_MAX_IMAGE_WIDTH = 415;
 
 // @MX:WARN: [AUTO] DOCX export uses complex markdown token traversal - handle edge cases carefully
 // @MX:REASON: [AUTO] markdown-it tokens have nested structure that requires careful state tracking
-// @MX:NOTE: [AUTO] mermaidImages array is consumed via shift() - order must match DOM order of .mermaid-container elements
 
 type DocxChild = Paragraph | Table;
 
@@ -40,6 +41,8 @@ type DocxChild = Paragraph | Table;
 interface ImageContext {
   mdFilePath: string | null;
   unembedded: Set<string>;
+  /** SPEC-PREVIEW-015 D6: DOCX 다이어그램 색 값 — 내보내기 테마와 상관없이 항상 라이트 */
+  diagramColors: PeleThemeValues;
 }
 
 /**
@@ -75,9 +78,6 @@ export async function exportToDocx(options: ExportOptions): Promise<string | nul
     return null;
   }
 
-  // Capture mermaid SVGs from DOM before conversion
-  const mermaidImages = await captureMermaidImages();
-
   // Parse markdown to tokens
   const md = new MarkdownIt({
     html: false,
@@ -88,8 +88,13 @@ export async function exportToDocx(options: ExportOptions): Promise<string | nul
   md.enable('strikethrough');
 
   const tokens = md.parse(content, {});
-  const imageCtx: ImageContext = { mdFilePath: mdFilePath ?? null, unembedded: new Set() };
-  const docxChildren = await convertTokensToDocx(tokens, mermaidImages, imageCtx);
+  const imageCtx: ImageContext = {
+    mdFilePath: mdFilePath ?? null,
+    unembedded: new Set(),
+    // DOCX 페이지는 항상 흰색이라 다크 값으로 그리면 글자가 거의 보이지 않는다(design.md D6, M1 report F3).
+    diagramColors: readPeleThemeValues('light'),
+  };
+  const docxChildren = await convertTokensToDocx(tokens, imageCtx);
   // SPEC-EXPORT-004 (REQ-008): 이미지 임베드 단계가 끝난 직후 누락을 한 번 알린다.
   if (imageCtx.unembedded.size > 0) options.onUnembeddedImages?.([...imageCtx.unembedded]);
 
@@ -118,40 +123,31 @@ interface MermaidImageData {
   height: number;
 }
 
+// @MX:WARN: [AUTO] 다이어그램 PNG는 펜스 토큰을 만난 자리에서 그 펜스 원문으로 렌더·변환한다 — 결과를 큐에 모아 순서로 짝짓지 말 것
+// @MX:REASON: [AUTO] SVG→data URI→Image→canvas 변환은 비동기다. 예전처럼 미리 모은 배열을 shift()로 꺼내면 실패·빈 펜스나
+//   목록 안 펜스 하나만 어긋나도 뒤 그림이 모두 한 칸씩 밀린다(AC-PREVIEW015-019). 펜스마다 await해 위치와 결과를 짝짓는다.
 /**
- * Captures rendered mermaid SVGs from the DOM and converts them to PNG images.
- * Returns an array of image data in the order they appear in the DOM.
+ * 펜스 원문 1개를 다이어그램 PNG로 바꾼다(SPEC-PREVIEW-015 REQ-015·017·019).
+ * 입력은 미리보기와 같은 문자열(previewDiagramInput), 색은 항상 라이트(D6), 크기는 pele width·height(D8).
+ * 빈 펜스·렌더 실패·래스터 실패는 null — 호출자가 코드 텍스트로 대신 넣는다(D7).
  */
-async function captureMermaidImages(): Promise<MermaidImageData[]> {
-  if (typeof document === 'undefined') return [];
-
-  const containers = document.querySelectorAll('.mermaid-container');
-  if (containers.length === 0) return [];
-
-  const results: MermaidImageData[] = [];
-
-  for (const container of containers) {
-    const svg = container.querySelector('svg');
-    if (!svg) continue;
-
-    try {
-      const pngData = await svgToPng(svg);
-      if (pngData) {
-        results.push(pngData);
-      }
-    } catch {
-      // Skip failed SVG conversions
-    }
+async function renderFenceDiagramPng(fenceContent: string, colors: PeleThemeValues): Promise<MermaidImageData | null> {
+  if (typeof document === 'undefined') return null;
+  const diagram = renderExportDiagram(previewDiagramInput(fenceContent), colors);
+  if (!diagram) return null;
+  try {
+    return await svgToPng(diagram.svg, diagram.width, diagram.height);
+  } catch {
+    return null;
   }
-
-  return results;
 }
 
 /**
  * Converts an SVG element to a PNG image using canvas.
  * Uses data URI instead of blob URL to comply with CSP img-src restrictions.
+ * 크기는 pele가 알려 준 자연 크기를 쓴다 — 화면 배치(getBoundingClientRect)·zoom·패널 폭과 무관(D8).
  */
-async function svgToPng(svg: SVGElement): Promise<MermaidImageData | null> {
+async function svgToPng(svg: SVGElement, naturalWidth: number, naturalHeight: number): Promise<MermaidImageData | null> {
   const svgData = new XMLSerializer().serializeToString(svg);
   // Use data URI (allowed by CSP img-src 'data:') instead of blob URL (blocked by CSP)
   const utf8Bytes = new TextEncoder().encode(svgData);
@@ -161,9 +157,16 @@ async function svgToPng(svg: SVGElement): Promise<MermaidImageData | null> {
   }
   const dataUri = `data:image/svg+xml;base64,${btoa(binaryStr)}`;
 
-  const svgRect = svg.getBoundingClientRect();
-  const width = Math.max(svgRect.width, 400);
-  const height = Math.max(svgRect.height, 200);
+  const width = naturalWidth;
+  const height = naturalHeight;
+  if (!(width > 0 && height > 0)) return null;
+  // DOCX 삽입 크기(pt) = 0.75배, 페이지 폭을 넘으면 비율을 지켜 줄인다.
+  let docxWidth = width * 0.75;
+  let docxHeight = height * 0.75;
+  if (docxWidth > DOCX_MAX_IMAGE_WIDTH) {
+    docxHeight = docxHeight * (DOCX_MAX_IMAGE_WIDTH / docxWidth);
+    docxWidth = DOCX_MAX_IMAGE_WIDTH;
+  }
 
   return new Promise<MermaidImageData | null>((resolve) => {
     const img = new Image();
@@ -187,8 +190,8 @@ async function svgToPng(svg: SVGElement): Promise<MermaidImageData | null> {
         pngBlob.arrayBuffer().then((buf) => {
           resolve({
             data: new Uint8Array(buf),
-            width: Math.round(width * 0.75), // Scale down for DOCX (points)
-            height: Math.round(height * 0.75),
+            width: Math.round(docxWidth), // points
+            height: Math.round(docxHeight),
           });
         });
       }, 'image/png');
@@ -203,7 +206,7 @@ async function svgToPng(svg: SVGElement): Promise<MermaidImageData | null> {
 /**
  * Converts markdown-it tokens to docx document elements.
  */
-async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageData[], imageCtx: ImageContext): Promise<DocxChild[]> {
+async function convertTokensToDocx(tokens: Token[], imageCtx: ImageContext): Promise<DocxChild[]> {
   const result: DocxChild[] = [];
   let i = 0;
 
@@ -237,9 +240,9 @@ async function convertTokensToDocx(tokens: Token[], mermaidImages: MermaidImageD
       }
 
       case 'fence': {
-        // Check if this is a mermaid diagram
-        if (token.info?.trim() === 'mermaid' && mermaidImages.length > 0) {
-          const imageData = mermaidImages.shift();
+        // 다이어그램 펜스는 이 자리에서 원본으로 렌더한다. 실패·빈 펜스는 아래 코드 텍스트로 넘어간다(D7).
+        if (token.info?.trim() === 'mermaid') {
+          const imageData = await renderFenceDiagramPng(token.content ?? '', imageCtx.diagramColors);
           if (imageData) {
             result.push(
               new Paragraph({
