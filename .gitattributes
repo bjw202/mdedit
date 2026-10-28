@@ -1,0 +1,21 @@
+# 크로스 플랫폼 일관성 — macOS(개발) / Windows(빌드)
+# 모든 텍스트 파일을 LF로 통일한다: 윈도우 체크아웃에서도 줄바꿈 유령 변경이 생기지 않는다.
+* text=auto eol=lf
+
+# 바이너리는 변환 금지
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.svg text
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.dmg binary
+*.exe binary
+*.msi binary
+*.zip binary
