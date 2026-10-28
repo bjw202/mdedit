@@ -60,9 +60,37 @@
 - PreviewRenderer 직렬화 동일성 단정 — 미추가 판단: 기존 가드가 이미 노드 객체 동일성(`toBe(svg)`) + pele 호출 0회 + 오류 문구 보존까지 단정하므로 추가 시 중복 커버리지(단순성 원칙)
 - 경계 grep — `git grep -in '#c08a28'` 신규 추가분 0건(기각 옵션 16진 리터럴 미도입)
 
+### M3 — 테스트 정렬 + 015 폐기 포인터 + 최종 게이트 (2026-10-28, 구현 기준 HEAD 83dfeaa)
+
+- E8 RED 증거(e2e, 전환 전 캡처 — M1/M2로 이미 착지한 고정 팔레트 동작에 구 테마 가정 단정이 실패하는 것을 기록): `npx playwright test e2e/diagram-preview-behavior.spec.ts e2e/diagram-export-colors.spec.ts` → `4 failed | 3 passed` — (1) colors:57 `Error: dark --pele-bg` received `#FAF9F6`(구 --md-* 체이닝 기대와 불일치), (2) colors:98 `라이트 SVG에 라이트 surface 값 없음`(라이트·다크 내보내기가 같은 고정 값을 담아 테마 구분 단정 붕괴), (3) preview:141 `expect(dark.fill).not.toBe(light.fill)` → `Received: false`(양측 색이 같음), (4) preview:181 `첫 렌더 채움색이 다크 토큰 값이 아님` received `rgb(238, 243, 247)`(= #EEF3F7 고정 pele surface). 전부 계획된 테마 가정 파손 형태이며 구조 전용 3건(AC-012×2·AC-025)은 무변경 통과. 전문: `.moai/state/verify/m3-evidence/red-e2e-before-m3.txt`(gitignored 로컬 증거)
+- 유닛 전환의 RED 미획득 사유(명시): `exportDiagram.test.ts`는 CSS를 계산하지 않고 readPeleThemeValues 주입 표로 치환 경로를 검증하므로(B-K5 실측, jsdom 한계), 유닛의 고정 팔레트 전환은 "이미 착지한 동작에 대한 정렬"이다 — 새 단정의 RED는 물리적으로 얻을 수 없다(동작은 M1 fdda742에서 착지). 팔레트 값 자체의 진위는 M1의 diagramRenderer.test.ts 가드(AC-001..003)가, 주입값의 정합은 본 파일 신설 가드가 분담한다.
+- AC-PREVIEW016-004 PASS — unit: `npx vitest run src/test/exportDiagram.test.ts` → `Tests 22 passed (22)`(기존 21 + 신설 주입 표 일치 가드 1): THEME 표를 synthetic 테마별 생성기에서 mdedit-tokens.css :root pele 리터럴 파싱으로 교체, 라이트·다크가 같은 객체, 6-조합 행렬은 테마 라벨 시나리오로 유지하며 기대값을 고정 팔레트로 전환(onlyIn 상호배타 검사는 테마 불변화로 개념 소멸 — 삭제). e2e: `npx playwright test e2e/diagram-preview-behavior.spec.ts e2e/diagram-export-colors.spec.ts` → `8 passed (13.2s)` — 테마 불일치 단정 2곳을 테마 동일성 단정으로 전환, readNodeColors 프로브를 `var(--pele-surface)`/`var(--pele-border)`로 재조준, 다크 첫 렌더를 고정 팔레트 값 단정으로 전환, 내보내기 SVG 양테마 동일값 단정. isSameSvg 가드 보존 확인
+- AC-PREVIEW016-005 PASS(unit+e2e 부분) — 신설 e2e: 다크 내보낸 HTML 카드 계산 스타일 — iframe srcdoc으로 내보낸 HTML을 적재해 .mermaid-container 측정: 다크 bg rgb(250, 249, 246) + 테두리 1px solid rgb(151, 164, 177) + 반경 3px, 라이트 무카드(테두리 0px·반경 0px, 배경은 동일 종이색). manual(다크 화면 종이 카드 시각 확인)은 사용자 확인 대기 — **manual pending**
+- AC-PREVIEW016-006 PASS(M2 증거의 M3 재확인) — 전체 스위트에 export.test.ts 포함 통과(AC-006 단정 3건 포함)
+- AC-PREVIEW016-007 PASS — unit 6-조합 테마 라벨 무관 단정 + classDef·style 사용자 색 6종 보존 단정(`#f96 #333 #9cf #036 #ffd54f #8d6e00`) 통과; e2e 내보내기 양테마 동일값 통과
+- AC-PREVIEW016-008 PASS — 전체 스위트에 PreviewRenderer.test.tsx 재렌더 금지 가드 3건 포함 통과(240-297 무변경)
+- AC-PREVIEW016-009 PASS — 본 SPEC spec.md "다른 SPEC 개정" 표 존재(plan 단계 기록, pre-flight 재확인) + `git grep -in '#c08a28' -- ':!.moai/specs'` → 0건(exit 1). 015 문서 폐기 포인터 5곳 삽입(REQ-008·REQ-013은 spec.md, AC-011·AC-015·AC-020은 acceptance.md) — `git diff --stat` = 10 insertions(+), 0 deletions(본문 재작성 0, 삽입 전용)
+- E2 최종 게이트 — vitest 전체: `Test Files 108 passed (108) / Tests 1758 passed (1758)`(M2 대비 +1: 신설 가드) · `npm run typecheck`(tsc --noEmit) exit 0 · `npm run lint`(--max-warnings 0) exit 0 · Playwright webkit: 변환 2종 `8 passed (13.2s)` + 회귀 `e2e/mermaid-subgraph-label.spec.ts` `2 passed (4.4s)` · `cargo test` → `367 passed; 0 failed`(exit 0) — Rust 표면 무변경 확인(`git diff bcdfb56..83dfeaa -- diagramRenderer.ts exportHtml.ts exportDocx.ts` 공백)
+- 앵커 재측정 기록(plan §A vs 83dfeaa 실측): exportDiagram.test.ts THEME 표·모킹 36-63(계획 36-60, 모킹 팩토리 포함 +3), combos 296-303(일치), 기대값 소비 317-322(계획 318-319, ±3행), 탐침 테스트 ~404-414(무변경 유지 확인). e2e preview: 프로브 92-93·단정 159-165·두 번째 테스트 181-217 전부 일치. e2e colors: 36-37·85-94 일치, 내보내기 단정 117-125(계획 119-127, -2행). 전부 소폭 편차이며 실측 앵커 기준으로 구현
+- B-K5 실측 정정 기록: exportDiagram.test.ts는 CSS 원문을 파싱해 단정하는 게 아니라 readPeleThemeValues 주입 표로 치환 경로를 검증한다(계획 가정과 다름 — M1 관찰 유지). M3 전환으로 주입 표의 값 공급원을 synthetic 테마별 생성기 → CSS :root 파싱으로 바꿔 "주입값 = 실제 팔레트"를 같은 파일 가드로 고정했다(검증 기법은 주입 방식 그대로 — 값 공급만 CSS 기반으로 변경)
+- plan §C.4 오픈 아이템 해소: pele 패키지(node_modules/pele = dist·LICENSE·package.json·README)에 `.mockup` 자산 없음(`find` 0건, dist `grep -c mockup` = 0). dist 내부 폴백 `var(--pele-accent,#5b7bd5)`·`var(--pele-surface,#f3f3f3)`·`var(--pele-surface-alt,#e6e6e6)`은 토큰 표가 채워지면 불활성 — 앱은 :root 고정 팔레트가 항상 표를 채우므로 폴백 소비 없음. 조치 불요
+- Playwright webkit: 1.58.2 + webkit 바이너리 캐시 존재(webkit-2248/2311/2336) — 신규 설치 불요
+
 ## §E.3 Run-phase Audit-Ready Signal
 
-_pending run-phase_
+- run_complete_at: 2026-10-28T16:12:00Z (M3 최종 게이트 완료)
+- run_status: audit-ready
+- run_commit_sha: pending-backfill-M3 (본 커밋이 run 최종 커밋 — 자기 SHA 기재 불가, 후속 백필 대상)
+- ac_pass_count: 9 (AC-PREVIEW016-001..009)
+- ac_fail_count: 0
+- ac_manual_pending: 1 (AC-005 다크 종이 카드 시각 확인 — 사용자 manual 1회 대기; unit·e2e 증거는 PASS)
+- preserve_list_post_run_count: 3 (diagramRenderer.ts·exportHtml.ts·exportDocx.ts — diff 공백으로 무변경 확인)
+- l44_pre_commit_fetch: 미실행 — push는 오케스트레이터가 수행(위임 지시), 본 에이전트 권한 밖
+- l44_post_push_fetch: 미실행 — 동일 사유
+- new_warnings_or_lints_introduced: 0 (lint --max-warnings 0 exit 0, cargo warning 0)
+- cross_platform_build.rust: cargo test darwin/aarch64 exit 0 (367 passed) — Rust 무변경이므로 크로스 플랫폼 영향 없음
+- total_run_phase_files: 11 (M1 2 + M2 4 + M3 5, plan §F 인도 파일 기준; progress.md·spec.md frontmatter 제외)
+- m1_to_mN_commit_strategy: 마일스톤당 1커밋(M1 fdda742, M2 83dfeaa, M3 본 커밋) — 각 커밋마다 당시 전체 게이트 통과 후 착지
 
 ## §E.4 Sync-phase Audit-Ready Signal
 

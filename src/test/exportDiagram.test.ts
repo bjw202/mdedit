@@ -6,11 +6,15 @@
 //   - IPC(@/lib/tauri/ipc): 저장 대화상자·파일 쓰기
 //   - pele render: 통과형 감시 래퍼(vi.fn(real.render)) — 입력 문자열 기록용, 출력은 실제 pele
 //   - 수식 크기 측정: jsdom은 DOM 크기를 0으로 재므로 48×20 고정값 주입(design.md D14, renderDiagramForTest)
-//   - 테마 색 값 표: jsdom은 앱 CSS를 읽지 않으므로 readPeleThemeValues를 주입 표로 바꿈(design.md D6)
+//   - 테마 색 값 표: jsdom은 앱 CSS를 읽지 않으므로 readPeleThemeValues를 주입 표로 바꿈 — 표 값은
+//     mdedit-tokens.css :root의 고정 팔레트 리터럴을 그대로 읽는다(SPEC-PREVIEW-016, 테마 무관)
 //   - Image·canvas: jsdom에는 캔버스가 없다. Image는 src(래스터 입력 SVG data URI)를 기록하고 onload만 부르며,
 //     canvas.toBlob은 고정 바이트를 돌려준다. 그래서 PNG 픽셀은 증명하지 않는다 — 래스터 입력 SVG·크기·위치만 증명한다.
 
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
 const ipc = vi.hoisted(() => ({
   readImageAsBase64: vi.fn(),
@@ -27,26 +31,26 @@ vi.mock('pele', async (importOriginal) => {
   return { ...real, render: vi.fn(real.render) };
 });
 
-// 서로 다른 라이트·다크 값 표(D5 변수 전부). 글꼴도 테마마다 다르게 두어 "다른 테마 값 없음"을 엄격히 본다.
+// 고정 팔레트 값 표(SPEC-PREVIEW-016) — mdedit-tokens.css :root의 pele 리터럴을 그대로 읽는다.
+// 라이트·다크가 같은 표를 가리킨다(테마는 다이어그램 색의 입력이 아님, AC-PREVIEW016-004).
+// 아래 가드 테스트가 이 표가 CSS 단일 :root 블록과 23개 이름 전부에서 일치하는지 고정한다.
 const VAR_NAMES = [
   'accent', 'bg', 'border', 'fg', 'font', 'font-mono', 'heading-weight', 'line', 'muted', 'radius',
   'series-1', 'series-2', 'series-3', 'series-4', 'series-5', 'series-6', 'series-7', 'series-8',
   'surface', 'surface-alt', 'title-weight', 'error', 'critical',
 ];
-const table = (tag: 'l' | 'd') =>
-  Object.fromEntries(
-    VAR_NAMES.map((n, i) => {
-      const k = `--pele-${n}`;
-      if (n === 'font' || n === 'font-mono') return [k, `"Font${tag}${n}", sans-serif`];
-      if (n === 'radius') return [k, tag === 'l' ? '7px' : '9px'];
-      if (n.endsWith('weight')) return [k, tag === 'l' ? '510' : '520'];
-      const hex = (tag === 'l' ? 0x100000 : 0xe00000) + i * 0x10101;
-      return [k, `#${hex.toString(16).padStart(6, '0')}`];
-    }),
+const here = dirname(fileURLToPath(import.meta.url));
+const peleTableFromCss = () => {
+  const css = readFileSync(resolve(here, '..', 'styles', 'mdedit-tokens.css'), 'utf-8');
+  const start = css.indexOf(':root {');
+  const block = css.slice(start, css.indexOf('\n}', start));
+  return Object.fromEntries(
+    [...block.matchAll(/^\s*(--pele-[\w-]+):[ \t]*([^;]+);/gm)].map((m) => [m[1], m[2].trim()]),
   ) as Record<string, string>;
+};
 const THEME = vi.hoisted(() => ({ light: {} as Record<string, string>, dark: {} as Record<string, string> }));
-THEME.light = table('l');
-THEME.dark = table('d');
+THEME.light = peleTableFromCss();
+THEME.dark = THEME.light;
 
 vi.mock('@/lib/diagram/diagramRenderer', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/lib/diagram/diagramRenderer')>();
@@ -279,10 +283,15 @@ describe('AC-PREVIEW015-019: 실패·빈 펜스는 자기 자리만 차지한다
   });
 });
 
+describe('AC-PREVIEW016-004: 주입 표는 mdedit-tokens.css :root 고정 팔레트와 일치한다', () => {
+  it('읽은 표는 pele 변수 23개 전부를 담고 라이트·다크가 같은 객체다', () => {
+    expect(Object.keys(THEME.light).sort()).toEqual(VAR_NAMES.map((n) => `--pele-${n}`).sort());
+    expect(THEME.dark).toBe(THEME.light);
+  });
+});
+
 describe('AC-PREVIEW015-020: 내보낸 다이어그램의 --pele-*는 모두 실제 값으로 치환된다', () => {
   const content = doc(CLASSDEF, FLOW_A, MATH);
-  const onlyIn = (a: Record<string, string>, b: Record<string, string>) =>
-    Object.values(a).filter((v) => !Object.values(b).includes(v));
 
   async function svgsFor(format: 'html' | 'pdf' | 'docx', theme: 'light' | 'dark'): Promise<string[]> {
     if (format === 'docx') {
@@ -303,7 +312,7 @@ describe('AC-PREVIEW015-020: 내보낸 다이어그램의 --pele-*는 모두 실
   ];
 
   for (const [format, theme, expectedTheme] of combos) {
-    it(`${format} × ${theme} → ${expectedTheme} 값`, async () => {
+    it(`${format} × ${theme} → 같은 고정 팔레트 값(${expectedTheme} 라벨)`, async () => {
       const svgs = await svgsFor(format, theme);
       expect(svgs).toHaveLength(3);
       const [classdef, , math] = svgs;
@@ -314,13 +323,11 @@ describe('AC-PREVIEW015-020: 내보낸 다이어그램의 --pele-*는 모두 실
       // 1. var(--pele- 0건 (수식 감싸기 안쪽 포함)
       for (const s of svgs) expect(s).not.toContain('var(--pele-');
       expect(mathInner).not.toContain('var(--pele-');
-      // 2. 기대 테마 값 존재, 다른 테마에만 있는 값 없음
+      // 2. 고정 팔레트 값 존재 — 라이트·다크 표가 같아 테마 라벨은 시나리오 구분일 뿐이다(AC-PREVIEW016-004·007).
       const want = THEME[expectedTheme];
-      const other = THEME[expectedTheme === 'light' ? 'dark' : 'light'];
       const all = svgs.join('\n').replace(/&quot;/g, '"');
       expect(all).toContain(want['--pele-bg']);
       expect(all).toContain(want['--pele-fg']);
-      for (const v of onlyIn(other, want)) expect(all, v).not.toContain(v);
       // 3. classDef·style 색 유지
       for (const c of ['#f96', '#333', '#9cf', '#036', '#ffd54f', '#8d6e00']) expect(classdef).toContain(c);
     });
