@@ -145,6 +145,40 @@ describe('ExportUtils: getPreviewCss', () => {
     const css = getPreviewCss('light');
     expect(css).toContain('preview-content');
   });
+
+  // SPEC-PREVIEW-016 AC-005/006: 다이어그램 컨테이너 규칙은 고정 팔레트(잉크 앤 허니)를 따른다.
+  // 두 테마 모두 바탕은 #FAF9F6 상수이고, 종이 카드(테두리·반경) 선언은 다크 출력에만 있다(라이트 무카드).
+  // 카드 값은 승인 팔레트 상수의 리터럴 — 내보낸 문서 0-잔여 계약(015 AC-020)이 var(--pele-를 금지한다.
+  const extractMermaidContainerRule = (css: string): string => {
+    const marker = '.preview-content .mermaid-container {';
+    const start = css.indexOf(marker);
+    expect(start).toBeGreaterThan(-1);
+    const end = css.indexOf('}', start);
+    expect(end).toBeGreaterThan(start);
+    return css.slice(start, end + 1);
+  };
+
+  it('paints the diagram container background with the fixed paper color #FAF9F6 in both themes (AC-PREVIEW016-006)', async () => {
+    const { getPreviewCss } = await import('@/lib/export/exportUtils');
+    for (const theme of ['light', 'dark'] as const) {
+      const rule = extractMermaidContainerRule(getPreviewCss(theme));
+      expect(rule).toContain('background-color: #FAF9F6');
+    }
+  });
+
+  it('exports the dark paper-card border and radius on the diagram container (AC-PREVIEW016-005)', async () => {
+    const { getPreviewCss } = await import('@/lib/export/exportUtils');
+    const rule = extractMermaidContainerRule(getPreviewCss('dark'));
+    expect(rule).toContain('border: 1px solid #97A4B1');
+    expect(rule).toContain('border-radius: 3px');
+  });
+
+  it('keeps the light diagram container free of card border and radius declarations (AC-PREVIEW016-005)', async () => {
+    const { getPreviewCss } = await import('@/lib/export/exportUtils');
+    const rule = extractMermaidContainerRule(getPreviewCss('light'));
+    expect(rule).not.toContain('#97A4B1');
+    expect(rule).not.toContain('border-radius: 3px');
+  });
 });
 
 // ============================================================
