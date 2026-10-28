@@ -80,7 +80,7 @@
 
 - run_complete_at: 2026-10-28T16:12:00Z (M3 최종 게이트 완료)
 - run_status: audit-ready
-- run_commit_sha: pending-backfill-M3 (본 커밋이 run 최종 커밋 — 자기 SHA 기재 불가, 후속 백필 대상)
+- run_commit_sha: 333c104
 - ac_pass_count: 9 (AC-PREVIEW016-001..009)
 - ac_fail_count: 0
 - ac_manual_pending: 1 (AC-005 다크 종이 카드 시각 확인 — 사용자 manual 1회 대기; unit·e2e 증거는 PASS)
@@ -94,7 +94,17 @@
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_pending sync-phase_
+- sync_complete_at: 2026-10-28
+- sync_status: audit-ready
+- sync_commit_sha: pending-backfill-sync (본 커밋이 sync 최종 커밋 — 자기 SHA 기재 불가, 후속 백필 대상)
+- changelog_entry: [Unreleased] § Changed — 다이어그램 고정 팔레트 전환(SPEC-PREVIEW-016), AC 9건 기준
+- e3_backfill.run_commit_sha: 333c104 (본 sync 커밋에서 권한 백필 완료 — D3 패턴)
+- readme_docs_surface: 영향 없음 — README·문서에 다이어그램 테마 연동 서술 없음 확인(grep, 0건)
+- frontmatter_status_transitions: in-progress → completed (본 sync 커밋, 3-phase close)
+- mx_compliance_check: 신규 @MX:NOTE 1건(mdedit-tokens.css 팔레트 고정 결정, SPEC 참조 보유) — 규약 위반 0
+- b12_self_test_a: 사전 grep -c 'SPEC-PREVIEW-016' CHANGELOG.md = 0(중복 없음 확인)
+- b12_self_test_b: acceptance.md AC 식별자 9건(AC-PREVIEW016-001..009) — CHANGELOG 항목 AC 수 일치
+- b12_self_test_c: CHANGELOG 기재 파일 3건 실존 확인(mdedit-tokens.css·exportUtils.ts·index.css)
 
 ## §F Phase 4 Mode Selection
 

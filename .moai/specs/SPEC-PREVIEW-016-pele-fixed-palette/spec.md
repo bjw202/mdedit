@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-016
 title: "다이어그램 고정 팔레트(Ink & Honey) — pele 토큰 테마 독립화"
 version: "0.1.1"
-status: in-progress
+status: completed
 created: 2026-10-28
 updated: 2026-10-28
 author: jw (bjw202)
