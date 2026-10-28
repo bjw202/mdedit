@@ -96,10 +96,10 @@
 
 - sync_complete_at: 2026-10-28
 - sync_status: audit-ready
-- sync_commit_sha: pending-backfill-sync (본 커밋이 sync 최종 커밋 — 자기 SHA 기재 불가, 후속 백필 대상)
+- sync_commit_sha: 8812ef6
 - changelog_entry: [Unreleased] § Changed — 다이어그램 고정 팔레트 전환(SPEC-PREVIEW-016), AC 9건 기준
 - e3_backfill.run_commit_sha: 333c104 (본 sync 커밋에서 권한 백필 완료 — D3 패턴)
-- readme_docs_surface: 영향 없음 — README·문서에 다이어그램 테마 연동 서술 없음 확인(grep, 0건)
+- readme_docs_surface: README.md 주요 기능 목록의 "라이트/다크 테마 연동"을 "고정 팔레트"로 최소 수정(8812ef6, item 5 판단) — 그 외 문서 표면 영향 없음
 - frontmatter_status_transitions: in-progress → completed (본 sync 커밋, 3-phase close)
 - mx_compliance_check: 신규 @MX:NOTE 1건(mdedit-tokens.css 팔레트 고정 결정, SPEC 참조 보유) — 규약 위반 0
 - b12_self_test_a: 사전 grep -c 'SPEC-PREVIEW-016' CHANGELOG.md = 0(중복 없음 확인)
