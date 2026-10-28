@@ -15,8 +15,8 @@ import { renderDiagram, formatDiagramError } from '@/lib/diagram/diagramRenderer
 // 프로파일)를 거쳐 복원되며, 그 외 원시 HTML은 여전히 markdown-it html:false로 차단된다.
 // @MX:NOTE: [AUTO] 다이어그램은 컨테이너마다 renderDiagram을 동기로 호출하고 결과를 따로 넣는다.
 // 모듈은 예외를 던지지 않으므로 한 다이어그램의 실패가 다른 다이어그램이나 미리보기 전체를 막지 않는다(REQ-PREVIEW015-009).
-// @MX:NOTE: [AUTO] 테마는 다이어그램 SVG가 참조하는 CSS 변수(--pele-*)로 따라가므로 테마 전환 시 다시 렌더하지 않는다
-// (SPEC-PREVIEW-015 REQ-PREVIEW015-008). 그래서 이 컴포넌트는 테마 상태를 구독하지 않는다.
+// @MX:NOTE: [AUTO] 다이어그램 SVG는 테마와 무관한 고정 팔레트(잉크 앤 허니 리터럴)로 렌더되므로 테마 전환 시 다시 렌더하지 않는다
+// (SPEC-PREVIEW-016 REQ-PREVIEW016-008). 그래서 이 컴포넌트는 테마 상태를 구독하지 않는다.
 // @MX:NOTE: [AUTO] zoom prop: fontSize → zoom(= fontSize/14) 변환은 MarkdownPreview에서 담당
 // PreviewRenderer는 전달받은 zoom 값을 style={{ zoom }}으로 직접 적용한다
 // @MX:NOTE: [AUTO] 링크 클릭 시 시스템 기본 브라우저로 열기

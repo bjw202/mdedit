@@ -4,6 +4,9 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Changed
+- **다이어그램 색을 앱 테마와 무관한 고정 팔레트로 전환 (SPEC-PREVIEW-016)**: 지금까지 다이어그램은 앱 테마(라이트·다크)에 맞춰 색이 바뀌었는데, 이를 "잉크 앤 허니" 고정 팔레트 23색으로 고정했습니다(2026-10-28 확정 A안). 이제 라이트·다크 어느 테마에서든 같은 색으로 그려지며, `src/styles/mdedit-tokens.css`의 `--pele-*` 토큰이 단일 `:root` 블록에서 리터럴 값만 선언합니다(다크 블록 재선언·`var(--md-*)` 연결 제거). 다크 테마에서는 고정 팔레트의 밝은 바탕(#FAF9F6)이 앱의 어두운 배경 위에 그대로 노출되지 않도록 다이어그램을 종이 카드 형태로 감쌉니다(`src/index.css` 다크 스코프 — 카드 배경·테두리·반경을 pele 토큰 값과 동일하게). HTML·PDF·DOCX 내보내기도 테마 인자와 무관하게 항상 고정 팔레트로 그리며, 내보내기 이음매 색(`src/lib/export/exportUtils.ts`)을 `#FAF9F6` 상수로 바꿔 pele 간선 라벨 상자와 배경이 어긋나지 않습니다. 테마 전환 시 다이어그램을 다시 그리지 않는 기존 동작(SPEC-PREVIEW-015)은 유지됩니다. 검증: vitest 1758/1758, tsc·eslint(`--max-warnings 0`) 종료 코드 0, Playwright webkit e2e 10/10, cargo test 367 통과를 확인했습니다. 다크 테마 종이 카드의 실기 시각 확인(AC-PREVIEW016-005 manual 1건)은 남아 있습니다.
+
 ## [0.17.0] - 2026-10-27
 
 ### Fixed

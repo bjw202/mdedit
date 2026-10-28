@@ -94,6 +94,8 @@
 
 ### AC-PREVIEW015-011: 테마 전환은 SVG를 다시 만들지 않고 색만 바꾼다 — must-pass (unit + e2e)
 
+> **[개정 포인터 — SPEC-PREVIEW-016 (2026-10-28)]** e2e 부분의 테마별 값 단정("라이트·다크에서 서로 다르고 각 테마 토큰 값과 같다")과 "두 블록에 `--pele-*` 정의가 있다" 절은 폐기됐다 — 모든 조합이 같은 고정 팔레트 값(AC-PREVIEW016-004), 단일 `:root` 리터럴(REQ-PREVIEW016-001). unit 재렌더 금지 부분은 AC-PREVIEW016-008로 승계되어 유효하다. 원문은 아래에 그대로 둔다.
+
 - **Given** 라이트 모드 미리보기에 다이어그램이 하나 있을 때
 - **When** 테마를 다크로, 다시 라이트로, 그리고 system 모드에서 `prefers-color-scheme`을 바꾸면
 - **Then** (unit) 컨테이너의 SVG 노드가 처음과 같은 객체이고 pele `render` 추가 호출이 0회다. (e2e) 노드의 계산된 채움색이 라이트·다크에서 서로 다르고 각 테마 토큰 값과 같다. **첫 렌더 확인 방법**: 페이지 이동 전에 `page.addInitScript`로 테마 설정을 다크로 저장해 두고, 다이어그램이 든 문서를 연 뒤 `page.waitForSelector('.mermaid-container svg')`가 처음 붙은 요소를 돌려준 직후 그 노드의 계산된 채움색을 읽는다. 이 값이 다크 토큰 값과 같고, 같은 노드가 이후 교체되지 않는다(`elementHandle`이 계속 연결됨). `mdedit-tokens.css`의 두 블록에 `--pele-*` 정의가 있다. (REQ-008)
@@ -119,6 +121,8 @@
 - **And** (e2e) `e2e/ai-inline-edit.spec.ts`의 "1차 무효 → 자동 재요청 → 2차 유효" 시나리오에서 `.mdedit-ai-mermaid-preview`가 보이고 삽입된 문서에 ` ```mermaid `가 있다. (REQ-012)
 
 ### AC-PREVIEW015-015: AI 카드 미니 미리보기는 정화되고 테마를 따른다 — must-pass (unit)
+
+> **[개정 포인터 — SPEC-PREVIEW-016 (2026-10-28)]** 제목의 "테마를 따른다" 문구에 해당하는 색 계약은 폐기됐다 — 고정 팔레트로 대체(REQ-PREVIEW016-004). 정화 계약과 렌더 실패 동작은 유효하다. 원문은 아래에 그대로 둔다.
 
 - **Given** 운영 렌더러(`renderMermaidInto`)가 주입된 AI 카드가 `diagram-valid`에 이르렀을 때
 - **When** 미니 미리보기가 그려지면
@@ -149,6 +153,8 @@
 - **Then** HTML의 1·4번째 `.mermaid-container`에 각각 A·D의 SVG가 있고 2·3번째는 비어 있다. DOCX는 1번째 펜스 자리에 A의 PNG, 2·3번째 자리에 각 펜스 코드 텍스트, 4번째 자리에 D의 PNG가 있다(현재 코드에서는 D의 이미지가 B 자리로 밀려 실패하는 재현 테스트). (REQ-017)
 
 ### AC-PREVIEW015-020: 내보낸 다이어그램의 `--pele-*`는 모두 실제 값으로 치환된다 — must-pass (unit + manual)
+
+> **[개정 포인터 — SPEC-PREVIEW-016 (2026-10-28)]** 기대 테마 표(조합마다 다른 기대 테마)는 폐기됐다 — 6조합 전부 같은 고정 팔레트 값(AC-PREVIEW016-004·007). 1번 zero-residue 단정과 3번 사용자 `classDef`·`style` 색 보존 단정은 REQ-PREVIEW016-007로 승계되어 유효하다. 원문은 아래에 그대로 둔다.
 
 - **Given** 라이트·다크 색 값 표(서로 다른 값)를 주입하고, `classDef`·`style` 색 지정 샘플, 일반 flowchart, 수식 다이어그램(`18-math-label`)이 든 문서일 때. 수식 다이어그램은 AC-025·수식 픽스처와 같은 방법으로 해석기에 고정 크기를 주입한다(jsdom은 DOM 크기를 0으로 재어 pele가 `$$…$$` 원문으로 되돌리기 때문, design.md D14)
 - **When** 아래 6가지 조합으로 각각 내보내면: HTML × `light`/`dark`, PDF(`generateHtmlContent`) × `light`/`dark`, DOCX(래스터 입력 SVG) × `light`/`dark`

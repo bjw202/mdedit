@@ -1,7 +1,7 @@
-// @MX:NOTE: [AUTO] SPEC-PREVIEW-015 미리보기 다이어그램(pele) 동작 e2e — 테마 전환 시 노드 유지·색 변경(AC-011),
-//   다이어그램 클릭 시 이동 없음·외부 이미지 요청 없음(AC-012), 다이어그램 수식 배치·CSP 새 위반 0(AC-025).
+// @MX:NOTE: [AUTO] SPEC-PREVIEW-015 미리보기 다이어그램(pele) 동작 e2e — 테마 전환 시 노드 유지(AC-011; 재렌더 금지 불변식은 REQ-PREVIEW016-008로 승계),
+//   색은 SPEC-PREVIEW-016 고정 팔레트로 테마 무관(AC-PREVIEW016-004), 다이어그램 클릭 시 이동 없음·외부 이미지 요청 없음(AC-012), 다이어그램 수식 배치·CSP 새 위반 0(AC-025).
 //   다이어그램 소스는 픽스처 샘플 18·19·20(src/test/fixtures/pele/manifest.json의 source)과 같은 문법이며, SVG는 실제 pele 렌더 결과만 측정한다.
-// @MX:SPEC: SPEC-PREVIEW-015 AC-PREVIEW015-011, AC-PREVIEW015-012, AC-PREVIEW015-025
+// @MX:SPEC: SPEC-PREVIEW-015 AC-PREVIEW015-011, AC-PREVIEW015-012, AC-PREVIEW015-025, SPEC-PREVIEW-016 AC-PREVIEW016-004
 
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures/tauri-mock';
@@ -78,19 +78,19 @@ async function openWithContent(page: Page, content: string): Promise<void> {
 interface NodeColors {
   fill: string;
   stroke: string;
-  /** 현재 테마의 --md-surface / --md-border-strong 를 계산한 값(--pele-surface / --pele-border 의 연결 대상) */
+  /** 고정 팔레트 --pele-surface / --pele-border 의 계산값(SPEC-PREVIEW-016 — 테마 무관 리터럴) */
   tokenFill: string;
   tokenStroke: string;
   theme: string | null;
 }
 
-/** 첫 노드 rect의 계산된 채움·선 색과, 지금 테마 토큰의 계산값을 함께 읽는다. */
+/** 첫 노드 rect의 계산된 채움·선 색과, 고정 팔레트 토큰의 계산값을 함께 읽는다. */
 async function readNodeColors(page: Page): Promise<NodeColors> {
   return page.evaluate((sel) => {
     const rect = document.querySelector(`${sel} .pele-node rect`) as SVGRectElement;
     const probe = document.createElement('div');
-    probe.style.color = 'var(--md-surface)';
-    probe.style.borderTopColor = 'var(--md-border-strong)';
+    probe.style.color = 'var(--pele-surface)';
+    probe.style.borderTopColor = 'var(--pele-border)';
     probe.style.borderTopStyle = 'solid';
     document.body.appendChild(probe);
     const cs = getComputedStyle(probe);
@@ -122,7 +122,7 @@ async function isSameSvg(page: Page): Promise<boolean> {
   }, SVG_SELECTOR);
 }
 
-/** 테마가 바뀐 뒤 색이 지금 테마 토큰과 같아질 때까지 기다리고 그 값을 돌려준다. */
+/** 테마가 바뀐 뒤 색이 고정 팔레트 토큰과 같아질 때까지 기다리고 그 값을 돌려준다. */
 async function expectColorsMatchTheme(page: Page, theme: 'light' | 'dark'): Promise<NodeColors> {
   await expect.poll(async () => (await readNodeColors(page)).theme, { timeout: 5_000 }).toBe(theme);
   await expect
@@ -137,8 +137,8 @@ async function expectColorsMatchTheme(page: Page, theme: 'light' | 'dark'): Prom
   return readNodeColors(page);
 }
 
-test.describe('SPEC-PREVIEW-015 AC-011: 테마 전환은 SVG를 다시 만들지 않고 색만 바꾼다', () => {
-  test('system 모드 prefers-color-scheme 변경과 테마 토글에서 같은 SVG 노드가 유지되고 채움·선 색이 테마 토큰을 따른다', async ({
+test.describe('SPEC-PREVIEW-015 AC-011 + SPEC-PREVIEW-016 AC-004: 테마 전환은 SVG를 다시 만들지 않고 색은 고정 팔레트를 따른다', () => {
+  test('system 모드 prefers-color-scheme 변경과 테마 토글에서 같은 SVG 노드가 유지되고 채움·선 색이 고정 팔레트(테마 무관)를 따른다', async ({
     tauriPage,
   }) => {
     await tauriPage.emulateMedia({ colorScheme: 'light' });
@@ -156,9 +156,9 @@ test.describe('SPEC-PREVIEW-015 AC-011: 테마 전환은 SVG를 다시 만들지
 
     test.info().annotations.push({ type: 'node-colors', description: JSON.stringify({ light, dark }) });
 
-    // 라이트와 다크의 계산된 색이 실제로 다르다(색이 토큰을 따른다는 단언이 공허하지 않음).
-    expect(dark.fill, '노드 채움색이 라이트·다크에서 같음').not.toBe(light.fill);
-    expect(dark.stroke, '노드 선 색이 라이트·다크에서 같음').not.toBe(light.stroke);
+    // 고정 팔레트(SPEC-PREVIEW-016): 라이트·다크의 계산된 색이 같다(테마 무관 불변식, AC-PREVIEW016-004).
+    expect(dark.fill, '노드 채움색이 라이트·다크에서 다름').toBe(light.fill);
+    expect(dark.stroke, '노드 선 색이 라이트·다크에서 다름').toBe(light.stroke);
 
     await tauriPage.emulateMedia({ colorScheme: 'light' });
     const lightAgain = await expectColorsMatchTheme(tauriPage, 'light');
@@ -178,7 +178,7 @@ test.describe('SPEC-PREVIEW-015 AC-011: 테마 전환은 SVG를 다시 만들지
     expect(await isSameSvg(tauriPage), '토글(라이트) 뒤 SVG가 교체됨').toBe(true);
   });
 
-  test('다크 테마로 시작하면 처음 붙은 SVG의 채움색이 곧바로 다크 토큰 값이고, 이후 노드가 교체되지 않는다', async ({
+  test('다크 테마로 시작하면 처음 붙은 SVG의 채움색이 곧바로 고정 팔레트 값이고, 이후 노드가 교체되지 않는다', async ({
     tauriPage,
   }) => {
     await seedTheme(tauriPage, 'dark');
@@ -189,7 +189,7 @@ test.describe('SPEC-PREVIEW-015 AC-011: 테마 전환은 SVG를 다시 만들지
     const first = await handle.evaluate((svg) => {
       const rect = svg.querySelector('.pele-node rect') as SVGRectElement;
       const probe = document.createElement('div');
-      probe.style.color = 'var(--md-surface)';
+      probe.style.color = 'var(--pele-surface)';
       document.body.appendChild(probe);
       const token = getComputedStyle(probe).color;
       probe.remove();
@@ -200,7 +200,7 @@ test.describe('SPEC-PREVIEW-015 AC-011: 테마 전환은 SVG를 다시 만들지
       };
     });
     expect(first.theme).toBe('dark');
-    expect(first.fill, '첫 렌더 채움색이 다크 토큰 값이 아님').toBe(first.token);
+    expect(first.fill, '첫 렌더 채움색이 고정 팔레트 값이 아님').toBe(first.token);
 
     // 같은 노드가 이후 교체되지 않는다.
     await tauriPage.waitForTimeout(1_000);
@@ -210,10 +210,10 @@ test.describe('SPEC-PREVIEW-015 AC-011: 테마 전환은 SVG를 다시 만들지
       '첫 SVG가 다른 노드로 교체됨',
     ).toBe(true);
 
-    // 라이트 토큰과 다른 값인지 대조(다크가 라이트 대체값으로 새지 않음).
+    // 토글 뒤에도 같은 고정 팔레트 값(테마 무관, AC-PREVIEW016-004).
     await tauriPage.getByRole('button', { name: 'Toggle theme' }).click();
     const light = await expectColorsMatchTheme(tauriPage, 'light');
-    expect(light.fill).not.toBe(first.fill);
+    expect(light.fill, '토글 뒤 채움색이 고정 팔레트에서 벗어남').toBe(first.fill);
   });
 });
 

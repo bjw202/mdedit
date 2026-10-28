@@ -1,7 +1,8 @@
-// @MX:SPEC: SPEC-PREVIEW-015
+// @MX:SPEC: SPEC-PREVIEW-015, SPEC-PREVIEW-016
 // 다이어그램 모듈(src/lib/diagram/diagramRenderer.ts) 단위 테스트 — 실제 pele 1.10.0 + 실제 캡처 픽스처.
 // pele·katex는 통과형 감시 래퍼로만 감싼다(실제 구현에 그대로 위임, 반환값을 바꾸지 않음 — acceptance.md mock 원칙).
 // 대상 AC(모듈 단위 부분): 002, 004, 005, 007·014(오류 형식·검증 계약), 010(id), 012, 023은 가드 테스트, 025(1–6).
+// SPEC-PREVIEW-016: 015의 이중 블록 토큰 테스트를 고정 팔레트 단일 :root 계약(AC-PREVIEW016-001·002·003)으로 대체.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -102,42 +103,85 @@ describe('AC-PREVIEW015-004 고정 옵션과 글꼴 상수', () => {
     }).toThrow();
   });
 
-  it('mdedit-tokens.css 두 블록의 --pele-font·--pele-font-mono가 상수와 글자 그대로 같다', () => {
-    const css = readFileSync(resolve(repoRoot, 'src/styles/mdedit-tokens.css'), 'utf-8');
-    const block = (selector: string) => {
-      const start = css.indexOf(`${selector} {`);
-      expect(start, selector).toBeGreaterThanOrEqual(0);
-      return css.slice(start, css.indexOf('\n}', start));
-    };
-    for (const sel of [':root', '[data-theme="dark"]']) {
-      const b = block(sel);
-      const value = (name: string) => {
-        const m = new RegExp(`\\n\\s*${name}:\\s*([^;]+);`).exec(b);
-        expect(m, `${sel} ${name}`).not.toBeNull();
-        return m![1].trim();
-      };
-      const font = value('--pele-font');
-      const mono = value('--pele-font-mono');
-      expect(font).not.toContain('var(');
-      expect(mono).not.toContain('var(');
-      expect(font).toBe(DIAGRAM_FONT_FAMILY);
-      expect(mono).toBe(DIAGRAM_FONT_FAMILY_MONO);
-    }
+});
+
+// SPEC-PREVIEW-016 — 다이어그램 팔레트는 앱 테마를 따르지 않는다(고정 리터럴 단일 :root).
+// 잉크 앤 허니 A안(2026-10-28 사용자 확정 — Option B 액센트 후보 기각).
+describe('SPEC-PREVIEW-016 고정 팔레트 — 단일 :root 리터럴 (AC-PREVIEW016-001·002·003)', () => {
+  const cssOf = () => readFileSync(resolve(repoRoot, 'src/styles/mdedit-tokens.css'), 'utf-8');
+  const block = (css: string, selector: string) => {
+    const start = css.indexOf(`${selector} {`);
+    expect(start, selector).toBeGreaterThanOrEqual(0);
+    return css.slice(start, css.indexOf('\n}', start));
+  };
+  const peleDecls = (b: string) => {
+    const decls: Record<string, string> = {};
+    for (const m of b.matchAll(/^\s*(--pele-[\w-]+):[ \t]*([^;]+);/gm)) decls[m[1]] = m[2].trim();
+    return decls;
+  };
+  // 승인 팔레트 표 — 글꼴은 diagramRenderer.ts 상수와 바이트 동일 계약이라 상수를 그대로 쓴다.
+  const EXPECTED_PALETTE: Readonly<Record<string, string>> = {
+    '--pele-bg': '#FAF9F6',
+    '--pele-fg': '#222B33',
+    '--pele-muted': '#67727C',
+    '--pele-line': '#3A5673',
+    '--pele-surface': '#EEF3F7',
+    '--pele-surface-alt': '#F7F2E7',
+    '--pele-border': '#97A4B1',
+    '--pele-accent': '#3A5673',
+    '--pele-error': '#AC3E31',
+    '--pele-critical': '#AC3E31',
+    '--pele-radius': '3px',
+    '--pele-title-weight': '600',
+    '--pele-heading-weight': '600',
+    '--pele-series-1': '#3168A8',
+    '--pele-series-2': '#C95F3B',
+    '--pele-series-3': '#23997C',
+    '--pele-series-4': '#B78511',
+    '--pele-series-5': '#C76A95',
+    '--pele-series-6': '#7A8A28',
+    '--pele-series-7': '#6E5BC4',
+    '--pele-series-8': '#96562F',
+    '--pele-font': DIAGRAM_FONT_FAMILY,
+    '--pele-font-mono': DIAGRAM_FONT_FAMILY_MONO,
+  };
+
+  it(':root의 pele 선언은 연속된 23개 묶음 하나뿐이고, 다크 블록에는 0개다 (AC-PREVIEW016-001)', () => {
+    const css = cssOf();
+    const rootBlock = block(css, ':root');
+    const declLines = [...rootBlock.matchAll(/^\s*--pele-[\w-]+:/gm)].map((m) => rootBlock.slice(0, m.index!).split('\n').length);
+    // 묶음: 23개 선언이 :root 안에서 연속된 줄에 모여 있다
+    expect(declLines, 'pele 선언 줄 수').toHaveLength(23);
+    for (let i = 1; i < declLines.length; i++) expect(declLines[i], `${i}번째 pele 선언 줄`).toBe(declLines[i - 1] + 1);
+    // 다크 블록: pele 선언 0개
+    expect(peleDecls(block(css, '[data-theme="dark"]'))).toEqual({});
+    // 파일 전체 pele 선언 수 = :root의 23개(다른 블록에 흩어진 선언 금지)
+    expect((css.match(/^\s*--pele-[\w-]+:/gm) || []).length).toBe(23);
+    // 어떤 pele 값에도 --md-* 체이닝이 없다
+    for (const [name, value] of Object.entries(peleDecls(rootBlock))) expect(value, name).not.toContain('var(--md-');
+    expect(css).not.toMatch(/--pele-zoom-/);
   });
 
-  it('두 테마 블록에 D5 변수 목록이 모두 정의되어 있다 (AC-011 토큰 부분)', () => {
-    const css = readFileSync(resolve(repoRoot, 'src/styles/mdedit-tokens.css'), 'utf-8');
-    const vars = [
-      'accent', 'bg', 'border', 'fg', 'font', 'font-mono', 'heading-weight', 'line', 'muted', 'radius',
-      'series-1', 'series-2', 'series-3', 'series-4', 'series-5', 'series-6', 'series-7', 'series-8',
-      'surface', 'surface-alt', 'title-weight', 'error', 'critical',
-    ];
-    for (const sel of [':root {', '[data-theme="dark"] {']) {
-      const start = css.indexOf(sel);
-      const b = css.slice(start, css.indexOf('\n}', start));
-      for (const v of vars) expect(b, `${sel} --pele-${v}`).toMatch(new RegExp(`\\n\\s*--pele-${v}:`));
-      expect(b).not.toMatch(/--pele-zoom-/);
-    }
+  it('23개 토큰 값이 승인 잉크 앤 허니 표와 하나씩 같다 (AC-PREVIEW016-002)', () => {
+    const root = peleDecls(block(cssOf(), ':root'));
+    expect(Object.keys(root).sort()).toEqual(Object.keys(EXPECTED_PALETTE).sort());
+    for (const [name, expected] of Object.entries(EXPECTED_PALETTE)) expect(root[name], name).toBe(expected);
+    // accent == line == #3A5673
+    expect(root['--pele-accent']).toBe('#3A5673');
+    expect(root['--pele-line']).toBe('#3A5673');
+    // series는 정확히 8개, 서로 다른 값
+    const series = Object.entries(root).filter(([k]) => /^--pele-series-\d+$/.test(k)).map(([, v]) => v);
+    expect(series).toHaveLength(8);
+    expect(new Set(series).size).toBe(8);
+  });
+
+  it('글꼴은 상수와 바이트 동일, 반경 3px, 제목·헤딩 굵기 600 (AC-PREVIEW016-003)', () => {
+    const root = peleDecls(block(cssOf(), ':root'));
+    expect(root['--pele-font']).toBe(DIAGRAM_FONT_FAMILY);
+    expect(root['--pele-font-mono']).toBe(DIAGRAM_FONT_FAMILY_MONO);
+    expect(root['--pele-radius']).toBe('3px');
+    expect(root['--pele-title-weight']).toBe('600');
+    expect(root['--pele-heading-weight']).toBe('600');
   });
 });
 

@@ -90,6 +90,8 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 
 #### REQ-PREVIEW015-008: 테마 전환은 다시 그리지 않고 색만 바뀐다 (Event-driven)
 
+> **[개정 포인터 — SPEC-PREVIEW-016 (2026-10-28)]** 1번 불릿(이중 블록 체이닝)은 폐기됐다 — 고정 팔레트는 단일 `:root` 리터럴(REQ-PREVIEW016-001). 2·3번 불릿의 "새 테마 색으로 표시" 부분은 폐기됐다 — 테마는 다이어그램 색의 입력이 아님(REQ-PREVIEW016-004, AC-PREVIEW016-004). "같은 SVG 노드 유지" 재렌더 금지 불변식은 REQ-PREVIEW016-008로 승계되어 유효하다. 원문은 아래에 그대로 둔다.
+
 - The application theme tokens shall `src/styles/mdedit-tokens.css`의 라이트(`:root`)와 다크(`[data-theme="dark"]`) 블록에 pele가 쓰는 `--pele-*` 변수를 기존 `--md-*` 토큰에 연결해 정의한다.
 - **When** 사용자가 테마를 라이트·다크·system 사이에서 바꾸거나 system 모드에서 OS 색 구성이 바뀌면, the preview renderer shall 다이어그램 SVG를 다시 만들지 않고(같은 SVG 노드 유지) 새 테마 색으로 표시한다.
 - **When** 다크 모드에서 미리보기가 처음 열리면, the preview renderer shall 라이트 색으로 먼저 그리지 않고 처음부터 다크 색으로 표시한다.
@@ -121,6 +123,8 @@ related_specs: [SPEC-PREVIEW-006, SPEC-PREVIEW-010, SPEC-UI-008, SPEC-AI-001, SP
 - **When** AI 응답이 지원하지 않는 다이어그램 종류이거나 문법 오류이면(예: `notarealdiagramtype foo!!!`), the `validateMermaid` function shall `valid: false`와, diagram module이 같은 소스로 만든 `PeleError.message`와 같은 문자열을 `error`로 돌려준다.
 
 #### REQ-PREVIEW015-013: AI 카드 미니 미리보기도 같은 경로를 탄다 (Event-driven)
+
+> **[개정 포인터 — SPEC-PREVIEW-016 (2026-10-28)]** 첫 번째 When 절의 "그 색은 현재 앱 테마를 따른다" 부분은 폐기됐다 — 다이어그램 색은 테마 입력이 아닌 고정 팔레트(REQ-PREVIEW016-004)이며, AI 카드 미니 렌더도 같은 다이어그램 모듈을 쓴다. 렌더·정화 경로 계약은 유효하다. 원문은 아래에 그대로 둔다.
 
 - **When** AI 카드가 `diagram-valid` 단계에 이르면, the AI suggestion card shall diagram module로 렌더하고 정화한 SVG를 `.mdedit-ai-mermaid-preview`에 표시하며, 그 색은 현재 앱 테마를 따른다.
 - **When** 미니 렌더가 실패하면, the AI suggestion card shall 지금처럼 미리보기 영역을 비워 두고 카드의 다른 동작을 막지 않는다.
