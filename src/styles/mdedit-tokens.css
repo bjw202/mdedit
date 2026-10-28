@@ -89,35 +89,36 @@
   --md-dur-fast:  120ms;
   --md-dur-base:  180ms;
 
-  /* ── Diagram (pele) — SPEC-PREVIEW-015 design.md D5 ───────────────────
-     pele SVG reads these at paint time, so a theme switch recolors diagrams
-     without re-rendering. Repeated verbatim in the dark block: a custom
-     property's var() resolves where it is declared, so an element carrying
-     data-theme="dark" below a light root needs its own declarations.
+  /* @MX:NOTE: [AUTO] 다이어그램 팔레트 고정 — 잉크 앤 허니 A안(2026-10-28 사용자 확정, Option B 액센트 후보 기각 — 기각 색상값은 SPEC 의사결정 기록 참조).
+     라이트·다크 어느 테마에서도 같은 리터럴을 쓴다(다크 블록 재선언 없음).
+     @MX:SPEC: SPEC-PREVIEW-016 */
+  /* ── Diagram (pele) — 고정 팔레트 ─────────────────────────────────────
+     pele SVG reads these at paint time. Theme-independent by decision
+     (SPEC-PREVIEW-016): no var(--md-*) chaining, no dark-block redeclaration.
      --pele-font / --pele-font-mono are literal lists that must equal
      DIAGRAM_FONT_FAMILY / DIAGRAM_FONT_FAMILY_MONO in
      src/lib/diagram/diagramRenderer.ts (pele measures text with them). */
-  --pele-bg:             var(--md-bg);
-  --pele-fg:             var(--md-text-primary);
-  --pele-muted:          var(--md-text-muted);
-  --pele-line:           var(--md-text-muted);
-  --pele-surface:        var(--md-surface);
-  --pele-surface-alt:    var(--md-surface-raised);
-  --pele-border:         var(--md-border-strong);
-  --pele-accent:         var(--md-accent);
-  --pele-error:          var(--md-danger);
-  --pele-critical:       var(--md-danger);
-  --pele-radius:         var(--md-radius-sm);
+  --pele-bg:             #FAF9F6;
+  --pele-fg:             #222B33;
+  --pele-muted:          #67727C;
+  --pele-line:           #3A5673;
+  --pele-surface:        #EEF3F7;
+  --pele-surface-alt:    #F7F2E7;
+  --pele-border:         #97A4B1;
+  --pele-accent:         #3A5673;
+  --pele-error:          #AC3E31;
+  --pele-critical:       #AC3E31;
+  --pele-radius:         3px;
   --pele-title-weight:   600;
   --pele-heading-weight: 600;
-  --pele-series-1:       var(--md-accent);
-  --pele-series-2:       var(--md-dirty);
-  --pele-series-3:       var(--md-success);
-  --pele-series-4:       var(--md-danger);
-  --pele-series-5:       var(--md-ai-glow-from);
-  --pele-series-6:       var(--md-accent-active);
-  --pele-series-7:       var(--md-text-muted);
-  --pele-series-8:       var(--md-accent-hover);
+  --pele-series-1:       #3168A8;
+  --pele-series-2:       #C95F3B;
+  --pele-series-3:       #23997C;
+  --pele-series-4:       #B78511;
+  --pele-series-5:       #C76A95;
+  --pele-series-6:       #7A8A28;
+  --pele-series-7:       #6E5BC4;
+  --pele-series-8:       #96562F;
   --pele-font:           "Barlow", system-ui, sans-serif;
   --pele-font-mono:      "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
@@ -158,29 +159,4 @@
   --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --md-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
   --md-shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.65);
-
-  /* ── Diagram (pele) — same mapping as :root, resolved against dark roles ── */
-  --pele-bg:             var(--md-bg);
-  --pele-fg:             var(--md-text-primary);
-  --pele-muted:          var(--md-text-muted);
-  --pele-line:           var(--md-text-muted);
-  --pele-surface:        var(--md-surface);
-  --pele-surface-alt:    var(--md-surface-raised);
-  --pele-border:         var(--md-border-strong);
-  --pele-accent:         var(--md-accent);
-  --pele-error:          var(--md-danger);
-  --pele-critical:       var(--md-danger);
-  --pele-radius:         var(--md-radius-sm);
-  --pele-title-weight:   600;
-  --pele-heading-weight: 600;
-  --pele-series-1:       var(--md-accent);
-  --pele-series-2:       var(--md-dirty);
-  --pele-series-3:       var(--md-success);
-  --pele-series-4:       var(--md-danger);
-  --pele-series-5:       var(--md-ai-glow-from);
-  --pele-series-6:       var(--md-accent-active);
-  --pele-series-7:       var(--md-text-muted);
-  --pele-series-8:       var(--md-accent-hover);
-  --pele-font:           "Barlow", system-ui, sans-serif;
-  --pele-font-mono:      "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }

@@ -35,7 +35,17 @@
 
 ## §E.2 Run-phase Evidence
 
-_pending run-phase_
+### M1 — 팔레트 토큰 고정 + 형태 테스트 (2026-10-28, 구현 기준 HEAD bcdfb56)
+
+- AC-PREVIEW016-001 PASS — `npx vitest run src/test/diagramRenderer.test.ts` → `Tests 81 passed (81)`: :root pele 선언 연속 23개 묶음 가드 + 다크 블록 pele 0개 + 파일 전체 23개 + pele 값 내 `var(--md-` 0건 가드 신설·통과
+- AC-PREVIEW016-002 PASS — 동일 실행: 23개 토큰 값이 승인 잉크 앤 허니 표와 일치(accent == line == `#3A5673`, series 정확히 8종 서로 다른 값)
+- AC-PREVIEW016-003 PASS — 동일 실행: `--pele-font`·`--pele-font-mono`가 `DIAGRAM_FONT_FAMILY`·`DIAGRAM_FONT_FAMILY_MONO`와 바이트 동일, radius `3px`, 굵기 `600`
+- E8 RED 증거(CSS 변경 전 캡처): `Tests 3 failed | 78 passed (81)` — (1) 다크 블록 pele 잔여 23개, (2) `--pele-bg: "var(--md-bg)" ≠ "#FAF9F6"`, (3) `--pele-radius: "var(--md-radius-sm)" ≠ "3px"` — 전부 계획된 테마 가정 파손 형태
+- E2 게이트 — vitest 전체: `Test Files 108 passed (108) / Tests 1754 passed (1754)` · `npm run typecheck`(tsc --noEmit) exit 0 · `npm run lint`(--max-warnings 0) exit 0 · cargo test는 CSS+테스트 전용 변경(Rust 표면 없음)으로 SKIP
+- 경계 grep — `git grep -in '#c08a28' -- ':!.moai/specs'` → 0건(exit 1), pele 선언 파일 전체 23개, pele 값 내 체이닝 0건(직접 실행 확인)
+- 관찰 편차(양수): B-K1 예상과 달리 `exportDiagram.test.ts` 유닛은 통과 — 실측상 CSS 파일 본문을 읽지 않고 계산값 주입 방식이라 유닛 레벨 파손 없음. 실제 CSS를 로드해 읽는 e2e 2종만 M3 교체 대상으로 남음(미실행)
+- 주석 스코프 조정 1건: 기각 Option B의 16진 리터럴을 tracked 소스 주석에서 제외(AC-009 잔여 0 grep 보호) — 기각 사실·출처는 주석에 유지하고 리터럴은 `.moai/specs/` 의사결정 기록에만 존재
+- 환경 비고: 워크트리에 node_modules 미설치로 최초 vitest가 pele 해석 실패(transform 오류) → `npm ci`로 재설계 후 pele 1.10.0 확인하고 게이트 재실행
 
 ## §E.3 Run-phase Audit-Ready Signal
 
