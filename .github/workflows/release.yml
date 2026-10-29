@@ -19,7 +19,8 @@ on:
 permissions:
   contents: read
 
-# 같은 태그에 대한 실행은 줄을 세우되, 진행 중인 실행은 취소하지 않는다(반쯤 올라간 초안 방지).
+# 같은 태그에 대한 실행이 겹치면 진행 중인 실행은 취소하지 않고 끝까지 둔다(반쯤 올라간 초안 방지).
+# 단, 대기 중인 실행은 하나만 남고 더 새로 들어온 실행으로 바뀐다(GitHub 동시성 그룹의 동작).
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -144,7 +145,8 @@ jobs:
       - name: Install dependencies (npm ci)
         run: npm ci
 
-      # 업로드 직전 확인: 사용자가 이미 게시한 뒤 실패한 job을 다시 실행한 경우 등, 초안이 아니면 올리지 않는다.
+      # 빌드 시작 전 확인: 사용자가 이미 게시한 뒤 실패한 job을 다시 실행한 경우 등, 초안이 아니면 올리지 않는다.
+      # 확인과 실제 업로드 사이에는 긴 빌드가 있어 그 사이에 게시되는 경우는 막지 못한다(docs/BUILD.md 규칙으로 안내).
       - name: Ensure target release is still a draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

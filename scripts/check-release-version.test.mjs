@@ -132,6 +132,17 @@ describe("readVersions + runCli (임시 저장소)", () => {
     expect(readVersions(root)).toEqual(versions({ cargo: "0.18.0" }));
   });
 
+  it("BOM(U+FEFF)이 앞에 붙은 JSON 파일도 읽는다", () => {
+    const root = makeRepo();
+    const withBom = (file) => {
+      const text = readFileSync(file, "utf8");
+      writeFileSync(file, "﻿" + text);
+    };
+    withBom(join(root, "package.json"));
+    withBom(join(root, "src-tauri", "tauri.conf.json"));
+    expect(readVersions(root)).toEqual(versions());
+  });
+
   it("일치하면 종료 코드 0이고 GITHUB_OUTPUT에 tag·version·previous_tag를 쓴다", () => {
     const root = makeRepo();
     const outputFile = join(root, "gh-output.txt");

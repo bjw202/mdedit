@@ -76,7 +76,7 @@ export function findPreviousTag(tags, currentTag) {
 
 function readJsonVersion(path) {
   // BOM과 CRLF가 섞여 있어도 JSON.parse가 읽도록 BOM만 제거한다
-  const text = readFileSync(path, "utf8").replace(/^﻿/, "");
+  const text = readFileSync(path, "utf8").replace(/^\uFEFF/, "");
   const version = JSON.parse(text).version;
   return typeof version === "string" ? version : null;
 }
