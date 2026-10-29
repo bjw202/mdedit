@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 900" width="1240" height="900" role="img" aria-labelledby="t05 d05" font-family="Pretendard, 'Noto Sans KR', 'Noto Sans JP', 'Noto Sans SC', 'Apple SD Gothic Neo', 'Hiragino Sans', 'Microsoft YaHei', system-ui, sans-serif">
+  <title id="t05">병합 뒤 저장소 주인이 할 일 — 순서와 금지 사항</title>
+  <desc id="d05">아홉 단계를 위에서 아래로 진행합니다. PR 스쿼시 병합, 원격 main 받기, 리허설 태그 v0.0.1 푸시와 삭제, 실제 태그 v0.19.0 푸시, 실행 지켜보기, 초안 확인, Publish, 실기기 설치 순서입니다. 외부 행동 표시는 저장소 밖으로 결과가 나가는 단계이고, 오른쪽 점선 상자는 그 근처에서 하지 말아야 할 일입니다.</desc>
+  <rect x="0" y="0" width="1240" height="900" fill="#FAF9F6"/>
+
+  <text x="40" y="56" font-size="26" font-weight="700" fill="#1F2A37">병합 뒤 저장소 주인이 할 일</text>
+  <text x="40" y="84" font-size="15" fill="#3A5673">위에서 아래로 한 단계씩 진행합니다. 앞 단계 결과를 확인한 뒤 다음으로 넘어갑니다.</text>
+
+  <!-- steps: x = 40, w = 680, y = 130 + i*80, h = 58; pill x = 594, w = 110 -->
+  <g font-size="15" fill="#1F2A37">
+    <rect x="40" y="130" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="164">1. PR을 스쿼시로 병합 (release.yml이 main에 들어감)</text>
+    <rect x="40" y="210" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="244">2. 원격 main 받아 오기: git fetch origin</text>
+    <rect x="40" y="290" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="324">3. 리허설 태그 v0.0.1 푸시 → 버전 검사 실패가 정상</text>
+    <rect x="40" y="370" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="404">4. 리허설 태그 지우기 (원격, 로컬)</text>
+    <rect x="40" y="450" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="484">5. 실제 태그 v0.19.0을 원격 main 최신 커밋에 푸시</text>
+    <rect x="40" y="530" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="564">6. Actions 탭에서 실행이 끝날 때까지 지켜보기</text>
+    <rect x="40" y="610" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="644">7. 초안을 열어 설치 파일과 본문 확인</text>
+    <rect x="40" y="690" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="724">8. Publish release 누르기</text>
+    <rect x="40" y="770" width="680" height="58" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1.2"/>
+    <text x="58" y="804">9. 맥과 윈도 PC에서 직접 설치해 보기</text>
+  </g>
+
+  <!-- outward-action pills (steps 1, 3, 4, 5, 8) -->
+  <g font-size="14" fill="#8A6410" text-anchor="middle">
+    <rect x="594" y="145" width="110" height="28" rx="14" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.2"/>
+    <text x="649" y="164">외부 행동</text>
+    <rect x="594" y="305" width="110" height="28" rx="14" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.2"/>
+    <text x="649" y="324">외부 행동</text>
+    <rect x="594" y="385" width="110" height="28" rx="14" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.2"/>
+    <text x="649" y="404">외부 행동</text>
+    <rect x="594" y="465" width="110" height="28" rx="14" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.2"/>
+    <text x="649" y="484">외부 행동</text>
+    <rect x="594" y="705" width="110" height="28" rx="14" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.2"/>
+    <text x="649" y="724">외부 행동</text>
+  </g>
+
+  <!-- do-not notes aligned with steps 3, 6, 8 -->
+  <g font-size="15" fill="#1F2A37">
+    <rect x="780" y="290" width="420" height="58" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="798" y="324">하지 말 것: PR 병합 전에 태그 푸시</text>
+    <rect x="780" y="530" width="420" height="58" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="798" y="564">하지 말 것: 실행 중에 Publish 누르기</text>
+    <rect x="780" y="690" width="420" height="58" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="798" y="724">하지 말 것: 게시 뒤 실패 job 다시 실행</text>
+  </g>
+  <g stroke="#8A6410" stroke-width="1.6" stroke-dasharray="4 4">
+    <line x1="720" y1="319" x2="780" y2="319"/>
+    <line x1="720" y1="559" x2="780" y2="559"/>
+    <line x1="720" y1="719" x2="780" y2="719"/>
+  </g>
+
+  <!-- legend -->
+  <rect x="40" y="854" width="110" height="28" rx="14" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.2"/>
+  <text x="95" y="873" font-size="14" fill="#8A6410" text-anchor="middle">외부 행동</text>
+  <text x="164" y="873" font-size="14" fill="#1F2A37">결과가 저장소 밖으로 나가는 단계 (주인이 직접, 또는 명시적으로 부탁한 경우에만)</text>
+</svg>

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 900" width="1240" height="900" role="img" aria-labelledby="t03 d03" font-family="Pretendard, 'Noto Sans KR', 'Noto Sans JP', 'Noto Sans SC', 'Apple SD Gothic Neo', 'Hiragino Sans', 'Microsoft YaHei', system-ui, sans-serif">
+  <title id="t03">안전장치 지도 — 막는 것과 못 막는 것</title>
+  <desc id="d03">왼쪽은 일어날 수 있는 사고, 오른쪽은 그 사고를 막는 장치입니다. 위 일곱 줄은 워크플로가 실제로 막는 경우이고, 아래 세 줄(R-8, R-10, R-7)은 워크플로가 막지 못해 사람의 절차나 수용한 위험으로 남긴 경우입니다.</desc>
+  <defs>
+    <marker id="a03" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M 0 0 L 10 4 L 0 8 z" fill="#3A5673"/>
+    </marker>
+    <marker id="h03" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M 0 0 L 10 4 L 0 8 z" fill="#8A6410"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1240" height="900" fill="#FAF9F6"/>
+
+  <text x="40" y="56" font-size="26" font-weight="700" fill="#1F2A37">안전장치 지도</text>
+  <text x="40" y="84" font-size="15" fill="#3A5673">왼쪽 사고가 나면 오른쪽 장치가 멈춰 세웁니다. 아래 세 줄은 워크플로가 막지 못하는 경우입니다.</text>
+
+  <text x="40" y="124" font-size="16" font-weight="700" fill="#1F2A37">이런 사고가 나면</text>
+  <text x="560" y="124" font-size="16" font-weight="700" fill="#1F2A37">막는 장치</text>
+
+  <!-- stopped rows: y = 140 + i*68, h = 56, cy = y + 28 -->
+  <g font-size="15" fill="#1F2A37">
+    <rect x="40" y="140" width="440" height="56" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+    <text x="58" y="173">태그와 앱 버전이 다름</text>
+    <rect x="560" y="140" width="640" height="56" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.4"/>
+    <text x="578" y="173">version-check가 실패 → 초안·빌드 없음</text>
+
+    <rect x="40" y="208" width="440" height="56" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+    <text x="58" y="241">같은 태그의 릴리스가 이미 있음</text>
+    <rect x="560" y="208" width="640" height="56" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.4"/>
+    <text x="578" y="241">create-release가 실패 → 기존 릴리스는 그대로</text>
+
+    <rect x="40" y="276" width="440" height="56" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+    <text x="58" y="309">워크플로가 스스로 게시해 버림</text>
+    <rect x="560" y="276" width="640" height="56" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.4"/>
+    <text x="578" y="309">생성 호출에 draft=true, 게시하는 단계 자체가 없음</text>
+
+    <rect x="40" y="344" width="440" height="56" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+    <text x="58" y="377">게시한 뒤 실패한 job을 다시 실행</text>
+    <rect x="560" y="344" width="640" height="56" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.4"/>
+    <text x="578" y="377">빌드 전에 초안인지 확인 → 초안이 아니면 실패</text>
+
+    <rect x="40" y="412" width="440" height="56" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+    <text x="58" y="445">쓰기 토큰이 아무 단계에나 들어감</text>
+    <rect x="560" y="412" width="640" height="56" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.4"/>
+    <text x="578" y="445">기본은 읽기 전용, 필요한 job·단계에만 토큰 전달</text>
+
+    <rect x="40" y="480" width="440" height="56" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+    <text x="58" y="513">외부 액션 코드가 몰래 바뀜</text>
+    <rect x="560" y="480" width="640" height="56" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.4"/>
+    <text x="578" y="513">tauri-action을 태그가 아닌 커밋 SHA로 고정</text>
+
+    <rect x="40" y="548" width="440" height="56" rx="8" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+    <text x="58" y="581">한쪽 플랫폼 빌드만 실패</text>
+    <rect x="560" y="548" width="640" height="56" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.4"/>
+    <text x="578" y="581">다른 쪽은 끝까지 빌드, 실행 결과는 빨간색으로 표시</text>
+  </g>
+  <g stroke="#3A5673" stroke-width="2" fill="none">
+    <path d="M 480 168 H 550" marker-end="url(#a03)"/>
+    <path d="M 480 236 H 550" marker-end="url(#a03)"/>
+    <path d="M 480 304 H 550" marker-end="url(#a03)"/>
+    <path d="M 480 372 H 550" marker-end="url(#a03)"/>
+    <path d="M 480 440 H 550" marker-end="url(#a03)"/>
+    <path d="M 480 508 H 550" marker-end="url(#a03)"/>
+    <path d="M 480 576 H 550" marker-end="url(#a03)"/>
+  </g>
+
+  <!-- not-stopped divider -->
+  <line x1="40" y1="630" x2="1200" y2="630" stroke="#8A6410" stroke-width="1" stroke-dasharray="6 6"/>
+  <text x="40" y="658" font-size="16" font-weight="700" fill="#8A6410">워크플로가 막지 못하는 것 (사람의 절차 또는 수용한 위험)</text>
+
+  <!-- not-stopped rows: y = 676 + i*68 -->
+  <g font-size="15" fill="#1F2A37">
+    <rect x="40" y="676" width="440" height="56" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="58" y="709">빌드 도중 Publish를 누름 (R-8)</text>
+    <rect x="560" y="676" width="640" height="56" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="578" y="709">못 막음 → 실행이 완전히 끝난 뒤에만 게시하는 규칙으로 대응</text>
+
+    <rect x="40" y="744" width="440" height="56" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="58" y="777">빌드 중인 코드가 토큰을 읽음 (R-10)</text>
+    <rect x="560" y="744" width="640" height="56" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="578" y="777">못 막음 → 이 저장소 한정 토큰이고 job이 끝나면 만료 (수용)</text>
+
+    <rect x="40" y="812" width="440" height="56" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="58" y="845">main에 없는 커밋에 태그를 담 (R-7)</text>
+    <rect x="560" y="812" width="640" height="56" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
+    <text x="578" y="845">못 막음 → 원격 main 최신 커밋에만 태그를 다는 절차로 대응</text>
+  </g>
+  <g stroke="#8A6410" stroke-width="2" fill="none" stroke-dasharray="6 4">
+    <path d="M 480 704 H 550" marker-end="url(#h03)"/>
+    <path d="M 480 772 H 550" marker-end="url(#h03)"/>
+    <path d="M 480 840 H 550" marker-end="url(#h03)"/>
+  </g>
+</svg>
