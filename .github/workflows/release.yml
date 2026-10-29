@@ -7,7 +7,8 @@ name: Release
 #  - 이 값을 지우거나, 초안을 해제(게시)하는 단계·job을 추가하지 말 것.
 #  - tauri-action은 releaseId를 받으면 releaseDraft 입력을 보지 않으므로 그 입력으로 초안을 보장하려 하지 말 것.
 #  - 게시는 사람이 실행이 완전히 끝난 뒤 GitHub 화면에서 직접 한다(docs/BUILD.md "GitHub Releases로 배포하기").
-# 범위 의도적 제한: 프런트 게이트·cargo test는 frontend-gates.yml이 PR마다 돌리므로 여기서 다시 돌리지 않는다.
+# 범위 의도적 제한: 프런트 게이트(lint·typecheck·vitest·Playwright)는 frontend-gates.yml이 PR마다 돌리므로 여기서 다시 돌리지 않는다.
+# Rust 테스트(cargo test)는 현재 CI 어디에서도 돌지 않으며(frontend-gates.yml 머리말 참고) 이 워크플로에도 넣지 않는다.
 
 on:
   push:
