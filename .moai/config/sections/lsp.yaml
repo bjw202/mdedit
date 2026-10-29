@@ -1,7 +1,7 @@
 # LSP Configuration for MoAI-ADK
 #
 # ================================================================
-# Language Neutrality Policy (CLAUDE.local.md Section 22)
+# Language Neutrality Policy (per .claude/rules/moai/development/coding-standards.md § Language Policy)
 # ================================================================
 # This is a TEMPLATE file deployed to end-user projects via
 # `moai init`. MoAI-ADK supports 16 programming languages, and
@@ -33,24 +33,21 @@
 # 16 languages via .moai/config/astgrep-rules/. When no LSP
 # binary is available, ast-grep continues to provide quality gates.
 #
-# Research sources (2026-04-11 comparative audit):
+# Research sources (comparative audit):
 #   - sst/opencode: lazy init, 20+ languages, stdio
 #   - charmbracelet/crush: manager-coordinator + powernap
 #   - ktnyt/cclsp: robust position resolution for AI agents
 #   - plandex-ai/plandex & aider: Tree-sitter fallback pattern
-
 lsp:
   # Master switch. Flip to true once the runtime LSP client lands
-  # (SPEC-LSP-CORE-002, re-designed with charmbracelet/powernap).
+  # (powernap-based, multi-language design).
   enabled: false
-
-  # Client implementation selector (SPEC-LSP-CORE-002 AC10, REQ-LC-010).
+  # Client implementation selector.
   # Accepted values:
-  #   gopls_bridge  — legacy Go-only bridge (SPEC-GOPLS-BRIDGE-001). Default.
-  #   powernap_core — multi-language foundation (SPEC-LSP-CORE-002).
-  # Empty defaults to "gopls_bridge". Read by internal/lsp/config loader.
+  #   gopls_bridge  — legacy Go-only bridge. Default.
+  #   powernap_core — multi-language foundation (charmbracelet/powernap).
+  # Empty defaults to "gopls_bridge". Read by the internal LSP config loader.
   client_impl: gopls_bridge
-
   # ---------------- 16 Language Server Matrix ----------------
   # All 16 MoAI-supported languages, listed alphabetically, with
   # identical schema. No language receives PRIMARY / SECONDARY /
@@ -68,7 +65,6 @@ lsp:
   #   install_hint         : Human-readable install command
   #   license_concern      : "open" | "commercial" (user awareness)
   servers:
-
     cpp:
       command: clangd
       fallback_binaries: []
@@ -86,7 +82,6 @@ lsp:
         - ".h"
         - ".hpp"
       license_concern: "open"
-
     csharp:
       command: omnisharp
       fallback_binaries:
@@ -102,7 +97,6 @@ lsp:
       file_extensions:
         - ".cs"
       license_concern: "open"
-
     flutter:
       command: dart
       fallback_binaries: []
@@ -117,7 +111,6 @@ lsp:
       file_extensions:
         - ".dart"
       license_concern: "open"
-
     elixir:
       command: elixir-ls
       fallback_binaries:
@@ -132,7 +125,6 @@ lsp:
         - ".ex"
         - ".exs"
       license_concern: "open"
-
     go:
       command: gopls
       fallback_binaries: []
@@ -146,7 +138,6 @@ lsp:
       file_extensions:
         - ".go"
       license_concern: "open"
-
     java:
       command: jdtls
       fallback_binaries: []
@@ -160,7 +151,6 @@ lsp:
       file_extensions:
         - ".java"
       license_concern: "open"
-
     javascript:
       command: typescript-language-server
       fallback_binaries: []
@@ -176,7 +166,6 @@ lsp:
         - ".jsx"
         - ".mjs"
       license_concern: "open"
-
     kotlin:
       command: kotlin-language-server
       fallback_binaries: []
@@ -191,7 +180,6 @@ lsp:
         - ".kt"
         - ".kts"
       license_concern: "open"
-
     php:
       command: phpactor
       fallback_binaries:
@@ -206,7 +194,6 @@ lsp:
       file_extensions:
         - ".php"
       license_concern: "open"
-
     python:
       command: pylsp
       fallback_binaries:
@@ -223,7 +210,6 @@ lsp:
       file_extensions:
         - ".py"
       license_concern: "open"
-
     r:
       command: R
       fallback_binaries: []
@@ -241,7 +227,6 @@ lsp:
         - ".R"
         - ".r"
       license_concern: "open"
-
     ruby:
       command: ruby-lsp
       fallback_binaries:
@@ -256,7 +241,6 @@ lsp:
       file_extensions:
         - ".rb"
       license_concern: "open"
-
     rust:
       command: rust-analyzer
       fallback_binaries: []
@@ -271,7 +255,6 @@ lsp:
       file_extensions:
         - ".rs"
       license_concern: "open"
-
     scala:
       command: metals
       fallback_binaries: []
@@ -285,7 +268,6 @@ lsp:
         - ".scala"
         - ".sc"
       license_concern: "open"
-
     swift:
       command: sourcekit-lsp
       fallback_binaries: []
@@ -299,7 +281,6 @@ lsp:
       file_extensions:
         - ".swift"
       license_concern: "open"
-
     typescript:
       command: typescript-language-server
       fallback_binaries: []
@@ -314,7 +295,6 @@ lsp:
         - ".ts"
         - ".tsx"
       license_concern: "open"
-
   # ---------------- ast-grep Delegation ----------------
   # ast-grep / Tree-sitter provides AST analysis for ALL 16 languages.
   # This is independent of LSP and serves as universal fallback /
@@ -339,32 +319,24 @@ lsp:
       - scala
       - swift
       - typescript
-
   # ---------------- Aggregator Settings ----------------
   # Applies equally to all 16 language servers.
   # Tuned from opencode/crush production research.
   aggregator:
     # Per-file diagnostic cache time-to-live
     cache_ttl_seconds: 5
-
     # Maximum simultaneous language server queries
     max_parallel_servers: 16
-
     # Server startup timeout (first file of a language)
     server_startup_timeout_seconds: 30
-
     # Per-request timeout for LSP method calls
     request_timeout_seconds: 5
-
     # Graceful shutdown timeout
     shutdown_timeout_seconds: 5
-
     # Debounce window for diagnostic notifications
     diagnostics_debounce_ms: 150
-
     # Use LSP 3.17+ pull diagnostic model
     diagnostic_pull_enabled: true
-
   # ---------------- Discovery Policy ----------------
   # Graceful degradation: missing binaries warn, never error.
   # Applies equally to all 16 languages.
@@ -372,20 +344,16 @@ lsp:
     # Actions when a language server binary is not found
     # Options: warn_and_skip | error | silent_skip
     on_missing: "warn_and_skip"
-
     # Print install_hint when a server is missing
     auto_install_suggest: true
-
     # Search order for binaries
     search_paths:
       - "PATH"
       - "node_modules/.bin"
       - ".venv/bin"
       - ".tools/bin"
-
     # Auto-detect project language via project_markers
     auto_detect_language: true
-
   # ---------------- Circuit Breaker ----------------
   # Stop trying a failing server after N consecutive failures.
   # Applies equally to all 16 languages.

@@ -3,7 +3,6 @@
 Purpose: Comprehensive troubleshooting guide for Git worktree management issues, common errors, and resolution strategies.
 
 Version: 1.0.0
-Last Updated: 2025-12-30
 
 ---
 
@@ -278,8 +277,8 @@ Resolution Steps:
 ### MoAI Command Coordination Failures
 
 Symptoms:
-- /moai:1-plan does not create expected worktree
-- /moai:2-run cannot find worktree for SPEC
+- /moai plan does not create expected worktree
+- /moai run cannot find worktree for SPEC
 - Workflow commands operate on wrong worktree
 
 Root Causes:
@@ -393,5 +392,4 @@ Communication:
 ---
 
 Version: 1.0.0
-Last Updated: 2025-12-30
 Module: Comprehensive troubleshooting and problem resolution

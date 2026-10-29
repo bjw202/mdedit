@@ -4,17 +4,13 @@ paths: "**/*.rb,**/Gemfile,**/Gemfile.lock,**/*.gemspec"
 
 # Ruby Development Guide
 
-
----
-
-
-Ruby 3.3+ Development Specialist - Rails 7.2, ActiveRecord, Hotwire/Turbo, RSpec, and modern Ruby patterns.
+Ruby 3.4 Development Specialist - Rails 8.1, ActiveRecord, Hotwire/Turbo, RSpec, and modern Ruby patterns.
 
 
 Core Capabilities:
 
-- Ruby 3.3 Features: YJIT production-ready, pattern matching, Data class, endless methods
-- Web Framework: Rails 7.2 with Turbo, Stimulus, and ActiveRecord
+- Ruby 3.4 Features: YJIT production-ready (default since Ruby 3.3), pattern matching, Data class, endless methods
+- Web Framework: Rails 8.1 with Turbo, Stimulus, and ActiveRecord
 - Frontend: Hotwire including Turbo and Stimulus for SPA-like experiences
 - Testing: RSpec with factories, request specs, and system specs
 - Background Jobs: Sidekiq with ActiveJob
@@ -39,7 +35,7 @@ Create RSpec.describe for User model type. In describe validations block, add ex
 ---
 
 
-### Ruby 3.3 New Features
+### Ruby 3.4 New Features
 
 YJIT Production-Ready:
 
@@ -57,11 +53,11 @@ Endless Method Definition:
 
 Create Calculator class with add, multiply, and positive? methods using equals sign syntax for single expression methods.
 
-### Rails 7.2 Patterns
+### Rails 8.1 Patterns
 
 Application Setup in Gemfile:
 
-Set source to rubygems.org. Add rails version constraint for 7.2, pg for 1.5, puma for 6.0 or later, turbo-rails, stimulus-rails, and sidekiq for 7.0. In development and test group add rspec-rails for 7.0, factory_bot_rails, faker, and rubocop-rails with require false. In test group add capybara and shoulda-matchers.
+Set source to rubygems.org. Add rails version constraint for 8.1, pg for 1.5, puma for 6.0 or later, turbo-rails, stimulus-rails, and sidekiq for 7.0. In development and test group add rspec-rails for 7.0, factory_bot_rails, faker, and rubocop-rails with require false. In test group add capybara and shoulda-matchers.
 
 Model with Concerns:
 
@@ -105,14 +101,11 @@ For comprehensive coverage including:
 - CI/CD integration patterns
 - Complete RSpec testing patterns
 
-See:
-
-- modules/advanced-patterns.md for production patterns and advanced features
-- modules/testing-patterns.md for complete RSpec testing guide
+Apply the Quick Patterns and framework sections above together with the Documentation References for these advanced topics; this guide is self-contained.
 
 ---
 
-## Context7 Library Mappings
+## Documentation References
 
 - rails/rails for Ruby on Rails web framework
 - rspec/rspec for RSpec testing framework
@@ -122,13 +115,11 @@ See:
 - rubocop/rubocop for Ruby style guide enforcement
 - thoughtbot/factory_bot for test data factories
 
----
-
+## Related Resources
 
 - moai-domain-backend for REST API and web application architecture
 - moai-domain-database for SQL patterns and ActiveRecord optimization
 - moai-workflow-testing for DDD and testing strategies
-- moai-essentials-debug for AI-powered debugging
 - moai-foundation-quality for TRUST 5 quality principles
 
 ---
@@ -139,11 +130,11 @@ Common Issues:
 
 Ruby Version Check:
 
-Run ruby with version flag for 3.3 or later. Check YJIT status by running ruby -e with puts RubyVM::YJIT.enabled? command.
+Run ruby with version flag for 3.4 or later. Check YJIT status by running ruby -e with puts RubyVM::YJIT.enabled? command.
 
 Rails Version Check:
 
-Run rails with version flag for 7.2 or later. Run bundle exec rails about for full environment information.
+Run rails with version flag for 8.1 or later. Run bundle exec rails about for full environment information.
 
 Database Connection Issues:
 

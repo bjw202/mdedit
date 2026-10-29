@@ -4,15 +4,21 @@ description: >
   Git worktree management for parallel SPEC development with isolated workspaces,
   automatic branch registration, and seamless MoAI-ADK integration. Use when
   setting up parallel development environments.
+
+when_to_use: >
+  Use for git worktree management: parallel SPEC development with isolated
+  workspaces, automatic branch registration, branch isolation, and
+  seamless MoAI-ADK integration for multiple concurrent SPECs.
+
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read, Write, Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+allowed-tools: Read, Write, Grep, Glob
 user-invocable: false
 metadata:
   version: "1.1.0"
   category: "workflow"
   status: "active"
-  updated: "2026-01-08"
+  updated: "2026-07-10"
   modularized: "true"
   tags: "git, worktree, parallel, development, spec, isolation"
 
@@ -21,12 +27,6 @@ progressive_disclosure:
   enabled: true
   level1_tokens: 100
   level2_tokens: 5000
-
-# MoAI Extension: Triggers
-triggers:
-  keywords: ["worktree", "git worktree", "parallel development", "isolated workspace", "multiple SPECs", "branch isolation", "feature branch"]
-  phases: ["plan", "run"]
-  agents: ["manager-git", "manager-spec", "manager-project"]
 ---
 
 # MoAI Worktree Management
@@ -44,7 +44,7 @@ Key Features:
 - Isolated Workspaces: Each SPEC gets its own worktree with independent Git state
 - Automatic Registration: Worktree registry tracks all active workspaces
 - Parallel Development: Multiple SPECs can be developed simultaneously
-- Seamless Integration: Works with /moai:1-plan, /moai:2-run, /moai:3-sync workflow
+- Seamless Integration: Works with /moai plan, /moai run, /moai sync workflow
 - Smart Synchronization: Automatic sync with base branch when needed
 - Cleanup Automation: Automatic cleanup of merged worktrees
 
@@ -120,11 +120,11 @@ Purpose: Enable true parallel development without context switching.
 
 Workflow Integration:
 
-During the Plan Phase using /moai:1-plan, the SPEC is created and the worktree new command sets up automatic worktree isolation.
+During the Plan Phase using /moai plan, the SPEC is created and the worktree new command sets up automatic worktree isolation.
 
 During the Development Phase, the isolated worktree environment provides independent Git state with zero context switching overhead.
 
-During the Sync Phase using /moai:3-sync, the worktree sync command ensures clean integration with conflict resolution support.
+During the Sync Phase using /moai sync, the worktree sync command ensures clean integration with conflict resolution support.
 
 During the Cleanup Phase, the worktree clean command provides automatic cleanup with registry maintenance.
 
@@ -138,7 +138,7 @@ Parallel Development Benefits:
 
 Example Workflow:
 
-First, create a worktree for SPEC-001 with a description like "User Authentication" and switch to that directory. Then run /moai:2-run SPEC-001 to develop in isolation. Next, navigate back to the main repository and create another worktree for SPEC-002 with description "Payment Integration". Switch to that worktree and run /moai:2-run SPEC-002 for parallel development. When needed, switch between worktrees and continue development. Finally, sync both worktrees when ready for integration.
+First, create a worktree for SPEC-001 with a description like "User Authentication" and switch to that directory. Then run /moai run SPEC-001 to develop in isolation. Next, navigate back to the main repository and create another worktree for SPEC-002 with description "Payment Integration". Switch to that worktree and run /moai run SPEC-002 for parallel development. When needed, switch between worktrees and continue development. Finally, sync both worktrees when ready for integration.
 
 Detailed Reference: Refer to Parallel Development Module at modules/parallel-development.md
 
@@ -150,11 +150,11 @@ Purpose: Seamless integration with MoAI-ADK Plan-Run-Sync workflow.
 
 Integration Points:
 
-During Plan Phase Integration with /moai:1-plan, after SPEC creation, create the worktree using the new command with the SPEC ID. The output provides guidance for switching to the worktree using either the switch command or the shell eval pattern with the go command.
+During Plan Phase Integration with /moai plan, after SPEC creation, create the worktree using the new command with the SPEC ID. The output provides guidance for switching to the worktree using either the switch command or the shell eval pattern with the go command.
 
-During Development Phase with /moai:2-run, worktree isolation provides a clean development environment with independent Git state preventing conflicts and automatic registry tracking.
+During Development Phase with /moai run, worktree isolation provides a clean development environment with independent Git state preventing conflicts and automatic registry tracking.
 
-During Sync Phase with /moai:3-sync, before PR creation run the sync command for the SPEC. After PR merge, run the clean command with the merged-only flag to remove completed worktrees.
+During Sync Phase with /moai sync, before PR creation run the sync command for the SPEC. After PR merge, run the clean command with the merged-only flag to remove completed worktrees.
 
 Auto-Detection Patterns:
 
@@ -165,6 +165,43 @@ Configuration Integration:
 The MoAI configuration supports worktree settings including auto_create for automatic worktree creation, auto_sync for automatic synchronization, cleanup_merged for automatic cleanup of merged branches, and worktree_root for specifying the worktree directory location with project name substitution.
 
 Detailed Reference: Refer to Integration Patterns Module at modules/integration-patterns.md
+
+---
+
+### 5. `--spawn` — Launch a Teammate Session in a New tmux Window
+
+Purpose: start a Claude or GLM session in a worktree **without giving up the session you are in**.
+
+The launch commands (`moai cc`, `moai glm`, `moai cg`) normally replace the running shell, which is right for "work here now" but cannot express "keep going and start a teammate alongside me". `--spawn` re-issues the same command in a new tmux window instead, then returns so the caller keeps working.
+
+Combined with `-w <name>`, one command opens a teammate in an isolated worktree:
+
+```bash
+moai cg -w feat-auth --spawn    # GLM teammate in .claude/worktrees/feat-auth
+moai cc -w feat-auth --spawn    # Claude teammate, same worktree
+moai glm -w feat-auth --spawn   # all-GLM teammate
+```
+
+Behavior:
+
+- The new window is created detached, so focus stays in the caller's pane. The printed pane id (e.g. `%7`) is the handle for switching to it.
+- The spawned window starts at the project root, so a short `-w <name>` value resolves against `.claude/worktrees/<name>/`.
+- `--spawn` is consumed by MoAI and never reaches Claude Code. Tokens after the `--` pass-through marker are left untouched.
+- Arguments are shell-quoted, so a worktree name containing spaces or shell metacharacters reaches the spawned process intact.
+
+Requirements — each is refused with a clear error rather than a silent fallback, because falling back would replace the caller's session, the exact outcome `--spawn` exists to avoid:
+
+| Missing | Message |
+|---------|---------|
+| `$TMUX` (not inside a session) | `tmux session required for --spawn` |
+| `tmux` binary | `--spawn requires the tmux binary` |
+| `moai` binary in `PATH` | `--spawn needs the moai binary in PATH` |
+
+No settings are mutated before these checks run, so a refusal leaves the environment untouched. The spawned command performs its own backend setup inside the new window.
+
+Platform note: tmux is POSIX-only, so `--spawn` is unavailable on Windows and reports the missing binary. Entering a worktree in place with `-w` works on every platform.
+
+Detailed Reference: the launcher's spawn entry point — flag stripping, command reconstruction with shell quoting, and the tmux window invocation.
 
 ---
 
@@ -199,27 +236,26 @@ For faster worktree creation, use the shallow flag with a depth value for shallo
 ## Works Well With
 
 Commands:
-- moai:1-plan - SPEC creation with automatic worktree setup
-- moai:2-run - Development in isolated worktree environment
-- moai:3-sync - Integration with automatic worktree sync
-- moai:9-feedback - Worktree workflow improvements
+- /moai plan - SPEC creation with automatic worktree setup
+- /moai run - Development in isolated worktree environment
+- /moai sync - Integration with automatic worktree sync
+- /moai feedback - Worktree workflow improvements
 
 Skills:
 - moai-foundation-core - Parallel development patterns
 - moai-workflow-project - Project management integration
 - moai-workflow-spec - SPEC-driven development
-- moai-git-strategy - Git workflow optimization
+- moai-ref-git-workflow - Git workflow optimization
 
 Tools:
 - Git worktree - Native Git worktree functionality
-- Rich CLI - Formatted terminal output
-- Click framework - Command-line interface framework
+- Cobra - CLI command framework and formatted output
 
 ---
 
 ## Quick Decision Guide
 
-For new SPEC development, use the worktree isolation pattern with auto-setup. The primary approach is worktree isolation and the supporting pattern is integration with /moai:1-plan.
+For new SPEC development, use the worktree isolation pattern with auto-setup. The primary approach is worktree isolation and the supporting pattern is integration with /moai plan.
 
 For parallel development across multiple SPECs, use multiple worktrees with shell integration. The primary approach is maintaining multiple worktrees and the supporting pattern is fast switching between them.
 
@@ -236,8 +272,8 @@ Module Deep Dives:
 - Integration Patterns: Refer to modules/integration-patterns.md for MoAI-ADK integration
 - Troubleshooting: Refer to modules/troubleshooting.md for problem resolution
 
-Full Examples: Refer to examples.md
-External Resources: Refer to reference.md
+Full Examples: Refer to references/examples.md
+External Resources: Refer to references/reference.md
 
 <!-- moai:evolvable-start id="rationalizations" -->
 ## Common Rationalizations
@@ -246,7 +282,7 @@ External Resources: Refer to reference.md
 |---|---|
 | "Worktree isolation is overkill for this small change" | Small changes on main cause merge conflicts when parallel work is in progress. Worktrees prevent this. |
 | "I will just work on the main branch, it is faster" | Working on main blocks other agents from writing. Worktrees enable parallelism. |
-| "Read-only agents need worktree isolation too, for safety" | Read-only agents (mode: plan) cannot write. Adding isolation wastes resources with no benefit. |
+| "Read-only agents need worktree isolation too, for safety" | Read-only agents cannot write because their tools list omits Write/Edit (the spawn-time mode parameter is deprecated and ignored). Adding isolation wastes resources with no benefit. |
 | "I can skip worktree cleanup, git handles it" | Stale worktree branches accumulate and confuse git worktree list. Always prune after use. |
 | "Absolute paths in agent prompts are fine since the worktree has the same structure" | Absolute paths to the main repo bypass worktree isolation entirely. Use relative paths. |
 
@@ -267,7 +303,7 @@ External Resources: Refer to reference.md
 ## Verification
 
 - [ ] Implementation teammates use isolation: worktree (check agent spawn parameters)
-- [ ] Read-only teammates do NOT use isolation: worktree (verify mode: plan is sufficient)
+- [ ] Read-only teammates do NOT use isolation: worktree (verify the tools list omits Write/Edit)
 - [ ] Agent prompts reference write-target files by relative paths only
 - [ ] `git worktree list` shows no stale worktrees after session ends
 - [ ] Worktree CWD isolation verified on Claude Code >= 2.1.97 (check version)

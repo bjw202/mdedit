@@ -2,7 +2,6 @@
 # MoAI-ADK Package Distribution .gitignore
 # ============================================
 # Version: 0.33.0
-# Updated: 2026-01-10
 # Purpose: Essential patterns for user projects
 # ============================================
 
@@ -104,7 +103,8 @@ ehthumbs.db
 # Logs & Temporary Files
 # ===========================================
 *.log
-logs/
+logs/*
+!logs/.gitkeep
 *.tmp
 *.temp
 *.bak
@@ -114,6 +114,7 @@ logs/
 # Backups
 # ===========================================
 .moai-backups/
+.moai/backups/
 *.backup/
 *-backup/
 *_backup_*/
@@ -155,6 +156,18 @@ secret-*.*
 .aws/config
 .aws/credentials
 
+# MoAI git-credential runtime files (defense-in-depth). The reconfigure wizard
+# delegates git provider credentials to the gh/glab CLI and never writes an
+# access token to a tracked config; these patterns ensure that if a
+# credential-bearing runtime file is ever introduced under .moai/, it is not
+# committed.
+.moai/**/credentials.yaml
+.moai/**/*.credentials
+
+# MINK agent credentials (plaintext API keys, per AC-CR-026).
+# Ignored anywhere in the tree so per-project auth dirs are never committed.
+**/.mink/auth/
+
 # ===========================================
 # Claude Code Configuration
 # ===========================================
@@ -181,9 +194,20 @@ secret-*.*
 .moai/status_line.sh
 .moai/memory/
 .moai/worktrees/
+.moai/branches/
+
+# ===========================================
+# Update Noise-Suppression Ledgers (per-machine, never tracked)
+# Per-machine cache ledgers used to suppress redundant update noise.
+# 주의: .moai/state/ 는 여기서 통째로 무시하지 않는다. 아래 "MoAI 런타임 상태" 구간이
+# 파일 단위(**/.moai/state/*)로 제외하고 session-memo.md 만 예외로 추적한다.
+# 템플릿의 `.moai/state/` 한 줄은 그 ! 예외를 무효화하므로 의도적으로 뺐다.
+# ===========================================
+.moai/cache/
 
 # 세션별 자동 생성 리포트는 휘발성 로그이므로 추적하지 않는다.
 # plan-audit/, sync-report-*, 연구 리포트 등 산출물 문서는 계속 추적한다.
+# (템플릿의 .moai/reports/plan-audit/*.md 무시 규칙은 프로젝트 방침과 달라 채택하지 않았다.)
 .moai/reports/session-*.md
 
 # ===========================================

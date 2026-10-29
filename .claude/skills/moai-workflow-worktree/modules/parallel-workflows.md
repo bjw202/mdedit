@@ -3,7 +3,6 @@
 Purpose: Development patterns and workflows for parallel SPEC development including independent features, sequential dependencies, and multi-developer coordination.
 
 Version: 1.0.0
-Last Updated: 2026-01-06
 
 ---
 
@@ -42,12 +41,12 @@ Phase 2 - Initialize Each Environment:
 
 Phase 3 - Parallel Development:
 - Work on each SPEC in separate terminal sessions
-- Run /moai:2-run for DDD implementation
+- Run /moai run for DDD implementation
 - Switch between worktrees as needed
 
 Phase 4 - Integration:
 - Sync all worktrees before integration
-- Run /moai:3-sync for documentation updates
+- Run /moai sync for documentation updates
 - Create PRs from each worktree branch
 
 ### Best Practices
@@ -298,5 +297,4 @@ Memory-Efficient Switching:
 ---
 
 Version: 1.0.0
-Last Updated: 2026-01-06
 Module: Parallel development workflow patterns and coordination strategies

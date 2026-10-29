@@ -3,8 +3,15 @@ name: moai-ref-owasp-checklist
 description: >
   OWASP Top 10 security checklist, authentication patterns, input validation,
   and HTTP security headers reference. Agent-extending skill that amplifies
-  expert-security and expert-backend expertise with production-grade security patterns.
+  backend-implementation and security-audit workflows with production-grade security patterns.
   NOT for: frontend UI, DevOps deployment, performance optimization, testing strategy.
+
+when_to_use: >
+  Use for security reference: OWASP Top 10 vulnerabilities (injection,
+  XSS, CSRF), authentication patterns, input validation, and HTTP security
+  headers. Amplifies backend-implementation and security-audit workflows with
+  production-grade security patterns.
+
 user-invocable: false
 metadata:
   version: "1.0.0"
@@ -12,27 +19,20 @@ metadata:
   status: "active"
   updated: "2026-03-30"
   tags: "owasp, security, checklist, authentication, validation, reference"
-  agent: "expert-security"
 
 # MoAI Extension: Progressive Disclosure
 progressive_disclosure:
   enabled: true
   level1_tokens: 100
   level2_tokens: 3000
-
-# MoAI Extension: Triggers
-triggers:
-  keywords: ["owasp", "security", "vulnerability", "injection", "xss", "csrf", "auth"]
-  agents: ["expert-security", "expert-backend"]
-  phases: ["run"]
 ---
 
 # OWASP Security Checklist Reference
 
 ## Target Agents
 
-- `expert-security` - Primary: applies checklist during security audits
-- `expert-backend` - Secondary: applies during API implementation
+- `manager-develop` - Applies checklist during backend API implementation (`cycle_type=tdd` or `cycle_type=ddd` context)
+- `/moai review` with a security focus - Primary security-audit invocation surface; equivalently available as a per-spawn `Agent(general-purpose)` security specialist per `archived-agent-rejection.md` §C
 
 ## OWASP API Security Top 10
 
@@ -43,10 +43,10 @@ triggers:
 | A3 | **Broken Object Property Level Authorization** | Are hidden fields exposed in responses? | Response DTOs, field-level filtering |
 | A4 | **Unrestricted Resource Consumption** | Can mass requests crash the server? | Rate limiting, enforce pagination limits |
 | A5 | **Broken Function Level Authorization** | Can regular users call admin APIs? | RBAC middleware, permission checks |
-| A6 | **SSRF** (Server-Side Request Forgery) | Can URL input access internal resources? | URL whitelist, block internal IPs |
-| A7 | **Security Misconfiguration** | Debug mode, default accounts exposed? | Separate prod config, inspect headers |
-| A8 | **Lack of Automated Threat Protection** | Can APIs be called in abnormal sequences? | State machine validation, business rules |
-| A9 | **Improper Asset Management** | Unused APIs, old versions exposed? | API inventory, version deprecation |
+| A6 | **Unrestricted Access to Sensitive Business Flows** | Can a sensitive flow be automated or abused in bulk? | Flow-level rate limits, anomaly detection, challenge on abuse signals |
+| A7 | **SSRF** (Server-Side Request Forgery) | Can URL input reach internal or metadata endpoints? | Egress allowlist, block internal/metadata ranges, validate fetch targets |
+| A8 | **Security Misconfiguration** | Debug mode, verbose errors, or default accounts exposed? | Production-hardened config, security headers, inspect deployed config |
+| A9 | **Improper Inventory Management** | Undocumented, shadow, or old-version endpoints reachable? | Maintain an API inventory; deprecate and decommission old versions |
 | A10 | **Unsafe API Consumption** | Are external API responses trusted blindly? | Validate external responses, set timeouts |
 
 ## Authentication Checklist
@@ -114,6 +114,16 @@ triggers:
 | P1 | HIGH | Fix before merge | Missing authorization check |
 | P2 | MEDIUM | Fix within sprint | Weak password policy |
 | P3 | LOW | Track in backlog | Missing security header |
+
+## Trust Boundary Verification Principles
+
+| Principle | Applies To | Defense |
+|-----------|------------|---------|
+| Cached/client-supplied session state is not proof of current identity | Any framework caching or locally decoding a session/JWT value | Re-verify identity against the server-side source of truth (session store, token introspection, identity provider) before every authorization decision |
+| Edge/gateway/middleware auth checks are a UX convenience, not a security boundary | Reverse proxies, framework middleware, API gateways, serverless edge functions | Every mutation-handling endpoint independently re-checks authentication AND resource-ownership authorization |
+| Scheduled/cron-triggered HTTP endpoints are still public URLs | Any scheduler that invokes an HTTP endpoint (cron jobs, scheduled serverless functions, container-orchestrator scheduled jobs) | Require a shared-secret bearer check (constant-time compare) on every scheduled-endpoint invocation |
+| Production builds must not expose source maps or equivalent debug artifacts | Any bundler/build tool | Disable production source maps, verbose stack traces, and build manifests in production configuration |
+| Webhook receivers must verify a signature/HMAC header before trusting the payload | Any webhook provider | Verify signature/HMAC against a shared secret before treating the payload as legitimate business data |
 
 <!-- moai:evolvable-start id="rationalizations" -->
 ## Common Rationalizations

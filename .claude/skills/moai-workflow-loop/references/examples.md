@@ -393,7 +393,7 @@ ralph:
 {
   "tool_name": "Write",
   "tool_input": {
-    "file_path": "/Users/project/src/auth.py",
+    "file_path": "$HOME/project/src/auth.py",
     "content": "def authenticate(user: str, password: str):\n    return True"
   },
   "tool_output": "File written successfully"
@@ -507,9 +507,10 @@ The same diagnostic collection, classification, and fix patterns apply
 uniformly regardless of language. These three samples were chosen for
 their concise demonstration of common LSP diagnostic categories: type
 errors (Sample 1), deprecated imports (Sample 2), and unused variables
-(Sample 3). Per CLAUDE.local.md Section 22 (Template Language Neutrality),
-no language receives priority over another; for the complete
-language-to-server mapping table, see `references/reference.md`.
+(Sample 3). Per `.claude/rules/moai/development/coding-standards.md`
+§ Language Policy (16-language neutrality contract), no language receives
+priority over another; for the complete language-to-server mapping table,
+see `references/reference.md`.
 
 ### Sample 1: Type Error (illustrated with Python + Pyright)
 
@@ -850,11 +851,12 @@ jobs:
 
 echo "Running Ralph pre-commit checks..."
 
-# Run LSP diagnostics
-moai lsp diagnose --changed-files
+# Check LSP server readiness (health check; per-file diagnostics surface
+# through the editor/agent LSP session, not a CLI subcommand)
+moai lsp doctor
 
 if [ $? -ne 0 ]; then
-    echo "❌ LSP errors found. Run '/moai:fix' to resolve."
+    echo "❌ LSP server not ready. Run 'moai lsp doctor' for details."
     exit 1
 fi
 
@@ -979,7 +981,7 @@ ralph:
 
 ```bash
 # 1. Start development
-/moai:1-plan "User authentication system"
+/moai plan "User authentication system"
 
 # 2. Implement with Ralph loop
 /moai:loop
@@ -993,7 +995,7 @@ ralph:
 moai ast-grep scan --security
 
 # 5. Sync documentation
-/moai:3-sync
+/moai sync
 ```
 
 ---
@@ -1008,11 +1010,8 @@ moai ast-grep scan --security
 # View LSP logs
 cat .moai/logs/lsp_diagnostic.log
 
-# Test LSP connection
-moai lsp test-connection python
-
-# View diagnostics directly
-moai lsp diagnose src/auth.py
+# Check LSP server readiness for the current project
+moai lsp doctor
 ```
 
 **Common LSP Errors:**
@@ -1070,5 +1069,4 @@ Solution: Tighten completion criteria in ralph.yaml
 
 ---
 
-Last Updated: 2026-01-10
 Version: 1.0.0

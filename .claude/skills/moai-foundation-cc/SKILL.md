@@ -4,9 +4,15 @@ description: >
   Canonical Claude Code authoring kit covering Skills, sub-agents, plugins, slash commands,
   hooks, memory, settings, sandboxing, headless mode, and advanced agent patterns.
   Use when creating Claude Code extensions or configuring Claude Code features.
+
+when_to_use: >
+  Use for Claude Code authoring and extension: Skills, sub-agents,
+  plugins, slash commands, hooks, memory, settings, sandboxing, headless
+  mode, orchestration, and delegation/agent-pattern authoring.
+
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read, Write, Edit, Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+allowed-tools: Read, Write, Edit, Grep, Glob
 user-invocable: false
 metadata:
   version: "5.0.0"
@@ -22,18 +28,6 @@ progressive_disclosure:
   enabled: true
   level1_tokens: 100
   level2_tokens: 5000
-
-# MoAI Extension: Triggers
-triggers:
-  keywords: ["skill", "agent", "plugin", "slash command", "hook", "sandbox", "headless", "memory", "settings", "claude code", "sub-agent", "agent pattern", "orchestration", "delegation"]
-  agents:
-    - "builder-agent"
-    - "builder-skill"
-    - "builder-plugin"
-  phases:
-    - "plan"
-    - "run"
-    - "sync"
 ---
 
 # Claude Code Authoring Kit
@@ -69,7 +63,7 @@ Advanced Features:
 
 Skills: Model-invoked extensions in ~/.claude/skills/ (personal) or .claude/skills/ (project). Three-level progressive disclosure. Max 500 lines.
 
-Sub-agents: Specialized assistants via Agent(subagent_type="..."). Own 200K context. Cannot spawn sub-agents. Use /agents command.
+Sub-agents: Specialized assistants via Agent(subagent_type="..."). Context window follows the session model (Sonnet 5 = 1M native on the Anthropic API; Haiku / gateway / older models = 200K — CC 2.1.197). Nesting: by default a subagent CAN spawn subagents of its own, up to three layers below the main conversation; `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` changes the limit and `1` turns nesting off (CC 2.1.217+). At the depth limit Claude Code withholds the `Agent` tool. To stop one specific subagent from spawning, omit `Agent` from its `tools` list or add it to `disallowedTools` — MoAI retained agents omit `Agent`, so they do not nest regardless of the depth setting. To create or manage subagents, ask Claude or edit `.claude/agents/` directly — the `/agents` wizard was removed in CC 2.1.198 (the official sub-agents doc still documented a `/agents` tabbed interface as of 2026-07-03; doc lag — verify in a live 2.1.198 session).
 
 Plugins: Reusable bundles in .claude-plugin/plugin.json. Include commands, agents, skills, hooks, MCP servers.
 
@@ -111,6 +105,8 @@ Create a SKILL.md file with YAML frontmatter containing name in kebab-case and d
 
 ### Using /agents Command
 
+> **CC 2.1.198 CHANGELOG delta**: The `/agents` wizard was **removed** — per the CHANGELOG, "ask Claude to create or manage subagents, or edit `.claude/agents/` directly." The official sub-agents doc still documented a `/agents` tabbed interface as of 2026-07-03 (doc lag, or the removal covers only the creation wizard); verify in a live 2.1.198 session before relying on the flow below.
+
 Type /agents, select Create New Agent, define purpose and tools, press e to edit prompt.
 
 ### File Format
@@ -119,10 +115,10 @@ Create a markdown file with YAML frontmatter containing name, description explai
 
 ### Critical Rules
 
-- Cannot spawn other sub-agents
+- Nesting is allowed by default (three layers below the main conversation); MoAI retained agents omit `Agent` from `tools`, so they do not spawn subagents of their own
 - Cannot use AskUserQuestion effectively
 - All user interaction before delegation
-- Each gets own 200K context
+- Context window follows the session model (Sonnet 5 = 1M native on the Anthropic API; Haiku / gateway / older models = 200K — CC 2.1.197)
 
 ## Plugin Creation
 
@@ -176,7 +172,7 @@ When using Explore agent or direct exploration tools (Grep, Glob, Read), apply t
 
 **AST-Grep Priority**
 - Use structural search (ast-grep) before text-based search (Grep)
-- Load moai-tool-ast-grep skill for complex pattern matching
+- Run `moai ast-grep` to scan, `moai ast-edit` to rewrite matches
 - Example: `sg -p 'class $X extends Service' --lang python` is faster than `grep -r "class.*extends.*Service"`
 
 **Search Scope Limitation**
@@ -211,11 +207,11 @@ Phase 4 Commit: Descriptive messages, logical groupings, clean history
 
 ### Essential Sub-agents
 
-- spec-builder: EARS specifications
-- manager-ddd: DDD execution
-- expert-security: Security analysis
-- expert-backend: API development
-- expert-frontend: UI implementation
+- manager-spec: EARS specifications
+- manager-develop: DDD execution
+- Agent(general-purpose) with security instructions: Security analysis
+- Agent(general-purpose) with backend instructions: API development
+- Agent(general-purpose) with frontend instructions: UI implementation
 
 ## Security Features
 
@@ -243,10 +239,10 @@ For detailed patterns and working examples, see the reference directory.
 
 Version History:
 
-- v5.0.0 (2026-01-11): Converted to narrative format per CLAUDE.md Documentation Standards
-- v4.0.0 (2026-01-06): Added plugins, sandboxing, headless, statusline, dev containers, CLI reference, advanced patterns
-- v3.0.0 (2025-12-06): Added progressive disclosure, sub-agent details, integration patterns
-- v2.0.0 (2025-11-26): Initial comprehensive release
+- v5.0.0: Converted to narrative format per CLAUDE.md Documentation Standards
+- v4.0.0: Added plugins, sandboxing, headless, statusline, dev containers, CLI reference, advanced patterns
+- v3.0.0: Added progressive disclosure, sub-agent details, integration patterns
+- v2.0.0: Initial comprehensive release
 
 <!-- moai:evolvable-start id="rationalizations" -->
 ## Common Rationalizations
@@ -258,7 +254,7 @@ Version History:
 | "I can put all logic in CLAUDE.md, rules are overkill" | CLAUDE.md has a 40K character limit. Rules load conditionally and scale without bloating the prompt. |
 | "Settings.json changes are low risk" | Incorrect settings.json breaks hooks, permissions, and model routing. Validate the JSON after every edit. |
 | "I will skip progressive disclosure, all content is needed" | Loading 5K tokens for every skill wastes 67% of context. Level 1 metadata is sufficient for routing. |
-| "This skill does not need allowed-tools, Claude will figure it out" | Missing allowed-tools means the skill silently inherits all tools. Explicit is safer than implicit. |
+| "allowed-tools restricts which tools the skill may use" | It does the opposite: `allowed-tools` pre-approves those tools for the turn that invokes the skill, so they run without a permission prompt. The field that removes tools is `disallowed-tools`. Omitting `allowed-tools` is not a leak — the standard permission model still applies. |
 
 <!-- moai:evolvable-end -->
 
@@ -267,7 +263,7 @@ Version History:
 
 - CLAUDE.md exceeds 40,000 characters
 - Hook registered in settings.json without a corresponding script file
-- Skill frontmatter uses space-separated allowed-tools instead of comma-separated
+- Skill frontmatter grants a broad allowed-tools set when a narrow one would do (the field pre-approves tools, so every entry is a permission prompt waived)
 - Agent definition uses YAML array for tools instead of CSV string
 - settings.json contains hardcoded absolute paths instead of $CLAUDE_PROJECT_DIR
 - Progressive disclosure disabled for a skill that exceeds 3000 tokens
@@ -280,7 +276,7 @@ Version History:
 - [ ] CLAUDE.md character count is under 40,000 (show wc -c output)
 - [ ] settings.json is valid JSON (show json validation output)
 - [ ] Every hook in settings.json has a matching script file in .claude/hooks/
-- [ ] All skill frontmatter uses CSV format for allowed-tools
+- [ ] Skill allowed-tools lists only the tools the skill actually runs (space-separated, comma-separated, and YAML-list forms are all accepted)
 - [ ] Agent frontmatter uses CSV for tools and YAML array for skills
 - [ ] All metadata values in skill frontmatter are quoted strings
 - [ ] $CLAUDE_PROJECT_DIR used instead of absolute paths in hook commands

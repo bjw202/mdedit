@@ -3,15 +3,14 @@
 Purpose: Extended documentation modules for moai-foundation-core skill, providing deep dives into each foundational principle.
 
 Version: 1.0.0
-Last Updated: 2025-11-25
 
 ---
 
 ## Module Overview
 
-This directory contains 9 comprehensive modules covering MoAI-ADK's foundational principles and execution rules:
+This directory contains 16 modules covering MoAI-ADK's foundational principles and execution rules:
 
-### 1. trust-5-framework.md (982 lines)
+### 1. trust-5-framework.md (239 lines)
 TRUST 5 Quality Framework - Automated quality gates ensuring code quality, security, maintainability, and traceability.
 
 Quick Access:
@@ -29,14 +28,14 @@ Use Cases:
 
 ---
 
-### 2. spec-first-ddd.md (866 lines)
-Specification-Driven Development - EARS format requirements with ANALYZE-PRESERVE-IMPROVE DDD cycles.
+### 2. spec-first-ddd.md (190 lines)
+Specification-Driven Development - GEARS format requirements (current; EARS retained as legacy reference for 6-month backward-compat) with ANALYZE-PRESERVE-IMPROVE DDD cycles.
 
 Quick Access:
-- SPEC generation (/moai:1-plan)
-- EARS format patterns
-- DDD implementation (/moai:2-run)
-- Documentation sync (/moai:3-sync)
+- SPEC generation (/moai plan)
+- GEARS format patterns (current; EARS as legacy reference)
+- DDD implementation (/moai run)
+- Documentation sync (/moai sync)
 
 Use Cases:
 - New feature development
@@ -46,7 +45,7 @@ Use Cases:
 
 ---
 
-### 3. delegation-patterns.md (757 lines)
+### 3. delegation-patterns.md (228 lines)
 Agent Orchestration - Task delegation strategies for specialized agents without direct execution.
 
 Quick Access:
@@ -63,7 +62,7 @@ Use Cases:
 
 ---
 
-### 4. token-optimization.md (656 lines)
+### 4. token-optimization.md (708 lines)
 Budget Management - Efficient 200K token budget through strategic context management.
 
 Quick Access:
@@ -80,7 +79,7 @@ Use Cases:
 
 ---
 
-### 5. progressive-disclosure.md (576 lines)
+### 5. progressive-disclosure.md (649 lines)
 Content Architecture - Three-tier knowledge delivery balancing value with depth.
 
 Quick Access:
@@ -97,7 +96,7 @@ Use Cases:
 
 ---
 
-### 6. modular-system.md (588 lines)
+### 6. modular-system.md (665 lines)
 File Organization - Scalable file structure for unlimited content depth.
 
 Quick Access:
@@ -114,33 +113,32 @@ Use Cases:
 
 ---
 
-### 7. agents-reference.md (NEW)
-Agent Catalog - Complete reference of MoAI-ADK's 26 specialized agents with 7-tier hierarchy.
+### 7. agents-reference.md
+Agent Catalog - Reference of MoAI-ADK's 11 retained agents (flat catalog, no tier hierarchy).
 
 Quick Access:
-- `{domain}-{role}` naming convention
-- 7 tiers: workflow, core, domain, mcp, factory, support, ai
-- Agent selection criteria
-- MCP Resume pattern (40-60% token savings)
+- 11 retained agents (10 MoAI-custom + Explore)
+- Natural-language delegation (no `subagent_type` code literal)
+- Selection decision tree
+- Archived agent names rejected at spawn
 
 Use Cases:
-- Agent selection for Agent() delegation
-- Understanding agent hierarchy
-- MCP integrator usage
-- Historical agent merges
+- Agent selection for delegation
+- Understanding the flat catalog
+- Routing domain work to retained agents
+- Orchestration primitive selection
 
 ---
 
-### 8. commands-reference.md (NEW)
-Command Catalog - Complete reference for MoAI-ADK's 6 core commands in SPEC-First DDD workflow.
+### 8. commands-reference.md
+Command Catalog - Reference for MoAI-ADK's core `/moai` commands in the SPEC-First workflow.
 
 Quick Access:
-- /moai:0-project (Project init)
-- /moai:1-plan (SPEC generation)
-- /moai:2-run (DDD implementation)
-- /moai:3-sync (Documentation)
-- /moai:9-feedback (Improvement)
-- /moai:99-release (Deployment)
+- /moai project (project init)
+- /moai plan (SPEC generation)
+- /moai run (implementation)
+- /moai sync (documentation)
+- /moai feedback (improvement)
 
 Use Cases:
 - Command workflow execution
@@ -236,7 +234,7 @@ results = searcher.search_topic("security")
 
 ## Integration with SKILL.md
 
-The main SKILL.md file (409 lines, within 500-line limit) provides:
+The main SKILL.md file (351 lines, within 500-line limit) provides:
 - Quick overview of all 6 principles
 - Entry points to each module
 - Cross-references for deep dives
@@ -258,16 +256,23 @@ Detailed Reference: [TRUST 5 Framework Module](modules/trust-5-framework.md)
 
 | Module | Lines | Topics Covered | Use Cases |
 |--------|-------|----------------|-----------|
-| trust-5-framework | 982 | Quality gates, CI/CD, validation | 4 |
-| spec-first-ddd | 866 | SPEC, EARS, DDD, docs | 4 |
-| delegation-patterns | 757 | Sequential, parallel, conditional | 4 |
-| token-optimization | 656 | Budget, /clear, loading, models | 4 |
-| progressive-disclosure | 576 | 3 levels, 500-line limit, splitting | 4 |
-| modular-system | 588 | File structure, organization, discovery | 4 |
-| agents-reference | ~400 | 26 agents, 7 tiers, MCP Resume | 4 |
-| commands-reference | ~300 | 6 commands, workflow, /clear rules | 4 |
-| execution-rules | ~700 | Security, Git, compliance, RBAC | 4 |
-| Total | ~6,825 | 36 major topics | 36 use cases |
+| trust-5-framework | 239 | Quality gates, CI/CD, validation | 4 |
+| trust-5-implementation | 244 | TRUST 5 implementation patterns | 4 |
+| trust-5-validation | 219 | TRUST 5 validation gates | 4 |
+| spec-first-ddd | 190 | SPEC, GEARS (current) + EARS (legacy reference), DDD, docs | 4 |
+| spec-ddd-implementation | 294 | DDD cycle implementation | 4 |
+| spec-ears-format | 208 | EARS legacy reference format | 4 |
+| delegation-patterns | 228 | Sequential, parallel, conditional | 4 |
+| delegation-implementation | 267 | Delegation implementation details | 4 |
+| delegation-advanced | 279 | Advanced delegation patterns | 4 |
+| token-optimization | 708 | Budget, /clear, loading, models | 4 |
+| progressive-disclosure | 649 | 3 levels, 500-line limit, splitting | 4 |
+| modular-system | 665 | File structure, organization, discovery | 4 |
+| patterns | 33 | Cross-cutting foundational patterns | 4 |
+| agents-reference | 132 | 11 retained agents, flat catalog | 4 |
+| commands-reference | 423 | core /moai commands, workflow, /clear rules | 4 |
+| execution-rules | 687 | Security, Git, compliance, RBAC | 4 |
+| Total | ~5,057 | 16 modules | 64 use cases |
 
 ---
 
@@ -275,18 +280,17 @@ Detailed Reference: [TRUST 5 Framework Module](modules/trust-5-framework.md)
 
 Skills:
 - moai-foundation-core (parent skill)
-- moai-cc-skill-factory (skill creation)
-- moai-core-agent-factory (agent creation)
+- moai-foundation-cc (Claude Code authoring: skills, agents, plugins)
 
 Agents:
-- skill-factory (module generation)
-- docs-manager (documentation)
-- quality-gate (validation)
+- builder-harness (agent / skill / harness generation)
+- manager-docs (documentation)
+- sync-auditor (quality validation)
 
 Commands:
-- /moai:1-plan (SPEC-First DDD)
-- /moai:2-run (DDD implementation)
-- /moai:3-sync (Documentation)
+- /moai plan (SPEC generation)
+- /moai run (implementation)
+- /moai sync (documentation)
 - /clear (Token optimization)
 
 ---

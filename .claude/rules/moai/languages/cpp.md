@@ -4,10 +4,6 @@ paths: "**/*.cpp,**/*.hpp,**/*.h,**/*.cc,**/CMakeLists.txt"
 
 # C++ Development Guide
 
-
----
-
-
 Modern C++ (C++23/C++20) Development Specialist - RAII, smart pointers, concepts, ranges, modules, and CMake.
 
 
@@ -78,13 +74,11 @@ For comprehensive coverage including:
 - Production patterns (dependency injection, factories)
 - Extended testing with Google Test and Catch2
 
-See:
-
-- [Advanced Patterns](modules/advanced-patterns.md) - Complete advanced patterns guide
+Apply the Quick Patterns and feature sections above together with the Documentation References for these advanced topics; this guide is self-contained.
 
 ---
 
-## Context7 Library Mappings
+## Documentation References
 
 - /microsoft/vcpkg - Package manager
 - /conan-io/conan - Conan package manager
@@ -94,13 +88,11 @@ See:
 - /nlohmann/json - JSON for Modern C++
 - /gabime/spdlog - Fast logging library
 
----
+## Related Resources
 
-
-- `moai-lang-rust` - Systems programming comparison and interop
+- `.claude/rules/moai/languages/rust.md` - Systems programming comparison and interop
 - `moai-domain-backend` - Backend service architecture
 - `moai-workflow-testing` - DDD and testing strategies
-- `moai-essentials-debug` - Debugging and profiling
 - `moai-foundation-quality` - TRUST 5 quality principles
 
 ---
@@ -109,7 +101,7 @@ See:
 
 Version Check: Run g++ --version to verify GCC 13+ for C++23 support, clang++ --version for Clang 17+, and cmake --version for CMake 3.28+.
 
-Common Compilation Flags: Use -std=c++23 with -Wall -Wextra -Wpedantic -O2 for standard builds. Add -fsanitize=adddess,undefined -g for debugging builds.
+Common Compilation Flags: Use -std=c++23 with -Wall -Wextra -Wpedantic -O2 for standard builds. Add -fsanitize=address,undefined -g for debugging builds.
 
 vcpkg Integration: Clone the vcpkg repository from GitHub, run bootstrap-vcpkg.sh, then install packages like fmt, nlohmann-json, and gtest using vcpkg install. Configure CMake with -DCMAKE_TOOLCHAIN_FILE pointing to vcpkg's buildsystems/vcpkg.cmake.
 

@@ -1,19 +1,31 @@
-# Design System Constitution v3.2
+---
+description: "Design System Constitution — MoAI design pipeline FROZEN/EVOLVABLE zone, GAN Loop contract, brand integration. design/brand 작업 시에만 로드."
+paths: ".moai/specs/SPEC-*-DESIGN-*/**,.moai/project/brand/**,.claude/skills/moai/**/design*.md,.claude/skills/moai/**/brand*.md"
+---
+
+# Design System Constitution v3.5.0
+
+> **RETIRED — historical reference.** The MoAI design production system described in this file (the `/moai design` route, the design pipeline, and the named design skills `moai-domain-copywriting`, `moai-domain-brand-design`, `moai-workflow-design`, `moai-workflow-gan-loop`) has been **retired** per the design-system retirement. None of those four skills exist in the current catalog, and `/moai design` is no longer a routed subcommand — design-language requests route to `/moai plan`, and quality/security review routes to `/moai review`. This file is preserved for two reasons only: (1) as the FROZEN-clause source mirrored by the constitution registry, and (2) as a historical record of the design pipeline contract. The `expert-frontend` name throughout resolves to a per-spawn `Agent(general-purpose)` with frontend instructions per the carve-out note below. Do not treat any pipeline, route, or skill named below as a live capability.
 
 ## HISTORY
 
-- 2026-04-20 (SPEC-DESIGN-CONST-AMEND-001): Section 3 expanded to tripartite structure (3.1/3.2/3.3). Version 3.2.0 → 3.3.0 (v3.3.0). FROZEN zone extended to cover each subsection individually.
-- 2026-04-20: Relocated from `.claude/rules/agency/constitution.md` (v3.2.0) to `.claude/rules/moai/design/constitution.md` as part of SPEC-AGENCY-ABSORB-001 M1. Original path: `.claude/rules/agency/constitution.md`. No content changes. FROZEN zone and EVOLVABLE zone definitions are preserved verbatim.
+- §3.2 + §4 Pencil MCP (Path B2) row removed — Pencil MCP server no longer registered in `.mcp.json.tmpl`, dead reference cleanup as part of v2.20.0-rc1 release-readiness consolidation. Path B1 (figma-extractor) preserved. Version 3.4.0 → 3.5.0.
+- §4 Phase Contracts table extended with Path B1 (figma-extractor) and Path B2 (pencil-mcp) rows. Version 3.3.1 → 3.4.0.
+- §3.2 footnote 추가 — Reserved name violation은 `moai update` (update path)에서 warning + skip, `moai init` (scaffold path)에서 hard error. v3.3.0 → 3.3.1.
+- Section 3 expanded to tripartite structure (3.1/3.2/3.3). Version 3.2.0 → 3.3.0 (v3.3.0). FROZEN zone extended to cover each subsection individually.
+- Relocated from `.claude/rules/agency/constitution.md` (v3.2.0; the `agency/` rule namespace was retired in this relocation per the design-system absorption policy) to `.claude/rules/moai/design/constitution.md`. Original path: `.claude/rules/agency/constitution.md`. No content changes. FROZEN zone and EVOLVABLE zone definitions are preserved verbatim.
 
 ---
 
 Core principles governing the MoAI design production system. These rules define identity, safety boundaries, evolution mechanics, and integration contracts.
 
+> **Pipeline `expert-frontend` carve-out (catalog-consistency note).** The `expert-frontend` agent named throughout this design pipeline is an **archived** agent per `.claude/rules/moai/workflow/archived-agent-rejection.md`. The name here denotes the pipeline **ROLE** (frontend design-token implementation), not a live spawn target. At runtime, the role resolves to a per-spawn `Agent(general-purpose)` with a frontend domain whitelist per the archived-agent-rejection §C migration table. The FROZEN-zone clause text below is preserved verbatim for stability; the archived name is not silently load-bearing because this note cross-references the migration table. Each `expert-frontend` FROZEN-clause occurrence below carries an inline `[ARCHIVED]` marker cross-referencing this note so the historical status is unambiguous at the clause site, and the pipeline diagrams / tables in §4-14 are covered by the §4 historical banner.
+
 ---
 
 ## 1. Identity and Purpose
 
-The MoAI design production system is a creative production capability built on top of MoAI-ADK. It orchestrates a pipeline of specialized skills and agents (`moai-domain-copywriting`, `moai-domain-brand-design`, `moai-workflow-design-import`, `moai-workflow-gan-loop`, `expert-frontend`, `evaluator-active`) to produce high-quality web experiences from natural language briefs.
+The MoAI design production system is a creative production capability built on top of MoAI-ADK. It orchestrates a pipeline of specialized skills and agents (`moai-domain-copywriting` [RETIRED — do not revive without a new SPEC], `moai-domain-brand-design` [RETIRED — do not revive without a new SPEC], `moai-workflow-design` [RETIRED], `moai-workflow-gan-loop` [RETIRED], `expert-frontend` [ARCHIVED], `sync-auditor`) to produce high-quality web experiences from natural language briefs.
 
 The design system is NOT a replacement for MoAI. It is a vertical specialization domain that:
 - Inherits MoAI's orchestration infrastructure, quality gates, and agent runtime
@@ -36,7 +48,7 @@ The following elements are immutable and can only be changed by human developers
 - [FROZEN] Safety architecture (Section 5)
 - [FROZEN] GAN Loop contract (Section 11)
 - [FROZEN] Evaluator leniency prevention mechanisms (Section 12)
-- [FROZEN] Pipeline phase ordering constraints (manager-spec always first, evaluator-active always last in loop)
+- [FROZEN] Pipeline phase ordering constraints (manager-spec always first, sync-auditor always last in loop)
 - [FROZEN] Pass threshold floor (minimum 0.60, cannot be lowered by evolution)
 - [FROZEN] Human approval requirement for evolution (require_approval in design.yaml)
 
@@ -45,7 +57,7 @@ The following elements are immutable and can only be changed by human developers
 The following elements can be modified through the graduation protocol:
 
 - [EVOLVABLE] Skill body content for moai-domain-copywriting, moai-domain-brand-design, moai-workflow-gan-loop
-- [EVOLVABLE] Pipeline adaptation weights (.moai/config/sections/design.yaml adaptation.phase_weights)
+- [EVOLVABLE] Pipeline adaptation weights (.moai/config/sections/design.yaml adaptation.iteration_limits)
 - [EVOLVABLE] Evaluation rubric criteria (within bounds set by frozen rules)
 - [EVOLVABLE] Design tokens and brand heuristics (.moai/project/brand/)
 - [EVOLVABLE] Iteration limits (.moai/config/sections/design.yaml adaptation.iteration_limits)
@@ -58,46 +70,52 @@ The following elements can be modified through the graduation protocol:
 
 Brand context is not optional decoration. It is a constitutional constraint that flows through every phase:
 
-- [HARD] manager-spec MUST load brand context before generating BRIEF documents
-- [HARD] moai-domain-copywriting MUST adhere to brand voice, tone, and terminology from brand-voice.md
-- [HARD] moai-domain-brand-design MUST use brand color palette, typography, and visual language from visual-identity.md
-- [HARD] expert-frontend MUST implement design tokens derived from brand context
-- [HARD] evaluator-active MUST score brand consistency as a must-pass criterion
+- [ZONE:Frozen] [HARD] manager-spec MUST load brand context before generating BRIEF documents
+- [ZONE:Frozen] [HARD] moai-domain-copywriting MUST adhere to brand voice, tone, and terminology from brand-voice.md [RETIRED — do not revive without a new SPEC; skill absent from current catalog, clause preserved as FROZEN-zone source for the constitution registry mirror]
+- [ZONE:Frozen] [HARD] moai-domain-brand-design MUST use brand color palette, typography, and visual language from visual-identity.md [RETIRED — do not revive without a new SPEC; skill absent from current catalog, clause preserved as FROZEN-zone source for the constitution registry mirror]
+- [ZONE:Frozen] [HARD] [ARCHIVED] expert-frontend MUST implement design tokens derived from brand context (archived agent — resolves to Agent(general-purpose) with frontend whitelist per the line 22 carve-out note; historical design-pipeline clause preserved for the constitution registry mirror)
+- [ZONE:Frozen] [HARD] sync-auditor MUST score brand consistency as a must-pass criterion
 
 Brand context is stored in `.moai/project/brand/` and initialized through the brand interview process on first run. Context updates require explicit user approval.
 
 ### 3.2 Design Brief (execution scope)
 
-Iteration-specific design briefs are stored in `.moai/design/`:
+> The `.moai/design/` directory and its scaffold/sync code path were removed in a later cleanup (`scaffoldDesignDir` / `updateDesignDir` deleted; the `design_docs` config block and `DesignDocs` Go struct removed). The clauses below are preserved verbatim as the FROZEN-zone source mirrored by the constitution registry; they document the historical contract only. The `.moai/design/` path is no longer created by `moai init` or synced by `moai update`.
 
-- [HARD] `/moai design` MUST auto-load human-authored design documents (research.md, system.md, spec.md, pencil-plan.md) when present and not _TBD_
-- [HARD] Design briefs MUST NOT override brand context — brand remains the constitutional parent
-- [HARD] `moai-workflow-design-import` continues to write machine-generated artifacts to `.moai/design/`; the exact set of reserved file paths is enumerated below — human-authored files must not collide with them
-- [HARD] Reserved file paths (canonical list): `tokens.json`, `components.json`, `assets/`, `import-warnings.json`, `brief/BRIEF-*.md`
-- [HARD] Token budget for auto-loading is bounded by `.moai/config/sections/design.yaml` `design_docs.token_budget`; when the key is absent, the system MUST default to 20000
-- [HARD] Priority order when truncation is needed: spec.md > system.md > research.md > pencil-plan.md
+Historical iteration-specific design briefs were stored in `.moai/design/`:
+
+- [ZONE:Frozen] [HARD] `/moai design` MUST auto-load human-authored design documents (research.md, system.md, spec.md) when present and not _TBD_ (RETIRED route — `/moai design` is no longer a routed subcommand; design-language requests route to `/moai plan`. See the retirement banner at the top of this file. Clause text preserved verbatim for the FROZEN constitution registry mirror.)
+- [ZONE:Frozen] [HARD] Design briefs MUST NOT override brand context — brand remains the constitutional parent
+- [ZONE:Frozen] [HARD] `moai-workflow-design` continues to write machine-generated artifacts to `.moai/design/`; the exact set of reserved file paths is enumerated below — human-authored files must not collide with them (historical — the `moai-workflow-design` skill is retired and the `.moai/design/` directory is no longer created)
+- [ZONE:Frozen] [HARD] Reserved file paths (canonical list): `tokens.json`, `components.json`, `assets/`, `import-warnings.json`, `brief/BRIEF-*.md` (historical — enforcement code path removed)
+- [ZONE:Frozen] [HARD] Token budget for auto-loading is bounded by `.moai/config/sections/design.yaml` `design_docs.token_budget`; when the key is absent, the system MUST default to 20000 (historical — the `design_docs` config block was removed)
+- [ZONE:Frozen] [HARD] Priority order when truncation is needed: spec.md > system.md > research.md (historical)
+
+> **Note:** Reserved name violations during `moai update` (update path) are reported as warnings; the user file is preserved and other templates continue to sync. During `moai init` / scaffold path, reserved name collisions remain hard errors. User data is never modified or deleted in either case. (Historical — the reserved-name collision check was removed alongside `.moai/design/`.)
 
 ### 3.3 Relationship
 
 - Brand (`.moai/project/brand/`) = WHO the brand is (long-lived, rarely changes)
-- Design (`.moai/design/`) = WHAT each iteration produces (per-project, evolves with redesign cycles)
+- Design (`.moai/design/`) = WHAT each iteration produces (per-project, evolves with redesign cycles) — historical; the directory is no longer created
 - When both are present, brand constraints win on conflict.
 
 ---
 
 ## 4. Pipeline Architecture
 
+(Sections 4-14 describe the retired /moai design pipeline; skill names below are retired. Preserved as historical record — the load-bearing FROZEN clauses are §2 + §3, mirrored by the constitution registry.)
+
 ### Phase Ordering
 
 ```
-manager-spec -> [moai-domain-copywriting, moai-domain-brand-design] (parallel) -> expert-frontend -> evaluator-active
+manager-spec -> [moai-domain-copywriting, moai-domain-brand-design] (parallel) -> expert-frontend -> sync-auditor
                                                                                           ^                  |
                                                                                           |__________________|
                                                                                      GAN Loop (max 5 iterations)
                                                                                      (via moai-workflow-gan-loop)
 ```
 
-Path A (Claude Design import): moai-workflow-design-import replaces moai-domain-brand-design for the design artifact phase.
+Path A (Claude Design import): moai-workflow-design replaces moai-domain-brand-design for the design artifact phase.
 
 ### Phase Contracts
 
@@ -106,11 +124,12 @@ Each phase produces typed artifacts consumed by downstream phases:
 | Phase | Input | Output | Required |
 |-------|-------|--------|----------|
 | manager-spec | User request + brand context | BRIEF document (Goal/Audience/Brand sections) | Always |
-| moai-domain-copywriting | BRIEF + brand voice | Copy JSON (hero/features/cta/etc.) | Path B |
-| moai-domain-brand-design | BRIEF + visual identity | Design tokens JSON + component spec | Path B |
-| moai-workflow-design-import | Handoff bundle path | .moai/design/ reserved artifacts (see Section 3.2) | Path A |
-| expert-frontend | Copy JSON + design tokens | Working code (pages, components, styles) | Always |
-| evaluator-active | Built code + BRIEF | Score card + feedback | Always |
+| moai-domain-copywriting [RETIRED] | BRIEF + brand voice | Copy JSON (hero/features/cta/etc.) | Path B |
+| moai-domain-brand-design [RETIRED] | BRIEF + visual identity | Design tokens JSON + component spec | Path B |
+| moai-workflow-design | Handoff bundle path | .moai/design/ reserved artifacts (see Section 3.2) | Path A |
+| expert-frontend *(archived — see line 22)* | Copy JSON + design tokens | Working code (pages, components, styles) | Always (historical) |
+| sync-auditor | Built code + BRIEF | Score card + feedback | Always |
+| figma-extractor (Path B1) | BRIEF + Figma file ID + page selectors | tokens.json + components.json | Path B1 |
 
 ---
 
@@ -237,10 +256,10 @@ When a learning reaches Rule tier (5+ observations, confidence >= 0.80):
 
 Design system skills may be forked or customized. Fork management follows these rules:
 
-- [HARD] Prefer direct skill reference over custom fork when no customization is needed
-- [HARD] Never modify moai upstream skill files directly (they are managed by moai update)
-- [HARD] Custom skill variants MUST have clear naming distinguishing them from upstream
-- [HARD] Document the reason for customization in the skill frontmatter metadata
+- [ZONE:Frozen] [HARD] Prefer direct skill reference over custom fork when no customization is needed
+- [ZONE:Frozen] [HARD] Never modify moai upstream skill files directly (they are managed by moai update)
+- [ZONE:Frozen] [HARD] Custom skill variants MUST have clear naming distinguishing them from upstream
+- [ZONE:Frozen] [HARD] Document the reason for customization in the skill frontmatter metadata
 
 ---
 
@@ -259,7 +278,7 @@ When moai-adk-go updates (via moai update), check for upstream changes to design
 The pipeline can be adapted based on project characteristics. Five adaptation types are supported: Skip, Merge, Reorder, Inject, Iteration Adjust.
 
 Constraints:
-- manager-spec and evaluator-active can NEVER be skipped (FROZEN)
+- manager-spec and sync-auditor can NEVER be skipped (FROZEN)
 - Pass threshold floor is 0.60 (FROZEN, cannot be lowered)
 - Adaptations require confidence_threshold >= 0.70 and min_projects_for_adaptation from design.yaml
 
@@ -272,7 +291,7 @@ The Builder-Evaluator GAN Loop is the quality assurance mechanism. It operates u
 ### Loop Mechanics
 
 1. expert-frontend produces code artifacts from copy JSON + design tokens
-2. evaluator-active scores artifacts against BRIEF criteria (0.0 to 1.0)
+2. sync-auditor scores artifacts against BRIEF criteria (0.0 to 1.0)
 3. If score >= pass_threshold (0.75): PASS, proceed to learner phase
 4. If score < pass_threshold: FAIL, evaluator provides actionable feedback
 5. expert-frontend incorporates feedback and produces revised artifacts
@@ -281,7 +300,7 @@ The Builder-Evaluator GAN Loop is the quality assurance mechanism. It operates u
 ### Escalation
 
 After escalation_after (3) iterations without passing:
-- evaluator-active generates a detailed failure report
+- sync-auditor generates a detailed failure report
 - User is notified with the report and asked to intervene
 - User may: adjust criteria, provide guidance, or force-pass
 
@@ -289,7 +308,7 @@ After escalation_after (3) iterations without passing:
 
 If score improvement between iterations is less than improvement_threshold (0.05):
 - The loop is flagged as stagnating
-- evaluator-active must identify a different dimension for improvement
+- sync-auditor must identify a different dimension for improvement
 - If stagnation persists for 2 consecutive iterations, escalate to user
 
 ### Strict Mode
@@ -299,11 +318,13 @@ When strict_mode is true (from design.yaml):
 - Score inflation protection is active (see Section 12)
 - Minimum 2 iterations required even if first iteration passes
 
-### Sprint Contract Protocol
+### Sprint Contract Protocol (RETIRED)
 
-Before each GAN Loop iteration, expert-frontend and evaluator-active negotiate a Sprint Contract:
+> **RETIRED — historical reference.** The Sprint Contract Protocol is part of the retired design pipeline. The artifact directory is no longer created by the runtime. Clauses below are preserved as a historical record of the GAN Loop contract.
 
-1. **Contract Generation**: evaluator-active analyzes the BRIEF and produces a Sprint Contract containing:
+Before each GAN Loop iteration, expert-frontend and sync-auditor negotiate a Sprint Contract:
+
+1. **Contract Generation**: sync-auditor analyzes the BRIEF and produces a Sprint Contract containing:
    - Acceptance checklist: concrete, testable criteria for this iteration
    - Priority dimension: which evaluation dimension to focus on (Design Quality, Originality, Completeness, or Functionality)
    - Test scenarios: specific Playwright test cases that will verify success
@@ -312,9 +333,9 @@ Before each GAN Loop iteration, expert-frontend and evaluator-active negotiate a
 2. **Contract Review**: expert-frontend reviews the Sprint Contract and may:
    - Accept as-is: proceed with implementation
    - Request adjustment: if criteria are infeasible, propose alternatives with rationale
-   - evaluator-active resolves disputes by referencing BRIEF requirements
+   - sync-auditor resolves disputes by referencing BRIEF requirements
 
-3. **Contract Execution**: expert-frontend implements against the agreed checklist. evaluator-active scores only against the contracted criteria (not arbitrary standards).
+3. **Contract Execution**: expert-frontend implements against the agreed checklist. sync-auditor scores only against the contracted criteria (not arbitrary standards).
 
 4. **Contract Evolution**: In subsequent iterations:
    - Passed criteria carry forward (no regression allowed)
@@ -322,25 +343,25 @@ Before each GAN Loop iteration, expert-frontend and evaluator-active negotiate a
    - New criteria may be added if previous sprint revealed gaps
 
 Rules:
-- [HARD] Sprint Contracts are required when harness level is `thorough`
-- [HARD] Sprint Contracts are optional but recommended for `standard` harness level
-- [HARD] evaluator-active MUST NOT score on criteria not in the Sprint Contract
-- [HARD] expert-frontend MUST NOT claim criteria as met without evidence
-- Sprint Contract artifacts are stored in `.moai/sprints/` (from design.yaml `sprint_contract.artifact_dir`)
+- [ZONE:Frozen] [HARD] Sprint Contracts are required when harness level is `thorough`
+- [ZONE:Frozen] [HARD] Sprint Contracts are optional but recommended for `standard` harness level
+- [ZONE:Frozen] [HARD] sync-auditor MUST NOT score on criteria not in the Sprint Contract
+- [ZONE:Frozen] [HARD] [ARCHIVED] expert-frontend MUST NOT claim criteria as met without evidence (archived agent — see line 22 carve-out note; historical GAN Loop clause)
+- Sprint Contract artifacts were stored in a configured artifact directory (design.yaml config key; the rules-tree path string is retired)
 
 ---
 
 ## 12. Evaluator Leniency Prevention
 
-evaluator-active must maintain objectivity. Five mechanisms prevent score inflation:
+sync-auditor must maintain objectivity. Five mechanisms prevent score inflation:
 
 ### Mechanism 1: Rubric Anchoring
 
-Every evaluation criterion has a concrete rubric with examples of scores at 0.25, 0.50, 0.75, and 1.0. evaluator-active MUST reference the rubric when assigning scores. Scores without rubric justification are invalid.
+Every evaluation criterion has a concrete rubric with examples of scores at 0.25, 0.50, 0.75, and 1.0. sync-auditor MUST reference the rubric when assigning scores. Scores without rubric justification are invalid.
 
 ### Mechanism 2: Regression Baseline
 
-evaluator-active maintains a running baseline of scores from previous projects. If the current project scores significantly above baseline (> 0.15) without corresponding quality improvement, the score is flagged for review.
+sync-auditor maintains a running baseline of scores from previous projects. If the current project scores significantly above baseline (> 0.15) without corresponding quality improvement, the score is flagged for review.
 
 ### Mechanism 3: Must-Pass Firewall
 
@@ -348,11 +369,11 @@ Must-pass criteria cannot be compensated by high scores in other areas. A projec
 
 ### Mechanism 4: Independent Re-evaluation
 
-Every 5th project undergoes independent re-evaluation: evaluator-active scores the project twice with different prompting, and the scores must be within 0.10 of each other. Divergence triggers a calibration review.
+Every 5th project undergoes independent re-evaluation: sync-auditor scores the project twice with different prompting, and the scores must be within 0.10 of each other. Divergence triggers a calibration review.
 
 ### Mechanism 5: Anti-Pattern Cross-check
 
-Before finalizing a passing score, evaluator-active checks all known anti-patterns. If the code exhibits any anti-pattern behavior, the relevant criterion score is capped at 0.50 regardless of other qualities.
+Before finalizing a passing score, sync-auditor checks all known anti-patterns. If the code exhibits any anti-pattern behavior, the relevant criterion score is capped at 0.50 regardless of other qualities.
 
 ---
 
@@ -361,7 +382,7 @@ Before finalizing a passing score, evaluator-active checks all known anti-patter
 When configuration conflicts arise, the following precedence applies (highest first):
 
 1. FROZEN constitutional rules (this file)
-2. User overrides via /moai design config
+2. User overrides via `/moai design config` (RETIRED route — see the retirement banner at the top of this file)
 3. Evolved configuration (graduated learnings)
 4. .moai/config/sections/design.yaml defaults
 5. Brand context constraints
@@ -396,9 +417,6 @@ If a graduated learning causes regression:
 
 ---
 
-Version: 3.3.0
+Version: 3.5.0
 Classification: FROZEN_AMENDMENT
-Original Source: agency/constitution.md v3.2.0
-Last Updated: 2026-04-20
-Relocated: 2026-04-20 (SPEC-AGENCY-ABSORB-001 M1)
-REQ coverage: REQ-CONST-001, REQ-CONST-002, REQ-CONST-003, REQ-CONST-004
+Original Source: v2.x `agency/constitution.md` v3.2.0 (retired per the design-system absorption policy)

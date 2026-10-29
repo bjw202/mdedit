@@ -4,7 +4,176 @@ llm:
     glm_env_var: GLM_API_KEY
     performance_tier: medium
     profile: ""
-    profiles: {}
+    profiles:
+        high:
+            Explore:
+                model: sonnet
+                effort: low
+            builder-harness:
+                model: opus
+                effort: high
+            e2e-tester:
+                model: opus
+                effort: medium
+            manager-design:
+                model: opus
+                effort: high
+            manager-develop:
+                model: opus
+                effort: max
+            manager-docs:
+                model: opus
+                effort: low
+            manager-git:
+                model: sonnet
+                effort: low
+            manager-spec:
+                model: opus
+                effort: high
+            plan-auditor:
+                model: opus
+                effort: high
+            super-advisor:
+                model: opus
+                effort: max
+            sync-auditor:
+                model: opus
+                effort: high
+        low:
+            Explore:
+                model: sonnet
+                effort: low
+            builder-harness:
+                model: opus
+                effort: low
+            e2e-tester:
+                model: sonnet
+                effort: low
+            manager-design:
+                model: opus
+                effort: low
+            manager-develop:
+                model: opus
+                effort: low
+            manager-docs:
+                model: sonnet
+                effort: low
+            manager-git:
+                model: sonnet
+                effort: low
+            manager-spec:
+                model: opus
+                effort: low
+            plan-auditor:
+                model: opus
+                effort: low
+            super-advisor:
+                model: opus
+                effort: medium
+            sync-auditor:
+                model: opus
+                effort: low
+        medium:
+            Explore:
+                model: sonnet
+                effort: low
+            builder-harness:
+                model: opus
+                effort: medium
+            e2e-tester:
+                model: opus
+                effort: low
+            manager-design:
+                model: opus
+                effort: medium
+            manager-develop:
+                model: opus
+                effort: high
+            manager-docs:
+                model: opus
+                effort: low
+            manager-git:
+                model: sonnet
+                effort: low
+            manager-spec:
+                model: opus
+                effort: high
+            plan-auditor:
+                model: opus
+                effort: high
+            super-advisor:
+                model: opus
+                effort: high
+            sync-auditor:
+                model: opus
+                effort: high
+    harness_agents:
+        high:
+            design-architecture:
+                model: ""
+                effort: high
+            implement:
+                model: ""
+                effort: max
+            mechanical-transform:
+                model: ""
+                effort: low
+            read-only-extract:
+                model: ""
+                effort: low
+            research:
+                model: ""
+                effort: high
+            synthesize:
+                model: ""
+                effort: low
+            verify-judge:
+                model: ""
+                effort: high
+        low:
+            design-architecture:
+                model: ""
+                effort: low
+            implement:
+                model: ""
+                effort: low
+            mechanical-transform:
+                model: ""
+                effort: low
+            read-only-extract:
+                model: ""
+                effort: low
+            research:
+                model: ""
+                effort: low
+            synthesize:
+                model: ""
+                effort: low
+            verify-judge:
+                model: ""
+                effort: low
+        medium:
+            design-architecture:
+                model: ""
+                effort: medium
+            implement:
+                model: ""
+                effort: high
+            mechanical-transform:
+                model: ""
+                effort: low
+            read-only-extract:
+                model: ""
+                effort: low
+            research:
+                model: ""
+                effort: high
+            synthesize:
+                model: ""
+                effort: low
+            verify-judge:
+                model: ""
+                effort: high
     agent_overrides: {}
     claude_models:
         high: claude-opus-4-7
@@ -13,13 +182,13 @@ llm:
     glm:
         base_url: https://api.z.ai/api/anthropic
         models:
-            high: glm-5.2[1m]
-            medium: glm-5.2[1m]
-            low: glm-4.5-air
-            fable: glm-5.2
-            opus: glm-5.2[1m]
-            sonnet: glm-5.2[1m]
-            haiku: glm-4.5-air
+            high: glm-5.3-flash
+            medium: glm-5.3-flash
+            low: glm-5.3-flash
+            fable: glm-5.3-flash
+            opus: glm-5.3-flash
+            sonnet: glm-5.3-flash
+            haiku: glm-5.3-flash
     default_model: ""
     quality_model: ""
     speed_model: ""

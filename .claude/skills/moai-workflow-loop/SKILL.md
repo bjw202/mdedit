@@ -7,7 +7,7 @@ description: >
   workflows.
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read, Write, Edit, Bash, Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 effort: low
 user-invocable: false
 metadata:
@@ -21,6 +21,10 @@ metadata:
 # Ralph Engine
 
 Automated feedback loop system integrating LSP diagnostics, AST-grep security scanning, and test validation for continuous code quality improvement.
+
+## Preset Architecture — the Ralph Engine as a goal preset
+
+The `/moai loop` skill (`.claude/skills/moai/workflows/loop.md`) re-expresses this Ralph engine as a **goal preset** built ON the goal engine: a scan stage builds a finite issue queue, and the iterate-until-done decision is delegated to the goal engine (`stop-goal`) with the pre-filled condition "queue drained + diagnostics clean". In this **preset architecture**, this SKILL.md documents the underlying LSP / AST-grep / test / coverage diagnostic machinery that the goal-preset sweep drives; the preset layers the goal-engine composition on top of that machinery WITHOUT changing it. The four loop quadrants (goal-based sweep, turn-based `/moai fix`, time-based cadence, proactive CI-watch) are presets on the one goal engine, not independent engines.
 
 ## Quick Reference
 
@@ -132,7 +136,7 @@ Check that ralph.enabled is set to true in configuration. Verify MOAI_DISABLE_LO
 
 ### LSP Diagnostics Missing
 
-Check LSP server configuration in .lsp.json file. Verify the language server is installed for your language. Check that MOAI_DISABLE_LSP_DIAGNOSTIC environment variable is not set.
+Check LSP server configuration in .moai/config/sections/lsp.yaml. Verify the language server is installed for your language. Check that MOAI_DISABLE_LSP_DIAGNOSTIC environment variable is not set.
 
 ### Loop Stuck
 
@@ -143,21 +147,21 @@ Review the max_iterations setting to ensure it allows sufficient iterations. Rev
 Skills:
 
 - moai-foundation-quality: TRUST 5 validation
-- moai-tool-ast-grep: Security scanning patterns
+- `moai ast-grep` / `moai ast-edit`: security scanning patterns and rewrites
 - moai-workflow-testing: DDD integration
-- moai-lang-python: Python-specific patterns
-- moai-lang-typescript: TypeScript patterns
+- `.claude/rules/moai/languages/python.md`: Python-specific patterns (auto-loaded via paths frontmatter)
+- `.claude/rules/moai/languages/typescript.md`: TypeScript patterns (auto-loaded via paths frontmatter)
 
 Agents:
 
-- manager-ddd: DDD implementation
-- manager-quality: Quality validation
-- expert-debug: Complex debugging
+- manager-develop: DDD implementation
+- manager-develop (cycle_type=autofix): complex debugging and fix proposal (former manager-quality debug role)
+- /moai gate skill or sync-phase-quality-gate.sh Stop hook: quality validation (former manager-quality gate role)
 
 Commands:
 
-- /moai:2-run: DDD implementation
-- /moai:3-sync: Documentation sync
+- /moai:run: DDD implementation
+- /moai:sync: Documentation sync
 
 ## Reference
 
@@ -179,18 +183,17 @@ Configuration is stored at .moai/config/sections/ralph.yaml.
 
 Loop state is stored at .moai/cache/.moai_loop_state.json.
 
-The LSP hook is located at .claude/hooks/moai/post_tool__lsp_diagnostic.
+The LSP hook is located at .claude/hooks/moai/handle-post-tool.sh.
 
-The loop hook is located at .claude/hooks/moai/stop__loop_controller.
+The loop hook is located at .claude/hooks/moai/handle-stop.sh.
 
 ### Supported Languages
 
-LSP diagnostics are available for all 16 MoAI-supported languages: C++, C#, Elixir, Flutter, Go, Java, JavaScript, Kotlin, PHP, Python, R, Ruby, Rust, Scala, Swift, and TypeScript. Ralph detects the project language via marker files (for example `go.mod` for Go, `pyproject.toml` for Python, `tsconfig.json` for TypeScript, `Cargo.toml` for Rust, `pubspec.yaml` for Flutter) and spawns the matching language server on demand. Users install only the servers their projects actually need; missing servers trigger a warn-and-skip with an install hint, never a hard failure. See `references/reference.md` for the complete language-server-to-binary mapping table. Per CLAUDE.local.md Section 22 (Template Language Neutrality), no language receives priority over another.
+LSP diagnostics are available for all 16 MoAI-supported languages: C++, C#, Elixir, Flutter, Go, Java, JavaScript, Kotlin, PHP, Python, R, Ruby, Rust, Scala, Swift, and TypeScript. Ralph detects the project language via marker files (for example `go.mod` for Go, `pyproject.toml` for Python, `tsconfig.json` for TypeScript, `Cargo.toml` for Rust, `pubspec.yaml` for Flutter) and spawns the matching language server on demand. Users install only the servers their projects actually need; missing servers trigger a warn-and-skip with an install hint, never a hard failure. See `references/reference.md` for the complete language-server-to-binary mapping table. Per `.claude/rules/moai/development/coding-standards.md` § Language Policy (16-language neutrality contract), no language receives priority over another.
 
 ---
 
 Version: 1.2.0
-Last Updated: 2026-01-11
 Status: Active
 Integration: Claude Code Hooks, LSP Protocol, AST-grep
 Skill Name: moai-workflow-loop (formerly moai-ralph)

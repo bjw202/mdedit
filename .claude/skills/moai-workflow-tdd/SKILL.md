@@ -5,9 +5,15 @@ description: >
   cycle for test-first software development. Use when developing new
   features from scratch or when behavior specification drives
   implementation.
+
+when_to_use: >
+  Use for Test-Driven Development: the RED-GREEN-REFACTOR cycle for
+  test-first software development, new-feature implementation from
+  scratch, and behavior-specification-driven implementation.
+
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read, Write, Edit, Bash(pytest:*), Bash(ruff:*), Bash(npm:*), Bash(npx:*), Bash(node:*), Bash(jest:*), Bash(vitest:*), Bash(go:*), Bash(cargo:*), Bash(mix:*), Bash(uv:*), Bash(bundle:*), Bash(php:*), Bash(phpunit:*), Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+allowed-tools: Read, Write, Edit, Bash(pytest:*), Bash(ruff:*), Bash(npm:*), Bash(npx:*), Bash(node:*), Bash(jest:*), Bash(vitest:*), Bash(go:*), Bash(cargo:*), Bash(mix:*), Bash(uv:*), Bash(bundle:*), Bash(php:*), Bash(phpunit:*), Grep, Glob
 user-invocable: false
 metadata:
   version: "1.0.0"
@@ -17,8 +23,6 @@ metadata:
   modularized: "true"
   tags: "workflow, tdd, test-driven, red-green-refactor, test-first"
   author: "MoAI-ADK Team"
-  context: "fork"
-  agent: "manager-tdd"
   related-skills: "moai-workflow-ddd, moai-workflow-testing, moai-foundation-quality"
 
 # MoAI Extension: Progressive Disclosure
@@ -26,12 +30,6 @@ progressive_disclosure:
   enabled: true
   level1_tokens: 100
   level2_tokens: 5000
-
-# MoAI Extension: Triggers
-triggers:
-  keywords: ["TDD", "test-driven development", "red-green-refactor", "test-first", "new feature", "greenfield"]
-  phases: ["run"]
-  agents: ["manager-tdd", "expert-backend", "expert-frontend", "expert-testing"]
 ---
 
 # Test-Driven Development (TDD) Workflow
@@ -192,7 +190,7 @@ After each refactoring step:
 
 ### Standard TDD Session
 
-When executing TDD through manager-tdd:
+When executing TDD through manager-develop:
 
 Step 1 - Understand Requirements:
 
@@ -256,11 +254,11 @@ Code Quality (Goals):
 
 Apply TRUST 5 framework with TDD focus:
 
-- Testability: Test-first approach ensures testability
+- Tested: Test-first approach ensures coverage
 - Readability: Tests document expected behavior
-- Understandability: Tests serve as living documentation
+- Unified: Style and structure consistent with the surrounding code
 - Security: Security tests written before implementation
-- Transparency: Test failures provide immediate feedback
+- Trackable: Test failures provide immediate, attributable feedback
 
 ---
 
@@ -327,7 +325,6 @@ When TDD discipline breaks down:
 
 Version: 1.0.0
 Status: Active
-Last Updated: 2026-02-03
 
 <!-- moai:evolvable-start id="rationalizations" -->
 ## Common Rationalizations
@@ -372,3 +369,12 @@ Last Updated: 2026-02-03
 - [ ] REFACTOR phase was executed or explicitly justified as unnecessary
 
 <!-- moai:evolvable-end -->
+
+## Test-First Anti-Cheat
+
+[ZONE:Evolvable] [HARD] The Red Flags and Verification checklists above sit in advisory (evolvable) blocks and are consumed by no completion gate. This section promotes them into two enforced invariants that make test-first falsifiable in the completion matrix.
+
+- **Invariant i — RED failure output is mandatory completion evidence.** The verbatim RED failing-test output (the failing-test run captured BEFORE any implementation makes it pass) MUST be observed and shown as part of run-phase completion evidence. A run that cannot produce this output skipped RED and cannot be reported as clean.
+- **Invariant ii — implementation written before its failing test is deleted and re-derived test-first.** Any implementation code written before its failing test exists MUST be deleted and re-derived from a failing test (RED then GREEN). "I already wrote the implementation, so the test passes on first run" is the exact failure mode this invariant forbids — it is test-after, not test-first, and it leaves no RED output (Invariant i) to show as evidence.
+
+These two invariants close the falsifiability gap: before them, a fully-passing self-verification matrix was producible with NO RED evidence, so test-first could not be distinguished from test-after by the completion report. After them, the matrix requires the verbatim pre-GREEN RED output, so a run that skipped RED has no such output to supply and the matrix is structurally incomplete.

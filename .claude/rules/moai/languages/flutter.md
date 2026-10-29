@@ -4,10 +4,6 @@ paths: "**/*.dart,**/pubspec.yaml,**/pubspec.lock"
 
 # Flutter/Dart Development Guide
 
-
----
-
-
 Flutter/Dart Development Expert - Dart 3.5+, Flutter 3.24+ with modern patterns.
 
 
@@ -55,7 +51,7 @@ Adaptive Layouts: Create StatelessWidget with required parameters for child, des
 
 Widget Test Example: In test main function, create ProviderContainer with overrides for mock providers. Use tester.pumpWidget with UncontrolledProviderScope wrapping MaterialApp with the widget under test. Assert initial loading state with find.byType. Call tester.pumpAndSettle to wait for async operations. Assert final state with find.text.
 
-For comprehensive testing patterns, see [examples.md](examples.md).
+For comprehensive testing patterns, use the testing example above together with the Documentation References; this guide is self-contained.
 
 ## Advanced Patterns
 
@@ -70,9 +66,9 @@ For comprehensive coverage including:
 - FFI and platform-specific plugins
 - Performance optimization and profiling
 
-See: [reference/adaptive.md](reference/adaptive.md) for responsive layouts, [reference/animations.md](reference/animations.md) for animation patterns, [reference/expert.md](reference/expert.md) for expert-level development
+Apply the Riverpod, go_router, platform-channel, and widget pattern sections above together with the Documentation References for these advanced topics (responsive layouts, animation patterns, expert-level development); this guide is self-contained.
 
-## Context7 Library Mappings
+## Documentation References
 
 Flutter/Dart Core:
 
@@ -91,8 +87,26 @@ Navigation and Storage:
 - `/isar/isar` - NoSQL database
 
 
-- `moai-lang-swift` - iOS native integration for platform channels
-- `moai-lang-kotlin` - Android native integration for platform channels
+- `.claude/rules/moai/languages/swift.md` - iOS native integration for platform channels
+- `.claude/rules/moai/languages/kotlin.md` - Android native integration for platform channels
 - `moai-domain-backend` - API integration and backend communication
-- `moai-quality-security` - Mobile security best practices
-- `moai-essentials-debug` - Flutter debugging and DevTools
+- `moai-foundation-quality` + `moai-ref-owasp-checklist` - Mobile security best practices
+
+---
+
+## Troubleshooting
+
+Common Issues:
+
+Flutter Doctor: Run flutter doctor -v for detailed environment diagnostics. Run flutter doctor --android-licenses to accept Android SDK licenses. Verify Android Studio, Xcode, and Chrome (for web) are detected.
+
+Dependency Upgrade: Run flutter pub upgrade to upgrade to the latest compatible versions. Use flutter pub upgrade --major-versions to allow breaking version bumps within constraints. After upgrade, run flutter pub get to refresh the lockfile.
+
+Build Cache Clear: Run flutter clean to remove the build/ and .dart_tool/ directories. Delete pubspec.lock for a fresh dependency resolution. Run flutter pub get afterwards to re-resolve dependencies.
+
+Gradle Cache Clear (Android): Delete the .gradle directory inside the android/ folder of the project. Stop the Gradle daemon with cd android && ./gradlew --stop. For a system-wide clear, remove ~/.gradle/caches (affects all Android projects).
+
+CocoaPods Cache Clear (iOS): Run cd ios && pod install --repo-update to refresh the local spec repo and reinstall pods. For a deeper clean, delete ios/Podfile.lock and ios/Pods/ then run pod install. Clear the global cache with pod cache clean --all.
+
+---
+

@@ -4,9 +4,16 @@ description: >
   Backend development specialist covering API design, database integration,
   microservices architecture, and modern backend patterns. Use when designing
   APIs, implementing server logic, authentication, or authorization.
+
+when_to_use: >
+  Use for backend work: API design (REST, GraphQL, gRPC), server logic,
+  authentication and authorization, microservices, middleware, caching,
+  and frameworks (FastAPI, Express, Django, Flask). Covers serverless,
+  PostgreSQL, MongoDB, and Redis integration.
+
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read, Write, Edit, Bash(npm:*), Bash(npx:*), Bash(node:*), Bash(uv:*), Bash(pip:*), Bash(pytest:*), Bash(ruff:*), Bash(docker:*), Bash(curl:*), Bash(go:*), Bash(cargo:*), Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+allowed-tools: Read, Write, Edit, Bash(npm:*), Bash(npx:*), Bash(node:*), Bash(uv:*), Bash(pip:*), Bash(pytest:*), Bash(ruff:*), Bash(docker:*), Bash(curl:*), Bash(go:*), Bash(cargo:*), Grep, Glob
 user-invocable: false
 metadata:
   version: "1.0.0"
@@ -16,10 +23,6 @@ metadata:
   modularized: "false"
   tags: "backend, api, database, microservices, architecture"
   author: "MoAI-ADK Team"
-
-# MoAI Extension: Triggers
-triggers:
-  keywords: ["backend", "API", "server", "authentication", "authorization", "REST", "GraphQL", "gRPC", "microservices", "database", "endpoint", "middleware", "FastAPI", "Express", "Django", "Flask", "serverless", "caching", "Redis", "PostgreSQL", "MongoDB"]
 ---
 
 # Backend Development Specialist
@@ -72,7 +75,7 @@ Create a UserService class that initializes with an AsyncIOMotorClient. Set up t
 
 Service Discovery with Consul:
 
-Create a ServiceRegistry class that connects to Consul. Implement register_service method that registers a service with name, id, port, and health check endpoint. Implement discover_service method that queries healthy services and returns list of adddess:port strings.
+Create a ServiceRegistry class that connects to Consul. Implement register_service method that registers a service with name, id, port, and health check endpoint. Implement discover_service method that queries healthy services and returns list of address:port strings.
 
 Event-Driven Architecture:
 
@@ -107,7 +110,7 @@ Create an optimized SQLAlchemy engine with QueuePool, pool_size 20, max_overflow
 - moai-domain-frontend - Full-stack development integration
 - moai-domain-database - Advanced database patterns
 - moai-foundation-core - MCP server development patterns for backend services
-- moai-quality-security - Security validation and compliance
+- `moai-foundation-quality` + `moai-ref-owasp-checklist` - Security validation and compliance
 - moai-foundation-core - Core architectural principles
 
 ---
@@ -134,12 +137,7 @@ Integration Patterns:
 
 ---
 
-## Resources
-
-For working code examples, see [examples.md](examples.md).
-
 Status: Production Ready
-Last Updated: 2026-01-11
 Maintained by: MoAI-ADK Backend Team
 
 <!-- moai:evolvable-start id="rationalizations" -->

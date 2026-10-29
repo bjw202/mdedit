@@ -3,7 +3,6 @@
 Purpose: Automated quality gates ensuring code quality, security, maintainability, and traceability through five core principles.
 
 Version: 2.0.0 (Modular Split)
-Last Updated: 2026-01-06
 
 ---
 
@@ -20,8 +19,8 @@ TRUST 5 is MoAI-ADK's comprehensive quality assurance framework enforcing five p
 Integration Points:
 - Pre-commit hooks - Automated validation
 - CI/CD pipelines - Quality gate enforcement
-- quality-gate agent - TRUST 5 validation
-- /moai:2-run - Enforces ≥85% coverage
+- sync-auditor agent - TRUST 5 validation
+- /moai run - Enforces ≥85% coverage
 
 Quick Validation:
 ```python
@@ -219,21 +218,20 @@ For comprehensive implementation patterns including CI/CD integration, validatio
 ## Works Well With
 
 Agents:
-- quality-gate - Automated TRUST 5 validation
-- ddd-implementer - ANALYZE-PRESERVE-IMPROVE enforcement
-- security-expert - OWASP compliance checking
-- test-engineer - Test generation and coverage
+- sync-auditor - Automated TRUST 5 validation (4-dimension scoring)
+- manager-develop - ANALYZE-PRESERVE-IMPROVE enforcement (cycle_type=ddd) and test generation (cycle_type=tdd)
+- general-purpose (per-spawn, security instructions) - OWASP compliance checking
 
 Skills:
 - moai-workflow-testing - Test framework setup
-- moai-domain-security - Security patterns
+- moai-foundation-quality - Quality and security orchestration
+- moai-ref-owasp-checklist - OWASP Top 10 security reference
 
 Commands:
-- /moai:2-run - Enforces ≥85% coverage requirement
-- /moai:9-feedback - Quality improvement suggestions
+- /moai run - Enforces ≥85% coverage requirement
+- /moai feedback - Quality improvement suggestions
 
 ---
 
 Version: 2.0.0
-Last Updated: 2026-01-06
 Status: Production Ready

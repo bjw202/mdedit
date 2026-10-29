@@ -33,7 +33,7 @@ Enterprise IAM Structure:
  "WebFetch": ["domain:*.company.com"] // Approved domains only
  },
  "mcpServers": {
- "allowed": ["context7", "figma"], // Approved MCP servers
+ "allowed": ["example-server", "figma"], // Approved MCP servers
  "blocked": ["custom-mcp"] // Blocked servers
  }
  }
@@ -91,7 +91,7 @@ MCP servers do not support wildcards - specific server names required:
 ```json
 {
  "allowedMcpServers": [
- "context7",
+ "example-server",
  "figma-dev-mode-mcp-server",
  "playwright"
  ],
@@ -115,7 +115,7 @@ Configuration Priority (highest to lowest):
 
 ```json
 {
- "model": "claude-3-5-sonnet-20241022",
+ "model": "claude-sonnet-5",
  "permissionMode": "default",
  "maxFileSize": 10000000,
  "maxTokens": 200000,
@@ -132,7 +132,7 @@ Configuration Priority (highest to lowest):
 Model Settings:
 ```json
 {
- "model": "claude-3-5-sonnet-20241022", // or haiku, opus
+ "model": "claude-sonnet-5", // or haiku, opus
  "maxTokens": 200000, // Context window limit
  "temperature": 1.0 // Creativity level (0.0-1.0)
 }
@@ -165,10 +165,10 @@ MCP Server Configuration:
 ```json
 {
  "mcpServers": {
- "context7": {
+ "example-server": {
  "command": "npx",
- "args": ["@upstash/context7-mcp"],
- "env": {"CONTEXT7_API_KEY": "$CONTEXT7_KEY"}
+ "args": ["@example/mcp-server"],
+ "env": {"EXAMPLE_API_KEY": "$EXAMPLE_KEY"}
  }
  }
 }

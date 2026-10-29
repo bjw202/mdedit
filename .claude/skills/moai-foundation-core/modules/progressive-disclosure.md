@@ -3,7 +3,6 @@
 Purpose: Three-tier knowledge delivery system balancing immediate value with comprehensive depth through strategic content structuring and file organization.
 
 Version: 1.0.0
-Last Updated: 2025-11-25
 
 ---
 
@@ -91,8 +90,8 @@ TRUST 5 is MoAI-ADK's comprehensive quality assurance framework enforcing five p
 Integration Points:
 - Pre-commit hooks → Automated validation
 - CI/CD pipelines → Quality gate enforcement
-- quality-gate agent → TRUST 5 validation
-- /moai:2-run → Enforces ≥85% coverage
+- sync-auditor agent → TRUST 5 validation
+- /moai run → Enforces ≥85% coverage
 
 Quick Validation:
 ```python
@@ -181,16 +180,16 @@ Example - DDD Workflow:
 
 ### Phase 1: SPEC Generation
 
-Purpose: Define clear, testable requirements in EARS format before coding.
+Purpose: Define clear, testable requirements in GEARS format (current; EARS as legacy reference for 6-month backward-compat) before coding.
 
 Workflow:
 ```bash
 # 1. Generate SPEC
-/moai:1-plan "Implement user authentication with JWT tokens"
+/moai plan "Implement user authentication with JWT tokens"
 
-# 2. spec-builder creates:
+# 2. manager-spec creates:
 .moai/specs/SPEC-001/
- spec.md # EARS format requirements
+ spec.md # GEARS format requirements (current; EARS for legacy SPECs)
  acceptance.md # Acceptance criteria
  complexity.yaml # Complexity analysis
 
@@ -198,7 +197,7 @@ Workflow:
 /clear # Saves 45-50K tokens, prepares clean context
 ```
 
-EARS Format Structure:
+GEARS Format Structure (current notation; subject "system" shown for readability — any noun valid per generalized-subject rule):
 ```markdown
 ### SPEC-001-REQ-01: User Registration (Ubiquitous)
 Pattern: Ubiquitous
@@ -630,20 +629,18 @@ Available Modules:
 ## Works Well With
 
 Skills:
-- moai-foundation-modular-system - File organization patterns
-- moai-foundation-token-optimization - Content efficiency
-- moai-cc-skill-factory - Skill creation with progressive structure
+- [moai-foundation-core](../SKILL.md) - Parent skill (see [modular-system.md](modular-system.md) and [token-optimization.md](token-optimization.md))
+- [moai-foundation-cc](../../moai-foundation-cc/SKILL.md) - Skill authoring with progressive structure (Claude Code authoring kit)
 
 Agents:
-- skill-factory - Create skills with progressive disclosure
-- docs-manager - Generate documentation with layered structure
+- builder-harness - Generate project-specific harness specialists
+- manager-docs - Generate documentation with layered structure
 
 Commands:
-- /moai:1-plan - Generate SPEC with progressive detail
-- /moai:3-sync - Create docs with layered structure
+- /moai plan - Generate SPEC with progressive detail
+- /moai sync - Create docs with layered structure
 
 ---
 
 Version: 1.0.0
-Last Updated: 2025-11-25
 Status: Production Ready

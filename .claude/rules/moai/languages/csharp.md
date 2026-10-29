@@ -4,27 +4,23 @@ paths: "**/*.cs,**/*.csproj,**/*.sln"
 
 # C# Development Guide
 
-
----
-
-
-# C# 12 / .NET 8 Development Specialist
+# C# 14 / .NET 10 (LTS) Development Specialist
 
 Modern C# development with ASP.NET Core, Entity Framework Core, Blazor, and enterprise patterns.
 
 
 Core Stack:
 
-- C# 12: Primary constructors, collection expressions, alias any type, default lambda parameters
-- .NET 8: Minimal APIs, Native AOT, improved performance, WebSockets
-- ASP.NET Core 8: Controllers, Endpoints, Middleware, Authentication
-- Entity Framework Core 8: DbContext, migrations, LINQ, query optimization
+- C# 14: Primary constructors, collection expressions, alias any type, default lambda parameters
+- .NET 10: Minimal APIs, Native AOT, improved performance, WebSockets
+- ASP.NET Core 10: Controllers, Endpoints, Middleware, Authentication
+- Entity Framework Core 10: DbContext, migrations, LINQ, query optimization
 - Blazor: Server/WASM components, InteractiveServer, InteractiveWebAssembly
 - Testing: xUnit, NUnit, FluentAssertions, Moq
 
 Quick Commands:
 
-To create a new .NET 8 Web API project, run dotnet new webapi with -n flag for project name and --framework net8.0.
+To create a new .NET 10 Web API project, run dotnet new webapi with -n flag for project name and --framework net10.0.
 
 To create a Blazor Web App, run dotnet new blazor with -n flag for project name and --interactivity Auto.
 
@@ -34,31 +30,15 @@ To add FluentValidation and MediatR, run dotnet add package FluentValidation.Asp
 
 ---
 
-## Module Index
+## Coverage Areas
 
-This skill uses progressive disclosure with specialized modules for deep coverage:
+This guide is self-contained. Use the sections below as the primary reference for:
 
-### Language Features
-
-- [C# 12 Features](modules/csharp12-features.md) - Primary constructors, collection expressions, type aliases, default lambdas
-
-### Web Development
-
-- [ASP.NET Core 8](modules/aspnet-core.md) - Minimal API, Controllers, Middleware, Authentication
-- [Blazor Components](modules/blazor-components.md) - Server, WASM, InteractiveServer, Components
-
-### Data Access
-
-- [Entity Framework Core 8](modules/efcore-patterns.md) - DbContext, Repository pattern, Migrations, Query optimization
-
-### Architecture Patterns
-
-- [CQRS and Validation](modules/cqrs-validation.md) - MediatR CQRS, FluentValidation, Handler patterns
-
-### Reference Materials
-
-- [API Reference](reference.md) - Complete API reference, Context7 library mappings
-- [Code Examples](examples.md) - Production-ready examples, testing templates
+- C# 14 language features such as primary constructors, collection expressions, type aliases, and default lambda parameters
+- ASP.NET Core 10 application structure, Minimal APIs, controllers, middleware, and authentication
+- Blazor Server / WebAssembly component patterns
+- Entity Framework Core 10 data-access and migration workflows
+- CQRS + FluentValidation application patterns
 
 ---
 
@@ -78,19 +58,31 @@ Entity Configuration: Create a class implementing IEntityTypeConfiguration of yo
 
 ---
 
-## Context7 Integration
+## Documentation References
 
-For latest documentation, use Context7 MCP tools.
+For latest documentation, use WebSearch / WebFetch against the official Microsoft / .NET docs.
 
-For ASP.NET Core documentation, first resolve the library ID using mcp__context7__resolve-library-id with "aspnetcore", then fetch docs using mcp__context7__get-library-docs with the resolved library ID and topic like "minimal-apis middleware".
+For ASP.NET Core documentation, WebSearch "ASP.NET Core minimal APIs middleware" and WebFetch the relevant learn.microsoft.com page.
 
-For Entity Framework Core documentation, resolve with "efcore" and fetch with topics like "dbcontext migrations".
+For Entity Framework Core documentation, WebSearch "EF Core dbcontext migrations" and fetch the official docs.
 
-For .NET Runtime documentation, resolve with "dotnet runtime" and fetch with topics like "collections threading".
+For .NET Runtime documentation, WebSearch ".NET runtime collections threading" and fetch the official docs.
 
 ---
 
-## Quick Troubleshooting
+## Testing
+
+xUnit Fixture Pattern: Define a public class implementing ICollectionFixture of DatabaseFixture. Add Collection attribute referencing the collection definition. Tests in the collection share the fixture instance across test runs, ensuring database state setup only once.
+
+NUnit TestCase Pattern: Use TestCase attribute with expected return values. Define test method with input parameters. NUnit runs the test once per TestCase attribute, comparing actual to expected via Assert.AreEqual.
+
+Moq Setup Pattern: Create Mock of IRepository. Call Setup with lambda matching method call and argument constraint (It.IsAny of T). Configure Returns with expected value. Verify the mock was called with specific arguments using Verify and Times.Once.
+
+FluentAssertions Style: Use Should assertions. Call result.Should().BeEquivalentTo expecting matching object structure. Use Should().Throw of ExceptionType for exception assertions in async methods. Note: FluentAssertions changed its license in 2025 — consider plain xUnit asserts or Shouldly as alternatives for new projects.
+
+---
+
+## Troubleshooting
 
 Build and Runtime: Run dotnet build with --verbosity detailed for detailed output. Run dotnet run with --launch-profile https for HTTPS profile. Run dotnet ef database update to apply EF migrations. Run dotnet ef migrations add with migration name to create new migrations.
 
@@ -104,7 +96,5 @@ For async enumerable streaming, create async methods returning IAsyncEnumerable 
 
 
 - `moai-domain-backend` - API design, database integration patterns
-- `moai-platform-deploy` - Azure, Docker, Kubernetes deployment
 - `moai-workflow-testing` - Testing strategies and patterns
 - `moai-foundation-quality` - Code quality standards
-- `moai-essentials-debug` - Debugging .NET applications

@@ -1,8 +1,26 @@
 # Claude Code Sub-agents Examples Collection
 
+> **IMPORTANT — these are GENERIC Claude-Code-ecosystem illustrations, NOT
+> the MoAI retained agent catalog.** The tiered `{domain}-{role}` naming
+> used throughout this file (`code-backend`, `code-frontend`, `core-quality`,
+> `security-expert`, `workflow-ddd`, etc.) is a generic Claude-Code
+> authoring pattern shown here for teaching purposes. It does NOT describe
+> MoAI's shipped agents, and several of the names here (`security-expert`,
+> `core-quality`, etc.) collide with names that are **archived and MUST NOT
+> be spawned** in MoAI (see `CLAUDE.md §4 Archived Agents`).
+>
+> **For the real MoAI agent surface**, consult the flat 11-agent retained
+> catalog at
+> `../../moai-foundation-core/modules/agents-reference.md`
+> (10 MoAI-custom managers/auditors/builders/advisor/design/e2e + the
+> Anthropic built-in `Explore`). MoAI does NOT use the tiered
+> `{domain}-{role}` scheme; it uses a flat `manager-*` / `*-auditor` /
+> `builder-*` / `super-advisor` / `Explore` catalog with `Agent(general-purpose)`
+> per-spawn specialists carrying domain-specific instructions.
+
 Comprehensive collection of real-world sub-agent examples covering various domains, complexity levels, and specialization patterns, all following official Claude Code standards.
 
-Purpose: Practical examples and templates for sub-agent creation
+Purpose: Practical examples and templates for sub-agent creation (generic Claude-Code patterns — see header disclaimer above)
 Target: Sub-agent developers and Claude Code users
 Last Updated: 2025-11-25
 Version: 2.0.0
@@ -24,10 +42,10 @@ Examples Cover: Domain experts, tool specialists, process orchestrators, quality
 ```yaml
 ---
 name: code-backend
-description: Use PROACTIVELY for backend architecture, API design, server implementation, database integration, or microservices architecture. Called from /moai:1-plan architecture design and task delegation workflows.
-tools: Read, Write, Edit, Bash, WebFetch, Grep, Glob, MultiEdit, TodoWrite, AskUserQuestion, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+description: Use PROACTIVELY for backend architecture, API design, server implementation, database integration, or microservices architecture. Called from /moai plan architecture design and task delegation workflows.
+tools: Read, Write, Edit, Bash, WebFetch, Grep, Glob, TaskCreate, TaskUpdate, TaskList, TaskGet, AskUserQuestion
 model: sonnet
-skills: moai-domain-backend, moai-essentials-perf, moai-context7-integration, moai-lang-python
+skills: moai-domain-backend, moai-essentials-perf
 ---
 
 # Backend Expert
@@ -192,10 +210,10 @@ database_selection:
 ```yaml
 ---
 name: code-frontend
-description: Use PROACTIVELY for frontend UI development, React/Vue/Angular components, responsive design, user experience optimization, or web application architecture. Called from /moai:2-run implementation and task delegation workflows.
-tools: Read, Write, Edit, Grep, Glob, MultiEdit, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+description: Use PROACTIVELY for frontend UI development, React/Vue/Angular components, responsive design, user experience optimization, or web application architecture. Called from /moai run implementation and task delegation workflows.
+tools: Read, Write, Edit, Grep, Glob
 model: sonnet
-skills: moai-domain-frontend, moai-cc-configuration, moai-context7-integration, moai-ui-ux-expert
+skills: moai-domain-frontend, moai-cc-configuration, moai-ui-ux-expert
 ---
 
 # Frontend Expert
@@ -433,10 +451,10 @@ module.exports = {
 ```yaml
 ---
 name: format-expert
-description: Use PROACTIVELY for code formatting, style consistency, linting configuration, and automated code quality improvements. Called from /moai:2-run quality gates and task delegation workflows.
-tools: Read, Write, Edit, Bash, Grep, Glob, MultiEdit
+description: Use PROACTIVELY for code formatting, style consistency, linting configuration, and automated code quality improvements. Called from /moai run quality gates and task delegation workflows.
+tools: Read, Write, Edit, Bash, Grep, Glob
 model: haiku
-skills: moai-code-quality, moai-cc-configuration, moai-lang-python
+skills: moai-code-quality, moai-cc-configuration
 ---
 
 # Code Format Expert
@@ -616,9 +634,9 @@ rust_formatting:
 ---
 name: support-debug
 description: Use PROACTIVELY for error analysis, debugging assistance, troubleshooting guidance, and problem resolution. Use when encountering runtime errors, logic issues, or unexpected behavior that needs investigation.
-tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch
 model: sonnet
-skills: moai-essentials-debug, moai-core-code-reviewer, moai-context7-integration
+skills: moai-core-code-reviewer
 ---
 
 # Debug Helper Expert
@@ -930,10 +948,10 @@ class DebuggingKnowledgeBase:
 ```yaml
 ---
 name: workflow-ddd
-description: Execute ANALYZE-PRESERVE-IMPROVE DDD cycle for implementing features with behavior preservation and comprehensive test coverage. Called from /moai:2-run SPEC implementation and task delegation workflows.
-tools: Read, Write, Edit, Bash, Grep, Glob, MultiEdit, TodoWrite
+description: Execute ANALYZE-PRESERVE-IMPROVE DDD cycle for implementing features with behavior preservation and comprehensive test coverage. Called from /moai run SPEC implementation and task delegation workflows.
+tools: Read, Write, Edit, Bash, Grep, Glob, TaskCreate, TaskUpdate, TaskList, TaskGet
 model: sonnet
-skills: moai-lang-python, moai-domain-testing, moai-foundation-quality, moai-core-spec-authoring
+skills: moai-domain-testing, moai-foundation-quality, moai-core-spec-authoring
 ---
 
 # DDD Implementation Expert
@@ -1179,7 +1197,7 @@ TDD Quality Gates:
 - [ ] Implementation passes all quality gates
 - [ ] Code follows established style guidelines
 - [ ] Performance benchmarks meet requirements
-- [ ] Security considerations are adddessed
+- [ ] Security considerations are addressed
 - [ ] Documentation is comprehensive and accurate
 
 ### Coverage Requirements
@@ -1233,7 +1251,7 @@ tdd_pipeline:
 ---
 name: security-expert
 description: Use PROACTIVELY for security audits, vulnerability assessment, OWASP Top 10 analysis, and secure code review. Use when conducting security analysis, implementing security controls, or validating security measures.
-tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch
 model: sonnet
 skills: moai-domain-security, moai-cc-security, moai-foundation-quality, moai-core-workflow
 ---
