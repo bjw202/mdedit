@@ -59,6 +59,21 @@ mdedit의 AI는 로컬에 설치된 **Claude Code CLI(`claude`)** 또는 **codex
 
 ---
 
+## 설치 파일 내려받기
+
+[Releases 페이지](https://github.com/bjw202/mdedit/releases)에서 최신 버전을 받습니다.
+
+| 컴퓨터 | 받을 파일 |
+|---|---|
+| Apple Silicon 맥(M1 이후) | `mdedit_<버전>_aarch64.dmg` |
+| Windows(64비트) | `mdedit_<버전>_x64-setup.exe`(권장) 또는 `.msi` |
+
+**macOS에서 처음 열 때**: 이 앱은 Apple 공증을 받지 않아서 처음 열면 차단 안내가 나옵니다. 한 번 열어 본 뒤 시스템 설정 → 개인정보 보호 및 보안으로 가서 아래쪽의 "그래도 열기"를 누르고, 다시 뜨는 안내에서 "열기"를 누르세요. 다음부터는 바로 열립니다.
+
+**Windows에서 처음 실행할 때**: 서명하지 않은 설치 파일이라 Microsoft Defender SmartScreen 경고가 뜰 수 있습니다. 경고 창에서 "추가 정보"를 누른 뒤 "실행"을 선택하세요.
+
+---
+
 ## 빠른 시작 (개발 환경)
 
 필수 도구: **Node.js 20+**, **Rust 1.77.2+**, 플랫폼별 빌드 도구(macOS: Xcode CLT / Windows: VS Build Tools 2022 + C++ 워크로드 / Linux: webkit2gtk 등).

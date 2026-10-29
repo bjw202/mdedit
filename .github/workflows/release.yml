@@ -1,0 +1,169 @@
+name: Release
+
+# 태그 푸시 기반 릴리스 자동화 (SPEC-INFRA-002)
+# 흐름: version-check(태그·버전 일치) → create-release(초안 1개 생성) → build(macOS Apple Silicon·Windows 설치 파일 업로드)
+#
+# 주의: 초안은 create-release의 생성 호출(`-F draft=true`)로만 보장된다.
+#  - 이 값을 지우거나, 초안을 해제(게시)하는 단계·job을 추가하지 말 것.
+#  - tauri-action은 releaseId를 받으면 releaseDraft 입력을 보지 않으므로 그 입력으로 초안을 보장하려 하지 말 것.
+#  - 게시는 사람이 실행이 완전히 끝난 뒤 GitHub 화면에서 직접 한다(docs/BUILD.md "GitHub Releases로 배포하기").
+# 범위 의도적 제한: 프런트 게이트(lint·typecheck·vitest·Playwright)는 frontend-gates.yml이 PR마다 돌리므로 여기서 다시 돌리지 않는다.
+# Rust 테스트(cargo test)는 현재 CI 어디에서도 돌지 않으며(frontend-gates.yml 머리말 참고) 이 워크플로에도 넣지 않는다.
+
+on:
+  push:
+    tags:
+      # GitHub 필터 문법: `.`은 문자 그대로, `+`는 앞 문자 1회 이상. 프리릴리스 태그(-rc 등)는 실행하지 않는다.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+# 기본은 읽기 전용. 쓰기가 필요한 job(create-release, build)만 job 단위로 contents: write를 받는다.
+permissions:
+  contents: read
+
+# 같은 태그에 대한 실행이 겹치면 진행 중인 실행은 취소하지 않고 끝까지 둔다(반쯤 올라간 초안 방지).
+# 단, 대기 중인 실행은 하나만 남고 더 새로 들어온 실행으로 바뀐다(GitHub 동시성 그룹의 동작).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version-check:
+    name: 태그·버전 일치 검사
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+      version: ${{ steps.check.outputs.version }}
+      previous_tag: ${{ steps.check.outputs.previous_tag }}
+    steps:
+      # fetch-depth: 0 — 직전 버전 태그를 계산하려면 저장소의 태그 목록이 모두 필요하다
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # 태그(v 제거) = package.json·Cargo.toml [package]·tauri.conf.json version 확인.
+      # 불일치·형식 위반이면 파일별 메시지와 함께 실패하고, 뒤 job은 실행되지 않는다(의존성 없는 스크립트라 npm ci 불필요).
+      - name: Check tag matches versions
+        id: check
+        run: node scripts/check-release-version.mjs "$GITHUB_REF_NAME"
+
+  create-release:
+    name: 초안 릴리스 생성
+    needs: version-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.create.outputs.release_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # "Get a release by tag" API는 게시본만 돌려주므로, 목록에서 tag_name으로 초안까지 찾는다.
+      - name: Fail if a release for this tag already exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.version-check.outputs.tag }}
+        run: |
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" \
+            --jq '.[] | select(.tag_name == env.TAG) | "\(if .draft then "초안" else "게시본" end) \(.html_url)"')
+          if [ -n "$existing" ]; then
+            echo "::error::$TAG 태그의 릴리스가 이미 있다: $existing"
+            echo "::error::기존 초안이면 삭제 후 태그를 다시 다는 절차는 docs/BUILD.md를 따른다. 게시본은 이 워크플로가 건드리지 않는다."
+            exit 1
+          fi
+
+      # 본문 = 고정 설치 안내 블록 + 자동 생성 노트(시작점 = 직전 vX.Y.Z 태그, 없으면 지정하지 않음).
+      # 초안은 이 생성 호출의 draft=true로만 보장된다 — 이 값을 지우지 말 것.
+      - name: Create draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.version-check.outputs.tag }}
+          VERSION: ${{ needs.version-check.outputs.version }}
+          PREVIOUS_TAG: ${{ needs.version-check.outputs.previous_tag }}
+        run: |
+          notes_args=(-f tag_name="$TAG")
+          if [ -n "$PREVIOUS_TAG" ]; then
+            notes_args+=(-f previous_tag_name="$PREVIOUS_TAG")
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${notes_args[@]}" --jq .body > "$RUNNER_TEMP/notes.md"
+
+          { cat .github/release-notes-header.md; echo; cat "$RUNNER_TEMP/notes.md"; } > "$RUNNER_TEMP/body.md"
+
+          release_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases" \
+            -f tag_name="$TAG" \
+            -f name="mdedit v$VERSION" \
+            -F draft=true \
+            -F body=@"$RUNNER_TEMP/body.md" \
+            --jq .id)
+          echo "초안 릴리스 생성: id=$release_id"
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: 빌드·업로드 (${{ matrix.platform }})
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      # 한쪽 플랫폼이 실패해도 다른 쪽은 끝까지 빌드한다
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+          - platform: windows-latest
+    runs-on: ${{ matrix.platform }}
+    # Rust 릴리스 빌드는 캐시 없이 오래 걸리므로 frontend-gates(20분)보다 넉넉히 둔다
+    timeout-minutes: 60
+    # Windows 러너의 기본 셸은 pwsh라 bash 문법이 깨진다 — 이 job의 모든 run 단계는 bash로 실행한다
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # Tauri CLI는 package-lock.json에 고정된 @tauri-apps/cli를 쓴다. Rust는 러너 이미지의 stable 툴체인을 쓴다.
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # 빌드 시작 전 확인: 사용자가 이미 게시한 뒤 실패한 job을 다시 실행한 경우 등, 초안이 아니면 올리지 않는다.
+      # 확인과 실제 업로드 사이에는 긴 빌드가 있어 그 사이에 게시되는 경우는 막지 못한다(docs/BUILD.md 규칙으로 안내).
+      - name: Ensure target release is still a draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          draft=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .draft)
+          if [ "$draft" != "true" ]; then
+            echo "::error::릴리스 $RELEASE_ID 는 초안이 아니다(draft=$draft). 게시된 릴리스에는 파일을 올리지 않는다."
+            exit 1
+          fi
+
+      # releaseId로만 올린다(tagName을 주면 각 행렬 job이 릴리스를 따로 만들려 해 경합한다).
+      - name: Build and upload (tauri-action)
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f  # v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: ${{ matrix.args }}

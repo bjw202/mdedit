@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 740" width="1320" height="740" role="img" aria-labelledby="t02 d02" font-family="Pretendard, 'Noto Sans KR', 'Noto Sans JP', 'Noto Sans SC', 'Apple SD Gothic Neo', 'Hiragino Sans', 'Microsoft YaHei', system-ui, sans-serif">
+  <title id="t02">바뀐 파일 8개와 서로의 관계</title>
+  <desc id="d02">가운데 워크플로 파일 release.yml이 세 job을 차례로 실행합니다. version-check job은 버전 검사 스크립트를 실행하고, 그 스크립트는 단위 테스트 24개로 검증됩니다. create-release job은 설치 안내 머리말을 본문 맨 앞에 붙이고, build job은 tauri.conf.json의 ad-hoc 서명 설정을 읽으며 빌드해 초안 릴리스에 파일을 올립니다. 아래 문서 세 개는 사람이 읽는 안내이며, BUILD.md는 사람이 따르는 절차, 머리말은 README로 링크합니다.</desc>
+  <defs>
+    <marker id="a02" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M 0 0 L 10 4 L 0 8 z" fill="#3A5673"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1320" height="740" fill="#FAF9F6"/>
+
+  <text x="40" y="60" font-size="26" font-weight="700" fill="#1F2A37">바뀐 파일 8개와 서로의 관계</text>
+  <text x="40" y="92" font-size="15" fill="#3A5673">가운데 대본(release.yml)이 나머지 파일을 실행하거나 읽습니다. 화살표 글자는 그 관계입니다.</text>
+
+  <!-- LEFT column x=40 w=336 -->
+  <rect x="40" y="120" width="336" height="260" rx="12" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+  <text x="58" y="146" font-size="17" font-weight="700" fill="#1F2A37">검사 스크립트</text>
+  <rect x="54" y="197" width="308" height="76" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="68" y="226" font-size="15" font-weight="700" fill="#1F2A37">버전 검사기</text>
+  <text x="68" y="252" font-size="14" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">check-release-version.mjs</text>
+  <rect x="54" y="287" width="308" height="76" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="68" y="316" font-size="15" font-weight="700" fill="#1F2A37">단위 테스트 24개 (검사기 확인)</text>
+  <text x="68" y="342" font-size="14" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">check-release-version.test.mjs</text>
+
+  <rect x="40" y="388" width="336" height="162" rx="12" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+  <text x="58" y="411" font-size="17" font-weight="700" fill="#1F2A37">설정</text>
+  <rect x="54" y="425" width="308" height="80" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="68" y="454" font-size="15" font-weight="700" fill="#1F2A37">macOS ad-hoc 서명</text>
+  <text x="68" y="480" font-size="14" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">src-tauri/tauri.conf.json</text>
+  <text x="58" y="532" font-size="14" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">signingIdentity: "-"</text>
+
+  <!-- CENTER column x=491 w=336 -->
+  <rect x="491" y="120" width="336" height="420" rx="12" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.6"/>
+  <text x="509" y="150" font-size="14" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">.github/workflows/release.yml</text>
+  <text x="509" y="174" font-size="15" font-weight="700" fill="#8A6410">대본(레시피) · job 3개</text>
+
+  <rect x="511" y="190" width="296" height="90" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="525" y="222" font-size="15" font-weight="700" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">version-check</text>
+  <text x="525" y="250" font-size="14" fill="#1F2A37">태그와 세 파일 버전 비교</text>
+
+  <rect x="511" y="305" width="296" height="90" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="525" y="337" font-size="15" font-weight="700" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">create-release</text>
+  <text x="525" y="365" font-size="14" fill="#1F2A37">초안 1개 생성, 본문 조립</text>
+
+  <rect x="511" y="420" width="296" height="90" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="525" y="452" font-size="15" font-weight="700" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">build × 2</text>
+  <text x="525" y="480" font-size="14" fill="#1F2A37">맥·윈도 각각 빌드·업로드</text>
+
+  <path d="M 659 280 V 295" stroke="#3A5673" stroke-width="2" fill="none" marker-end="url(#a02)"/>
+  <path d="M 659 395 V 410" stroke="#3A5673" stroke-width="2" fill="none" marker-end="url(#a02)"/>
+
+  <!-- RIGHT column x=942 w=336 -->
+  <rect x="942" y="260" width="336" height="140" rx="12" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+  <text x="960" y="286" font-size="17" font-weight="700" fill="#1F2A37">릴리스 본문</text>
+  <rect x="956" y="300" width="308" height="80" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="970" y="329" font-size="15" font-weight="700" fill="#1F2A37">설치 안내 머리말</text>
+  <text x="970" y="355" font-size="14" fill="#1F2A37" font-family="'JetBrains Mono', ui-monospace, monospace">.github/release-notes-header.md</text>
+
+  <rect x="956" y="430" width="220" height="70" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.6"/>
+  <text x="970" y="456" font-size="14" fill="#8A6410">결과물 (GitHub 쪽)</text>
+  <text x="970" y="482" font-size="15" font-weight="700" fill="#1F2A37">초안 릴리스 1개</text>
+
+  <!-- horizontal relations -->
+  <path d="M 511 235 H 372" stroke="#3A5673" stroke-width="2" fill="none" marker-end="url(#a02)"/>
+  <text x="436" y="224" font-size="14" fill="#3A5673" text-anchor="middle">실행</text>
+  <path d="M 511 465 H 372" stroke="#3A5673" stroke-width="2" fill="none" marker-end="url(#a02)"/>
+  <text x="436" y="454" font-size="14" fill="#3A5673" text-anchor="middle">빌드 때 읽음</text>
+  <path d="M 807 350 H 946" stroke="#3A5673" stroke-width="2" fill="none" marker-end="url(#a02)"/>
+  <text x="877" y="339" font-size="14" fill="#3A5673" text-anchor="middle">맨 앞에 붙임</text>
+  <path d="M 807 465 H 946" stroke="#3A5673" stroke-width="2" fill="none" marker-end="url(#a02)"/>
+  <text x="877" y="454" font-size="14" fill="#3A5673" text-anchor="middle">파일 업로드</text>
+
+  <!-- docs band -->
+  <rect x="40" y="580" width="1240" height="130" rx="12" fill="#EEF3F7" stroke="#3A5673" stroke-width="1"/>
+  <text x="58" y="606" font-size="17" font-weight="700" fill="#1F2A37">문서 (사람이 읽는 안내)</text>
+  <rect x="60" y="620" width="380" height="64" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="78" y="657" font-size="15" fill="#1F2A37">CHANGELOG.md — 0.19.0 항목 1개</text>
+  <rect x="470" y="620" width="380" height="64" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="488" y="657" font-size="15" fill="#1F2A37">docs/BUILD.md — 태그·게시 절차</text>
+  <rect x="880" y="620" width="380" height="64" rx="8" fill="#FAF9F6" stroke="#3A5673" stroke-width="1.2"/>
+  <text x="898" y="657" font-size="15" fill="#1F2A37">README.md — 내려받기와 첫 실행 안내</text>
+
+  <path d="M 660 620 V 550" stroke="#3A5673" stroke-width="2" fill="none" marker-end="url(#a02)"/>
+  <text x="672" y="570" font-size="14" fill="#3A5673">사람이 따르는 절차</text>
+  <path d="M 1230 380 V 610" stroke="#3A5673" stroke-width="2" fill="none" marker-end="url(#a02)"/>
+  <text x="1218" y="560" font-size="14" fill="#3A5673" text-anchor="end">README로 링크</text>
+</svg>

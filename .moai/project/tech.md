@@ -463,15 +463,14 @@ npm run test:e2e   # End-to-end testing (if applicable)
 npm run tauri build # Create platform-specific installers
 ```
 
-### CI/CD Integration
+### CI and Release
 
-GitHub Actions workflow:
-1. Type checking (tsc)
-2. Linting (eslint + cargo clippy)
-3. Unit tests (vitest + cargo test)
-4. Build for all platforms
-5. Security audit (npm audit + cargo audit)
-6. Create release artifacts
+GitHub Actions runs two workflows:
+
+1. **Frontend quality gates** (`.github/workflows/frontend-gates.yml`) — on every pull request and on push to `main`: ESLint, `tsc --noEmit`, Vitest unit tests, and Playwright E2E (webkit). Rust (`cargo`) checks are not part of CI.
+2. **Tag-push release** (`.github/workflows/release.yml`) — pushing a `vX.Y.Z` tag checks that the tag matches the three version files (`scripts/check-release-version.mjs`), creates one **draft** release, and builds and uploads the installers: macOS Apple Silicon `.dmg` and Windows `-setup.exe` / `.msi`. The workflow never publishes; a person reviews and publishes the draft.
+
+Distribution is unsigned: no Apple notarization and no Windows code signing. macOS builds are ad-hoc signed through `bundle.macOS.signingIdentity: "-"` in `tauri.conf.json`. The third-party build action (`tauri-apps/tauri-action`) is pinned by commit SHA, and the release workflow uses only the default `GITHUB_TOKEN` with job-scoped `contents: write`.
 
 ---
 
