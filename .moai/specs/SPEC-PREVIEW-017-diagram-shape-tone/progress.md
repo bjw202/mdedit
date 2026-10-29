@@ -133,9 +133,53 @@ BASELINE dark {"theme":"dark","container":{"backgroundColor":"rgb(250, 249, 246)
 - GREEN: `npx playwright test e2e/diagram-shape-tone.spec.ts --reporter=list --retries=0` → `exit=0`, `7 passed (10.8s)`(`m3-green-e2e.log`).
 - 경계(review-3 D1): 서브그래프 안 라벨은 반투명 클러스터 바탕 위라 이 단정 범위 밖 — 측정·수정 대상 아님.
 
+### E.2.5 M4 — 테스트 정렬·016 포인터·전체 게이트
+
+- 테스트 정렬: `diagramRenderer.test.ts`(24개 묶음·값 표·대비·hue·기각 색·이름 집합 가드)는 M1·M2에서 RED→GREEN으로 이미 반영, `exportDiagram.test.ts` `VAR_NAMES` 24개는 M1에서 반영. M4에서는 최종 실행만 확인.
+- 016 문서 개정 포인터만 추가(본문 무수정): `SPEC-PREVIEW-016…/spec.md` REQ-002·REQ-005 아래 인용 포인터 2줄, `acceptance.md` AC-002 아래 포인터 1줄, `spec-compact.md` REQ-005 줄·AC-002 표 행 끝 괄호 포인터. `git diff --stat` 8 insertions / 2 deletions(괄호 덧붙임 2줄).
+- 기각 대안 부재: `grep -rn "C08A28\|decision-border" src e2e`(테스트 제외) → 토큰 선언·주석·주입·`PELE_THEME_VARS`·톤 규칙만, `#C08A28` 0건. `#B78511`은 `mdedit-tokens.css`의 series-4 1건뿐(톤·주입 코드 0건).
+- 전체 게이트(모두 이번 실행, 최종 트리):
+
+  | 명령 | exit | 관찰 출력(발췌) | 증거 |
+  |------|------|----------------|------|
+  | `npx vitest run` | 0 | `Test Files  108 passed (108)` / `Tests  1765 passed (1765)` | `gate-vitest.log` |
+  | `npx tsc --noEmit` | 0 | 출력 없음 | `gate-tsc.log` |
+  | `npm run lint` (`eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0`) | 0 | 경고·오류 출력 없음 | `gate-lint.log` |
+  | `npx playwright test e2e/diagram-shape-tone.spec.ts e2e/diagram-preview-behavior.spec.ts e2e/diagram-export-colors.spec.ts --reporter=list --retries=0` | 0 | `15 passed (13.3s)` | `gate-e2e.log` |
+  | `~/.cargo/bin/cargo test --manifest-path src-tauri/Cargo.toml` | 0 | `test result: ok. 367 passed; 0 failed` (+ 0개 테스트 바이너리 2개) | `gate-cargo.log` |
+
 ## §E.3 Run-phase Audit-Ready Signal
 
-_<pending run-phase>_
+- run_status: audit-ready (2026-10-29, manager-develop 역할 / general-purpose, cycle_type tdd)
+- 커밋: M1 `931879b`, M2 `0049f5a`, M3 `0638232`, M4 = 이 절을 담은 커밋(브랜치 `WT-diagram-tone`, 미푸시).
+- 판단 테두리 확정값: `#8A6410`(후보 그대로) — `#F7F2E7` 대비 4.809, `#FAF9F6` 대비 5.100, HSL hue 41.31°(series-4 41.93°).
+
+| AC | 판정 | 명령 | 증거 |
+|----|------|------|------|
+| AC-PREVIEW017-001 | PASS | `npx playwright test e2e/diagram-shape-tone.spec.ts` (AC-001) | §E.2.2, `gate-e2e.log` |
+| AC-PREVIEW017-002 | PASS | 같은 spec (AC-002, 클러스터 기준값 = §E.2.1) | §E.2.1·2.2, `gate-e2e.log` |
+| AC-PREVIEW017-003 | PASS | e2e (AC-003) + `npx vitest run src/test/exportDiagram.test.ts` + grep 2건 = 0 | §E.2.2·2.3 |
+| AC-PREVIEW017-004 | PASS | e2e (AC-004) + grep = 0 + 주입부 코드 리뷰 | §E.2.3 |
+| AC-PREVIEW017-005 | PASS | `npx vitest run src/test/diagramRenderer.test.ts` | §E.2.2·2.3, `gate-vitest.log` |
+| AC-PREVIEW017-006 | PASS | `npx vitest run src/test/exportDiagram.test.ts` + `git grep -n renderExportDiagram -- src/lib` | §E.2.3 |
+| AC-PREVIEW017-007 | PASS | e2e (AC-007) + exportDiagram 라이트·다크 동일 + `PreviewRenderer.test.tsx` 전체 vitest 통과 | §E.2.2·2.3·2.5 |
+| AC-PREVIEW017-008 | PASS | 수정 전 측정(§E.2.1, M1 커밋) + e2e AC-008 2건 + `export.test.ts` 통과 | §E.2.1·2.4·2.5 |
+
+변경 파일: `src/styles/mdedit-tokens.css`, `src/index.css`, `src/lib/diagram/diagramRenderer.ts`, `src/lib/export/exportUtils.ts`, `src/test/diagramRenderer.test.ts`, `src/test/exportDiagram.test.ts`, `e2e/diagram-shape-tone.spec.ts`(신규), 016 `spec.md`·`acceptance.md`·`spec-compact.md`(포인터), 이 `progress.md`.
+
+@MX 태그: NOTE 3건 추가 — `src/index.css` shape-tone BEGIN 위, `src/lib/export/exportUtils.ts` `SHAPE_TONES` 위, `e2e/diagram-shape-tone.spec.ts` 머리. 신규 ANCHOR·WARN 없음. 기존 `diagramRenderer.ts` 0-잔여 WARN 유지.
+
+Gaps(관찰하지 않음):
+- 수동 시각 확인(acceptance 품질 게이트 "라이트·다크 미리보기 시각 확인 1회")은 하지 않았다 — 사람 눈 확인 필요.
+- 실제 앱(Tauri) 실행과 실제 PDF·DOCX 파일 렌더는 보지 않았다. 내보내기 검증은 jsdom 문자열(래스터 입력 SVG) 수준이며 PNG 픽셀은 증명하지 않는다.
+- 실제 브라우저에서 `readPeleThemeValues`가 `--pele-decision-border`를 읽는지는 단위 테스트(모킹)로만 간접 확인했다 — 탐침이 비어도 대체 리터럴이 같은 값을 넣으므로 결과는 같다.
+- Windows 빌드·webkit 외 브라우저는 실행하지 않았다.
+- 커버리지 수치는 측정하지 않았다(`--coverage` 미실행).
+
+Residual risk:
+- pele 버전을 올리면 `--pele-decision-border` 이름 충돌·노드 `g` 마크업(모양 클래스, 사적 변수 `--_s`/`--_b`) 변경 가능성 — 고정 1.10.0에서는 낮음(plan.md §B).
+- AI 카드 미니 다이어그램은 `.preview-content` 밖이라 톤·라이트 바탕을 받지 않는다(의도된 범위, §E.2.2).
+- 라이트 바탕 규칙은 오류·빈 다이어그램 컨테이너도 `#FAF9F6`로 칠한다(review-2 N5, REQ-008과 일치).
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
