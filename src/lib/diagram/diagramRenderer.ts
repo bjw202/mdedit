@@ -227,13 +227,17 @@ export function validateDiagram(source: string): DiagramValidation {
 
 // ── 내보내기용 색 값 치환 (design.md D6) ──────────────────────────────────
 
-/** mdedit-tokens.css가 정의하는 --pele-* 변수 목록(design.md D5). */
+/**
+ * mdedit-tokens.css가 정의하는 --pele-* 변수 목록(design.md D5). :root의 --pele-* 이름 집합과 같아야 한다(테스트 가드).
+ * --pele-decision-border는 pele가 읽지 않는 앱 전용 이름 — 내보내기 모양 톤 주입(SPEC-PREVIEW-017)이 참조한다.
+ */
 export const PELE_THEME_VARS = [
   '--pele-accent', '--pele-bg', '--pele-border', '--pele-fg', '--pele-font', '--pele-font-mono',
   '--pele-heading-weight', '--pele-line', '--pele-muted', '--pele-radius',
   '--pele-series-1', '--pele-series-2', '--pele-series-3', '--pele-series-4',
   '--pele-series-5', '--pele-series-6', '--pele-series-7', '--pele-series-8',
   '--pele-surface', '--pele-surface-alt', '--pele-title-weight', '--pele-error', '--pele-critical',
+  '--pele-decision-border',
 ] as const;
 
 /** 변수 이름(`--pele-…`) → 실제 값. 빠진 이름은 pele 대체값으로 채운다. */

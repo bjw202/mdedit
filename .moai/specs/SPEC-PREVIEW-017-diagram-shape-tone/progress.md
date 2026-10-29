@@ -97,7 +97,33 @@ BASELINE dark {"theme":"dark","container":{"backgroundColor":"rgb(250, 249, 246)
 - GREEN: 같은 e2e → `exit=0`, `5 passed (8.1s)`(`m1-green-e2e.log`). 단위 → `Tests  1 failed | 82 passed (83)` — 남은 1건은 M2 RED로 의도한 `:root 이름 집합 = PELE_THEME_VARS` 가드(`m1-green-unit.log`).
 - 토큰 추가 직후 `src/test/exportDiagram.test.ts`의 016 가드가 깨짐 확인(`Tests  1 failed | 21 passed (22)`, `m1-export-before-varnames.log`) → `VAR_NAMES` 24개로 갱신 후 `Tests  22 passed (22)`(`m1-export-after-varnames.log`). plan.md는 이 갱신을 M2에 두었으나 토큰 추가와 같은 커밋이어야 초록이 유지되어 M1로 당겼다.
 - 토큰 값 확정 `#8A6410`(후보 그대로): `node -e` 계산 출력 `contrast vs #F7F2E7 4.809 vs #FAF9F6 5.100 hue 41.31 series-4 hue 41.93`.
-- 범위 결정: 톤 규칙은 `.preview-content` 아래로 한정. AI 카드 미니 다이어그램(`ai-suggestion-card.ts:1289` `renderMermaidInto`)은 편집기 안 컨테이너에 SVG를 넣으므로 `.preview-content` 밖이다 — 톤을 받지 않는다(사실 기록, 범위 확장 없음).
+- 범위 결정(M1): 톤 규칙은 `.preview-content` 아래로 한정. AI 카드 미니 다이어그램(`ai-suggestion-card.ts:1289` `renderMermaidInto`)은 편집기 안 컨테이너에 SVG를 넣으므로 `.preview-content` 밖이다 — 톤을 받지 않는다(사실 기록, 범위 확장 없음).
+
+### E.2.3 M2 — 내보내기 동일 톤
+
+- RED: `npx vitest run src/test/exportDiagram.test.ts src/test/diagramRenderer.test.ts` → `exit=1`, `Tests  5 failed | 105 passed (110)`(`m2-red-unit.log`): `PELE_THEME_VARS` 집합 가드 `expected [ '--pele-accent', '--pele-bg', …(22) ] to deeply equal [ … …(21) ]`, html·pdf·docx·빈 표 경로 4건 `expected '' to contain '--_s:#F7F2E7'`. 라이트·다크 동일성 테스트(AC-007 내보내기)는 구현 전에도 통과(둘 다 톤 없음 — 등식 검사라 RED가 없음, 구현 후 같은 테스트가 톤 있는 상태로 재통과).
+- 구현: `PELE_THEME_VARS`에 `--pele-decision-border`(23→24). `renderExportDiagram`에서 `resolveDiagramColors` 앞에 `SHAPE_TONES` 2행을 노드 `g` 인라인 style로 주입(선택자 `.pele-node.pele-shape-diam`·`.pele-node.pele-shape-stadium`만). 대안(SVG 안 `<style>` 주입)은 쓰지 않음 — 미리보기와 같은 노드 `g` 기제가 더 단순.
+- GREEN: `npx vitest run src/test/exportDiagram.test.ts src/test/diagramRenderer.test.ts src/test/export.test.ts` → `exit=0`, `Tests  130 passed (130)`(`m2-green-unit.log`).
+- grep(AC-003·004):
+  ```
+  $ awk '/shape-tone BEGIN/,/shape-tone END/' src/index.css | grep -c '!important'
+  0
+  $ grep -c '!important' src/lib/export/exportUtils.ts
+  0
+  $ awk '/shape-tone BEGIN/,/shape-tone END/' src/index.css | grep -cE 'nth-|data-id|:has\(|:contains'
+  0
+  $ grep -cE 'data-id|textContent|innerText' src/lib/export/exportUtils.ts
+  0
+  ```
+- AC-004 코드 리뷰 증거: 주입부는 `svg.querySelectorAll(selector)`의 `selector`가 `SHAPE_TONES`의 두 모양 클래스 문자열뿐이고, 라벨 문구·노드 id·인덱스를 읽지 않는다(위 grep 0건).
+- 세 경로 단일 지점(AC-006):
+  ```
+  $ git grep -n renderExportDiagram -- src/lib
+  src/lib/export/exportDocx.ts:136:  const diagram = renderExportDiagram(previewDiagramInput(fenceContent), colors);
+  src/lib/export/exportHtml.ts:114:    const diagram = renderExportDiagram(placeholder.getAttribute('data-diagram') ?? '', values);
+  src/lib/export/exportUtils.ts:42:export function renderExportDiagram(source: string, values: PeleThemeValues): ExportDiagram | null {
+  ```
+  (import 줄·주석 줄 생략. PDF는 `generateHtmlContent` → `exportHtml.ts` 같은 함수 경유.)
 
 ## §E.3 Run-phase Audit-Ready Signal
 

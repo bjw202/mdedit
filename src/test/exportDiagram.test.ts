@@ -340,6 +340,84 @@ describe('AC-PREVIEW015-020: 내보낸 다이어그램의 --pele-*는 모두 실
   });
 });
 
+// SPEC-PREVIEW-017: 판단(B·W)·시작/끝(A·Z)·사각형(C), W는 classDef 전체 지정, Z는 style 지정
+const TONE =
+  'flowchart TD\n  A([시작]) --> B{판단}\n  B --> W{둘째 판단}\n  W --> C[처리]\n  C --> Z([끝])\n  classDef hot fill:#ffeeee,stroke:#cc0000,stroke-width:3px\n  class W hot\n  style Z fill:#ddeeff,stroke:#004488\n';
+
+describe('SPEC-PREVIEW-017 AC-003·006·007: 내보내기 모양 톤은 미리보기와 같고 0-잔여·작성자 우선을 지킨다', () => {
+  const css = peleTableFromCss();
+  const content = doc(TONE);
+
+  /** 내보낸 다이어그램 SVG 문자열 → 노드 id별 노드 g의 style과 모양 요소의 style. */
+  function toneOf(svgText: string) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = svgText;
+    const node = (id: string) => {
+      const g = tpl.content.querySelector(`.pele-node[data-id="${id}"]`)!;
+      expect(g, `노드 ${id}`).not.toBeNull();
+      const shape = g.querySelector(':scope > rect, :scope > polygon, :scope > path')!;
+      return { g: g.getAttribute('style') ?? '', shape: shape.getAttribute('style') ?? '' };
+    };
+    return { A: node('A'), B: node('B'), W: node('W'), C: node('C'), Z: node('Z') };
+  }
+
+  async function svgsFor(format: 'html' | 'pdf' | 'docx', theme: 'light' | 'dark'): Promise<string[]> {
+    if (format === 'docx') {
+      await exportToDocx(opts(content, theme));
+      return rasterSvgs();
+    }
+    const out = format === 'html' ? (await exportToHtml(opts(content, theme)), writtenHtml()) : await generateHtmlContent(opts(content, theme));
+    return containers(bodyOf(out)).map((c) => c.innerHTML);
+  }
+
+  function expectTones(svgText: string, table: Record<string, string>) {
+    expect(svgText).not.toContain('var(--pele-');
+    const t = toneOf(svgText);
+    // 판단: surface-alt 채움 + 판단 테두리 / 시작·끝: 액센트 테두리 + 1.5px / 사각형: 톤 없음
+    expect(t.B.g).toContain(`--_s:${table['--pele-surface-alt']}`);
+    expect(t.B.g).toContain(`--_b:${table['--pele-decision-border']}`);
+    expect(t.A.g).toContain(`--_b:${table['--pele-accent']}`);
+    expect(t.A.g).toContain('stroke-width:1.5px');
+    expect(t.C.g).not.toMatch(/--_[sb]:/);
+    // 작성자 값은 모양 요소 인라인 style에 그대로 남는다(지정한 속성만 이김)
+    expect(t.W.shape).toContain('fill:#ffeeee');
+    expect(t.W.shape).toContain('stroke:#cc0000');
+    expect(t.W.shape).toContain('stroke-width:3px');
+    expect(t.Z.shape).toContain('fill:#ddeeff');
+    expect(t.Z.shape).toContain('stroke:#004488');
+    return t;
+  }
+
+  for (const format of ['html', 'pdf', 'docx'] as const) {
+    it(`${format}: 판단 #F7F2E7·판단 테두리, stadium #3A5673·1.5px, var(--pele- 0건, 작성자 색 보존 (AC-006·003)`, async () => {
+      const svgs = await svgsFor(format, 'light');
+      expect(svgs).toHaveLength(1);
+      expect(css['--pele-surface-alt']).toBe('#F7F2E7');
+      expect(css['--pele-accent']).toBe('#3A5673');
+      expectTones(svgs[0], css);
+    });
+  }
+
+  it('라이트·다크 내보내기의 다이어그램 톤 문자열이 같다 (AC-007)', async () => {
+    for (const format of ['html', 'pdf', 'docx'] as const) {
+      const light = toneOf((await svgsFor(format, 'light')).at(-1)!);
+      imageSrcs.length = 0;
+      const dark = toneOf((await svgsFor(format, 'dark')).at(-1)!);
+      imageSrcs.length = 0;
+      expect(dark, format).toEqual(light);
+    }
+  });
+
+  it('탐침이 빈 표를 돌려줘도 주입부 대체 리터럴이 mdedit-tokens.css :root 토큰 값과 같다 (AC-006)', async () => {
+    const real = await vi.importActual<typeof import('@/lib/diagram/diagramRenderer')>('@/lib/diagram/diagramRenderer');
+    vi.mocked(diagramModule.readPeleThemeValues).mockImplementation(real.readPeleThemeValues);
+    expect(real.readPeleThemeValues('light')).toEqual({}); // jsdom: 빈 표 경로 전제
+    await exportToHtml(opts(content, 'light'));
+    const [svg] = containers(bodyOf(writtenHtml())).map((c) => c.innerHTML);
+    expectTones(svg, css);
+  });
+});
+
 describe('AC-PREVIEW015-021: DOCX 크기는 pele width·height를 따른다', () => {
   it('ImageRun 크기 = pele 크기 × 0.75, 래스터 = 2배, 화면 상자 크기와 무관하고 getBoundingClientRect를 쓰지 않는다', async () => {
     const real = await vi.importActual<typeof import('@/lib/diagram/diagramRenderer')>('@/lib/diagram/diagramRenderer');

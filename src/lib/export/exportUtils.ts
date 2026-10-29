@@ -25,8 +25,18 @@ export interface ExportDiagram {
   height: number;
 }
 
+// @MX:NOTE: [AUTO] 모양 기반 자동 톤(SPEC-PREVIEW-017) — 미리보기 index.css shape-tone 블록과 같은 기제를 노드 g의 인라인
+//   사용자 정의 속성으로 넣는다. 작성자 classDef·style은 모양 요소 자신의 인라인 선언이라 상속 값보다 항상 이긴다.
+//   노드는 모양 클래스(pele-shape-*)로만 고른다. 대체 리터럴은 mdedit-tokens.css :root 토큰 값과 같아야 한다
+//   (exportDiagram.test.ts가 CSS를 파싱해 비교). 주입은 반드시 resolveDiagramColors 앞 — 뒤로 옮기면 var(--pele- 잔여가 생긴다.
+const SHAPE_TONES: ReadonlyArray<readonly [selector: string, tone: string]> = [
+  ['.pele-node.pele-shape-diam', '--_s:var(--pele-surface-alt,#F7F2E7);--_b:var(--pele-decision-border,#8A6410);'],
+  ['.pele-node.pele-shape-stadium', '--_b:var(--pele-accent,#3A5673);stroke-width:1.5px;'],
+];
+
 /**
- * 내보내기용 다이어그램 1개를 원본에서 렌더하고 모든 var(--pele-…)를 주어진 테마 값으로 치환한다(design.md D6).
+ * 내보내기용 다이어그램 1개를 원본에서 렌더하고, 모양 톤을 넣은 뒤 모든 var(--pele-…)를 주어진 테마 값으로 치환한다(design.md D6).
+ * HTML·PDF·DOCX가 모두 이 함수를 지나므로 모양 톤도 이 한 지점에서 들어간다.
  * 빈 소스와 렌더 실패는 null — 자리 처리는 호출자가 형식별로 한다(D7).
  */
 export function renderExportDiagram(source: string, values: PeleThemeValues): ExportDiagram | null {
@@ -37,6 +47,12 @@ export function renderExportDiagram(source: string, values: PeleThemeValues): Ex
   tpl.innerHTML = result.svg; // 모듈이 정화한 SVG
   const svg = tpl.content.querySelector('svg');
   if (!svg) return null;
+  for (const [selector, tone] of SHAPE_TONES) {
+    for (const g of Array.from(svg.querySelectorAll(selector))) {
+      const prev = g.getAttribute('style')?.trim();
+      g.setAttribute('style', prev ? `${prev.replace(/;?$/, ';')}${tone}` : tone);
+    }
+  }
   resolveDiagramColors(svg, values);
   return { svg, width: result.width, height: result.height };
 }
