@@ -1,6 +1,6 @@
 # Interview: GitHub Actions 릴리스 자동화 (SPEC-INFRA-002)
 
-> 오케스트레이터가 2026-10-29 AskUserQuestion 두 차례로 진행한 인터뷰 결과다. 질문 원문은 오케스트레이터가 전달하지 않아 주제 단위로 적고, 답변은 전달받은 확정 결정을 그대로 옮긴다. 사용자 원 요청: "사용자가 설치 파일을 내려받을 수 있어야 한다. 지금은 코드만 GitHub에 올라간다. 버전 태그를 푸시하면 GitHub 서버가 설치 파일을 빌드해 GitHub Release에 붙이도록 GitHub Actions로 자동화하라."
+> 오케스트레이터가 2026-10-29 AskUserQuestion으로 진행한 인터뷰 결과다. 첫 두 라운드(Round 1~2)는 계획 전 범위·제약 인터뷰이고, Round 3~4는 plan-audit 1차·2차 뒤에 사용자가 내린 결정이다(모두 4라운드). 질문 원문은 오케스트레이터가 전달하지 않아 주제 단위로 적고, 답변은 전달받은 확정 결정을 그대로 옮긴다. 사용자 원 요청: "사용자가 설치 파일을 내려받을 수 있어야 한다. 지금은 코드만 GitHub에 올라간다. 버전 태그를 푸시하면 GitHub 서버가 설치 파일을 빌드해 GitHub Release에 붙이도록 GitHub Actions로 자동화하라."
 
 ## Interview Round 1: Scope
 
@@ -65,5 +65,5 @@ Decision Point 1: 사용자가 계획을 승인했다(2026-10-29).
 ## Clarity Score
 
 Initial: 기록 없음(오케스트레이터 미전달)
-Final: 기록 없음(오케스트레이터 미전달) — 두 라운드 뒤 범위·제약이 확정되어 인터뷰 종료
+Final: 기록 없음(오케스트레이터 미전달) — Round 1~2 뒤 범위·제약이 확정되어 계획 전 인터뷰를 마쳤고, Round 3~4는 감사 뒤 결정으로 이어졌다
 Rounds completed: 4 (Round 3 = 감사 결과에 따른 결정, Round 4 = 승인 게이트 선택)

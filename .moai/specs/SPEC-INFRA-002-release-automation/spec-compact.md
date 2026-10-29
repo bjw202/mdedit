@@ -1,6 +1,6 @@
 # SPEC-INFRA-002 compact — 자동 생성 요약 (plan/run 컨텍스트 주입용)
 
-> 전문은 `spec.md` / `plan.md` / `acceptance.md` / `research.md`. v0.3.1(plan-audit 2차 부채 N1~N9 + Round 4 승인 게이트 선택, 2026-10-29 승인; 안내 블록 링크 정정). REQ 16건·AC 16건. 첫 자동 릴리스 = v0.19.0.
+> 전문은 `spec.md` / `plan.md` / `acceptance.md` / `research.md`. v0.3.2(plan-audit 2차 부채 N1~N9 + Round 4 승인 게이트 선택, 2026-10-29 승인; 안내 블록 링크 정정; run 감사 게이트 review-1 문서 부채 D1~D6). 자동 AC 판정은 acceptance.md "판정 규칙"을 따른다 — grep은 일치 = 종료 코드 0. REQ 16건·AC 16건. 첫 자동 릴리스 = v0.19.0.
 
 ## 요구
 
@@ -8,10 +8,10 @@
 - REQ-002 (Event): `version-check`가 맨 먼저 태그(v 제거) = `package.json`·`Cargo.toml [package]`·`tauri.conf.json` version 확인. 불일치 → 파일별 메시지로 실패. 정규식 `^v\d+\.\d+\.\d+$` 아니면 실패(`v0x19x0`·`v0.19.0.1`·`-rc` 포함). 실패 시 생성·빌드 없음. 단위 테스트 가능.
 - REQ-003 (Ubiquitous + Unwanted): 생성 호출 본문에 `draft: true`(초안은 이것으로만 보장 — `releaseId`면 `releaseDraft` 무시). 태그당 1개. 게시·프리릴리스·Latest·삭제 금지. 빌드 job은 `releaseId`로만 업로드.
 - REQ-004 (Event + Unwanted): 같은 태그 릴리스 있으면 생성 job 실패. 업로드 직전 대상이 초안 아니면 빌드 job 실패. 게시본 변경 금지. 빌드 job 셸 단계는 `shell: bash`(Windows 기본 `pwsh`).
-- REQ-005 (Ubiquitous + Event): 이름 `mdedit vX.Y.Z`, 본문 = `.github/release-notes-header.md` + 생성 노트(시작점 = 직전 `vX.Y.Z` 태그, 없으면 미지정). 안내 블록에 세 파일 패턴 + 저장소 README 링크 `https://github.com/bjw202/mdedit`(첫 실행 대처법 안내용). 절 앵커·Releases 페이지 링크 금지(순환).
+- REQ-005 (Ubiquitous + Event): 이름 `mdedit vX.Y.Z`, 본문 = `.github/release-notes-header.md` + 생성 노트(시작점 = 직전 `vX.Y.Z` 태그, 없으면 미지정). 안내 블록에 세 파일 패턴 + 저장소 README 링크 `https://github.com/bjw202/mdedit`(끝 `/` 허용, 첫 실행 대처법 안내용). 저장소 링크의 경로 어디에든 앵커(`…/README.md#…` 포함)·Releases 페이지 링크 금지(순환).
 - REQ-006: macOS aarch64·Windows x64만 독립 빌드(`_aarch64.dmg`, `-setup.exe`, `.msi`), 한쪽 실패해도 계속, 고정 Tauri CLI + tauri-action, 게이트·cargo test·Linux·Intel 없음.
 - REQ-007: `tauri.conf.json` `bundle.macOS.signingIdentity: "-"`, 다른 키 무변경.
-- REQ-008: 최상위 `contents: read`, 생성·빌드 job만 `contents: write`, 쓰기 job 체크아웃 `persist-credentials: false`, 토큰은 단계 단위 env만.
+- REQ-008: 최상위 `contents: read`, 생성·빌드 job만 `contents: write`, 쓰기 job 체크아웃 `persist-credentials: false`, 토큰은 `gh api` 단계·tauri-action 단계의 단계 단위 env만(`npm ci` 등 다른 단계 금지).
 - REQ-009: `GITHUB_TOKEN`만.
 - REQ-010: 태그별 동시성(진행 중 취소 안 함).
 - REQ-011: `uses:`는 `actions/checkout@v4`·`actions/setup-node@v4`·`tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f  # v1.0.0`만, Node 24, 다른 서드파티 금지(러너 이미지 Rust 사용).

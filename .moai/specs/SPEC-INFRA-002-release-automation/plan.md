@@ -144,4 +144,4 @@ BUILD.md `## GitHub Releases로 배포하기` 절 요지(절차와 규칙의 정
 
 ## §I Cross-References
 
-- `spec.md` REQ-INFRA002-001~016, `acceptance.md` AC-INFRA002-001~016, `research.md` §1~9, `interview.md` Round 1~3, `.moai/reports/plan-audit/SPEC-INFRA-002-iter1.md`.
+- `spec.md` REQ-INFRA002-001~016, `acceptance.md` AC-INFRA002-001~016, `research.md` §1~9, `interview.md` Round 1~4, `.moai/reports/plan-audit/SPEC-INFRA-002-iter1.md`, `.moai/reports/plan-audit/SPEC-INFRA-002-iter2.md`, `.moai/reports/plan-audit/SPEC-INFRA-002-review-1.md`.

@@ -19,14 +19,19 @@
   - Decision Point 1: 사용자 승인(2026-10-29). Round 4 선택(`interview.md`): tauri-action SHA `1deb371b0cd8bd54025b384f1cd735e725c4060f` + `# v1.0.0`, 안내 블록 링크 = Releases URL(앵커 없음), R-8 수용.
   - v0.3.0 반영 부채: N1(빌드 job `shell: bash`)·N2(R-8 문구, 사용자 수용)·N3(정확한 SHA 요구)·N4(BUILD.md 고정 문구)·N5(`github.token` 검사)·N6(이 파일과 plan.md §G 낡은 문구)·N7(서로 다른 사례 수)·N8(로컬 macOS ad-hoc 서명 안내)·N9(`$W` 같은 명령 안에서 정의). REQ·AC 번호 변경 없음(16/16).
   - v0.3.1(2026-10-29): Round 4 선택 (2) 정정 — 안내 블록 링크는 README `https://github.com/bjw202/mdedit`(앵커·`/releases` 없음). REQ-005·AC-005만 수정.
-  - 남은 부채: D19 — §E.1 audit-ready 신호는 오케스트레이터가 결과 확인 뒤 기록(지시에 따라 manager-spec은 쓰지 않음).
+  - 남은 부채: D19 — §E.1 audit-ready 신호는 오케스트레이터가 결과 확인 뒤 기록(지시에 따라 manager-spec은 쓰지 않음). → 2026-10-29T05:02:40Z에 기록 완료(아래 §E.1).
+- Run Phase 1 (Plan Audit Gate, 최종본 0.3.1 대상, 새 감사관) — PASS-WITH-DEBT 0.90, 2026-10-29
+  - audit_verdict: PASS-WITH-DEBT
+  - audit_report: .moai/reports/plan-audit/SPEC-INFRA-002-review-1.md
+  - 차단 결함 없음. 선택 부채 D1~D6: D1(acceptance.md:L10, grep 계열 AC의 종료 코드 해석이 반대), D2·D3(AC-005 정규식 경계), D4·D5(낡은 Round/보고서 참조), D6(AC-008이 단계 단위 env 미검사). 구현 담당에는 D1 해석과 D2·D3·D6 보강 정규식을 프롬프트로 전달한다.
+  - 이 감사 이후 plan_artifact_hash가 바뀌는 SPEC 문서 수정이 있으면 그 사실을 아래에 기록한다.
 
 ## §E.1 Plan-phase Audit-Ready Signal
 
 - plan_complete_at: 2026-10-29T05:02:40Z
 - plan_status: audit-ready
 - 근거: plan-audit 2차 PASS-WITH-DEBT 0.90(`.moai/reports/plan-audit/SPEC-INFRA-002-iter2.md`), 사용자 승인(Decision Point 1, 2026-10-29), SPEC 0.3.1.
-- 오케스트레이터 확인(직접 grep): REQ 16건·AC 16건, 범위 밖 번호 0건, `NEEDS CLARIFICATION` 0건, spec.md 프런트매터 12필드 + `tier` 정상.
+- 오케스트레이터 확인(직접 grep): REQ 16건·AC 16건, 범위 밖 번호 0건, 미해결 질문 마커 0건, spec.md 프런트매터 12필드 + `tier` 정상.
 - 확인하지 못한 것: AC 명령들은 한 번도 실행되지 않았다(`node_modules` 없음 — run 단계 `npm ci` 이후). 리허설·실기기 AC-013~016은 병합 뒤 사용자 행동이 필요하다.
 
 ## §E.2 Run-phase Evidence
@@ -40,3 +45,18 @@ _<pending run-phase>_
 ## §E.4 Sync-phase Audit-Ready Signal
 
 _<pending sync-phase>_
+
+## §F Phase 4 Mode Selection
+
+- 일시: 2026-10-29. 사용자 구현 착수 승인(Implementation Kickoff Approval) 뒤 기록. 승인 선택: 진행 방식 = 자동 진행(`/moai goal`은 걸지 않음 — 한 번의 연속 흐름으로 이끌고, 서술형 조건 오저장 위험이 이 저장소 기억에 기록돼 있음), Git 처리 = 로컬 커밋만(푸시·PR은 나중에 묻기), actionlint = Homebrew 설치 허가(1.7.12 설치 확인).
+- Input parameters: tier = M / scope = 파일 8개(신규 4: release.yml, release-notes-header.md, check-release-version.mjs, 그 테스트 / 수정 4: tauri.conf.json, README.md, docs/BUILD.md, CHANGELOG.md) / domain count = 2(CI·릴리스 스크립트, 문서) / file language mix = YAML·Node(.mjs)·JSON·Markdown 혼합 / concurrency benefit = LOW(코딩 위주, 파일 간 의존: 워크플로가 스크립트를 호출하고 문서가 워크플로 동작을 서술).
+
+| Mode | 선택 여부 | 근거 |
+|------|-----------|------|
+| direct | not selected | 의미 있는 새 코드와 외부로 나가는 CI 설정이라 사소한 수정이 아님 |
+| serial | **selected** | 파일 8개·도메인 2개로 fanout 기준(도메인 3개 이상 또는 파일 10개 이상) 미달, 코딩 위주 |
+| fanout | not selected | 연구 위주 다중 도메인이 아님 |
+| sweep | not selected | 파일 30개 이상의 균일한 기계적 변환이 아님 |
+
+- Decision: serial
+- Justification: 파일이 8개뿐이고 워크플로·설정·문서가 서로의 사실에 의존해서(예: 문서가 워크플로의 job 구조와 문구를 서술) 병렬로 나눌 독립 작업이 없다. Anthropic의 코딩 작업 병렬화 주의에 따라 단일 manager-develop 순차 스폰(M1 TDD → M2 → M3)이 가장 단순하다. 임계값 경계 사례 없음(파일 8 < 10, 도메인 2 < 3).

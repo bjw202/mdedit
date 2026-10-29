@@ -1,7 +1,7 @@
 ---
 id: SPEC-INFRA-002
 title: "태그 푸시 기반 GitHub Actions 릴리스 자동화 — macOS·Windows 설치 파일 초안 릴리스"
-version: "0.3.1"
+version: "0.3.2"
 status: draft
 created: 2026-10-29
 updated: 2026-10-29
@@ -24,6 +24,7 @@ tier: M
 | 0.2.0 | 2026-10-29 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-INFRA-002-iter1.md`, FAIL 0.75) 반영. Round 3 사용자 결정(2026-10-29, 감사 결과를 본 뒤, `interview.md`): (1) macOS ad-hoc 서명 포함 — `bundle.macOS.signingIdentity: "-"`를 산출물로(REQ-007), `xattr` 우회는 안내하지 않음; (2) 첫 자동 릴리스 = v0.19.0 — `phase` 변경, CHANGELOG는 `[0.19.0]` 절(REQ-015); (3) main 포함 여부 검사 요구 삭제 — BUILD.md 절차 단계와 잔여 위험으로 대체; (4) 자산 확인 job 삭제. 감사 결함 반영: 초안 보장을 생성 호출의 `draft: true`로 옮김(D3), 게시된 릴리스 재실행 보호 — 업로드 전 초안 여부 확인(D10), `persist-credentials: false`·단계 단위 토큰·서드파티 액션 축소(D11), 문서 AC를 새 문구 기준으로(D5), 모든 Then에 판정 명령(D6). REQ 17→16, AC 14→16, 전 문서 번호 재정렬. |
 | 0.3.0 | 2026-10-29 | jw | plan-audit 2차(`.moai/reports/plan-audit/SPEC-INFRA-002-iter2.md`, PASS-WITH-DEBT 0.90) 부채 반영과 Decision Point 1 승인(2026-10-29). Round 4 사용자 선택(`interview.md`): (1) tauri-action은 커밋 SHA `1deb371b0cd8bd54025b384f1cd735e725c4060f`(v1·v1.0.0 태그가 가리키는 커밋)로 고정하고 `# v1.0.0` 주석(REQ-011, AC-009, N3); (2) 안내 블록 링크는 Releases 페이지 URL, 절 앵커 없음(REQ-005, AC-005); (3) R-8(빌드 중 Publish) 위험을 사용자가 수용, BUILD.md 규칙 "실행이 완전히 끝난 뒤 게시" 유지. 부채: N1 빌드 job 셸 단계 `shell: bash`, N4 BUILD.md "병합된 커밋" 문장 검사, N5 `github.token` 노출 검사, N6 낡은 문구, N7 줄 수 대신 서로 다른 사례 수, N8 로컬 macOS 빌드 ad-hoc 서명 안내, N9 `$W`를 같은 명령 안에서 정의. REQ·AC 번호 변경 없음(16/16). |
 | 0.3.1 | 2026-10-29 | jw | Round 4 선택 (2) 해석 정정(사용자 답변, `interview.md` Round 4): 릴리스 본문 안내 블록의 링크는 Releases 페이지가 아니라 저장소 첫 화면(README) `https://github.com/bjw202/mdedit`, 절 앵커 없음. Releases 페이지 링크는 순환이라 기각. REQ-005·AC-005 수정. README 내려받기 절의 Releases 링크(REQ-013·AC-011)는 그대로. REQ·AC 16/16. |
+| 0.3.2 | 2026-10-29 | jw | run 단계 감사 게이트(`.moai/reports/plan-audit/SPEC-INFRA-002-review-1.md`, PASS-WITH-DEBT 0.90) 문서 부채 반영 — 범위·결정·번호 변경 없음. D1: acceptance.md 판정 규칙을 명령 종류별로 다시 쓰고(grep은 일치 = 종료 코드 0이라 의미가 반대) 모든 자동 AC 명령에 PASS/FAIL 조건 명시. D2: AC-005 금지 링크 정규식을 경로 중간 앵커(`…/blob/HEAD/README.md#…`)까지 넓히고 REQ-005 문구 맞춤. D3: README 링크 끝 `/` 허용(REQ-005·AC-005). D4: References를 Round 1~4·감사 보고서 3건으로. D5: interview.md 라운드 수 표기 정정. D6: REQ-008·AC-008에 단계 단위 토큰 검사 추가(`npm ci` 등 다른 단계 `env`의 토큰 거부). REQ·AC 16/16. |
 
 ## Overview
 
@@ -80,8 +81,8 @@ tier: M
 
 - The 초안 릴리스 이름 shall `mdedit vX.Y.Z`(태그와 같은 버전) 형식이다.
 - The 초안 릴리스 본문 shall 저장소의 고정 설치 안내 블록(`.github/release-notes-header.md`)을 맨 앞에, 그 뒤에 GitHub 자동 생성 노트를 담는다.
-- The 고정 설치 안내 블록 shall OS별로 받을 파일(Apple Silicon 맥 = `_aarch64.dmg`, Windows = `-setup.exe` 권장 / `.msi` 대안)과, 첫 실행 경고 대처법을 안내하는 저장소 첫 화면(README) 링크 `https://github.com/bjw202/mdedit`를 담는다(대처법은 README 내려받기 절에만 있다 — REQ-013).
-- The 고정 설치 안내 블록의 링크 shall not 절 앵커(`#…`)를 쓰거나 Releases 페이지(`…/releases`)를 가리킨다(릴리스 본문에서 Releases 페이지로 돌아가는 링크는 순환이고, 앵커는 제목이 바뀌면 조용히 깨진다 — 사용자 선택 Round 4).
+- The 고정 설치 안내 블록 shall OS별로 받을 파일(Apple Silicon 맥 = `_aarch64.dmg`, Windows = `-setup.exe` 권장 / `.msi` 대안)과, 첫 실행 경고 대처법을 안내하는 저장소 첫 화면(README) 링크 `https://github.com/bjw202/mdedit`(끝 `/` 허용)를 담는다(대처법은 README 내려받기 절에만 있다 — REQ-013).
+- The 고정 설치 안내 블록의 저장소 링크(저장소 주소로 시작하는 모든 링크) shall not 경로 어디에든 절 앵커(`#…`)를 쓰거나(예: `…/blob/HEAD/README.md#…`) Releases 페이지(`…/releases`)를 가리킨다(릴리스 본문에서 Releases 페이지로 돌아가는 링크는 순환이고, 앵커는 제목이 바뀌면 조용히 깨진다 — 사용자 선택 Round 4).
 - The 자동 생성 노트의 시작점 shall 직전 버전 태그다.
 - **When** 직전 버전 태그가 없으면, the 생성 job shall 시작점을 지정하지 않고 노트를 만든다.
 
@@ -107,7 +108,7 @@ tier: M
 - The 릴리스 워크플로 최상위 `permissions` shall `contents: read`만 부여한다.
 - The 생성 job과 빌드 job shall job 단위로 `contents: write`만 부여받고, 버전 검사 job은 쓰기 권한을 받지 않는다.
 - The 쓰기 권한 job의 체크아웃 단계 shall `persist-credentials: false`를 쓴다.
-- The 토큰 shall 그것이 필요한 단계(릴리스 API 호출, 빌드 액션)의 단계 단위 `env`로만 전달되고, 워크플로·job 단위 `env`에는 들어가지 않는다.
+- The 토큰 shall 그것이 필요한 단계(릴리스 API 호출, 빌드 액션)의 단계 단위 `env`로만 전달되고, 워크플로·job 단위 `env`나 다른 단계(예: `npm ci`)의 `env`에는 들어가지 않는다.
 - The 릴리스 워크플로 shall not `contents` 외의 권한 범위를 `write`로 부여한다.
 
 #### REQ-INFRA002-009: 시크릿 불필요 (Ubiquitous + Unwanted)
@@ -246,7 +247,7 @@ tier: M
 
 ## References
 
-- 인터뷰·결정: `interview.md`(Round 1~3)
-- plan-audit: `.moai/reports/plan-audit/SPEC-INFRA-002-iter1.md`
+- 인터뷰·결정: `interview.md`(Round 1~4)
+- plan-audit: `.moai/reports/plan-audit/SPEC-INFRA-002-iter1.md`, `.moai/reports/plan-audit/SPEC-INFRA-002-iter2.md`, run 단계 감사 게이트 `.moai/reports/plan-audit/SPEC-INFRA-002-review-1.md`
 - 기존 게이트: `.github/workflows/frontend-gates.yml`
 - 관련 문서: `README.md`, `docs/BUILD.md` 591-655행, `CHANGELOG.md`, `src-tauri/tauri.conf.json`

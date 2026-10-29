@@ -7,7 +7,13 @@
 - `npm ci`를 먼저 실행한다. YAML 파싱에는 `js-yaml` 4.1.1을 쓴다 — `package-lock.json:4930`에 eslint를 거친 개발 의존성으로 이미 들어 있어 **새 의존성이 아니다**. 한계: 직접 선언한 의존성이 아니라 eslint 업그레이드로 빠질 수 있다(그때는 이 AC 명령이 `Cannot find module`로 실패해 드러난다). js-yaml 4는 YAML 1.2 규칙이라 `on:` 키를 문자열로 읽는다(실행 확인은 run 단계 첫 명령).
 - js-yaml 단언 명령은 모두 같은 줄 맨 앞에서 셸 변수 `W`(파싱 준비 코드)를 정의한 뒤 `node -e "$W …"`를 실행한다. Bash 호출끼리 셸 상태를 공유하지 않으므로 **명령을 그대로 한 번에 실행**해야 한다(감사 N9). `W`가 비어 있으면 `ReferenceError`로 실패하므로 거짓 통과는 없다.
 
-- 각 명령은 단언이 어긋나면 `AssertionError`로 종료 코드 1을 낸다. 아래 "Then"마다 그것을 판정하는 명령을 붙였다. 워크플로 파일이 없는 지금의 저장소에서는 모두 실패한다(`ENOENT`).
+- **판정 규칙(감사 review-1 D1).** 명령의 종료 코드만 보고 판정하지 않는다. 각 명령 줄의 `→` 뒤에 적힌 **PASS 조건**이 기준이며, 그것과 다르면 FAIL이다. 명령 종류별 의미:
+  - `node -e` 단언과 `npx vitest`·`actionlint`·`test …`: **PASS = 종료 코드 0**. FAIL = 0이 아닌 종료 코드(`AssertionError`, `TypeError`, `ENOENT` 등).
+  - "금지 문구" `grep -n…`(일치하면 위반): **PASS = 출력 없음**(이때 `grep` 종료 코드는 1). FAIL = 한 줄이라도 출력됨(종료 코드 0). `grep`은 일치 = 종료 코드 0이라 일반 명령과 의미가 **반대**다.
+  - `for … || echo "MISSING …"` 반복 검사: **PASS = 출력 없음**. 종료 코드는 무시한다(마지막 `grep`의 종료 코드라 PASS일 때도 1일 수 있다). `MISSING` 줄이나 일치 줄이 하나라도 나오면 FAIL.
+  - `grep -c`·`wc -l`·`sort -u` 같은 개수·목록 출력: **PASS = 적힌 값과 출력이 정확히 같음**. `grep -c`는 0건일 때 `0`을 출력하면서 종료 코드 1을 내므로, `→ 0`인 검사는 종료 코드 1이어도 PASS다.
+  - `git diff --stat`: **PASS = 출력 없음**.
+- 지금(구현 전) 저장소에서의 결과: AC-001~009·011은 FAIL(파일이 없어 `ENOENT`·`MISSING`; AC-007은 `bundle.macOS`가 없어 `TypeError`). AC-010·012는 회귀 감시라 지금도 PASS이며, 구현이 그것을 깨지 않는지 본다.
 
 ## 자동 수용 기준
 
@@ -25,7 +31,7 @@
 - Given `[package]` 절 `version = "0.19.0"` 뒤 `[dependencies]` 절에 `tauri = { version = "2" }`가 있는 Cargo.toml 문자열
 - When Cargo 버전을 읽으면
 - Then `0.19.0`이다.
-- 판정: `npx vitest run scripts/check-release-version.test.mjs` 종료 코드 0, 그리고 `grep -oE "v0x19x0|v0\.19\.0\.1|rc\.1" scripts/check-release-version.test.mjs | sort -u | wc -l` → 3(줄 수가 아니라 서로 다른 사례 수를 센다 — 한 줄에 여러 사례를 둔 표 기반 테스트도 통과).
+- 판정: `npx vitest run scripts/check-release-version.test.mjs` → PASS = 종료 코드 0(FAIL = 0 아님). 그리고 `grep -oE "v0x19x0|v0\.19\.0\.1|rc\.1" scripts/check-release-version.test.mjs | sort -u | wc -l` → PASS = `3` 출력(그 밖의 숫자는 FAIL). 줄 수가 아니라 서로 다른 사례 수를 센다 — 한 줄에 여러 사례를 둔 표 기반 테스트도 통과.
 
 ### AC-INFRA002-002: 직전 버전 태그 계산 (단위) — REQ-005
 
@@ -38,14 +44,15 @@
 - Given `v0.9.0`과 `v0.10.0`
 - When `v0.11.0`의 직전 태그를 계산하면
 - Then `v0.10.0`이다(문자열 비교가 아닌 숫자 비교).
-- 판정: 같은 테스트 파일 종료 코드 0.
+- 판정: 같은 테스트 파일 → PASS = 종료 코드 0.
 
 ### AC-INFRA002-003: 트리거와 job 순서 (정적) — REQ-001·002
 
 - Given `.github/workflows/release.yml`
 - When actionlint와 js-yaml 단언을 실행하면
 - Then 문법 오류가 없다.
-  - `actionlint .github/workflows/release.yml` → 종료 코드 0, 출력 없음(설치: `brew install actionlint`, research.md §8)
+  - `actionlint .github/workflows/release.yml` → PASS = 종료 코드 0이고 출력 없음. FAIL = 지적 줄이 출력되거나 종료 코드 0 아님(설치: `brew install actionlint`, research.md §8)
+- 이 AC의 `node -e` 명령 → PASS = 종료 코드 0(이하 모든 `node -e` 명령 동일).
 - Then 트리거는 `push.tags` 하나뿐이고 값은 `v[0-9]+.[0-9]+.[0-9]+` 하나다.
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W a.deepStrictEqual(Object.keys(w.on),['push']);a.deepStrictEqual(Object.keys(w.on.push),['tags']);a.deepStrictEqual(w.on.push.tags,['v[0-9]+.[0-9]+.[0-9]+'])"`
 - Then job은 `version-check` → `create-release` → `build` 순으로 이어지고, 버전 검사 job이 스크립트를 실행한다.
@@ -58,7 +65,7 @@
 - Then 릴리스 생성 API 호출 단계가 `draft=true`를 보낸다(이 값을 지우면 실패한다).
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W a.ok(S('create-release').some(s=>/gh api/.test(run(s))&&/(-F|--field) +draft=true/.test(run(s))))"`
 - Then 파일 어디에도 초안 해제·프리릴리스·Latest 지정·삭제·수정 호출이 없다.
-  - `grep -nE "draft[\"']?[:=] *false|draft=false|make_latest|--latest|prerelease=true|prerelease: *true|gh release (create|edit|delete|upload)|-X *(DELETE|PATCH)|--method *(DELETE|PATCH)" .github/workflows/release.yml` → 일치 0건(종료 코드 1)
+  - `grep -nE "draft[\"']?[:=] *false|draft=false|make_latest|--latest|prerelease=true|prerelease: *true|gh release (create|edit|delete|upload)|-X *(DELETE|PATCH)|--method *(DELETE|PATCH)" .github/workflows/release.yml` → PASS = 출력 없음(이때 grep 종료 코드 1). FAIL = 한 줄이라도 출력됨(종료 코드 0)
 - Then 빌드 job은 `tagName`이 아니라 생성 job이 넘긴 `releaseId`로 올린다.
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W const s=S('build').find(x=>/tauri-apps\/tauri-action@/.test(x.uses||''));a.ok(s);a.ok(/needs\.create-release\.outputs/.test(String(s.with.releaseId)));a.ok(!('tagName' in s.with))"`
 
@@ -74,8 +81,8 @@
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W const d=((J.build.defaults||{}).run||{}).shell;const r=S('build').filter(x=>x.run);a.ok(r.some(x=>/\.draft/.test(run(x))));a.ok(r.every(x=>(x.shell||d)==='bash'))"`
 - Then 생성 job이 고정 안내 블록 파일과 직전 태그로 노트를 만든다.
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W const r=S('create-release').map(run).join('\n');a.ok(r.includes('.github/release-notes-header.md'));a.ok(r.includes('generate-notes'));a.ok(r.includes('previous_tag_name'));a.ok(/name=.*mdedit v/.test(r))"`
-- Then 안내 블록 파일에 세 파일 패턴과 저장소 첫 화면(README) 링크 `https://github.com/bjw202/mdedit`가 있고, 그 주소 뒤에 `/releases`나 `#`가 붙은 링크는 하나도 없다. Releases 페이지 링크만 있거나 앵커 링크가 있으면 실패한다(파일이 없는 지금 저장소에서도 MISSING으로 실패).
-  - `f=.github/release-notes-header.md; for p in '_aarch64.dmg' '-setup.exe' '.msi'; do grep -qF -- "$p" "$f" || echo "MISSING $p"; done; grep -qE 'https://github\.com/bjw202/mdedit([])>[:space:]"]|$)' "$f" || echo "MISSING README link"; grep -nE 'github\.com/bjw202/mdedit(/releases|/?#)' "$f"` → 출력 없음
+- Then 안내 블록 파일에 세 파일 패턴과 저장소 첫 화면(README) 링크 `https://github.com/bjw202/mdedit`(끝 `/`는 허용)가 있고, 저장소 주소로 시작하는 링크 가운데 Releases 페이지(`/releases`)를 가리키거나 어디에든 `#` 앵커가 붙은 것(예: `…/mdedit/blob/HEAD/README.md#install`)은 하나도 없다. Releases 페이지 링크만 있거나 앵커 링크가 있으면 실패한다(파일이 없는 지금 저장소에서도 MISSING으로 실패).
+  - `f=.github/release-notes-header.md; for p in '_aarch64.dmg' '-setup.exe' '.msi'; do grep -qF -- "$p" "$f" || echo "MISSING $p"; done; grep -qE 'https://github\.com/bjw202/mdedit/?([])>[:space:]"]|$)' "$f" || echo "MISSING README link"; grep -nE 'github\.com/bjw202/mdedit(/releases|[^ )>"]*#)' "$f"` → PASS = 출력 없음(종료 코드 무시). FAIL = `MISSING …` 줄 또는 금지 링크 줄이 하나라도 출력됨
 - 한계: 정적 단언은 단계가 그 자리에 있고 해당 조회·`exit 1`을 담고 있음까지만 보장한다. 조건 분기가 실제로 옳은지는 코드 리뷰와 AC-014 리허설로 본다.
 
 ### AC-INFRA002-006: 행렬 (정적) — REQ-006
@@ -104,10 +111,10 @@
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W a.deepStrictEqual(w.permissions,{contents:'read'});a.deepStrictEqual(J['create-release'].permissions,{contents:'write'});a.deepStrictEqual(J.build.permissions,{contents:'write'});a.ok(!JSON.stringify(J['version-check'].permissions||{}).includes('write'))"`
 - Then 쓰기 job의 체크아웃은 모두 `persist-credentials: false`다.
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W for(const j of ['create-release','build'])for(const s of S(j))if(/actions\/checkout@/.test(s.uses||''))a.strictEqual((s.with||{})['persist-credentials'],false)"`
-- Then 토큰은 워크플로·job 단위 `env`에 없다(`secrets.*`와 `github.token` 두 형태 모두 검사, 감사 N5).
-  - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W const bad=/secrets\.|github\.token/;a.ok(!bad.test(JSON.stringify(w.env||{})));for(const j in J)a.ok(!bad.test(JSON.stringify(J[j].env||{})))"`
+- Then 토큰은 워크플로·job 단위 `env`에 없고, 단계 단위 `env`에 토큰이 있는 단계는 `gh api`를 실행하는 단계나 tauri-action 단계뿐이다(`secrets.*`와 `github.token` 두 형태 모두 검사, 감사 N5·review-1 D6 — 예: `npm ci` 단계 `env`에 토큰을 넣으면 실패).
+  - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W const bad=/secrets\.|github\.token/;a.ok(!bad.test(JSON.stringify(w.env||{})));for(const j in J){a.ok(!bad.test(JSON.stringify(J[j].env||{})));for(const s of S(j))if(bad.test(JSON.stringify(s.env||{})))a.ok(/gh api/.test(run(s))||/^tauri-apps\/tauri-action@/.test(s.uses||''),'token in env of step: '+(s.name||s.uses||run(s)))}"`
 - Then 참조하는 시크릿은 `GITHUB_TOKEN` 하나다.
-  - `grep -oE "secrets\.[A-Za-z_]+" .github/workflows/release.yml | sort -u` → 정확히 `secrets.GITHUB_TOKEN` 한 줄
+  - `grep -oE "secrets\.[A-Za-z_]+" .github/workflows/release.yml | sort -u` → PASS = 출력이 정확히 `secrets.GITHUB_TOKEN` 한 줄. FAIL = 다른 줄이 더 있거나 출력 없음
 - Then 동시성 그룹이 태그 참조를 담고 진행 중 취소를 하지 않는다.
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W a.ok(/github\.ref/.test(w.concurrency.group));a.strictEqual(w.concurrency['cancel-in-progress'],false)"`
 
@@ -118,7 +125,7 @@
 - Then 허용 목록(`actions/checkout@v4`, `actions/setup-node@v4`, `tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f`) 밖의 것이 없고 tauri-action이 1번 이상 쓰인다. 다른 40자 SHA(태그 객체 SHA `944946e…`·`2d793bf…` 포함)는 실패한다(감사 N3).
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W const u=Object.values(J).flatMap(j=>j.steps).map(s=>s.uses).filter(Boolean);a.ok(u.length>0);a.ok(u.every(x=>/^(actions\/(checkout|setup-node)@v4|tauri-apps\/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f)$/.test(x)));a.ok(u.some(x=>x.startsWith('tauri-apps/')))"`
 - Then tauri-action 고정 줄마다 `# v1.0.0` 주석이 붙어 있다(js-yaml은 주석을 버리므로 원문 grep).
-  - `test "$(grep -cE 'uses: *tauri-apps/tauri-action@' .github/workflows/release.yml)" -ge 1 && test "$(grep -cE 'uses: *tauri-apps/tauri-action@' .github/workflows/release.yml)" -eq "$(grep -cE 'uses: *tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f +# v1\.0\.0[[:space:]]*$' .github/workflows/release.yml)"` → 종료 코드 0
+  - `test "$(grep -cE 'uses: *tauri-apps/tauri-action@' .github/workflows/release.yml)" -ge 1 && test "$(grep -cE 'uses: *tauri-apps/tauri-action@' .github/workflows/release.yml)" -eq "$(grep -cE 'uses: *tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f +# v1\.0\.0[[:space:]]*$' .github/workflows/release.yml)"` → PASS = 종료 코드 0. FAIL = 종료 코드 1(tauri-action 줄이 없거나 주석 없는 줄이 있음)
 - Then 모든 setup-node 단계가 Node 24를 쓴다.
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W const n=Object.values(J).flatMap(j=>j.steps).filter(s=>/setup-node@/.test(s.uses||''));a.ok(n.length>0);a.ok(n.every(s=>String(s.with['node-version'])==='24'))"`
 
@@ -126,29 +133,29 @@
 
 - Given 이 SPEC의 브랜치
 - When `git diff --stat "$(git merge-base origin/main HEAD)" -- .github/workflows/frontend-gates.yml`을 실행하면
-- Then 출력이 비어 있다(기준점은 병합 기준 커밋 — main이 그 사이 바뀌어도 거짓 차이가 나지 않는다).
+- Then PASS = 출력이 비어 있다. FAIL = 파일 변경 통계 줄이 출력됨(기준점은 병합 기준 커밋 — main이 그 사이 바뀌어도 거짓 차이가 나지 않는다). 회귀 감시라 구현 전 저장소에서도 PASS다.
 
 ### AC-INFRA002-011: 문서 (절 범위 검사) — REQ-013·014·015
 
 - Given 수정된 `README.md`
 - When `## 설치 파일 내려받기` 절만 잘라 검색하면
 - Then 필요한 문구가 모두 있고 금지 문구가 없다(지금 README에는 이 절이 없어 모두 MISSING).
-  - `s=$(awk '/^## 설치 파일 내려받기/{f=1;next}/^## /{f=0}f' README.md); for p in 'https://github.com/bjw202/mdedit/releases' '_aarch64.dmg' '-setup.exe' '.msi' '개인정보 보호 및 보안' '그래도 열기' 'SmartScreen'; do printf '%s' "$s" | grep -qF -- "$p" || echo "MISSING $p"; done; printf '%s' "$s" | grep -nE "xattr|\.deb|\.rpm|AppImage|x64\.dmg"` → 출력 없음
+  - `s=$(awk '/^## 설치 파일 내려받기/{f=1;next}/^## /{f=0}f' README.md); for p in 'https://github.com/bjw202/mdedit/releases' '_aarch64.dmg' '-setup.exe' '.msi' '개인정보 보호 및 보안' '그래도 열기' 'SmartScreen'; do printf '%s' "$s" | grep -qF -- "$p" || echo "MISSING $p"; done; printf '%s' "$s" | grep -nE "xattr|\.deb|\.rpm|AppImage|x64\.dmg"` → PASS = 출력 없음(종료 코드 무시). FAIL = `MISSING …` 줄 또는 금지 문구 줄이 하나라도 출력됨
 - Given 수정된 `docs/BUILD.md`
 - When `## GitHub Releases로 배포하기`부터 파일 끝까지 검색하면
 - Then 새 절차 문구가 있고 낡은 수동 절차가 없다(지금 파일은 `gh release create`·`v0.9.0`·`우클릭`·`xattr`이 있어 실패). 절차 문장은 다음 고정 문구로 판정한다 — 단순히 `main`을 언급하는 것으로는 통과하지 못한다(감사 N4): `main에 이미 병합된 커밋에 태그`(태그 위치), `완전히 끝난 뒤`(게시 시점, R-8 규칙), `다시 실행`(게시 후 재실행 금지), `ad-hoc`(로컬 macOS 빌드 서명 안내, 감사 N8).
-  - `s=$(awk '/^## GitHub Releases로 배포하기/{f=1}f' docs/BUILD.md); for p in 'release.yml' '초안' 'main에 이미 병합된 커밋에 태그' '완전히 끝난 뒤' 'push --delete origin' '그래도 열기' '다시 실행' 'ad-hoc'; do printf '%s' "$s" | grep -qF -- "$p" || echo "MISSING $p"; done; printf '%s' "$s" | grep -nE "gh release create|v0\.9\.0|우클릭|xattr"` → 출력 없음
+  - `s=$(awk '/^## GitHub Releases로 배포하기/{f=1}f' docs/BUILD.md); for p in 'release.yml' '초안' 'main에 이미 병합된 커밋에 태그' '완전히 끝난 뒤' 'push --delete origin' '그래도 열기' '다시 실행' 'ad-hoc'; do printf '%s' "$s" | grep -qF -- "$p" || echo "MISSING $p"; done; printf '%s' "$s" | grep -nE "gh release create|v0\.9\.0|우클릭|xattr"` → PASS = 출력 없음(종료 코드 무시). FAIL = `MISSING …` 줄 또는 금지 문구 줄이 하나라도 출력됨
 - Given `CHANGELOG.md`
 - When `## [0.19.0]` 절과 `## [Unreleased]` 절을 보면
 - Then `[0.19.0]` 절에 `SPEC-INFRA-002` 항목이 1개, `[Unreleased]` 절에는 0개다.
-  - `awk '/^## \[0\.19\.0\]/{f=1;next}/^## \[/{f=0}f' CHANGELOG.md | grep -c "SPEC-INFRA-002"` → 1
-  - `awk '/^## \[Unreleased\]/{f=1;next}/^## \[/{f=0}f' CHANGELOG.md | grep -c "SPEC-INFRA-002"` → 0
+  - `awk '/^## \[0\.19\.0\]/{f=1;next}/^## \[/{f=0}f' CHANGELOG.md | grep -c "SPEC-INFRA-002"` → PASS = `1` 출력(그 밖의 숫자는 FAIL)
+  - `awk '/^## \[Unreleased\]/{f=1;next}/^## \[/{f=0}f' CHANGELOG.md | grep -c "SPEC-INFRA-002"` → PASS = `0` 출력(이때 grep 종료 코드는 1이지만 PASS). FAIL = 1 이상
 
 ### AC-INFRA002-012: 회귀 없음 — 전체
 
 - Given 변경이 끝난 트리
 - When `npm test`, `npm run lint`, `npm run typecheck`를 실행하면
-- Then 셋 다 종료 코드 0이고, `npm test`의 통과 테스트 수가 기준(병합 기준 커밋에서 측정한 값) + 새 테스트 수와 같다.
+- Then PASS = 셋 다 종료 코드 0이고, `npm test`의 통과 테스트 수가 기준(병합 기준 커밋에서 측정한 값) + 새 테스트 수와 같다.
 
 ## 수동 수용 기준 (사용자 명시 행동 필요, 병합 후)
 
