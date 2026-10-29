@@ -97,7 +97,10 @@
      (SPEC-PREVIEW-016): no var(--md-*) chaining, no dark-block redeclaration.
      --pele-font / --pele-font-mono are literal lists that must equal
      DIAGRAM_FONT_FAMILY / DIAGRAM_FONT_FAMILY_MONO in
-     src/lib/diagram/diagramRenderer.ts (pele measures text with them). */
+     src/lib/diagram/diagramRenderer.ts (pele measures text with them).
+     --pele-decision-border는 앱 전용(pele 1.10.0은 읽지 않음) 판단 노드 테두리 색이다
+     (SPEC-PREVIEW-017 모양 톤). series-4와 같은 색상 계열에서 명도만 낮춰
+     --pele-surface-alt 위 대비 3:1 이상(4.81)을 맞춘다. */
   --pele-bg:             #FAF9F6;
   --pele-fg:             #222B33;
   --pele-muted:          #67727C;
@@ -121,6 +124,7 @@
   --pele-series-8:       #96562F;
   --pele-font:           "Barlow", system-ui, sans-serif;
   --pele-font-mono:      "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --pele-decision-border: #8A6410;
 }
 
 [data-theme="dark"] {

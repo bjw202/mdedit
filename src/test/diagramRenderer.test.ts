@@ -26,6 +26,7 @@ import {
   DIAGRAM_FONT_FAMILY,
   DIAGRAM_FONT_FAMILY_MONO,
   PELE_RENDER_OPTIONS,
+  PELE_THEME_VARS,
   renderDiagram,
   renderDiagramForTest,
   validateDiagram,
@@ -144,25 +145,27 @@ describe('SPEC-PREVIEW-016 고정 팔레트 — 단일 :root 리터럴 (AC-PREVI
     '--pele-series-8': '#96562F',
     '--pele-font': DIAGRAM_FONT_FAMILY,
     '--pele-font-mono': DIAGRAM_FONT_FAMILY_MONO,
+    // SPEC-PREVIEW-017: 판단 노드 테두리(진한 꿀색, series-4 같은 색상 계열·명도만 낮춤)
+    '--pele-decision-border': '#8A6410',
   };
 
-  it(':root의 pele 선언은 연속된 23개 묶음 하나뿐이고, 다크 블록에는 0개다 (AC-PREVIEW016-001)', () => {
+  it(':root의 pele 선언은 연속된 24개 묶음 하나뿐이고, 다크 블록에는 0개다 (AC-PREVIEW016-001, AC-PREVIEW017-005)', () => {
     const css = cssOf();
     const rootBlock = block(css, ':root');
     const declLines = [...rootBlock.matchAll(/^\s*--pele-[\w-]+:/gm)].map((m) => rootBlock.slice(0, m.index!).split('\n').length);
-    // 묶음: 23개 선언이 :root 안에서 연속된 줄에 모여 있다
-    expect(declLines, 'pele 선언 줄 수').toHaveLength(23);
+    // 묶음: 24개 선언(016의 23개 + 017 판단 테두리)이 :root 안에서 연속된 줄에 모여 있다
+    expect(declLines, 'pele 선언 줄 수').toHaveLength(24);
     for (let i = 1; i < declLines.length; i++) expect(declLines[i], `${i}번째 pele 선언 줄`).toBe(declLines[i - 1] + 1);
     // 다크 블록: pele 선언 0개
     expect(peleDecls(block(css, '[data-theme="dark"]'))).toEqual({});
-    // 파일 전체 pele 선언 수 = :root의 23개(다른 블록에 흩어진 선언 금지)
-    expect((css.match(/^\s*--pele-[\w-]+:/gm) || []).length).toBe(23);
+    // 파일 전체 pele 선언 수 = :root의 24개(다른 블록에 흩어진 선언 금지)
+    expect((css.match(/^\s*--pele-[\w-]+:/gm) || []).length).toBe(24);
     // 어떤 pele 값에도 --md-* 체이닝이 없다
     for (const [name, value] of Object.entries(peleDecls(rootBlock))) expect(value, name).not.toContain('var(--md-');
     expect(css).not.toMatch(/--pele-zoom-/);
   });
 
-  it('23개 토큰 값이 승인 잉크 앤 허니 표와 하나씩 같다 (AC-PREVIEW016-002)', () => {
+  it('24개 토큰 값이 승인 잉크 앤 허니 표(+ 017 판단 테두리)와 하나씩 같다 (AC-PREVIEW016-002, AC-PREVIEW017-005)', () => {
     const root = peleDecls(block(cssOf(), ':root'));
     expect(Object.keys(root).sort()).toEqual(Object.keys(EXPECTED_PALETTE).sort());
     for (const [name, expected] of Object.entries(EXPECTED_PALETTE)) expect(root[name], name).toBe(expected);
@@ -182,6 +185,52 @@ describe('SPEC-PREVIEW-016 고정 팔레트 — 단일 :root 리터럴 (AC-PREVI
     expect(root['--pele-radius']).toBe('3px');
     expect(root['--pele-title-weight']).toBe('600');
     expect(root['--pele-heading-weight']).toBe('600');
+  });
+
+  // ── SPEC-PREVIEW-017 판단 테두리 토큰 (AC-PREVIEW017-005) ─────────────────
+  const hexToRgb = (hex: string): [number, number, number] => {
+    const h = hex.replace('#', '');
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
+  };
+  // WCAG 2.x 상대 휘도·대비
+  const luminance = (hex: string) => {
+    const [r, g, b] = hexToRgb(hex).map((v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  const hue = (hex: string) => {
+    const [r, g, b] = hexToRgb(hex).map((v) => v / 255);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d = max - min;
+    if (d === 0) return 0;
+    const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (h * 60 + 360) % 360;
+  };
+
+  it('--pele-decision-border는 :root에 리터럴로 정확히 1회, 대비 ≥3.0·hue 36.9~46.9°·기각 색 아님 (AC-PREVIEW017-005)', () => {
+    const css = cssOf();
+    const rootBlock = block(css, ':root');
+    expect((css.match(/^\s*--pele-decision-border:/gm) || []).length, '파일 전체 선언 수').toBe(1);
+    expect((rootBlock.match(/^\s*--pele-decision-border:/gm) || []).length, ':root 선언 수').toBe(1);
+    const value = peleDecls(rootBlock)['--pele-decision-border'];
+    expect(value).toMatch(/^#[0-9A-Fa-f]{6}$/); // var( 체이닝 없는 리터럴
+    expect(contrast(value, '#F7F2E7'), 'surface-alt 대비').toBeGreaterThanOrEqual(3.0);
+    const h = hue(value);
+    expect(h, 'HSL hue').toBeGreaterThanOrEqual(36.9);
+    expect(h, 'HSL hue').toBeLessThanOrEqual(46.9);
+    for (const banned of ['#B78511', '#96562F', '#C08A28']) expect(value.toUpperCase()).not.toBe(banned);
+  });
+
+  it(':root의 --pele-* 이름 집합은 PELE_THEME_VARS 집합과 같다 — 내보내기 탐침 동기화 가드 (AC-PREVIEW017-005)', () => {
+    const names = Object.keys(peleDecls(block(cssOf(), ':root'))).sort();
+    expect(names).toEqual([...PELE_THEME_VARS].sort());
   });
 });
 

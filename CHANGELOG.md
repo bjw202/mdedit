@@ -4,6 +4,11 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-29
+
+### Changed
+- **다이어그램 판단·시작/끝 노드에 모양 기반 자동 톤 (SPEC-PREVIEW-017)**: 고정 팔레트(SPEC-PREVIEW-016) 안에서 모든 노드가 같은 색으로 그려져 흐름의 판단 지점과 시작·끝이 눈에 잘 띄지 않았는데, 이제 노드 모양에 따라 톤이 자동으로 붙습니다. 판단 노드(pele 모양 클래스 `pele-shape-diam`, 마름모)는 채움 `#F7F2E7`(`--pele-surface-alt`)과 새 토큰 `--pele-decision-border: #8A6410` 테두리를 받습니다. 이 테두리는 `#F7F2E7` 대비 4.81:1, 색상각 41.3도로 series-4와 같은 꿀색 계열의 더 진한 색입니다. 시작/끝 노드(`pele-shape-stadium`)는 기본 채움 `#EEF3F7`을 유지하고 테두리만 `#3A5673`(`--pele-accent`) 1.5px로 바뀝니다. 나머지 모양(rect, cylinder, circle)과 서브그래프 묶음은 그대로이며, `circle`은 일부러 시작/끝으로 취급하지 않았습니다. 톤은 pele 모양 클래스만으로 정해지고 라벨 문구·노드 순서·테마는 보지 않으므로 라이트와 다크에서 같습니다. 작성자가 `classDef`·`class`·`style`로 지정한 값은 항상 이기며, 작성자가 지정하지 않은 속성에만 톤이 들어갑니다. 미리보기는 `src/index.css`의 표시 블록(`SPEC-PREVIEW-017 shape-tone`)에서 노드 그룹에 pele 내부 변수를 다시 선언하는 방식으로, 내보내기는 색 해석 직전의 단일 지점 `renderExportDiagram`(`src/lib/export/exportUtils.ts`)에서 같은 톤을 주입하는 방식으로 구현해 HTML·PDF·DOCX가 미리보기와 같은 톤을 받고, 내보낸 SVG에는 여전히 `var(--pele-` 문자열이 하나도 남지 않습니다. 고정 팔레트는 23색에서 24색이 됩니다(`src/styles/mdedit-tokens.css`, `PELE_THEME_VARS`). 함께 라이트 미리보기의 간선 라벨 이음매를 고쳤습니다. 측정해 보니 라이트 모드의 `.mermaid-container`가 투명해서 `#FAF9F6`로 칠해진 라벨 상자 뒤로 미리보기 창 바탕 `#f2f2f3`이 드러난 것이 원인이었고, 미리보기 컨테이너에 `background-color: var(--pele-bg)`(`#FAF9F6`)만 추가했습니다(테두리·반경 없음). 다크 테마의 종이 카드는 바뀌지 않았습니다. SPEC-PREVIEW-016 문서에는 개정 포인터(토큰 23→24개, 라이트 컨테이너 바탕)만 추가했습니다. 수용 기준 8건(AC-PREVIEW017-001~008)은 자동 테스트에 대응되어 있습니다. 검증: vitest 1765/1765(108 파일), tsc(`--noEmit`)·eslint(`--max-warnings 0`) 종료 코드 0, Playwright webkit e2e 15/15(신규 7건 + 기존 8건), 플랜 감사 PASS 0.94를 확인했습니다. 라이트·다크 미리보기에서 사람이 눈으로 확인하는 시각 확인은 남아 있습니다. 내보내기 검사는 SVG 텍스트만 보므로 실제 PDF·DOCX 파일 렌더링은 확인하지 않았습니다. AI 카드의 미니 다이어그램은 `.preview-content` 밖에서 그려지므로 이번 톤과 라이트 바탕을 받지 않습니다.
+
 ## [0.18.0] - 2026-10-28
 
 ### Changed

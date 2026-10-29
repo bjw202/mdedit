@@ -33,11 +33,12 @@ vi.mock('pele', async (importOriginal) => {
 
 // 고정 팔레트 값 표(SPEC-PREVIEW-016) — mdedit-tokens.css :root의 pele 리터럴을 그대로 읽는다.
 // 라이트·다크가 같은 표를 가리킨다(테마는 다이어그램 색의 입력이 아님, AC-PREVIEW016-004).
-// 아래 가드 테스트가 이 표가 CSS 단일 :root 블록과 23개 이름 전부에서 일치하는지 고정한다.
+// 아래 가드 테스트가 이 표가 CSS 단일 :root 블록과 24개 이름 전부에서 일치하는지 고정한다
+// (016의 23개 + SPEC-PREVIEW-017 판단 테두리 decision-border).
 const VAR_NAMES = [
   'accent', 'bg', 'border', 'fg', 'font', 'font-mono', 'heading-weight', 'line', 'muted', 'radius',
   'series-1', 'series-2', 'series-3', 'series-4', 'series-5', 'series-6', 'series-7', 'series-8',
-  'surface', 'surface-alt', 'title-weight', 'error', 'critical',
+  'surface', 'surface-alt', 'title-weight', 'error', 'critical', 'decision-border',
 ];
 const here = dirname(fileURLToPath(import.meta.url));
 const peleTableFromCss = () => {
@@ -284,7 +285,7 @@ describe('AC-PREVIEW015-019: 실패·빈 펜스는 자기 자리만 차지한다
 });
 
 describe('AC-PREVIEW016-004: 주입 표는 mdedit-tokens.css :root 고정 팔레트와 일치한다', () => {
-  it('읽은 표는 pele 변수 23개 전부를 담고 라이트·다크가 같은 객체다', () => {
+  it('읽은 표는 pele 변수 24개 전부를 담고 라이트·다크가 같은 객체다', () => {
     expect(Object.keys(THEME.light).sort()).toEqual(VAR_NAMES.map((n) => `--pele-${n}`).sort());
     expect(THEME.dark).toBe(THEME.light);
   });
@@ -336,6 +337,84 @@ describe('AC-PREVIEW015-020: 내보낸 다이어그램의 --pele-*는 모두 실
   it('HTML 문서 전체(CSS 포함)에도 var(--pele-가 없다', async () => {
     await exportToHtml(opts(content, 'dark'));
     expect(writtenHtml()).not.toContain('var(--pele-');
+  });
+});
+
+// SPEC-PREVIEW-017: 판단(B·W)·시작/끝(A·Z)·사각형(C), W는 classDef 전체 지정, Z는 style 지정
+const TONE =
+  'flowchart TD\n  A([시작]) --> B{판단}\n  B --> W{둘째 판단}\n  W --> C[처리]\n  C --> Z([끝])\n  classDef hot fill:#ffeeee,stroke:#cc0000,stroke-width:3px\n  class W hot\n  style Z fill:#ddeeff,stroke:#004488\n';
+
+describe('SPEC-PREVIEW-017 AC-003·006·007: 내보내기 모양 톤은 미리보기와 같고 0-잔여·작성자 우선을 지킨다', () => {
+  const css = peleTableFromCss();
+  const content = doc(TONE);
+
+  /** 내보낸 다이어그램 SVG 문자열 → 노드 id별 노드 g의 style과 모양 요소의 style. */
+  function toneOf(svgText: string) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = svgText;
+    const node = (id: string) => {
+      const g = tpl.content.querySelector(`.pele-node[data-id="${id}"]`)!;
+      expect(g, `노드 ${id}`).not.toBeNull();
+      const shape = g.querySelector(':scope > rect, :scope > polygon, :scope > path')!;
+      return { g: g.getAttribute('style') ?? '', shape: shape.getAttribute('style') ?? '' };
+    };
+    return { A: node('A'), B: node('B'), W: node('W'), C: node('C'), Z: node('Z') };
+  }
+
+  async function svgsFor(format: 'html' | 'pdf' | 'docx', theme: 'light' | 'dark'): Promise<string[]> {
+    if (format === 'docx') {
+      await exportToDocx(opts(content, theme));
+      return rasterSvgs();
+    }
+    const out = format === 'html' ? (await exportToHtml(opts(content, theme)), writtenHtml()) : await generateHtmlContent(opts(content, theme));
+    return containers(bodyOf(out)).map((c) => c.innerHTML);
+  }
+
+  function expectTones(svgText: string, table: Record<string, string>) {
+    expect(svgText).not.toContain('var(--pele-');
+    const t = toneOf(svgText);
+    // 판단: surface-alt 채움 + 판단 테두리 / 시작·끝: 액센트 테두리 + 1.5px / 사각형: 톤 없음
+    expect(t.B.g).toContain(`--_s:${table['--pele-surface-alt']}`);
+    expect(t.B.g).toContain(`--_b:${table['--pele-decision-border']}`);
+    expect(t.A.g).toContain(`--_b:${table['--pele-accent']}`);
+    expect(t.A.g).toContain('stroke-width:1.5px');
+    expect(t.C.g).not.toMatch(/--_[sb]:/);
+    // 작성자 값은 모양 요소 인라인 style에 그대로 남는다(지정한 속성만 이김)
+    expect(t.W.shape).toContain('fill:#ffeeee');
+    expect(t.W.shape).toContain('stroke:#cc0000');
+    expect(t.W.shape).toContain('stroke-width:3px');
+    expect(t.Z.shape).toContain('fill:#ddeeff');
+    expect(t.Z.shape).toContain('stroke:#004488');
+    return t;
+  }
+
+  for (const format of ['html', 'pdf', 'docx'] as const) {
+    it(`${format}: 판단 #F7F2E7·판단 테두리, stadium #3A5673·1.5px, var(--pele- 0건, 작성자 색 보존 (AC-006·003)`, async () => {
+      const svgs = await svgsFor(format, 'light');
+      expect(svgs).toHaveLength(1);
+      expect(css['--pele-surface-alt']).toBe('#F7F2E7');
+      expect(css['--pele-accent']).toBe('#3A5673');
+      expectTones(svgs[0], css);
+    });
+  }
+
+  it('라이트·다크 내보내기의 다이어그램 톤 문자열이 같다 (AC-007)', async () => {
+    for (const format of ['html', 'pdf', 'docx'] as const) {
+      const light = toneOf((await svgsFor(format, 'light')).at(-1)!);
+      imageSrcs.length = 0;
+      const dark = toneOf((await svgsFor(format, 'dark')).at(-1)!);
+      imageSrcs.length = 0;
+      expect(dark, format).toEqual(light);
+    }
+  });
+
+  it('탐침이 빈 표를 돌려줘도 주입부 대체 리터럴이 mdedit-tokens.css :root 토큰 값과 같다 (AC-006)', async () => {
+    const real = await vi.importActual<typeof import('@/lib/diagram/diagramRenderer')>('@/lib/diagram/diagramRenderer');
+    vi.mocked(diagramModule.readPeleThemeValues).mockImplementation(real.readPeleThemeValues);
+    expect(real.readPeleThemeValues('light')).toEqual({}); // jsdom: 빈 표 경로 전제
+    await exportToHtml(opts(content, 'light'));
+    const [svg] = containers(bodyOf(writtenHtml())).map((c) => c.innerHTML);
+    expectTones(svg, css);
   });
 });
 

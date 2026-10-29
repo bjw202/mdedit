@@ -15,7 +15,7 @@
 
 ## 요구 모듈 C — 다크 종이 카드
 
-- REQ-PREVIEW016-005 (State-driven): While 다크 활성 시 미리보기·내보낸 HTML은 다이어그램을 종이 카드로 표현(배경 `--pele-bg`, 테두리 `--pele-border`, 반경 `--pele-radius`); While 라이트 활성 시 다이어그램 카드 규칙(배경·테두리·반경)을 추가하지 않음(승인 기본값).
+- REQ-PREVIEW016-005 (State-driven): While 다크 활성 시 미리보기·내보낸 HTML은 다이어그램을 종이 카드로 표현(배경 `--pele-bg`, 테두리 `--pele-border`, 반경 `--pele-radius`); While 라이트 활성 시 다이어그램 카드 규칙(배경·테두리·반경)을 추가하지 않음(승인 기본값). (SPEC-PREVIEW-017 개정: 라이트 미리보기도 바탕 `--pele-bg`만 가짐, 테두리·반경은 다크 전용)
 
 ## 요구 모듈 D — 내보내기 이음매
 
@@ -31,7 +31,7 @@
 | AC | REQ | 요지 (검증 기법) |
 |----|-----|------------------|
 | AC-001 | 001 | unit CSS 파싱 — pele 블록 1개, 다크 0개, `var(--md-` 0 |
-| AC-002 | 002 | unit — 23값 전부 표 일치, accent==line==`#3A5673`, series 8개 정확 |
+| AC-002 | 002 | unit — 23값 전부 표 일치, accent==line==`#3A5673`, series 8개 정확 (SPEC-PREVIEW-017 개정: 24값, `--pele-decision-border` 추가) |
 | AC-003 | 003 | unit — 글꼴 바이트 동일, 반경 `3px`, 굵기 `600` |
 | AC-004 | 004 | unit+e2e — 테마 간 직렬화 색 동일 |
 | AC-005 | 005 | unit+e2e+manual — 다크 종이 카드(bg `#FAF9F6`·테두리·반경), 라이트 무카드 |

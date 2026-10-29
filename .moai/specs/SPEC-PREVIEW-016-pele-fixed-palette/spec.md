@@ -49,6 +49,8 @@ depends_on: [SPEC-PREVIEW-015]
 - The pele 토큰의 색 값 shall 승인된 잉크 앤 허니 팔레트 표만을 따른다: bg `#FAF9F6`, fg `#222B33`, muted `#67727C`, line `#3A5673`, surface `#EEF3F7`, surface-alt `#F7F2E7`, border `#97A4B1`, accent `#3A5673`(line과 같은 값), error/critical `#AC3E31`, series-1..8 `#3168A8` `#C95F3B` `#23997C` `#B78511` `#C76A95` `#7A8A28` `#6E5BC4` `#96562F`.
 - The pele 토큰 shall not 이 표 밖의 색 값을 선언한다(기각된 Option B 액센트 `#C08A28` 포함).
 
+> 개정 포인터(SPEC-PREVIEW-017, 2026-10-29): 값 표에 앱 전용 판단 테두리 `--pele-decision-border`(`#8A6410`) 1행이 추가되어 고정 토큰은 24개다. `#C08A28` 금지는 유지. 근거: SPEC-PREVIEW-017 REQ-PREVIEW017-005, spec.md "다른 SPEC 개정".
+
 #### REQ-PREVIEW016-003: 글꼴·반경·굵기 유지 (Ubiquitous)
 
 - The pele 토큰의 글꼴 값 shall `src/lib/diagram/diagramRenderer.ts`의 `DIAGRAM_FONT_FAMILY`·`DIAGRAM_FONT_FAMILY_MONO` 상수와 바이트 단위로 같은 글꼴 목록을 단일 `:root` 리터럴로 유지한다(SPEC-PREVIEW-015 AC-004 계약 유지 — 검증 절차 문구와 테스트 루프만 단일 블록으로 기계적 수정).
@@ -63,6 +65,8 @@ depends_on: [SPEC-PREVIEW-015]
 
 - **While** 다크 테마(`data-theme="dark"`)가 활성 상태일 때, the 미리보기와 내보낸 HTML shall 다이어그램을 종이 카드로 표현한다 — 배경 `--pele-bg`, 테두리 `--pele-border`, 반경 `--pele-radius`.
 - **While** 라이트 테마가 활성 상태일 때, the 미리보기와 내보낸 HTML shall 다이어그램 카드 규칙(배경·테두리·반경)을 추가하지 않는다(승인 기본값 2026-10-28: 라이트 무카드 — 라이트 배경 `#f2f2f3`와 종이 `#FAF9F6`는 근접한 흰색 차이라 이음매 상수가 값을 지킨다).
+
+> 개정 포인터(SPEC-PREVIEW-017, 2026-10-29): 라이트 절의 배경 부분이 개정되었다 — 라이트 미리보기 다이어그램 컨테이너도 바탕 `--pele-bg`를 갖는다(간선 라벨 이음매 해소). 테두리·반경은 계속 다크 전용. 근거: SPEC-PREVIEW-017 REQ-PREVIEW017-008, spec.md "다른 SPEC 개정".
 
 #### REQ-PREVIEW016-006: 내보내기 이음매 상수화 (Ubiquitous)
 

@@ -28,6 +28,8 @@
 - **When** 파싱된 `--pele-*` 값을 표와 하나씩 비교하면,
 - **Then** 전부 표와 같고, accent == line == `#3A5673`이며, series는 정확히 8개로 `#3168A8` `#C95F3B` `#23997C` `#B78511` `#C76A95` `#7A8A28` `#6E5BC4` `#96562F`와 하나씩 일치한다.
 
+> 개정 포인터(SPEC-PREVIEW-017, 2026-10-29): 기대값 표는 고정 24개 토큰 기준이다(`--pele-decision-border` `#8A6410` 추가). 근거: SPEC-PREVIEW-017 AC-PREVIEW017-005.
+
 ### AC-PREVIEW016-003 — 글꼴·반경·굵기 (unit)
 
 - **Given** 단일 `:root` 블록과 `src/lib/diagram/diagramRenderer.ts`의 `DIAGRAM_FONT_FAMILY`·`DIAGRAM_FONT_FAMILY_MONO` 상수가 주어지고,
