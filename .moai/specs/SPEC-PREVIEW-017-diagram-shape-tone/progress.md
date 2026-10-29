@@ -181,6 +181,25 @@ Residual risk:
 - AI 카드 미니 다이어그램은 `.preview-content` 밖이라 톤·라이트 바탕을 받지 않는다(의도된 범위, §E.2.2).
 - 라이트 바탕 규칙은 오류·빈 다이어그램 컨테이너도 `#FAF9F6`로 칠한다(review-2 N5, REQ-008과 일치).
 
+### E.3b 오케스트레이터 독립 검증 (2026-10-29, 구현 에이전트 보고와 별개로 최종 트리 d4710e9에서 재실행)
+
+증거 폴더: `.moai/state/verify/6182e31c-0917-4343-b809-20aabc296175/` (`v-*.log`, gitignored).
+
+| 명령 | exit | 관찰 출력(발췌) | 증거 |
+|------|------|----------------|------|
+| `npx tsc --noEmit` | 0 | 출력 없음 | `v-tsc.log` |
+| `npm run lint` | 0 | `eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0` 뒤 경고·오류 없음 | `v-lint.log` |
+| `npx vitest run` | 0 | `Test Files  108 passed (108)` / `Tests  1765 passed (1765)` | `v-vitest.log` |
+| `npx playwright test e2e/diagram-shape-tone.spec.ts e2e/diagram-preview-behavior.spec.ts e2e/diagram-export-colors.spec.ts --reporter=list` | 0 | `15 passed (13.1s)` | `v-e2e.log` |
+| AC-003 `awk … shape-tone … \| grep -c '!important'` / `grep -c '!important' src/lib/export/exportUtils.ts` / AC-004 금지 선택자 grep | — | 각각 `0` / `0` / `0` (블록 길이 11줄, 마커 `src/index.css:309`·`:319`) | 터미널 |
+| `grep -c -- "--pele-decision-border:" src/styles/mdedit-tokens.css` | — | `1` (`:127`, `:root` 블록 안, 리터럴 `#8A6410`) | 터미널 |
+| `git diff --name-only f9c94ee..HEAD` | — | 11개 파일, 전부 plan.md §F 범위(SPEC-017 spec/plan/acceptance 본문 무변경, 016 문서 3개는 포인터만, `src-tauri/` 변경 0) | 터미널 |
+
+- 소스 코드 리뷰(`git diff f9c94ee..HEAD -- src/index.css src/styles/mdedit-tokens.css src/lib/...`): CSS 톤 규칙 8줄(+ 주석), `SHAPE_TONES` 2행 + 주입 루프 6줄, 토큰 1줄, `PELE_THEME_VARS` 1줄. 선택자는 `pele-shape-*` 클래스뿐이고 `!important`·라벨 문구·노드 순서·테마 입력이 없다. 다크 규칙의 중복 바탕 선언 제거는 결과 상태 동일(다크 e2e가 `rgb(250, 249, 246)`·`1px`·`3px` 단정).
+- 보고서 `SPEC-PREVIEW-017-review-3.md`(run 진입 시 PASS 0.94)를 같은 커밋 묶음에 넣었다.
+
+Gaps(오케스트레이터 미관찰): `cargo test`는 재실행하지 않았다(변경 파일에 Rust 파일이 없어 회귀 확인용이다. 구현 에이전트가 보고한 `367 passed`는 `gate-cargo.log` 기준이며 이 절에서는 직접 확인하지 않았다). 수동 시각 확인, 실제 Tauri 앱·PDF·DOCX 렌더, Windows·비 webkit 브라우저, 커버리지 수치는 §E.3 Gaps와 같다.
+
 ## §E.4 Sync-phase Audit-Ready Signal
 
 _<pending sync-phase>_
