@@ -33,11 +33,12 @@ vi.mock('pele', async (importOriginal) => {
 
 // 고정 팔레트 값 표(SPEC-PREVIEW-016) — mdedit-tokens.css :root의 pele 리터럴을 그대로 읽는다.
 // 라이트·다크가 같은 표를 가리킨다(테마는 다이어그램 색의 입력이 아님, AC-PREVIEW016-004).
-// 아래 가드 테스트가 이 표가 CSS 단일 :root 블록과 23개 이름 전부에서 일치하는지 고정한다.
+// 아래 가드 테스트가 이 표가 CSS 단일 :root 블록과 24개 이름 전부에서 일치하는지 고정한다
+// (016의 23개 + SPEC-PREVIEW-017 판단 테두리 decision-border).
 const VAR_NAMES = [
   'accent', 'bg', 'border', 'fg', 'font', 'font-mono', 'heading-weight', 'line', 'muted', 'radius',
   'series-1', 'series-2', 'series-3', 'series-4', 'series-5', 'series-6', 'series-7', 'series-8',
-  'surface', 'surface-alt', 'title-weight', 'error', 'critical',
+  'surface', 'surface-alt', 'title-weight', 'error', 'critical', 'decision-border',
 ];
 const here = dirname(fileURLToPath(import.meta.url));
 const peleTableFromCss = () => {
@@ -284,7 +285,7 @@ describe('AC-PREVIEW015-019: 실패·빈 펜스는 자기 자리만 차지한다
 });
 
 describe('AC-PREVIEW016-004: 주입 표는 mdedit-tokens.css :root 고정 팔레트와 일치한다', () => {
-  it('읽은 표는 pele 변수 23개 전부를 담고 라이트·다크가 같은 객체다', () => {
+  it('읽은 표는 pele 변수 24개 전부를 담고 라이트·다크가 같은 객체다', () => {
     expect(Object.keys(THEME.light).sort()).toEqual(VAR_NAMES.map((n) => `--pele-${n}`).sort());
     expect(THEME.dark).toBe(THEME.light);
   });

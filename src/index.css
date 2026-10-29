@@ -299,6 +299,24 @@
   border-radius: var(--pele-radius);
 }
 
+/* @MX:NOTE: [AUTO] 다이어그램 모양 기반 자동 톤(SPEC-PREVIEW-017) — 판단(pele-shape-diam)과 시작/끝(pele-shape-stadium)만 칠한다.
+   기제: pele 모양은 fill="var(--_s)" stroke="var(--_b)" 표현 속성으로 칠해지고 사적 변수는 SVG 루트 인라인 style에 있으므로,
+   노드 g에서 사적 변수를 다시 선언하면 그 노드의 모양만 바뀐다. 작성자 classDef·style은 모양 요소 자신의 인라인 선언이라
+   상속된 값보다 항상 이긴다(지정한 속성만 이기고 나머지는 톤을 받음). stroke-width는 상속 속성이라 g에 둔다.
+   선택자는 모양 클래스만 쓴다(라벨 문구·노드 순서 기반 착색 금지). 내보내기는 exportUtils.ts renderExportDiagram이 같은 기제로 주입한다.
+   범위는 미리보기(.preview-content)뿐 — AI 카드 미니 다이어그램은 편집기 안에서 렌더되어 이 규칙이 닿지 않는다. */
+/* SPEC-PREVIEW-017 shape-tone BEGIN */
+.preview-content .pele-node.pele-shape-diam {
+  --_s: var(--pele-surface-alt);
+  --_b: var(--pele-decision-border);
+}
+
+.preview-content .pele-node.pele-shape-stadium {
+  --_b: var(--pele-accent);
+  stroke-width: 1.5px;
+}
+/* SPEC-PREVIEW-017 shape-tone END */
+
 /* KaTeX 수식 다크 모드 지원 (SPEC-PREVIEW-003) */
 /* 다크 모드에서 수식 색상이 상위 텍스트 색상을 상속받도록 설정 */
 .dark .katex {
