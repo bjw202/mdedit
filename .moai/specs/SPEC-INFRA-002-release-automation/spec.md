@@ -1,7 +1,7 @@
 ---
 id: SPEC-INFRA-002
 title: "태그 푸시 기반 GitHub Actions 릴리스 자동화 — macOS·Windows 설치 파일 초안 릴리스"
-version: "0.3.2"
+version: "0.3.3"
 status: in-progress
 created: 2026-10-29
 updated: 2026-10-29
@@ -25,6 +25,7 @@ tier: M
 | 0.3.0 | 2026-10-29 | jw | plan-audit 2차(`.moai/reports/plan-audit/SPEC-INFRA-002-iter2.md`, PASS-WITH-DEBT 0.90) 부채 반영과 Decision Point 1 승인(2026-10-29). Round 4 사용자 선택(`interview.md`): (1) tauri-action은 커밋 SHA `1deb371b0cd8bd54025b384f1cd735e725c4060f`(v1·v1.0.0 태그가 가리키는 커밋)로 고정하고 `# v1.0.0` 주석(REQ-011, AC-009, N3); (2) 안내 블록 링크는 Releases 페이지 URL, 절 앵커 없음(REQ-005, AC-005); (3) R-8(빌드 중 Publish) 위험을 사용자가 수용, BUILD.md 규칙 "실행이 완전히 끝난 뒤 게시" 유지. 부채: N1 빌드 job 셸 단계 `shell: bash`, N4 BUILD.md "병합된 커밋" 문장 검사, N5 `github.token` 노출 검사, N6 낡은 문구, N7 줄 수 대신 서로 다른 사례 수, N8 로컬 macOS 빌드 ad-hoc 서명 안내, N9 `$W`를 같은 명령 안에서 정의. REQ·AC 번호 변경 없음(16/16). |
 | 0.3.1 | 2026-10-29 | jw | Round 4 선택 (2) 해석 정정(사용자 답변, `interview.md` Round 4): 릴리스 본문 안내 블록의 링크는 Releases 페이지가 아니라 저장소 첫 화면(README) `https://github.com/bjw202/mdedit`, 절 앵커 없음. Releases 페이지 링크는 순환이라 기각. REQ-005·AC-005 수정. README 내려받기 절의 Releases 링크(REQ-013·AC-011)는 그대로. REQ·AC 16/16. |
 | 0.3.2 | 2026-10-29 | jw | run 단계 감사 게이트(`.moai/reports/plan-audit/SPEC-INFRA-002-review-1.md`, PASS-WITH-DEBT 0.90) 문서 부채 반영 — 범위·결정·번호 변경 없음. D1: acceptance.md 판정 규칙을 명령 종류별로 다시 쓰고(grep은 일치 = 종료 코드 0이라 의미가 반대) 모든 자동 AC 명령에 PASS/FAIL 조건 명시. D2: AC-005 금지 링크 정규식을 경로 중간 앵커(`…/blob/HEAD/README.md#…`)까지 넓히고 REQ-005 문구 맞춤. D3: README 링크 끝 `/` 허용(REQ-005·AC-005). D4: References를 Round 1~4·감사 보고서 3건으로. D5: interview.md 라운드 수 표기 정정. D6: REQ-008·AC-008에 단계 단위 토큰 검사 추가(`npm ci` 등 다른 단계 `env`의 토큰 거부). REQ·AC 16/16. |
+| 0.3.3 | 2026-10-29 | jw | sync 감사(`.moai/reports/sync-audit/SPEC-INFRA-002-sync-audit.md`, PASS-WITH-DEBT 0.85)의 SPEC 본문 이관 3건 반영(사용자 승인 "필수 동기화 + 안전 보완 함께"). 구현은 바꾸지 않음(HEAD f5f4707). F1: AC-004 첫 단언이 셸 주석 줄을 빼고 `draft=true`를 판정 — 주석 안에만 남은 값으로 통과하던 허점 제거. F2: AC-004 금지 grep을 대소문자 무시로 바꾸고 `--method=PATCH`·`-XPATCH`·따옴표 `"draft=False"`·`draft: False` 형태까지 넓힘. F4·F6: 위험 R-10(빌드 단계 쓰기 토큰 노출)·R-11(워크플로 파일 변경 커밋 대상 릴리스 생성 거부, 리허설 태그는 병합 뒤) 추가. 범위·결정·번호 변경 없음, REQ·AC 16/16. |
 
 ## Overview
 
@@ -233,6 +234,8 @@ tier: M
 | R-7 | main에 없는 커밋에 태그 | CI를 거치지 않은 코드가 초안으로 빌드됨 | 수용한 잔여 위험(사용자 결정 Round 3). BUILD.md 절차, 게시 전 사람 확인 |
 | R-8 | 실행 도중 게시 | tauri-action은 빌드와 업로드를 한 단계에서 하므로 초안 확인은 Rust·Vite 빌드 전체보다 앞에 온다. 확인~업로드 틈은 빌드 단계 전체이고, 그동안 Publish를 누르면 게시본에 파일이 올라갈 수 있음 | BUILD.md 규칙 "실행이 완전히 끝난 뒤 게시". **사용자가 2026-10-29 승인 게이트에서 수용**(Round 4) |
 | R-9 | 캐시 액션 제거로 빌드가 매번 처음부터 | 실행이 길어짐 | 태그 푸시 때만 돌므로 수용 |
+| R-10 | 빌드 단계 안의 쓰기 토큰 노출(sync 감사 F4, `.github/workflows/release.yml:160-166`) — 쓰기 권한 `GITHUB_TOKEN`이 tauri-action 단계 `env`에 있고, 그 단계가 `beforeBuildCommand`(`npm run build-vite`)와 Cargo 빌드 스크립트를 실행하므로 오염된 의존성이 토큰을 읽을 수 있음 | 저장소 쓰기 토큰 유출 가능성 | **수용한 잔여 위험.** 토큰은 이 저장소에만 유효하고 job이 끝나면 만료된다. 그 앞 단계(`npm ci` 등)는 토큰 없이 돈다(REQ-008, AC-008). 근본 보강(토큰 없이 빌드한 뒤 별도 `gh api` 단계로 업로드)은 별도 SPEC 후보 |
+| R-11 | 워크플로 파일이 바뀐 커밋을 대상으로 한 릴리스 생성 거부(sync 감사 F6) — GitHub 문서(`releases.md` 147-149행, sync 감사 인용)는 대상 커밋이 기본 브랜치 대비 `.github/workflows/` 아래 파일을 추가·수정하면 `GITHUB_TOKEN`으로는 권한이 주어지지 않는다(404/403)고 적는다. 이미 있는 태그가 예전 main 커밋을 가리킬 때의 처리는 문서상 모호하다 | 생성 job이 404/403으로 실패해 초안이 만들어지지 않음 | 릴리스 태그는 병합된 main 커밋(가능하면 main 최신 커밋)에 단다(BUILD.md 절차 2단계, REQ-014). 리허설 태그(AC-013·014)는 이 변경이 main에 병합된 **뒤에만** 푸시한다. 미병합 브랜치 커밋에 단 태그는 실패할 수 있다 — 수용 |
 
 ## @MX 계획
 

@@ -62,10 +62,10 @@
 
 - Given `release.yml`
 - When 생성 job의 단계를 보면
-- Then 릴리스 생성 API 호출 단계가 `draft=true`를 보낸다(이 값을 지우면 실패한다).
-  - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W a.ok(S('create-release').some(s=>/gh api/.test(run(s))&&/(-F|--field) +draft=true/.test(run(s))))"`
-- Then 파일 어디에도 초안 해제·프리릴리스·Latest 지정·삭제·수정 호출이 없다.
-  - `grep -nE "draft[\"']?[:=] *false|draft=false|make_latest|--latest|prerelease=true|prerelease: *true|gh release (create|edit|delete|upload)|-X *(DELETE|PATCH)|--method *(DELETE|PATCH)" .github/workflows/release.yml` → PASS = 출력 없음(이때 grep 종료 코드 1). FAIL = 한 줄이라도 출력됨(종료 코드 0)
+- Then 릴리스 생성 API 호출 단계가 `draft=true`를 보낸다. 셸 주석 줄(`^\s*#`)은 빼고 판정하므로, 이 값을 지우거나 주석 안에만 남기면 실패한다(sync 감사 F1).
+  - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W a.ok(S('create-release').some(s=>{const r=run(s).split('\n').filter(l=>!/^\s*#/.test(l)).join('\n');return /gh api/.test(r)&&/(-F|--field) +draft=true/.test(r)}))"` → PASS = 종료 코드 0. FAIL = 0이 아닌 종료 코드(`AssertionError`)
+- Then 파일 어디에도 초안 해제·프리릴리스·Latest 지정·삭제·수정 호출이 없다. 대소문자를 가리지 않고(`draft=False`, `draft: False`, 따옴표로 감싼 `"draft=False"` 포함), `--method=PATCH`·`--method DELETE`·`-XPATCH`·`-X DELETE` 같은 붙여 쓴 형태도 잡는다(sync 감사 F2).
+  - `grep -inE "draft[\"']?[[:space:]]*[:=][[:space:]]*[\"']?false|prerelease[\"']?[[:space:]]*[:=][[:space:]]*[\"']?true|make_latest|--latest|gh release (create|edit|delete|upload)|-X *=?(DELETE|PATCH)|--method[ =]*(DELETE|PATCH)" .github/workflows/release.yml` → PASS = 출력 없음(이때 grep 종료 코드 1). FAIL = 한 줄이라도 출력됨(종료 코드 0). 한계: 대소문자 무시이므로 주석에 `draft: false` 같은 문구를 쓰면 위반으로 잡힌다 — 이 워크플로 주석에는 그런 문구가 없다(2026-10-29 실측: 출력 없음).
 - Then 빌드 job은 `tagName`이 아니라 생성 job이 넘긴 `releaseId`로 올린다.
   - `W='const fs=require("fs"),a=require("assert"),t=fs.readFileSync(".github/workflows/release.yml","utf8"),w=require("js-yaml").load(t),J=w.jobs,S=(j)=>J[j].steps,run=(s)=>s.run||"";'; node -e "$W const s=S('build').find(x=>/tauri-apps\/tauri-action@/.test(x.uses||''));a.ok(s);a.ok(/needs\.create-release\.outputs/.test(String(s.with.releaseId)));a.ok(!('tagName' in s.with))"`
 

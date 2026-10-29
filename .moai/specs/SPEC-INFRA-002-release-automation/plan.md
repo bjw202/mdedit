@@ -22,6 +22,7 @@
 | D-7 | tauri-action은 커밋 SHA `1deb371b0cd8bd54025b384f1cd735e725c4060f` + `# v1.0.0` 주석으로 고정(사용자 선택 Round 4, 감사 N3) | REQ-011, AC-009 |
 | D-8 | 안내 블록 링크 = 저장소 첫 화면(README) `https://github.com/bjw202/mdedit`, 절 앵커 없음, Releases 페이지 링크 금지(순환). 첫 실행 대처법은 README에만 둔다(사용자 선택 Round 4 + 2026-10-29 정정) | REQ-005, AC-005 |
 | D-9 | 빌드 job의 셸 단계는 `shell: bash`(job `defaults.run.shell: bash` 권장, 감사 N1) | REQ-004, AC-005 |
+| D-10 | sync 감사 F4·F6을 수용한 잔여 위험으로 기록: 빌드 단계 안의 쓰기 토큰 노출(R-10), 워크플로 파일 변경 커밋 대상 릴리스 생성 거부 — 릴리스·리허설 태그는 병합된 main 커밋에, 리허설은 이 변경이 병합된 뒤에만(R-11) | spec.md 위험 R-10·R-11, REQ-014, AC-013·014 |
 
 ## §C 데이터 흐름(워크플로 구조)
 
