@@ -67,6 +67,14 @@
 | 011 | README·BUILD.md for 반복 / CHANGELOG `grep -c` 2개 | 출력 없음·출력 없음 / `1`·`0` | PASS |
 | 012 | `npm test` / `npm run lint` / `npm run typecheck` | 종료 0, `Test Files 109 passed (109)`, `Tests 1788 passed (1788)`(= 기준 1765 + 새 23) / 종료 0 / 종료 0 | PASS |
 
+### 오케스트레이터 독립 확인 (2026-10-29, 위 구현 담당 보고와 별개로 직접 실행)
+
+- 병합: 구현 브랜치 `worktree-agent-a469ba6de3a0b16a7`(커밋 0d82ae4·47833ee·0cf857e)를 `WT-release-automation`(시작 10d95f9)으로 fast-forward 병합했다. 변경 파일은 `git diff --stat`로 정확히 10개(계획된 신규 4 + 수정 4 + progress.md + spec.md 프런트매터)임을 확인했다. 병합·로그 이전 뒤 격리 워크트리와 임시 브랜치는 제거했다(위 "실행 위치" 경로는 지금은 없음; 원문 로그는 이 SPEC의 `.moai/state/verify/SPEC-INFRA-002/`로 옮겨 경로가 유효하다).
+- 직접 실행(이 워크트리, `npm ci` 후): `npx vitest` 전체 109 파일 · 1788 테스트 통과, `npx tsc --noEmit` 종료 0, `npm run lint` 종료 0, `actionlint .github/workflows/release.yml`·`frontend-gates.yml` 종료 0·출력 없음.
+- AC-001~011: 구현 담당의 `ac.sh`(acceptance.md 명령 전사본)를 이 워크트리 루트에서 다시 실행(`orch-ac-run.log`)해 AC-001b `3`, AC-008d `secrets.GITHUB_TOKEN`, AC-011c `1`, AC-011d `0`, 나머지 node 단언 종료 0·금지 문구 grep 출력 없음을 확인했다. (`ac.sh`는 전사본이므로 acceptance.md 원문과의 글자 단위 일치는 따로 대조하지 않았다 — Gap.)
+- 주의(검증 함정): 격리 워크트리가 이 워크트리의 `.claude/worktrees/` 아래에 있는 동안 `npm test`(`vitest run`)는 그 안의 `src` 복사본까지 모아 218 파일·65 파일 실패로 나왔다. 실패는 전부 `.claude/worktrees/…` 복사본이었고(65/65), 제거 뒤 같은 `npm test`가 109 파일·1788 테스트 종료 0으로 돌아왔다. 변경 코드의 결함이 아니다. 별도로, `vite.config.ts`가 `.claude/**`를 테스트 대상에서 빼지 않는 기존 약점이다(범위 밖, 후속 제안).
+- 불변 조건: `git diff --stat 97b7db5 -- .github/workflows/frontend-gates.yml` 출력 없음, `git tag -l 'v0.19*'` 출력 없음, 푸시 없음.
+
 ### 수동 AC (미실행)
 
 - AC-013~016은 병합 뒤 사용자 행동(태그 푸시·실기기 실행)이 필요해 run 단계에서 실행하지 않았다. 실제 워크플로 실행, macOS ad-hoc 서명 결과, Windows SmartScreen 문구는 관측하지 않았다.
