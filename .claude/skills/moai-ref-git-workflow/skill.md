@@ -5,6 +5,13 @@ description: >
   reference for git operations. Agent-extending skill that amplifies manager-git
   expertise with production-grade git workflow patterns.
   NOT for: code implementation, testing, architecture design, documentation content.
+
+when_to_use: >
+  Use for git workflow reference: branch strategies, conventional commits,
+  PR templates, merge and rebase flows, and commit/branch/release
+  conventions. Amplifies manager-git expertise with production-grade git
+  workflow patterns.
+
 user-invocable: false
 metadata:
   version: "1.0.0"
@@ -12,19 +19,12 @@ metadata:
   status: "active"
   updated: "2026-03-30"
   tags: "git, branch, commit, pr, workflow, reference"
-  agent: "manager-git"
 
 # MoAI Extension: Progressive Disclosure
 progressive_disclosure:
   enabled: true
   level1_tokens: 100
   level2_tokens: 3000
-
-# MoAI Extension: Triggers
-triggers:
-  keywords: ["git", "commit", "branch", "pr", "merge", "rebase"]
-  agents: ["manager-git"]
-  phases: ["run", "sync"]
 ---
 
 # Git Workflow Reference
@@ -120,8 +120,8 @@ Refs: #123, SPEC-AUTH-001
 - SPEC-{ID}: {title}
 
 ## Checklist
-- [ ] Tests pass (`go test ./...`)
-- [ ] Linting pass (`golangci-lint run`)
+- [ ] Tests pass (project test command)
+- [ ] Lint and format pass (project toolchain)
 - [ ] No secrets committed
 - [ ] Documentation updated if needed
 ```
@@ -133,6 +133,8 @@ Refs: #123, SPEC-AUTH-001
 | Squash merge | Feature branches (clean history) | `gh pr merge --squash` |
 | Merge commit | Release branches (preserve history) | `gh pr merge --merge` |
 | Rebase | Small, clean commits | `gh pr merge --rebase` |
+
+The active method for sync-phase PR auto-merge is governed by the `git_strategy.<mode>.merge_method` config value (`squash` | `merge` | `rebase`; default `squash`), not hardcoded. The sync agent resolves it from the active mode profile and renders the matching `gh pr merge --<merge_method>` command.
 
 ## Git Safety Rules
 
@@ -187,7 +189,7 @@ Refs: SPEC-AUTH-001
 ## Verification
 
 - [ ] All commit messages follow conventional format (show git log --oneline)
-- [ ] Branch name follows convention (feature/, fix/, chore/ prefix)
+- [ ] Branch name follows convention (feat/, fix/, refactor/, docs/, chore/ prefix)
 - [ ] No force pushes to main or protected branches (check reflog or CI)
 - [ ] PR has passing CI checks before merge
 - [ ] No merge conflict markers in committed files (grep for <<<<<<<)

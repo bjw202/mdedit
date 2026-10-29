@@ -28,6 +28,10 @@ Standard skeptical evaluation for general-purpose code review.
 - Report all findings with file:line references
 - Provide actionable fix recommendations for every FAIL
 
+## Finding-Stage Reporting (coverage before filtering)
+
+At the finding stage, report every issue you find, including ones you are uncertain about or consider low-severity, each with a confidence level and an estimated severity. Do not filter for importance or confidence while finding — the verdict stage (must-pass thresholds + harmonic scoring) does the filtering downstream. The goal at this stage is coverage: surfacing a finding that later gets filtered out is preferable to silently dropping a real bug.
+
 ## Scoring Rubric
 
 ### Functionality (40%)
@@ -65,3 +69,22 @@ Standard skeptical evaluation for general-purpose code review.
 | 0.75 | Minor deviations from conventions; no structural inconsistencies |
 | 0.50 | Some pattern violations; deviations are localized |
 | 0.25 | Significant inconsistencies with existing codebase patterns |
+
+## D7/D8 Plan-Phase Dimensions
+
+The following two dimensions are evaluated by plan-auditor during plan-phase
+audit, not by sync-auditor during run-phase. They are listed here for
+cross-reference visibility — the weights apply ONLY to plan-auditor's PASS/FAIL
+decision and do NOT contribute to sync-auditor's 4-dimension overall score
+(Functionality/Security/Craft/Consistency above).
+
+| Plan-Auditor Dimension | Weight in Plan Verdict | Pass Threshold |
+|------------------------|-----------------------:|----------------|
+| D7 Cross-SPEC Reconciliation | 50% | No BLOCKING finding |
+| D8 Cross-Platform Discipline | 50% | No BLOCKING finding |
+
+Both dimensions use binary BLOCKING/PASS semantics — any single BLOCKING
+finding fails plan-auditor's overall verdict regardless of other scores.
+
+See `.claude/agents/moai/plan-auditor.md` Group 7 + Group 8 for the full
+verification verbs and rubric.

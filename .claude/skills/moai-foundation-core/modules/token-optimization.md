@@ -1,30 +1,59 @@
 # Token Optimization - Budget Management
 
-Purpose: Efficient 200K token budget management through strategic context loading, phase separation, and model selection for cost-effective AI development.
+> **Illustrative pseudocode AND model-specific budget pointer.** The
+> Python `Agent(subagent_type=...)` and class literals below are
+> pseudocode showing budget-tracking shape, NOT runnable code. MoAI
+> invokes retained agents (`manager-spec`, `manager-develop`,
+> `manager-docs`, etc.) through **natural-language delegation** ("Use the
+> {agent} subagent to {task}"), never a `subagent_type` code literal — see
+> [delegation-patterns.md](delegation-patterns.md) § Note + the flat
+> 11-agent catalog in [agents-reference.md](agents-reference.md).
+>
+> **The hard-coded "200K token budget" / "Phase 2: DDD 180K" /
+> `clear_threshold = 150000` figures below are ILLUSTRATIVE DEFAULTS for a
+> 200K-context model class.** Real budgets are **model-specific**: 1M-context
+> models (Opus 5, Opus 4.8, GLM-5.3) hand off at **50%** (~500K tokens);
+> 200K/256K models (Sonnet/Haiku/Fable) hand off at **90%** (~180K/~230K).
+> The authoritative per-model threshold table is
+> `.claude/rules/moai/workflow/context-window-management.md` § Context
+> Window Targets — consult it before applying any figure below. The
+> `sonnet-4.5` / `haiku-4.5` `model_selection` config shown later in this
+> file is RETIRED in favor of **effort-routing** (`effortLevel`:
+> low/medium/high/xhigh/max per agent role — see
+> `.claude/rules/moai/development/agent-authoring.md` § Effort-Level
+> Calibration Matrix); the cost-lever is now effort, not a hardcoded
+> sonnet/haiku model swap.
+
+Purpose: Efficient token-budget management through strategic context loading, phase separation, and effort-routing for cost-effective AI development.
 
 Version: 1.0.0
-Last Updated: 2025-11-25
 
 ---
 
 ## Quick Reference (30 seconds)
 
-Token Budget: 200K per feature (250K with overhead)
+> The figures below assume a 200K-context model class. For 1M-context
+> models (Opus 5 / Opus 4.8 / GLM-5.3) the handoff threshold is 50%
+> (~500K tokens), NOT 90% — see context-window-management.md § Context
+> Window Targets for the authoritative per-model table.
 
-Phase Allocation:
+Token Budget: model-class-dependent (200K class: ~200K per feature, ~250K with overhead; 1M class: ~500K ceiling at the 50% handoff threshold)
+
+Phase Allocation (200K-class illustration; scale proportionally for 1M-class):
 - SPEC Generation: 30K tokens
 - DDD Implementation: 180K tokens
 - Documentation: 40K tokens
 
 /clear Execution Rules:
-1. Immediately after /moai:1-plan (saves 45-50K)
-2. When context > 150K tokens
+1. Immediately after /moai plan (saves 45-50K)
+2. When context crosses the model-specific handoff threshold (200K class: 90% / ~150K-180K; 1M class: 50% / ~500K) — see context-window-management.md § Context Window Targets for the SSOT
 3. After 50+ conversation messages
 
-Model Selection:
-- Sonnet 4.5: Quality-critical (SPEC, security)
-- Haiku 4.5: Speed/cost (simple edits, tests)
-- Cost savings: 60-70% with strategic Haiku use
+Effort Routing (replaces the retired sonnet/haiku model_selection):
+- xhigh / max: Quality-critical (SPEC authoring, security review, Opus-tier reasoning)
+- high: Default for run-phase implementation
+- medium / low: Speed/cost (simple edits, tests, mechanical sweeps)
+- See agent-authoring.md § Effort-Level Calibration Matrix for the per-agent default
 
 Context Optimization:
 - Target: 20-30K tokens per agent
@@ -41,7 +70,7 @@ Standard Feature Budget (250K tokens):
 
 | Phase | Budget | Purpose | Breakdown |
 |-------|--------|---------|-----------|
-| Phase 1: SPEC | 30K | Requirements definition | EARS format, acceptance criteria, complexity |
+| Phase 1: SPEC | 30K | Requirements definition | GEARS format (current; EARS as legacy reference), acceptance criteria, complexity |
 | /clear | - | Context reset | Saves 45-50K tokens |
 | Phase 2: DDD | 180K | Implementation + tests | ANALYZE (40K) + PRESERVE (80K) + IMPROVE (60K) |
 | Phase 3: Docs | 40K | Documentation | API docs, architecture, reports |
@@ -141,7 +170,7 @@ async def spec_then_implement():
  
  # Phase 1: SPEC Generation (heavy context)
  spec = await Agent(
- subagent_type="spec-builder",
+ subagent_type="manager-spec",
  prompt="Generate SPEC for user authentication"
  )
  # Context: ~75K tokens (conversation + SPEC content)
@@ -152,8 +181,8 @@ async def spec_then_implement():
  
  # Phase 2: Implementation (fresh context)
  impl = await Agent(
- subagent_type="ddd-implementer",
- prompt="Implement SPEC-001",
+ subagent_type="manager-develop",
+ prompt="Implement SPEC-001 (cycle_type=ddd)",
  context={
  "spec_id": "SPEC-001", # Minimal reference
  # SPEC content loaded from file, not conversation
@@ -486,11 +515,10 @@ class ContextOptimizer:
  """Extract only fields required by specific agent."""
  
  requirements = {
- "backend-expert": ["spec_id", "api_design", "database_schema"],
- "frontend-expert": ["spec_id", "api_endpoints", "ui_components"],
- "security-expert": ["spec_id", "threat_model", "dependencies"],
- "test-engineer": ["spec_id", "code_structure", "test_strategy"],
- "docs-manager": ["spec_id", "api_spec", "architecture"]
+ "manager-develop": ["spec_id", "cycle_type", "api_design", "database_schema", "code_structure", "test_strategy"],
+ "manager-docs": ["spec_id", "api_spec", "architecture"],
+ "sync-auditor": ["spec_id", "code_summary", "test_strategy"],
+ "general-purpose": ["spec_id", "domain", "api_endpoints", "ui_components", "threat_model", "dependencies"]
  }
  
  required = requirements.get(agent_type, ["spec_id"])
@@ -549,14 +577,14 @@ large_context = {
  "conversation_history": "..." * 20000 # 100KB history
 }
 
-# Optimize for backend-expert
-backend_context = optimizer.optimize_context(large_context, "backend-expert")
-# Result: Only spec_id, api_design, database_schema
+# Optimize for manager-develop (backend-domain implementation)
+backend_context = optimizer.optimize_context(large_context, "manager-develop")
+# Result: Only spec_id, cycle_type, api_design, database_schema
 # Size: ~25K tokens (vs 200K+ original)
 
 result = await Agent(
- subagent_type="backend-expert",
- prompt="Implement backend",
+ subagent_type="manager-develop",
+ prompt="Implement backend (cycle_type=ddd, backend domain)",
  context=backend_context # Optimized context
 )
 ```
@@ -686,23 +714,21 @@ for rec in report['recommendations']:
 ## Works Well With
 
 Skills:
-- moai-foundation-delegation-patterns - Context passing
-- moai-foundation-progressive-disclosure - Content structuring
-- moai-cc-memory - Context persistence
+- [moai-foundation-core](../SKILL.md) - Context management (see [delegation-patterns.md](delegation-patterns.md) and [progressive-disclosure.md](progressive-disclosure.md))
+- [moai-foundation-cc](../../moai-foundation-cc/SKILL.md) - Memory and session-handoff authoring (context persistence)
 
 Commands:
-- /clear - Context reset (mandatory after /moai:1-plan)
+- /clear - Context reset (mandatory after /moai plan)
 - /context - Check current token usage
-- /moai:1-plan - SPEC generation (30K budget)
-- /moai:2-run - DDD implementation (180K budget)
-- /moai:3-sync - Documentation (40K budget)
+- /moai plan - SPEC generation (30K budget)
+- /moai run - DDD implementation (180K budget)
+- /moai sync - Documentation (40K budget)
 
 Memory:
 - Skill("moai-foundation-core") modules/token-optimization.md - Optimization strategies
-- .moai/config/config.json - Budget configuration
+- .moai/config/sections/context.yaml - Budget configuration
 
 ---
 
 Version: 1.0.0
-Last Updated: 2025-11-25
 Status: Production Ready

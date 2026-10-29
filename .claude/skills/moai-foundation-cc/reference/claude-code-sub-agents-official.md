@@ -1,6 +1,6 @@
 # Claude Code Sub-agents - Official Documentation Reference
 
-Source: https://code.claude.com/docs/ko/sub-agents
+Source: https://code.claude.com/docs/en/sub-agents
 Updated: 2026-01-06
 
 ## What are Sub-agents?
@@ -27,6 +27,8 @@ Flexible Permissions: Each can have different tool access levels for security
 ## Creating Sub-agents
 
 ### Quick Start Using /agents Command (Recommended)
+
+> **CHANGELOG delta (CC 2.1.198, annotated 2026-07-03)**: The CC 2.1.198 CHANGELOG states the `/agents` wizard was **removed** — "ask Claude to create or manage subagents, or edit `.claude/agents/` directly." This official doc (source above) still documents the `/agents` tabbed interface, so it lags the CHANGELOG (or the removal covers only the creation wizard). This mirror is NOT rewritten — it tracks the source doc, not the CHANGELOG. Verify in a live 2.1.198 session before relying on the `/agents` flow below.
 
 Step 1: Open the agents interface by typing /agents
 
@@ -76,7 +78,7 @@ Optional Fields:
 
 - model: Model alias (sonnet, opus, haiku) or 'inherit' to use same model as main conversation. If omitted, uses configured default (usually sonnet).
 
-- permissionMode: Controls permission handling. Valid values: `default`, `acceptEdits`, `dontAsk`, `bypassPermissions`, `plan`, `ignore`.
+- permissionMode: Controls permission handling. Valid values: `default`, `plan`, `acceptEdits`, `bypassPermissions` (these are the only real Claude Code permission modes). The earlier list also named `dontAsk` and `ignore` — those are NOT real Claude Code modes and have been removed. NOTE: the spawn-time `mode` parameter on `Task`/`Agent` is **deprecated and ignored since Claude Code v2.1.213** — subagents inherit the parent session's permission mode, and a parent in `bypassPermissions`/`acceptEdits` takes precedence and cannot be overridden. A spawned child's read-only scoping therefore rests on **tool restriction** (the inherently read-only `Explore`, or a `tools:` list omitting Write/Edit/NotebookEdit), never on the deprecated spawn-time `mode` parameter.
 
 - skills: Comma-separated list of skill names to auto-load when agent is invoked. Skills are NOT inherited from parent.
 
@@ -237,7 +239,7 @@ Review checklist:
 - No exposed secrets or API keys
 - Input validation implemented
 - Good test coverage
-- Performance considerations adddessed
+- Performance considerations addressed
 ```
 
 ### Debugger

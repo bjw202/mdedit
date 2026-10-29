@@ -20,7 +20,7 @@ Core Format: YAML frontmatter + markdown content with progressive disclosure. Na
 ```yaml
 ---
 name: skill-name # Required: kebab-case, max 64 chars
-description: Specific description of skill purpose and trigger scenarios (max 1024 chars) # Required
+description: Specific description of skill purpose and trigger scenarios (max 1,536 chars combined description + when_to_use) # Required
 allowed-tools: tool1, tool2, tool3 # Optional: comma-separated, minimal set
 version: 1.0.0 # Optional: semantic versioning
 tags: [domain, category, purpose] # Optional: categorization
@@ -110,7 +110,6 @@ Length: Maximum 64 characters
 Pattern: `[prefix]-[domain]-[function]`
 Examples:
 - `moai-cc-commands`
-- `moai-lang-python`
 - `moai-domain-backend`
 - `MyAwesomeSkill` (uppercase, spaces)
 - `skill_v2` (underscore)
@@ -118,7 +117,7 @@ Examples:
 
 #### `description` (String)
 Format: Natural language description
-Length: Maximum 1024 characters
+Length: Maximum 1,536 characters (combined description + when_to_use)
 Content: What the skill does + specific trigger scenarios
 Examples:
 - `Extract and structure information from PDF documents for analysis and processing. Use when you need to analyze PDF content, extract tables, or convert PDF text to structured data.`
@@ -133,16 +132,18 @@ Purpose: Principle of least privilege
 Examples:
 ```yaml
 # CORRECT: Minimal specific tools
-allowed-tools: Read, mcp__context7__resolve-library-id
+allowed-tools: Read, WebFetch
 
 # CORRECT: Multiple tools for analysis
 allowed-tools: Read, Grep, Glob, WebFetch
 
-# WRONG: YAML array format
+# AVOID in MoAI: YAML array format
+# (CSV is the MoAI convention; YAML arrays are also valid since v2.1.0,
+#  but MoAI standardizes on CSV for tool lists to match agent-authoring.md)
 allowed-tools: [Read, Grep, Glob]
 
 # WRONG: Overly permissive
-allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch, MultiEdit
+allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch
 ```
 
 #### `version` (String)
@@ -197,7 +198,7 @@ Example:
 ```markdown
 ## Quick Reference (30 seconds)
 
-Context7 MCP server integration for real-time library documentation access. Resolve library names to Context7 IDs and fetch latest API documentation with progressive token disclosure for optimal performance.
+MCP server integration for real-time library documentation access (when a user provisions their own MCP server via Claude Code's native `.mcp.json`). Declare the MCP tools in `allowed-tools` so the skill can invoke them; Claude Code exposes the server's tool schemas at runtime.
 ```
 
 ### Section 2: Implementation Guide
@@ -409,7 +410,7 @@ examples.md (unlimited):
 
 Frontmatter Validation:
 - [ ] Name uses kebab-case (64 chars max)
-- [ ] Description specific and under 1024 chars
+- [ ] Description specific and under 1,536 chars (combined description + when_to_use)
 - [ ] allowed-tools follows principle of least privilege
 - [ ] YAML syntax valid (no parsing errors)
 - [ ] No deprecated or invalid fields
@@ -462,11 +463,12 @@ User Experience:
 
 Invalid Array Format:
 ```yaml
-# WRONG: YAML array syntax
-allowed-tools: [Read, Write, Bash]
-
-# CORRECT: Comma-separated string
+# MoAI convention: CSV string
 allowed-tools: Read, Write, Bash
+
+# Also valid since v2.1.0 (YAML array), but NOT the MoAI convention
+# for tool lists — agent-authoring.md standardizes on CSV:
+allowed-tools: [Read, Write, Bash]
 ```
 
 Missing Required Fields:
@@ -594,24 +596,14 @@ Parallel Usage:
 
 ### MCP Integration Patterns
 
-Context7 Integration:
+Single MCP server (example: a user-provisioned docs server):
 ```yaml
-allowed-tools: mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+allowed-tools: mcp__example-docs__lookup, mcp__example-docs__fetch
 ```
 
-```python
-# Two-step pattern
-library_id = await mcp__context7__resolve-library_id("library-name")
-docs = await mcp__context7__get-library_docs(
- context7CompatibleLibraryID=library_id,
- topic="specific-topic",
- tokens=3000
-)
-```
-
-Multi-MCP Integration:
+Multi-MCP integration (combine multiple user-provisioned servers):
 ```yaml
-allowed-tools: mcp__context7__*, mcp__playwright__*, mcp__pencil__*
+allowed-tools: mcp__example-docs__*, mcp__playwright__*
 ```
 
 ---

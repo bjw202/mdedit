@@ -4,6 +4,61 @@
 
 This document provides complete, production-ready SPEC examples for common development scenarios.
 
+> **Notation note**: The three legacy examples below (Examples 1, 2, 3) use EARS notation including `IF [condition] THEN [action]` modality **[Legacy EARS form — equivalent GEARS form uses `When <condition-detected>` instead of `IF ... THEN ...`]**. These examples remain valid during the 6-month backward-compatibility window from v3.0.0 release. For NEW SPEC authoring, use the GEARS notation demonstrated in Example 0 below and in SKILL.md "GEARS Format" section.
+
+---
+
+## Example 0: GEARS Notation Demonstration (current — v3.0.0+)
+
+GEARS (Generalized EARS) is the canonical SPEC notation as of v3.0.0. The example below demonstrates the unified compound clause `[Where ...][While ...][When ...] The <subject> shall <behavior>` with a non-"the system" generalized subject.
+
+```markdown
+# SPEC-XXX: Lint Engine GEARS Notation Compliance
+
+Version: 1.0.0
+Status: Planned
+Priority: High
+
+## Description
+
+Demonstrate GEARS notation across all five patterns with the unified compound clause and generalized subject. This example is non-functional (notation demo only) — it illustrates pattern selection and subject substitution.
+
+## Requirements (GEARS notation)
+
+### Ubiquitous (generalized subject)
+
+- The lint engine shall preserve the 6-month backward-compatibility window for legacy EARS REQs.
+- The skill shall present GEARS as the canonical authoring format.
+
+### Event-driven (When)
+
+- **When** a SPEC author runs `moai spec lint`, the lint engine shall scan every REQ for residual `IF/THEN` modality.
+
+### State-driven (While)
+
+- **While** strict mode is active, the lint engine shall escalate `LegacyEARSKeyword` from warning to error.
+
+### Capability gate (Where)
+
+- **Where** the project lints opts into strict mode via `.moai/config`, the lint engine shall reject any commit containing `IF/THEN` REQs.
+
+### Unwanted
+
+- The lint engine shall not silently auto-fix `IF/THEN` modality without an author-approved transformation.
+
+### Compound clause (unified GEARS form with non-"the system" subject)
+
+- **Where** the project is initialized **While** strict mode is active **When** a SPEC author runs `moai spec lint`, the lint engine shall emit a `LegacyEARSKeyword` finding for every residual `IF/THEN` modality and exit with status code 1.
+
+## Notes
+
+- Generalized subject substitutes "the lint engine" / "the skill" for "the system".
+- All three GEARS modifiers (`Where`, `While`, `When`) are chained in the compound example.
+- The legacy `IF/THEN` modality is intentionally absent — see the IF/THEN deprecation callout in SKILL.md "GEARS Format".
+```
+
+The example above intentionally uses a synthetic subject ("lint engine") to demonstrate that GEARS `<subject>` is not constrained to "the system". For NEW production SPECs, choose a subject that names the artifact under specification (component, service, agent, function, skill, etc.).
+
 ---
 
 ## Example 1: User Authentication System (Simple CRUD)
@@ -14,7 +69,7 @@ This document provides complete, production-ready SPEC examples for common devel
 Created: 2025-12-07
 Status: Planned
 Priority: High
-Assigned: manager-ddd
+Assigned: manager-develop
 Related SPECs: SPEC-002 (User Registration)
 Epic: EPIC-AUTH
 Estimated Effort: 8 hours
@@ -184,7 +239,7 @@ Success Response (204 No Content)
 ### Security Constraints
 - OWASP Authentication Cheat Sheet compliance
 - TLS 1.3 required for all authentication endpoints
-- Rate Limiting: 10 login attempts per minute per IP adddess
+- Rate Limiting: 10 login attempts per minute per IP address
 - CORS: Whitelist approved frontend domains only
 - Token Rotation: Access token 24h, refresh token 7 days
 
@@ -264,7 +319,7 @@ Value: user_id
 TTL: refresh_token_expiry
 
 # Rate limiting
-Key: ratelimit:login:{ip_adddess}
+Key: ratelimit:login:{ip_address}
 Value: attempt_count
 TTL: 60 seconds
 
@@ -331,7 +386,7 @@ RATE_LIMIT_MAX_REQUESTS=10
 Created: 2025-12-07
 Status: Planned
 Priority: High
-Assigned: manager-ddd
+Assigned: manager-develop
 Related SPECs: SPEC-003 (Order Management), SPEC-006 (Refund System)
 Epic: EPIC-PAYMENT
 Estimated Effort: 16 hours
@@ -618,7 +673,7 @@ paid → [refund request] → refunding → refunded
 Created: 2025-12-07
 Status: Planned
 Priority: Medium
-Assigned: expert-frontend
+Assigned: Agent(general-purpose) with frontend instructions
 Related SPECs: SPEC-011 (Design System), SPEC-012 (Accessibility)
 Epic: EPIC-UI
 Estimated Effort: 4 hours
@@ -897,4 +952,3 @@ export const LoadingStates = () => (
 ---
 
 Version: 1.0.0
-Last Updated: 2025-12-07

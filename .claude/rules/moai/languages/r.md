@@ -4,10 +4,6 @@ paths: "**/*.R,**/*.Rmd,**/DESCRIPTION,**/NAMESPACE"
 
 # R Development Guide
 
-
----
-
-
 R 4.4+ Development Specialist - tidyverse, ggplot2, Shiny, renv, and modern R patterns.
 
 
@@ -108,13 +104,11 @@ For comprehensive coverage including:
 - Performance optimization techniques
 - Production deployment with Docker and Posit Connect
 
-See:
-
-- modules/advanced-patterns.md for complete advanced patterns guide
+Apply the Quick Patterns and feature sections above together with the Documentation References for these advanced topics; this guide is self-contained.
 
 ---
 
-## Context7 Library Mappings
+## Documentation References
 
 - tidyverse/dplyr for data manipulation verbs
 - tidyverse/ggplot2 for grammar of graphics visualization
@@ -124,13 +118,11 @@ See:
 - r-lib/testthat for unit testing framework
 - rstudio/renv for dependency management
 
----
+## Related Resources
 
-
-- moai-lang-python for Python and R interoperability with reticulate
+- `.claude/rules/moai/languages/python.md` for Python and R interoperability with reticulate
 - moai-domain-database for SQL patterns and database optimization
 - moai-workflow-testing for DDD and testing strategies
-- moai-essentials-debug for AI-powered debugging
 - moai-foundation-quality for TRUST 5 quality principles
 
 ---

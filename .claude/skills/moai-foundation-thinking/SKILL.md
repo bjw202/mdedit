@@ -1,37 +1,36 @@
 ---
 name: moai-foundation-thinking
 description: >
-  Structured thinking toolkit combining Critical Evaluation, Diverge-Converge
-  Brainstorming, and Deep Questioning frameworks for creative problem-solving.
-  Use when generating ideas or evaluating proposals.
+  Unified thinking toolkit: Creative frameworks (Critical Evaluation, Diverge-Converge,
+  Deep Questioning), First Principles reasoning (absorbed from moai-foundation-philosopher),
+  and Adaptive Thinking via the `ultrathink` keyword. Use for ideation, strategic
+  analysis, architecture decisions, and deep reasoning on complex problems.
+
+when_to_use: >
+  Use for thinking and ideation: creative frameworks (critical evaluation,
+  diverge-converge), first-principles reasoning, five-whys root-cause
+  analysis, trade-off and architecture decisions,
+  technology/library/database selection, and Adaptive Thinking via the
+  ultrathink keyword.
+
 license: Apache-2.0
 compatibility: Designed for Claude Code
 allowed-tools: Read, Grep, Glob
 user-invocable: false
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
   category: "foundation"
   status: "active"
-  updated: "2026-02-10"
+  updated: "2026-04-25"
   modularized: "true"
-  tags: "foundation, critical-thinking, brainstorming, ideation, evaluation, creative-thinking, diverge-converge"
-  related-skills: "moai-foundation-philosopher"
+  tags: "foundation, critical-thinking, brainstorming, ideation, evaluation, creative-thinking, diverge-converge, first-principles, adaptive-thinking, philosophy, architecture-decision"
+  related-skills: "moai-foundation-philosopher, moai-workflow-thinking"
 
 # MoAI Extension: Progressive Disclosure
 progressive_disclosure:
   enabled: true
   level1_tokens: 100
   level2_tokens: 5000
-
-# MoAI Extension: Triggers
-triggers:
-  keywords: ["brainstorm", "ideation", "creative", "evaluate", "critical thinking", "diverge", "converge", "generate ideas", "explore options", "question", "deep analysis", "problem exploration", "solution space", "scoring", "clustering", "prioritize"]
-  agents:
-    - "manager-strategy"
-    - "manager-spec"
-    - "team-reader"
-  phases:
-    - "plan"
 ---
 
 # MoAI Foundation Thinking
@@ -192,8 +191,9 @@ Agent Teams:
 ## Works Well With
 
 Agents:
-- manager-strategy: Combined with Philosopher for full decision framework
-- manager-spec: Deep Questioning during requirement analysis
+- manager-spec: Combined with Philosopher for full decision framework (planning absorbs strategic analysis)
+- manager-develop: Deep Questioning + Critical Evaluation during run-phase reasoning (DDD/TDD root-cause analysis, architecture trade-offs)
+- super-advisor: E1-E4 escalation reasoning (bug-deadlock diagnosis, architecture decision points, second-opinion consultation, loop-deadlock verdicts)
 - team-reader (analyst role): Primary consumer for plan phase analysis
 - team-reader (researcher role): Comprehensive research methodology
 
@@ -251,3 +251,60 @@ Origin: Integrated from critical-thinking, brainstorm-diverge-converge, and idea
 - [ ] Selected approach references the alternatives it was compared against
 
 <!-- moai:evolvable-end -->
+
+---
+
+## First Principles (absorbed from moai-foundation-philosopher)
+
+Five-phase strategic analysis framework for architecture decisions and technology selection.
+
+### When to Use
+
+Use when facing decisions where the solution space is broad, trade-offs are non-obvious, or existing patterns may not apply. Particularly valuable for: architecture decisions, technology selection, breaking changes, performance vs maintainability trade-offs.
+
+### Five-Phase Process
+
+Phase 1 — Assumption Audit: List every assumption underlying the current approach. Challenge each: is it empirically verified or conventionally accepted? Which assumptions carry the highest risk if wrong?
+
+Phase 2 — First Principles Decomposition: Strip away analogies and precedent. Break the problem into fundamental truths. Ask "What must be true for this to work?" rather than "What has worked before?"
+
+Phase 3 — Alternative Generation: From first principles, generate alternatives that ignore prior constraints. Aim for 5-10 distinct approaches before filtering. Include "absurd" alternatives — they often surface overlooked fundamentals.
+
+Phase 4 — Trade-off Analysis: Score each alternative across: correctness, performance, maintainability, operability, reversibility. Use explicit weights based on project context. Document which trade-offs are acceptable vs dealbreakers.
+
+Phase 5 — Cognitive Bias Check: Before finalizing, audit for: anchoring bias (overweighting the first option), confirmation bias (seeking evidence for the preferred option), sunk cost fallacy (keeping a bad choice due to investment).
+
+Full methodology in modules: [First Principles](modules/first-principles.md), [Assumption Matrix](modules/assumption-matrix.md), [Trade-off Analysis](modules/trade-off-analysis.md), [Cognitive Bias](modules/cognitive-bias.md)
+
+Examples and reference: [examples.md](references/philosopher-examples.md), [reference.md](references/philosopher-reference.md)
+
+---
+
+## Adaptive Thinking (Opus 4.7+ built-in, including Opus 5 and 4.8)
+
+The model's built-in reasoning mode (Opus 4.7 and later, including Opus 5 and 4.8) that dynamically allocates reasoning tokens based on task complexity.
+
+### Reasoning Modes
+
+| Mode | Trigger | Mechanism | GLM Compatible? |
+|------|---------|-----------|-----------------|
+| `ultrathink` | Keyword | Claude native extended reasoning | YES |
+| Adaptive Thinking | Automatic | Opus 4.7+ built-in (incl. Opus 5 and 4.8) | YES |
+
+Rules: `ultrathink` → ALWAYS use Claude native extended reasoning with xhigh effort.
+
+### When to Activate
+
+Architecture decisions affecting 3+ files, technology selection between options, breaking changes under consideration, performance vs maintainability trade-offs, complex problems with multiple viable approaches.
+
+On Opus 4.7+: Adaptive Thinking handles reasoning depth automatically — no fixed budget needed. The orchestrator activates deep reasoning by prepending the `ultrathink` keyword to the user prompt.
+
+### Steering thinking down (optional)
+
+A large system prompt (loading CLAUDE.md plus many rule files) can cause the model to think more than a routine turn warrants. To suppress over-triggered reasoning on simple turns, you may add a steer such as: "Thinking adds latency and should only be used when it will meaningfully improve answer quality — typically for problems that require multi-step reasoning. When in doubt, respond directly." The `ultrathink` keyword still overrides this to force deeper reasoning when needed.
+
+---
+
+## Backward Compatibility Marker
+
+Sequential Thinking MCP support retired in an earlier deep-reasoning consolidation. For deep reasoning use the `ultrathink` keyword (triggers Opus 4.7+ Adaptive Thinking). The earlier "Sequential Thinking MCP (absorbed from moai-workflow-thinking)" content is superseded; this skill's deep-reasoning path is consolidated onto ultrathink + the creative frameworks above.

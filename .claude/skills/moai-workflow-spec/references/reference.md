@@ -6,6 +6,30 @@ This document provides comprehensive reference information for SPEC workflow man
 
 ---
 
+## GEARS Migration (current notation)
+
+GEARS (Generalized EARS) is the canonical SPEC authoring notation as of v3.0.0. The SPEC lint engine emits a `LegacyEARSKeyword` warning when residual `IF/THEN` modality appears in NEW SPECs. Existing SPECs remain valid for 6 months from the v3.0.0 release per the backward-compatibility window.
+
+GEARS-to-EARS pattern mapping (cross-link to canonical guide in SKILL.md "GEARS Format" section):
+
+| GEARS (current) | EARS (legacy — 6-month window) | Status |
+|-----------------|--------------------------------|--------|
+| `Ubiquitous` — "The <subject> shall <behavior>" | "The system shall <behavior>" | Unchanged semantics; subject generalized |
+| `When <event-detected>` — event-driven | "WHEN <event>, the system shall <action>" | Unchanged semantics; spelling formalized |
+| `While <state>` — state-driven | "WHILE <state>, the system shall <action>" | Promoted as first-class pattern |
+| `Where <capability>` — capability gate | "WHERE <feature exists>, the system shall <action>" | Reframed (capability gate / feature flag / static config) |
+| `When <undesired-condition-detected>` | `IF <condition> THEN <action>` **[DEPRECATED — use WHEN <event-detected>]** | `IF/THEN` modality replaced |
+
+Compound clause: `Where <precondition> While <state> When <event> the <subject> shall <behavior>` — any subset of the three modifiers may chain.
+
+Generalized subject: GEARS allows `<subject>` to be any noun (system, component, service, agent, function, artifact). The 88 legacy SPECs retain "The system" as the default; NEW SPECs MAY use generalized subjects (e.g., "The skill shall ...", "The agent shall ...").
+
+See SKILL.md "GEARS Format" section for canonical guidance and the [docs-site GEARS notation reference](https://adk.mo.ai.kr/en/workflow-commands/moai-plan/#gears-notation) for the authoritative migration guide.
+
+> Templates in this file (Template 1 / Template 2 / Template 3 below) retain legacy EARS notation including `IF [condition] THEN [action]` constructs **[DEPRECATED — use WHEN <event-detected>]**. These templates remain valid examples during the 6-month backward-compatibility window; for NEW SPEC authoring prefer the GEARS forms documented above and in SKILL.md.
+
+---
+
 ## SPEC Document Templates
 
 ### Template 1: Simple CRUD Feature
@@ -16,7 +40,7 @@ This document provides comprehensive reference information for SPEC workflow man
 Created: YYYY-MM-DD
 Status: Planned
 Priority: Medium
-Assigned: manager-ddd
+Assigned: manager-develop
 
 ## Description
 [Brief description of the feature]
@@ -67,7 +91,7 @@ Business:
 Created: YYYY-MM-DD
 Status: Planned
 Priority: High
-Assigned: manager-ddd
+Assigned: manager-develop
 Related SPECs: SPEC-YYY, SPEC-ZZZ
 
 ## Description
@@ -146,7 +170,7 @@ Security:
 Created: YYYY-MM-DD
 Status: Planned
 Priority: Medium
-Assigned: expert-backend
+Assigned: Agent(general-purpose) with backend instructions
 
 ## API Definition
 
@@ -257,11 +281,14 @@ Technical:
 - Examples: "User Authentication System", "Payment Processing API"
 
 **Status Values**:
-- Planned: SPEC created, not yet started
-- In Progress: Implementation in RUN phase
-- Completed: All success criteria met
-- Blocked: Waiting for dependency or decision
-- Deprecated: Replaced by newer SPEC
+
+The `status` field uses the canonical 8-value enum owned by `.claude/rules/moai/development/spec-frontmatter-schema.md` § Status Enum (8 values). The list below is illustrative only; when it diverges from the schema SSOT, the schema wins.
+
+- Canonical enum (8 values): `draft`, `planned` (legacy-optional), `in-progress`, `implemented`, `completed`, `superseded`, `archived`, `rejected`
+- Active V3R6 flow: `draft → in-progress → implemented → completed` (manager-develop performs `draft → in-progress` on the first run-phase commit)
+- Terminal states: `superseded` (replaced by a newer SPEC), `archived`, `rejected`
+
+> The legacy 5-value list that previously appeared here (`Planned / In Progress / Completed / Blocked / Deprecated`) is superseded. `Blocked` and `Deprecated` are NOT members of the canonical enum — a blocked SPEC stays at its current status and surfaces the blocker through other channels, and a replaced SPEC uses `superseded`. See the schema SSOT for the authoritative list and the Status Transition Ownership Matrix.
 
 **Priority Levels**:
 - High: Critical for MVP, blocking dependencies
@@ -269,11 +296,11 @@ Technical:
 - Low: Enhancement or optional feature
 
 **Assigned Agents**:
-- manager-ddd: DDD-based implementation
+- manager-develop: DDD-based implementation
 - manager-spec: SPEC refinement and updates
-- expert-backend: Backend-specific features
-- expert-frontend: Frontend-specific features
-- expert-database: Database schema changes
+- Agent(general-purpose) with backend instructions: Backend-specific features
+- Agent(general-purpose) with frontend instructions: Frontend-specific features
+- Agent(general-purpose) with database instructions: Database schema changes
 
 ### Extended Fields
 
@@ -522,17 +549,17 @@ Technical:
 ```
 User Request
     ↓
-/moai:1-plan "feature description"
+/moai plan "feature description"
     ↓
 manager-spec creates SPEC-001
     ↓
 /clear (token optimization)
     ↓
-/moai:2-run SPEC-001
+/moai run SPEC-001
     ↓
-manager-ddd implements with ANALYZE-PRESERVE-IMPROVE
+manager-develop implements with ANALYZE-PRESERVE-IMPROVE
     ↓
-/moai:3-sync SPEC-001
+/moai sync SPEC-001
     ↓
 manager-docs updates documentation
     ↓
@@ -544,7 +571,8 @@ Feature Complete
 ```
 User Request
     ↓
-/moai:1-plan "feature1" "feature2" "feature3" --worktree
+moai cc -w tri-feature
+/moai plan "feature1" "feature2" "feature3"
     ↓
 manager-spec creates SPEC-001, SPEC-002, SPEC-003
     ↓
@@ -555,12 +583,12 @@ Git Worktree setup for parallel development
 ┌─────────────┬─────────────┬─────────────┐
 │ Session 1   │ Session 2   │ Session 3   │
 │ SPEC-001    │ SPEC-002    │ SPEC-003    │
-│ /moai:2-run │ /moai:2-run │ /moai:2-run │
+│ /moai run │ /moai run │ /moai run │
 └─────────────┴─────────────┴─────────────┘
     ↓
 Worktree merge to main branch
     ↓
-/moai:3-sync SPEC-001 SPEC-002 SPEC-003
+/moai sync SPEC-001 SPEC-002 SPEC-003
     ↓
 All Features Complete
 ```
@@ -568,31 +596,31 @@ All Features Complete
 ### Dependency Chain Integration
 
 ```
-/moai:1-plan "database schema" --branch
+/moai plan "database schema" --branch
     ↓
 SPEC-001 created (foundation)
     ↓
-/moai:2-run SPEC-001
+/moai run SPEC-001
     ↓
 Database schema implemented
     ↓
-/moai:1-plan "backend API" --branch
+/moai plan "backend API" --branch
     ↓
 SPEC-002 created (depends on SPEC-001)
     ↓
-/moai:2-run SPEC-002
+/moai run SPEC-002
     ↓
 Backend API implemented
     ↓
-/moai:1-plan "frontend UI" --branch
+/moai plan "frontend UI" --branch
     ↓
 SPEC-003 created (depends on SPEC-002)
     ↓
-/moai:2-run SPEC-003
+/moai run SPEC-003
     ↓
 Frontend UI implemented
     ↓
-/moai:3-sync SPEC-001 SPEC-002 SPEC-003
+/moai sync SPEC-001 SPEC-002 SPEC-003
     ↓
 Full Stack Feature Complete
 ```
@@ -603,7 +631,9 @@ Full Stack Feature Complete
 
 ### Token Budget Management
 
-**PLAN Phase Token Usage** (~30% of 200K):
+The per-phase token shares below are fractions of the model's context window. The window is **model-class-dependent** — 200K for Sonnet/Opus-standard and Haiku, 256K for Fable, 1M for Opus 5 / Opus 4.8 / GLM-5.3. Treat "the budget" as the model-class threshold from `.claude/rules/moai/workflow/context-window-management.md` § Context Window Targets, NOT a fixed 200K. A 1M-context model tolerates a proportionally larger absolute spend before the `/clear` handoff threshold fires.
+
+**PLAN Phase Token Usage** (~30% of the active window):
 - User input analysis: 5K tokens
 - Requirement clarification dialogue: 15K tokens
 - EARS pattern generation: 10K tokens
@@ -613,7 +643,7 @@ Full Stack Feature Complete
 
 **Strategy**: Execute /clear after SPEC document saved to disk
 
-**RUN Phase Token Usage** (~60% of 200K):
+**RUN Phase Token Usage** (~60% of the active window):
 - SPEC document loading: 5K tokens
 - DDD cycle execution: 100K tokens
 - Code generation: 20K tokens
@@ -621,7 +651,7 @@ Full Stack Feature Complete
 - Quality validation: 10K tokens
 - Buffer: 30K tokens
 
-**SYNC Phase Token Usage** (~10% of 200K):
+**SYNC Phase Token Usage** (~10% of the active window):
 - Documentation generation: 10K tokens
 - API spec updates: 5K tokens
 - Commit message generation: 2K tokens
@@ -701,4 +731,3 @@ Full Stack Feature Complete
 ---
 
 Version: 1.0.0
-Last Updated: 2025-12-07

@@ -6,7 +6,7 @@ description: >
   legacy code or reducing technical debt safely.
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read, Write, Edit, Bash(git:*), Bash(pytest:*), Bash(ruff:*), Bash(npm:*), Bash(npx:*), Bash(node:*), Bash(uv:*), Bash(make:*), Bash(cargo:*), Bash(go:*), Bash(mix:*), Bash(bundle:*), Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+allowed-tools: Read, Write, Edit, Bash(git:*), Bash(pytest:*), Bash(ruff:*), Bash(npm:*), Bash(npx:*), Bash(node:*), Bash(uv:*), Bash(make:*), Bash(cargo:*), Bash(go:*), Bash(mix:*), Bash(bundle:*), Grep, Glob
 user-invocable: false
 metadata:
   version: "1.0.0"
@@ -16,9 +16,7 @@ metadata:
   modularized: "true"
   tags: "workflow, refactoring, ddd, domain-driven, behavior-preservation, ast-grep, characterization-tests"
   author: "MoAI-ADK Team"
-  context: "fork"
-  agent: "manager-ddd"
-  related-skills: "moai-tool-ast-grep, moai-workflow-testing, moai-foundation-quality"
+  related-skills: "moai-workflow-testing, moai-foundation-quality"
 ---
 
 # Domain-Driven Development (DDD) Workflow
@@ -57,12 +55,12 @@ When to Use DDD:
 - Technical debt reduction in production systems
 - API migration and deprecation handling
 - Code modernization projects
-- When DDD is not applicable because code already exists
 - Greenfield projects (with adapted cycle - see below)
 
 When NOT to Use DDD:
 
 - When behavior changes are required (modify SPEC first)
+- When the code already exists and the goal is behavior change rather than behavior-preserving refactoring (DDD preserves behavior; for new behavior, modify the SPEC first, or use TDD)
 
 Greenfield Project Adaptation:
 
@@ -332,7 +330,7 @@ DDD relies heavily on AST-grep for:
 - Safe code transformations
 - Multi-file refactoring
 
-Load moai-tool-ast-grep for detailed pattern syntax and rule creation.
+Rules live in `.moai/config/astgrep-rules/`; scan with `moai ast-grep` and apply rewrites with `moai ast-edit`.
 
 ### With Testing Workflow
 
@@ -391,7 +389,6 @@ When DDD session encounters issues:
 
 Version: 1.0.0
 Status: Active
-Last Updated: 2026-01-16
 
 <!-- moai:evolvable-start id="rationalizations" -->
 ## Common Rationalizations

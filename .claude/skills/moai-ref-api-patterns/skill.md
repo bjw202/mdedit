@@ -2,10 +2,17 @@
 name: moai-ref-api-patterns
 description: >
   REST/GraphQL API design patterns, error handling conventions, and input validation
-  reference for backend development. Agent-extending skill that amplifies expert-backend
-  expertise with production-grade API patterns. Use when designing APIs, implementing
-  endpoints, or reviewing backend code.
+  reference for backend development. Agent-extending skill that amplifies backend domain
+  work (spawned via Agent(general-purpose) with backend instructions) with production-grade
+  API patterns. Use when designing APIs, implementing endpoints, or reviewing backend code.
   NOT for: frontend development, DevOps, database schema design, security audits.
+
+when_to_use: >
+  Use for REST/GraphQL API design patterns: endpoint and route design,
+  handler structure, request/response conventions, error handling, and
+  input validation. Amplifies backend domain work (Agent(general-purpose)
+  with backend instructions) with production-grade API patterns.
+
 user-invocable: false
 metadata:
   version: "1.0.0"
@@ -13,26 +20,19 @@ metadata:
   status: "active"
   updated: "2026-03-30"
   tags: "api, rest, graphql, patterns, backend, reference"
-  agent: "expert-backend"
 
 # MoAI Extension: Progressive Disclosure
 progressive_disclosure:
   enabled: true
   level1_tokens: 100
   level2_tokens: 3000
-
-# MoAI Extension: Triggers
-triggers:
-  keywords: ["api", "endpoint", "rest", "graphql", "route", "handler"]
-  agents: ["expert-backend"]
-  phases: ["run"]
 ---
 
 # API Patterns Reference
 
-## Target Agent
+## Target Spawn
 
-`expert-backend` - Applies these patterns directly to API implementation and review.
+Backend domain work spawned via `Agent(general-purpose)` with backend instructions - Applies these patterns directly to API implementation and review.
 
 ## RESTful API Design Conventions
 
