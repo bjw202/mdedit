@@ -81,7 +81,7 @@
     <text x="578" y="777">못 막음 → 이 저장소 한정 토큰이고 job이 끝나면 만료 (수용)</text>
 
     <rect x="40" y="812" width="440" height="56" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
-    <text x="58" y="845">main에 없는 커밋에 태그를 담 (R-7)</text>
+    <text x="58" y="845">main에 없는 커밋에 태그를 단 경우 (R-7)</text>
     <rect x="560" y="812" width="640" height="56" rx="8" fill="#F7F2E7" stroke="#8A6410" stroke-width="1.4" stroke-dasharray="6 4"/>
     <text x="578" y="845">못 막음 → 원격 main 최신 커밋에만 태그를 다는 절차로 대응</text>
   </g>
