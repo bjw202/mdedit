@@ -15,6 +15,7 @@ const BORDER = 'rgb(151, 164, 177)'; // #97A4B1
 const SURFACE_ALT = 'rgb(247, 242, 231)'; // #F7F2E7
 const DECISION_BORDER = 'rgb(138, 100, 16)'; // #8A6410
 const ACCENT = 'rgb(58, 86, 115)'; // #3A5673
+const PAPER = 'rgb(250, 249, 246)'; // #FAF9F6
 
 // 클러스터 사각형 기준값 — 변경 전 HEAD(f9c94ee, 코드는 4bef707과 동일)에서 같은 문서로 잰 값(progress.md §E.2).
 const CLUSTER_BASELINE = { fill: SURFACE_ALT, fillOpacity: '0.5', stroke: BORDER, strokeWidth: '1px' };
@@ -109,6 +110,47 @@ async function readCluster(page: Page) {
     return { fill: cs.fill, fillOpacity: cs.fillOpacity, stroke: cs.stroke, strokeWidth: cs.strokeWidth };
   }, SVG_SELECTOR);
 }
+
+/** 미리보기 다이어그램 컨테이너의 계산 바탕·테두리·반경과 첫 간선 라벨 상자의 계산 채움. */
+async function readSeam(page: Page) {
+  return page.evaluate((sel) => {
+    const svg = document.querySelector(sel) as SVGSVGElement;
+    const container = svg.closest('.mermaid-container') as HTMLElement;
+    const cs = getComputedStyle(container);
+    const label = svg.querySelector('.pele-edge-label rect') as SVGRectElement;
+    return {
+      theme: document.documentElement.getAttribute('data-theme'),
+      backgroundColor: cs.backgroundColor,
+      borderTopWidth: cs.borderTopWidth,
+      borderTopLeftRadius: cs.borderTopLeftRadius,
+      labelFill: getComputedStyle(label).fill,
+    };
+  }, SVG_SELECTOR);
+}
+
+test.describe('SPEC-PREVIEW-017 AC-008 간선 라벨 이음매 (해법 (a): 라이트는 바탕만)', () => {
+  test('라이트: 컨테이너 바탕 #FAF9F6·테두리/반경 0px, 라벨 상자 채움 = 컨테이너 바탕', async ({ tauriPage }) => {
+    await seedTheme(tauriPage, 'light');
+    await openWithContent(tauriPage, BASE_DOC, 'Z');
+    const seam = await readSeam(tauriPage);
+    expect(seam.theme).toBe('light');
+    expect(seam.backgroundColor).toBe(PAPER);
+    expect(seam.borderTopWidth).toBe('0px');
+    expect(seam.borderTopLeftRadius).toBe('0px');
+    expect(seam.labelFill).toBe(seam.backgroundColor);
+  });
+
+  test('다크: 종이 카드(테두리 1px·반경 3px) 유지, 라벨 상자 채움 = 컨테이너 바탕', async ({ tauriPage }) => {
+    await seedTheme(tauriPage, 'dark');
+    await openWithContent(tauriPage, BASE_DOC, 'Z');
+    const seam = await readSeam(tauriPage);
+    expect(seam.theme).toBe('dark');
+    expect(seam.backgroundColor).toBe(PAPER);
+    expect(seam.borderTopWidth).toBe('1px');
+    expect(seam.borderTopLeftRadius).toBe('3px');
+    expect(seam.labelFill).toBe(seam.backgroundColor);
+  });
+});
 
 test.describe('SPEC-PREVIEW-017 모양 기반 자동 톤 (미리보기 계산 스타일)', () => {
   test('AC-001: 판단 노드는 surface-alt 채움 + 판단 테두리, 같은 다이어그램의 사각형은 기본 톤', async ({ tauriPage }) => {

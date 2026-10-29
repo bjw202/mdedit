@@ -123,7 +123,7 @@ export function getPreviewCss(theme: 'light' | 'dark'): string {
   // 다이어그램 바탕 = 고정 팔레트 --pele-bg(#FAF9F6, 잉크 앤 허니) 상수 — 테마 3항 선택은 폐지(SPEC-PREVIEW-016).
   // pele 간선 라벨 상자가 같은 #FAF9F6으로 칠해지므로 어떤 테마에서도 이음매가 없다.
   const mermaidBg = '#FAF9F6';
-  // 종이 카드(테두리·반경)는 다크 출력에만 얹는다(라이트 무카드, REQ-PREVIEW016-005). 값은 승인 팔레트
+  // 종이 카드(테두리·반경)는 다크 출력에만 얹는다(라이트는 바탕만, 테두리·반경 없음 — REQ-PREVIEW016-005). 값은 승인 팔레트
   // 상수(--pele-border #97A4B1, --pele-radius 3px)의 리터럴이다 — 내보낸 HTML에는 --pele-* 정의가 없고
   // 0-잔여 계약(015 AC-020 유지)이 var(--pele- 문자열을 금지하므로 var() 참조를 쓰지 않는다.
   const mermaidCard = theme === 'dark' ? '\n  border: 1px solid #97A4B1;\n  border-radius: 3px;' : '';

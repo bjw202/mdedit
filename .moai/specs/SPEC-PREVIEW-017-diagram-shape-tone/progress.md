@@ -125,6 +125,14 @@ BASELINE dark {"theme":"dark","container":{"backgroundColor":"rgb(250, 249, 246)
   ```
   (import 줄·주석 줄 생략. PDF는 `generateHtmlContent` → `exportHtml.ts` 같은 함수 경유.)
 
+### E.2.4 M3 — 간선 라벨 이음매 (해법 (a))
+
+- 수정 전 측정은 §E.2.1, 커밋 `931879b`(M1)에 들어 있어 이 수정 커밋보다 앞선다.
+- RED: `npx playwright test e2e/diagram-shape-tone.spec.ts --reporter=list --retries=0 -g "AC-008"` → `exit=1`, `1 failed / 1 passed`(라이트 `Expected "rgb(250, 249, 246)" Received "rgba(0, 0, 0, 0)"`, 다크 통과 — 기존 카드, `m3-red-e2e.log`).
+- 구현: `.preview-content .mermaid-container`에 `background-color: var(--pele-bg)`(테마 무관). 다크 규칙의 같은 바탕 선언은 중복이라 제거(결과 상태 동일 — 다크 e2e가 `rgb(250, 249, 246)`·`1px`·`3px` 단정). 라이트에 테두리·반경 없음. 주석 "라이트는 무카드"를 "라이트는 바탕만, 테두리·반경 없음"으로 갱신(`src/index.css`, `src/lib/export/exportUtils.ts` 주석 1줄). `PreviewRenderer.tsx`에는 해당 주석이 없음(`grep -n "카드\|무카드"` 출력 없음).
+- GREEN: `npx playwright test e2e/diagram-shape-tone.spec.ts --reporter=list --retries=0` → `exit=0`, `7 passed (10.8s)`(`m3-green-e2e.log`).
+- 경계(review-3 D1): 서브그래프 안 라벨은 반투명 클러스터 바탕 위라 이 단정 범위 밖 — 측정·수정 대상 아님.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 _<pending run-phase>_
