@@ -11,6 +11,8 @@ markdown-editor-rust/
 ├── .moai/                        # MoAI-ADK configuration (project metadata)
 ├── .claude/                      # Claude Code configuration
 ├── e2e/                          # Playwright E2E tests with Tauri IPC mock fixtures
+├── .github/                      # GitHub Actions workflows and release-note header
+├── scripts/                      # Node build/release helper scripts
 ├── public/                       # Static assets (favicon, manifest)
 ├── index.html                    # HTML entry point
 ├── package.json                  # Node dependencies and scripts
@@ -371,6 +373,27 @@ TypeScript type definitions for type safety.
 - Security settings and CSP
 - File system permissions scope
 - Platform-specific settings
+- `bundle.macOS.signingIdentity: "-"` — macOS bundles (CI and local) are ad-hoc signed
+
+### CI and Release
+
+**.github/workflows/frontend-gates.yml**
+- Runs on every pull request and on push to `main`
+- Lint, typecheck, Vitest unit tests, Playwright E2E (webkit)
+- Frontend only — no cargo steps
+
+**.github/workflows/release.yml**
+- Triggered by pushing a `vX.Y.Z` tag
+- Jobs in order: `version-check` → `create-release` → `build` (macOS Apple Silicon + Windows matrix)
+- Creates a draft release only; publishing is a manual step
+
+**.github/release-notes-header.md**
+- Fixed install-guide block placed at the top of every draft release body
+
+**scripts/check-release-version.mjs** (+ `scripts/check-release-version.test.mjs`)
+- Verifies the tag matches the version in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`
+- Computes the previous `vX.Y.Z` tag for release-note generation
+- Dependency-free Node script; run by the `version-check` job
 
 ---
 

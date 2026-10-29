@@ -83,7 +83,7 @@
 
 ```yaml
 run_complete_at: 2026-10-29T05:25:53Z
-run_commit_sha: pending-backfill-m3   # M3 커밋 자신의 SHA는 같은 커밋에 넣을 수 없음; M1 0d82ae4, M2 47833ee
+run_commit_sha: 0cf857e   # M3 (sync 단계 backfill); M1 0d82ae4, M2 47833ee; 이후 보완 c6d2835·f5f4707·e137b3c
 run_status: audit-ready
 ac_pass_count: 12        # 자동 AC 001~012
 ac_fail_count: 0
@@ -101,7 +101,40 @@ m1_to_mN_commit_strategy: per-milestone local commits (M1·M2·M3), no push
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+```yaml
+sync_complete_at: 2026-10-29T05:53:01Z
+sync_commit_sha: pending-backfill-sync   # sync 커밋 자신의 SHA는 같은 커밋에 넣을 수 없음
+sync_status: audit-ready
+status_transition: in-progress -> implemented -> completed   # spec.md 프런트매터, 이 sync 커밋에서 한 번에
+sync_audit: PASS-WITH-DEBT 0.85   # .moai/reports/sync-audit/SPEC-INFRA-002-sync-audit.md, Critical/High 없음
+security_review: no Critical/High; M-1 accepted   # 오케스트레이터 전달 결과(이 에이전트가 직접 재실행하지 않음)
+b12_self_test_a: pass   # 커밋 전 [0.19.0] 절 SPEC-INFRA-002 = 1, [Unreleased] = 0 (중복 없음, 기존 항목 수정만)
+b12_self_test_b: pass   # grep 고유 토큰 20개 = 정식 AC-INFRA002-001~016 16개 + 본문 속 짧은 역참조 4개(AC-001·007·010·014). CHANGELOG 항목은 AC 수를 적지 않고 테스트 수만 적음(24, 실측)
+b12_self_test_c: pass   # CHANGELOG가 언급한 파일 경로 전부 ls로 존재 확인
+changelog_entry_position: "[0.19.0] - 2026-10-29"
+orchestrator_observed:   # 오케스트레이터 독립 확인 수치(전달값)
+  npm_test: "109 files / 1789 tests"
+  tsc_lint_actionlint: "exit 0"
+  script_coverage: "94.82% statements (BOM 테스트 추가 전 측정)"
+sync_local_rerun:   # 이 sync에서 직접 재실행(로그: .moai/state/verify/SPEC-INFRA-002/sync-*.log)
+  npm_test: "Test Files 109 passed (109), Tests 1789 passed (1789), exit 0"
+  tsc: "exit 0"
+  lint: "exit 0"
+  actionlint_release_yml: "exit 0, 출력 없음"
+  ac_sh: "AC-001~011 전부 PASS 출력(001a 24 passed, 001b 3, 008d secrets.GITHUB_TOKEN, 011c 1, 011d 0)"
+  ac004_sh: "AC-004a exit 0, AC-004b grep exit 1(출력 없음)"
+optional_fix_disposition:
+  applied: [F1, F7, F9, F10, F4, F6]   # F4는 spec.md 위험 기록, F6은 docs/BUILD.md 절차·규칙(이 sync 커밋)
+  F2: "AC-004b 정규식 확장(SPEC 0.3.3)으로 반영"
+  F5: "실제 초안 v0.13.2에 읽기 전용 gh api로 권한 있는 호출자 기준 무해 확인"
+  F8: "프로젝트 lint가 .mjs를 보지 않음 — 변경 없음, 후속 과제"
+  F11_F12: "첫 실제 실행(AC-014~016) 결과에 따라 문구 조정"
+unobserved:
+  - 실제 워크플로 실행(전 job, 자산 이름·개수, 노트 범위)
+  - macOS ad-hoc 서명 결과(Signature=adhoc)
+  - Windows SmartScreen 실제 버튼 문구
+  - 수동 AC-013~016
+```
 
 ## §F Phase 4 Mode Selection
 

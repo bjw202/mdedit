@@ -2,7 +2,7 @@
 id: SPEC-INFRA-002
 title: "태그 푸시 기반 GitHub Actions 릴리스 자동화 — macOS·Windows 설치 파일 초안 릴리스"
 version: "0.3.3"
-status: in-progress
+status: completed
 created: 2026-10-29
 updated: 2026-10-29
 author: jw (bjw202)
