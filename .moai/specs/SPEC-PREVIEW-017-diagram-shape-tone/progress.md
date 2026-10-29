@@ -202,4 +202,49 @@ Gaps(오케스트레이터 미관찰): `cargo test`는 재실행하지 않았다
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+```yaml
+sync_complete_at: 2026-10-29
+sync_commit_sha: <this sync commit — see git log>
+sync_status: complete
+sync_audit: pending   # 오케스트레이터가 이 커밋 뒤에 독립 sync-auditor를 실행한다
+b12_self_test_a: "grep -c 'SPEC-PREVIEW-017' CHANGELOG.md → 0 (기재 전, 중복 없음)"
+b12_self_test_b: "acceptance.md 고유 AC 토큰 13개(교차 참조 AC-001/003/004/005/008 포함) 중 이 SPEC의 AC는 AC-PREVIEW017-001~008 8건 — CHANGELOG 항목이 8건으로 기재"
+b12_self_test_c: "CHANGELOG에 적은 경로 src/index.css, src/lib/export/exportUtils.ts, src/styles/mdedit-tokens.css → ls로 존재 확인"
+changelog_entry_position: "CHANGELOG.md [Unreleased] → ### Changed (첫 항목)"
+frontmatter_status_transitions:
+  spec_md: "draft → completed (updated: 2026-10-29 유지)"
+```
+
+### 차이 보고(divergence)
+
+- scope_expansion: 없음
+- unplanned_additions: 없음
+- structural_changes:
+  - `VAR_NAMES` 23→24 갱신을 M2에서 M1으로 앞당김
+  - 다크 규칙의 중복 바탕 선언 제거(결과 상태 동일)
+  - 주석 문구 2곳 수정
+- deferred_items: 사람의 라이트·다크 시각 확인, 실제 PDF·DOCX 렌더 확인, AI 카드 미니 다이어그램(범위 밖)
+- 새 디렉터리·의존성: 없음
+
+### 갱신한 문서 / 건너뛴 문서
+
+- 갱신: `CHANGELOG.md`([Unreleased] Changed 1건), `spec.md` 프런트매터 `status`
+- 건너뜀: `README.md`, `.moai/project/product.md`·`structure.md`·`tech.md`, codemaps — 새 디렉터리·의존성·기능 진입점이 없어 반영할 내용이 없음
+
+### SPEC 상태 전환
+
+- `draft → completed`: run 단계에서 `in-progress`를 거치지 않았으므로, 3단계 닫기 규약대로 이 단일 sync 커밋에서 바로 `completed`로 닫는다.
+
+### 보안 메모
+
+- `npm audit` 24건(critical 3: dompurify, vitest, tinypool / high 13 / moderate 5 / low 3). 모두 기존부터 있던 항목이며 이 SPEC은 `package.json`·lock·Cargo 파일을 바꾸지 않았다. 사용자는 "경고와 함께 계속"을 선택했다. PR 설명에 같은 내용을 반복하고, 의존성 업그레이드는 별도 작업으로 둔다.
+
+### Phase 7~10 관찰 기록
+
+- `tsc --noEmit` 종료 코드 0, eslint 종료 코드 0
+- vitest 108 파일 / 1765 테스트 통과
+- `src/lib/export/exportUtils.ts` 줄 커버리지 97.7%(79~80행 미커버)
+- MX 검증 P1=0, P2=0
+- 보안 코드 스캔: 보안 민감 파일 변경이 없어 건너뜀
+
+Gaps(이 절에서 미관찰): 위 수치는 오케스트레이터가 전달한 관찰값이며 manager-docs가 이 커밋에서 다시 실행하지 않았다. 사람의 시각 확인, 실제 PDF·DOCX 렌더, AI 카드 미니 다이어그램은 남아 있다.

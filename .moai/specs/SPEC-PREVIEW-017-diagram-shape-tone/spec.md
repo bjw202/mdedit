@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-017
 title: "다이어그램 모양 기반 자동 톤 — 판단·시작/끝 노드 구조 강조 + 간선 라벨 이음매"
 version: "0.1.1"
-status: draft
+status: completed
 created: 2026-10-29
 updated: 2026-10-29
 author: jw (bjw202)
