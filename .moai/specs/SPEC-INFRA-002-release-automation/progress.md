@@ -36,11 +36,60 @@
 
 ## §E.2 Run-phase Evidence
 
-_<pending run-phase>_
+- 작성: manager-develop(cycle_type=tdd), 2026-10-29. 실행 위치: 격리 워크트리 `.claude/worktrees/release-automation/.claude/worktrees/agent-a469ba6de3a0b16a7`(브랜치 `worktree-agent-a469ba6de3a0b16a7`, 시작 HEAD 10d95f9 = `WT-release-automation`과 같은 커밋). 병합 기준 커밋 97b7db5.
+- 원문 로그(커밋하지 않는 런타임 경로): `.moai/state/verify/SPEC-INFRA-002/` — `ac-pre.log`(구현 전), `ac-final.log`(구현 후), `m1-red.log`, `m1-green.log`, `m1-refactor.log`, `baseline-*.log`, `after-*.log`. AC 명령은 acceptance.md 원문을 `ac.sh`에 그대로 옮겨 한 번에 실행했다.
+
+### 구현 전 기준(pre-flight)
+
+- `npm test` → 종료 0, `Test Files 108 passed (108)`, `Tests 1765 passed (1765)`. `npx tsc --noEmit` → 종료 0. `npm run lint` → 종료 0.
+- AC 구현 전 결과는 acceptance.md 10~16행 예측과 같았다: AC-001~009·011 FAIL(`No test files found`, `ENOENT`, `MISSING …`, AC-007 `TypeError: Cannot read properties of undefined (reading 'signingIdentity')`, AC-011b는 낡은 `gh release create`·`v0.9.0`·`우클릭`·`xattr` 줄 출력), AC-010 PASS(출력 없음).
+
+### TDD 증거 (M1)
+
+- RED: `npx vitest run scripts/check-release-version.test.mjs` → 종료 1, `Error: Failed to resolve import "./check-release-version.mjs" from "scripts/check-release-version.test.mjs". Does the file exist?`, `Test Files 1 failed (1)`.
+- GREEN 1회차: 22 passed / 1 failed — 실패는 테스트 도우미 결함(`??`가 `null`을 기본값으로 바꿈)이라 도우미를 고쳤다(구현 무변경).
+- GREEN·REFACTOR 후: `Tests 23 passed (23)`, 종료 0. 커버리지(v8, 이 파일만): 구문 94.82% · 분기 91.3% · 함수 90%. 덮지 못한 부분은 실제 `git tag` 호출 함수와 직접 실행 분기(CLI 스모크로 확인: `node scripts/check-release-version.mjs v0.19.0` → 종료 0·직전 태그 v0.18.0, `v0.0.1` → 종료 1·파일 3개 메시지, `v0x19x0`·`v0.19.0-rc.1` → 종료 1).
+
+### 자동 AC 결과 (구현 후, `ac-final.log`)
+
+| AC | 명령(요지 — 원문은 acceptance.md) | 관측 출력 | 판정 |
+|----|-----------------------------------|-----------|------|
+| 001 | `npx vitest run scripts/check-release-version.test.mjs` / `grep -oE … \| sort -u \| wc -l` | `Tests 23 passed (23)` 종료 0 / `3` | PASS |
+| 002 | 같은 테스트 파일 | 종료 0 | PASS |
+| 003 | `actionlint .github/workflows/release.yml` + node 단언 2개 | 출력 없음 종료 0 / 종료 0·0 | PASS |
+| 004 | node 단언 2개 + 금지 문구 grep | 종료 0·0 / grep 출력 없음(종료 1) | PASS |
+| 005 | node 단언 4개 + 안내 블록 for 반복 | 종료 0×4 / 출력 없음 | PASS |
+| 006 | node 단언 3개 | 종료 0×3 | PASS |
+| 007 | `git show <merge-base>:src-tauri/tauri.conf.json \| node -e …` | 종료 0 | PASS |
+| 008 | node 단언 4개 + `grep -oE "secrets\.[A-Za-z_]+" … \| sort -u` | 종료 0×4 / `secrets.GITHUB_TOKEN` 한 줄 | PASS |
+| 009 | node 단언 2개 + `test … -eq …` | 종료 0·0 / 종료 0 | PASS |
+| 010 | `git diff --stat "$(git merge-base origin/main HEAD)" -- .github/workflows/frontend-gates.yml` | 출력 없음 | PASS |
+| 011 | README·BUILD.md for 반복 / CHANGELOG `grep -c` 2개 | 출력 없음·출력 없음 / `1`·`0` | PASS |
+| 012 | `npm test` / `npm run lint` / `npm run typecheck` | 종료 0, `Test Files 109 passed (109)`, `Tests 1788 passed (1788)`(= 기준 1765 + 새 23) / 종료 0 / 종료 0 | PASS |
+
+### 수동 AC (미실행)
+
+- AC-013~016은 병합 뒤 사용자 행동(태그 푸시·실기기 실행)이 필요해 run 단계에서 실행하지 않았다. 실제 워크플로 실행, macOS ad-hoc 서명 결과, Windows SmartScreen 문구는 관측하지 않았다.
 
 ## §E.3 Run-phase Audit-Ready Signal
 
-_<pending run-phase>_
+```yaml
+run_complete_at: 2026-10-29T05:25:53Z
+run_commit_sha: pending-backfill-m3   # M3 커밋 자신의 SHA는 같은 커밋에 넣을 수 없음; M1 0d82ae4, M2 47833ee
+run_status: audit-ready
+ac_pass_count: 12        # 자동 AC 001~012
+ac_fail_count: 0
+manual_ac_pending: 4     # AC-013~016 (병합 뒤 사용자 행동)
+preserve_list_post_run_count: 0   # frontend-gates.yml·package.json·vite.config.ts·src/** 무변경
+l44_pre_commit_fetch: not-run     # 푸시 금지 지시로 원격 동기화 확인 생략
+l44_post_push_fetch: not-applicable
+new_warnings_or_lints_introduced: 0   # eslint·tsc 종료 0, actionlint 출력 없음
+cross_platform_build:
+  local_macos_tauri_build: not-run    # 지시에 따라 npm run build/tauri build 미실행
+  windows_runner: not-observed
+total_run_phase_files: 9   # 신규 4 + 수정 4(tauri.conf.json·README·BUILD.md·CHANGELOG) + progress.md (spec.md 프런트매터 1줄 별도)
+m1_to_mN_commit_strategy: per-milestone local commits (M1·M2·M3), no push
+```
 
 ## §E.4 Sync-phase Audit-Ready Signal
 

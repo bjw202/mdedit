@@ -590,66 +590,37 @@ npm run build
 
 ## GitHub Releases로 배포하기
 
-빌드한 패키지를 GitHub Releases를 통해 배포하면 사용자가 GitHub에서 직접 다운로드할 수 있습니다.
+배포 파일은 GitHub Actions가 만듭니다. 버전 태그(`vX.Y.Z`)를 푸시하면 `.github/workflows/release.yml`이 실행되어 Apple Silicon 맥용 `_aarch64.dmg`와 Windows용 `-setup.exe`·`.msi`를 빌드하고, 이 파일들을 **초안** 릴리스에 올립니다. 워크플로는 릴리스를 게시하지 않습니다. 게시는 사람이 확인한 뒤 직접 합니다.
 
-### 1단계: 릴리즈 파일 준비
+### 배포 절차
 
-각 플랫폼에서 빌드 후 생성된 파일:
+1. `package.json`·`src-tauri/Cargo.toml`·`src-tauri/tauri.conf.json`의 버전을 같은 값으로 맞춰 main에 병합합니다. 세 값 중 하나라도 태그와 다르면 워크플로의 첫 job(`version-check`)이 실패하고 릴리스는 만들어지지 않습니다.
+2. **main에 이미 병합된 커밋에 태그**를 답니다(예: `git fetch origin && git tag v0.19.0 origin/main`). 워크플로는 태그가 main에 있는 커밋인지 검사하지 않으므로 이 조건은 직접 지켜야 합니다.
+3. `git push origin v0.19.0`으로 태그를 올리면 Actions 탭에서 `release.yml` 실행이 시작됩니다. `v0.19.0-rc.1`처럼 숫자 세 개 형식이 아닌 태그로는 실행되지 않습니다.
+4. 실행이 **완전히 끝난 뒤** Releases 페이지에서 초안을 열어 파일 세 개(`_aarch64.dmg`, `-setup.exe`, `.msi`)와 본문을 확인하고 **Publish release**를 누릅니다.
 
-| 플랫폼 | 파일 위치 | 설명 |
-| --- | --- | --- |
-| macOS | `src-tauri/target/release/bundle/dmg/*.dmg` | 디스크 이미지 (권장) |
-| Windows | `src-tauri\target\release\bundle\nsis\*.exe` | NSIS 설치 파일 (권장) |
-| Windows | `src-tauri\target\release\bundle\msi\*.msi` | MSI 설치 파일 |
-| Linux | `src-tauri/target/release/bundle/deb/*.deb` | Debian/Ubuntu |
-| Linux | `src-tauri/target/release/bundle/rpm/*.rpm` | Fedora/RHEL |
+초안 본문은 `.github/release-notes-header.md`의 설치 안내 블록으로 시작하고, 그 뒤에 직전 버전 태그부터의 자동 생성 노트가 붙습니다.
 
-### 2단계: GitHub Release 생성 (gh CLI 사용)
+### 지켜야 할 규칙
 
-gh CLI가 설치되어 있다면:
-
-```bash
-# 버전 태그 생성
-git tag v0.9.0
-git push origin v0.9.0
-
-# GitHub Release 생성 및 파일 업로드
-gh release create v0.9.0 \
-  "src-tauri/target/release/bundle/dmg/mdedit_0.9.0_x64.dmg" \
-  "src-tauri/target/release/bundle/nsis/mdedit_0.9.0_x64-setup.exe" \
-  --title "mdedit v0.9.0" \
-  --notes "릴리즈 노트"
-```
-
-### 3단계: GitHub Release 수동 생성
-
-1. GitHub 저장소 페이지에서 **Releases** 클릭
-2. **Create a new release** 클릭
-3. Tag: `v0.9.0` 입력 및 생성
-4. Title: `mdedit v0.9.0` 입력
-5. 빌드된 파일을 드래그 앤 드롭으로 첨부
-6. **Publish release** 클릭
-
-### macOS 설치 (Gatekeeper 보안)
-
-코드 서명이 없는 배포의 경우, macOS의 Gatekeeper가 앱 실행을 차단할 수 있습니다. 다음 방법 중 하나를 사용하세요.
-
-**방법 1: Finder에서 앱 열기 (권장)**
-
-1. Finder에서 다운로드한 `mdedit.app` 찾기
-2. 우클릭하여 **열기** 선택
-3. 보안 경고 대화상자에서 **열기** 버튼 클릭
-4. 이후 일반적으로 앱이 실행됨
-
-**방법 2: 터미널에서 격리 속성 제거**
+- 실행 중에는 게시하지 않습니다. 빌드 job은 업로드 직전에 초안인지 확인하지만, 그 확인과 실제 업로드 사이에도 빌드가 오래 돌기 때문에 실행 도중에 게시하면 게시본에 파일이 올라갈 수 있습니다.
+- 게시한 뒤에는 실패한 job을 **다시 실행**하지 않습니다. 대상 릴리스가 초안이 아니면 빌드 job이 업로드 전에 실패하도록 되어 있지만, 게시본을 고치는 경로로 쓰지 않습니다.
+- 같은 태그의 릴리스(초안 포함)가 이미 있으면 워크플로가 새로 만들지 않고 실패합니다.
+- 초안이나 빌드에 결함이 있으면 아래 순서로 지운 뒤 고쳐서 다시 태그를 답니다.
 
 ```bash
-xattr -d com.apple.quarantine /Applications/mdedit.app
+gh release delete v0.19.0 --yes
+git push --delete origin v0.19.0
+git tag -d v0.19.0
 ```
 
-### Windows 설치
+### 로컬 macOS 빌드의 서명
 
-1. `mdedit_x.x.x_x64-setup.exe`를 다운로드
-2. 파일을 두 번 클릭하여 설치 프로그램 실행
-3. "Windows가 보호하는 PC" 경고가 나타나면 **자세한 정보** 클릭 후 **실행** 선택
-4. 설치 마법사 완료
+`src-tauri/tauri.conf.json`에 `bundle.macOS.signingIdentity: "-"`가 들어 있어 이제 로컬 macOS 빌드(`npm run build`)도 **ad-hoc** 서명됩니다(Xcode 명령줄 도구의 `codesign` 사용). Apple 개발자 인증서는 필요 없고, Windows 빌드에는 영향이 없습니다.
+
+### 처음 실행할 때 나오는 경고
+
+이 앱은 Apple 공증이나 Windows 코드 서명을 받지 않았으므로 처음 열 때 경고가 나옵니다. 사용자 안내는 README의 "설치 파일 내려받기" 절에 있습니다.
+
+- **macOS**: 앱을 한 번 열어 본 뒤 시스템 설정 → 개인정보 보호 및 보안으로 가서 아래쪽의 **그래도 열기**를 누르고, 다시 뜨는 안내에서 **열기**를 누릅니다.
+- **Windows**: Microsoft Defender SmartScreen 경고가 뜨면 **추가 정보**를 누른 뒤 **실행**을 선택합니다.
