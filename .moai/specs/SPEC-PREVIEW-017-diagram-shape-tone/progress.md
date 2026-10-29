@@ -204,9 +204,9 @@ Gaps(오케스트레이터 미관찰): `cargo test`는 재실행하지 않았다
 
 ```yaml
 sync_complete_at: 2026-10-29
-sync_commit_sha: <this sync commit — see git log>
+sync_commit_sha: ac06236
 sync_status: complete
-sync_audit: pending   # 오케스트레이터가 이 커밋 뒤에 독립 sync-auditor를 실행한다
+sync_audit: "PASS 0.92 (Functionality 0.95 / Security 0.95 / Craft 0.88 / Consistency 0.92) — .moai/reports/sync-audit/SPEC-PREVIEW-017-sync-audit.md"
 b12_self_test_a: "grep -c 'SPEC-PREVIEW-017' CHANGELOG.md → 0 (기재 전, 중복 없음)"
 b12_self_test_b: "acceptance.md 고유 AC 토큰 13개(교차 참조 AC-001/003/004/005/008 포함) 중 이 SPEC의 AC는 AC-PREVIEW017-001~008 8건 — CHANGELOG 항목이 8건으로 기재"
 b12_self_test_c: "CHANGELOG에 적은 경로 src/index.css, src/lib/export/exportUtils.ts, src/styles/mdedit-tokens.css → ls로 존재 확인"
@@ -214,6 +214,14 @@ changelog_entry_position: "CHANGELOG.md [Unreleased] → ### Changed (첫 항목
 frontmatter_status_transitions:
   spec_md: "draft → completed (updated: 2026-10-29 유지)"
 ```
+
+### 감사 이후 정리 (2026-10-29, 오케스트레이터)
+
+- 버전 올림(사용자 요청): `0.18.0 → 0.19.0`, 커밋 `c6765c6`(package.json, package-lock.json 2곳, Cargo.toml, Cargo.lock의 mdedit 항목, tauri.conf.json, CHANGELOG `[0.19.0] - 2026-10-29`). `cargo metadata --locked` exit 0, 올린 뒤 vitest 108파일/1765 통과 확인. 태그·릴리즈 없음.
+- 샘플 문서(사용자 요청): `samples/diagram-palette.md` — mermaid 블록 7개를 앱 렌더러 `validateDiagram`으로 모두 유효 확인(임시 테스트 8 passed, exit 0, 테스트 파일은 삭제). 라이트·다크 실제 화면 캡처 확인은 하지 않았다(사람 눈 확인 몫).
+- 감사 결함 처리(모두 low·optional): F1 `src/test/exportDiagram.test.ts:413` 모킹 복원 누락(테스트 순서 의존 위험) — 후속 정리 후보, 이번 PR에서는 고치지 않음. F2 016 `spec-compact.md` 개정 포인터 서식 — 서식만의 문제. F3 `spec.md` References/HISTORY 갱신 — SPEC 본문이라 manager-spec 소관, 이번에는 보류. F4 노드 `g`에 기존 style이 있을 때의 단위 테스트 — pele 1.10.0이 노드 `g`에 style을 내는지 미확인, 조치 없음.
+- 안전 백업 `.moai/backups/sync-20261029-103901/`은 모두 커밋된 파일의 복사본이라 삭제함.
+- 남은 일: 푸시·PR 생성(사용자 별도 승인 필요), 라이트·다크 눈 확인, 실제 PDF·DOCX 렌더 확인.
 
 ### 차이 보고(divergence)
 
