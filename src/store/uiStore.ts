@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { HTML_ZOOM_DEFAULT, snapToStep, stepUp, stepDown } from '@/lib/preview/htmlZoom';
 
 // @MX:ANCHOR: [AUTO] useUIStore - persisted UI state store consumed by AppLayout, Header, ResizablePanels, Footer, useTheme, ViewModeToggle
-// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode, statusMessage); fan_in >= 5; SPEC-UI-004 viewMode 추가, SPEC-UI-005 statusMessage 추가
+// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode, statusMessage, htmlZoom); fan_in >= 5; SPEC-UI-004 viewMode 추가, SPEC-UI-005 statusMessage 추가, SPEC-PREVIEW-018 htmlZoom 추가
 // @MX:SPEC: SPEC-UI-004
 // @MX:NOTE: Theme type union for type-safe theme selection
 export type Theme = 'light' | 'dark' | 'system';
@@ -29,6 +30,11 @@ interface UIState {
   previewWidth: number;
   theme: Theme;
   fontSize: number;
+  /**
+   * HTML 미리보기 배율(%) — 모든 HTML 파일에 공통인 단계 값 하나 (SPEC-PREVIEW-018 REQ-006).
+   * fontSize와 독립이다. 영속화 대상.
+   */
+  htmlZoom: number;
   sidebarCollapsed: boolean;
   /** Current file save status */
   saveStatus: SaveStatus;
@@ -94,6 +100,12 @@ interface UIState {
   setAiEnabled: (enabled: boolean) => void;
   /** AI provider 선택을 설정한다 (SPEC-AI-009 REQ-AI9-003). */
   setAiSelectedProvider: (provider: 'auto' | 'claude' | 'codex') => void;
+  /** HTML 배율을 설정한다. 단계 값으로 맞춘다 (SPEC-PREVIEW-018). */
+  setHtmlZoom: (zoom: number) => void;
+  /** HTML 배율을 한 단계 올리거나('in') 내린다('out'). 경계에서는 그대로 (SPEC-PREVIEW-018). */
+  stepHtmlZoom: (dir: 'in' | 'out') => void;
+  /** HTML 배율을 100으로 되돌린다 (SPEC-PREVIEW-018). */
+  resetHtmlZoom: () => void;
 }
 
 // @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth 는 퍼센트로 저장하되 방어적
@@ -109,6 +121,7 @@ export const useUIStore = create<UIState>()(
       previewWidth: 50, // percentage
       theme: 'system',
       fontSize: 14,
+      htmlZoom: HTML_ZOOM_DEFAULT,
       sidebarCollapsed: false,
       saveStatus: 'new',
       scrollSyncEnabled: true,
@@ -165,6 +178,12 @@ export const useUIStore = create<UIState>()(
       setAiEnabled: (enabled: boolean) => set({ aiEnabled: enabled }),
       setAiSelectedProvider: (provider: 'auto' | 'claude' | 'codex') =>
         set({ aiSelectedProvider: provider }),
+      setHtmlZoom: (zoom: number) => set({ htmlZoom: snapToStep(zoom) }),
+      stepHtmlZoom: (dir: 'in' | 'out') =>
+        set((state) => ({
+          htmlZoom: dir === 'in' ? stepUp(state.htmlZoom) : stepDown(state.htmlZoom),
+        })),
+      resetHtmlZoom: () => set({ htmlZoom: HTML_ZOOM_DEFAULT }),
     }),
     {
       name: 'mdedit-ui-store',
@@ -176,6 +195,17 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => {
         const { statusMessage, saveStatus, ...rest } = state;
         return rest;
+      },
+      // SPEC-PREVIEW-018 (REQ-006): htmlZoom 필드 추가는 version 범프가 필요 없다 — persist는
+      //   저장 상태를 초기 상태 위에 얕게 합치므로 필드가 없으면 초기값 100이 남는다. 단계 밖 값·
+      //   비숫자 값(문자열 등)의 정규화만 merge에서 snapToStep으로 처리한다.
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<UIState>;
+        return {
+          ...currentState,
+          ...persisted,
+          htmlZoom: snapToStep(persisted.htmlZoom),
+        };
       },
       // V2(SPEC-FS-003): version 0→1 마이그레이션. 기존 사용자 localStorage에 잔류한 stale
       //   saveStatus를 제거한다(나머지 환경설정 보존). version 미지정(0) 상태에서 범프.

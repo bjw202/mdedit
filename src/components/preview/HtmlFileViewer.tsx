@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { useUIStore } from '@/store/uiStore';
 
 interface HtmlFileViewerProps {
   /** 렌더링할 HTML 파일의 절대 경로 */
@@ -27,6 +28,7 @@ interface HtmlFileViewerProps {
  */
 export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   const [loadError, setLoadError] = useState(false);
+  const htmlZoom = useUIStore((state) => state.htmlZoom);
 
   // iframe 로드 오류 안내
   if (loadError) {
@@ -62,16 +64,40 @@ export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   const rawUrl = convertFileSrc(htmlPath);
   const assetUrl = rawUrl.replace(/%2F/gi, '/').replace(/%5C/gi, '/');
 
+  // @MX:NOTE: [AUTO] 브라우저식 배율 — 감싸개 + 크기 역보정 + transform: scale (SPEC-PREVIEW-018).
+  // 배율 z에서 iframe을 (100/z)%로 키운 뒤 z배로 줄여 감싸개를 정확히 채운다. 그러면 iframe 문서의
+  // CSS 뷰포트 폭이 감싸개 폭 / z가 되어 줄바꿈·미디어 쿼리가 배율에 반응하고, iframe 자체 스크롤도
+  // 그대로 동작한다. iframe 요소의 CSS zoom은 엔진마다 결과가 갈리고, iframe 문서에 CSS를 주입하는
+  // 방법은 cross-origin(asset:// vs tauri://)이라 불가능하며 sandbox 변경도 금지라 쓰지 않는다.
+  // @MX:SPEC: SPEC-PREVIEW-018
+  const scale = htmlZoom / 100;
+  const zoomStyle =
+    htmlZoom === 100
+      ? undefined
+      : {
+          width: `${100 / scale}%`,
+          height: `${100 / scale}%`,
+          transform: `scale(${scale})`,
+          transformOrigin: '0 0',
+        };
+
   return (
-    <iframe
-      src={assetUrl}
-      title="HTML 파일 미리보기"
-      className="w-full h-full border-0"
-      // sandbox 속성: allow-scripts allow-same-origin
-      // allow-same-origin은 iframe을 자기 asset: 자산과만 묶을 뿐 앱 셸과는 cross-origin 유지
-      sandbox="allow-scripts allow-same-origin"
-      onError={() => setLoadError(true)}
-      data-testid="html-preview-iframe"
-    />
+    <div
+      className="relative w-full h-full overflow-hidden"
+      style={{ overflow: 'hidden' }}
+      data-testid="html-preview-zoom-wrapper"
+    >
+      <iframe
+        src={assetUrl}
+        title="HTML 파일 미리보기"
+        className="w-full h-full border-0"
+        style={zoomStyle}
+        // sandbox 속성: allow-scripts allow-same-origin
+        // allow-same-origin은 iframe을 자기 asset: 자산과만 묶을 뿐 앱 셸과는 cross-origin 유지
+        sandbox="allow-scripts allow-same-origin"
+        onError={() => setLoadError(true)}
+        data-testid="html-preview-iframe"
+      />
+    </div>
   );
 }
