@@ -1,4 +1,4 @@
-# SPEC-PREVIEW-018 acceptance.md — 수용 기준 (Tier S, 검증 층 분리, v0.2.0)
+# SPEC-PREVIEW-018 acceptance.md — 수용 기준 (Tier S, 검증 층 분리, v0.3.0)
 
 ## 추적성
 
@@ -8,12 +8,12 @@
 | AC-PREVIEW018-002 | REQ-PREVIEW018-002 | unit — 단계 함수·저장소·버튼 비활성 |
 | AC-PREVIEW018-003 | REQ-PREVIEW018-003 | unit + 수동 M-1 |
 | AC-PREVIEW018-004 | REQ-PREVIEW018-004 | unit + 수동 M-2 |
-| AC-PREVIEW018-005 | REQ-PREVIEW018-005 | unit(제스처 논리) + 수동 M-3 필수(두 OS) |
+| AC-PREVIEW018-005 | REQ-PREVIEW018-005 | 삭제됨(사용자 결정) |
 | AC-PREVIEW018-006 | REQ-PREVIEW018-006 | unit — 재수화 |
 | AC-PREVIEW018-007 | REQ-PREVIEW018-007 | unit + grep + git diff |
 | AC-PREVIEW018-008 | REQ-PREVIEW018-004, REQ-PREVIEW018-007 | 수동 M-4·M-5(두 OS) |
 
-검증 계층 원칙: 단계 계산·저장소·헤더 렌더링·키 이벤트 분기는 vitest + jsdom으로 충분하다. 휠·핀치의 실제 전달 경로, iframe 안 초점, iframe 문서의 뷰포트 폭, 웹뷰 기본 배율과의 충돌은 jsdom이 재현하지 못하므로(합성 이벤트는 실제 브라우저 전달 순서와 cross-origin 경계를 거치지 않는다) 실기기 수동 검증 없이 PASS로 기록하지 않는다.
+검증 계층 원칙: 단계 계산·저장소·헤더 렌더링·키 이벤트 분기는 vitest + jsdom으로 충분하다. iframe 안 초점, iframe 문서의 뷰포트 폭, 웹뷰 기본 배율과의 충돌은 jsdom이 재현하지 못하므로(합성 이벤트는 실제 브라우저 전달 순서와 cross-origin 경계를 거치지 않는다) 실기기 수동 검증 없이 PASS로 기록하지 않는다.
 
 ## 시나리오
 
@@ -49,22 +49,9 @@
 - **And Given** 보기 종류가 `markdown`이면, **When** 같은 키를 보내면 **Then** `htmlZoom`과 `fontSize`가 모두 그대로이고 `defaultPrevented`가 `false`다.
 - **And** 수동 M-2 결과가 두 OS 모두 progress.md에 기록되어 있다.
 
-### AC-PREVIEW018-005 — Cmd/Ctrl + 휠·핀치 (unit 논리 + 수동 M-3 필수)
+### AC-PREVIEW018-005 — 삭제됨(사용자 결정)
 
-단위 부분(가짜 타이머 사용):
-
-- **Given** 보기 종류가 `html`이고 배율이 100인 상태에서,
-- **When** 감싸개에 `WheelEvent('wheel', { deltaY: -60, deltaMode: 0, ctrlKey: true, cancelable: true })`를 보내면,
-- **Then** 배율이 110이 되고 `defaultPrevented`가 `true`다. 같은 조건에서 `deltaY: 60`이면 90이 된다. `ctrlKey`·`metaKey`가 모두 없으면 배율은 그대로이고 `defaultPrevented`는 `false`다.
-- **And When** `deltaY: -10` 이벤트를 각각 20ms 간격으로 30번 보내면(누적 −300px, 간격이 150ms보다 짧아 한 제스처), **Then** 배율은 110으로 한 단계만 바뀐다. 이어서 150ms 이상 이벤트 없이 기다린 뒤 같은 묶음을 다시 보내면 **Then** 125가 된다(새 제스처).
-- **And When** 한 제스처 안에서 누적 절댓값이 50px 미만(예: `deltaY: -10` 4번)이면, **Then** 배율이 바뀌지 않는다. `deltaMode: 1`(줄 단위) `deltaY: -4`는 −64px로 환산되어 한 단계 올린다.
-
-실기기 부분(필수):
-
-- **Given** 두 OS(macOS WKWebView, Windows WebView2) 각각에서 반응형 HTML 파일을 연 상태에서,
-- **When** 포인터를 iframe 위(HTML 내용 위)에 두고 Cmd/Ctrl+마우스 휠을 한 번 굴리고, 트랙패드로 핀치 확대·축소를 한 번씩 하면,
-- **Then** 두 OS 모두에서 각 동작마다 배율이 정확히 한 단계 바뀌고, 앱 UI 전체 크기는 바뀌지 않는다.
-- 이 AC는 위 실기기 관찰이 두 OS 모두에서 확인될 때만 PASS다. 휠 배율이 어느 위치에서도 동작하지 않거나 한 OS에서라도 iframe 위에서 동작하지 않으면 FAIL이며, 그 경우 run 단계는 spec.md §3 실측 관문에 따라 멈추고 차단 보고를 돌려준다.
+- 삭제됨(사용자 결정, 2026-11-09, v0.3.0). 식별자만 남기며 재사용하지 않는다. 사유는 spec.md HISTORY 0.3.0 참조.
 
 ### AC-PREVIEW018-006 — 전역 영속화 (unit)
 
@@ -89,18 +76,18 @@
 - **Given** 두 OS 각각에서 HTML 파일을 연 상태에서,
 - **When** iframe 안 문서를 클릭해 초점을 옮긴 뒤 Cmd/Ctrl+`=`를 누르면,
 - **Then** 앱이 멈추거나 오류를 내지 않고 앱 UI 전체(헤더·탐색기) 크기가 바뀌지 않는다. 이 상태에서 HTML 배율 값이 바뀌지 않는 것은 spec.md §3 "iframe 안 키보드 초점" 제한에 해당한다. 이어서 헤더를 한 번 누른 뒤 같은 키를 누르면 배율이 한 단계 오른다(REQ-004).
-- **And When** iframe 안 초점 상태에서 Ctrl/Cmd+`=`·`-`·`0`을 누르거나, 포인터를 iframe 위에 두고 Ctrl/Cmd+휠을 굴리면, **Then** 앱 UI 전체 크기가 바뀌지 않는다(REQ-007). 바뀌면 결함으로 기록한다.
+- **And When** iframe 안 초점 상태에서 Ctrl/Cmd+`=`·`-`·`0`을 누르면, **Then** 앱 UI 전체 크기가 바뀌지 않는다(REQ-007). 바뀌면 결함으로 기록한다. Windows(WebView2)에서는 Ctrl+`=`·`-`·`0`이 웹뷰 전체를 확대·축소하는지 특히 확인한다(plan.md §B 가설).
 
-## 수동 검증 항목 (실기기, OS별 기록 — 모두 필수)
+## 수동 검증 항목 (실기기, OS별 기록 — sync/PR 단계에서 사용자 확인)
 
 | ID | 내용 | macOS (WKWebView) | Windows (WebView2) |
 |----|------|-------------------|--------------------|
-| M-0 | plan.md §F M0 휠·핀치 도달 실측(구현 전) | 필수 | 필수 |
+| M-0 | 삭제됨(사용자 결정) | — | — |
 | M-1 | 반응형 규칙이 있는 HTML(예: `@media (max-width: 600px)`)을 열고 배율을 올릴 때 줄바꿈이 다시 계산되고 미디어 쿼리가 전환되는지, 배율 뒤에도 iframe 스크롤로 문서 끝까지 보이는지 | 필수 | 필수 |
 | M-2 | 초점이 헤더·탐색기·편집기에 있을 때 Cmd/Ctrl+`=`/`+`/`-`/`0`이 동작하고 웹뷰 자체 배율이 함께 바뀌지 않는지 | 필수 | 필수 |
-| M-3 | 포인터가 iframe 위일 때 마우스 휠·트랙패드 핀치로 동작당 정확히 한 단계 바뀌는지(AC-005 실기기 부분) | 필수 | 필수 |
+| M-3 | 삭제됨(사용자 결정) | — | — |
 | M-4 | iframe 안 초점 상태 단축키(AC-008 첫 시나리오) | 필수 | 필수 |
-| M-5 | iframe 안 초점 상태 Ctrl/Cmd+`=`/`-`/`0`, iframe 위 Ctrl/Cmd+휠이 앱 UI 전체 크기를 바꾸지 않는지(AC-008 둘째 시나리오) | 필수 | 필수 |
+| M-5 | iframe 안 초점 상태 Ctrl/Cmd+`=`/`-`/`0`이 앱 UI 전체 크기를 바꾸지 않는지(AC-008 둘째 시나리오). Windows에서는 Ctrl+`=`(그리고 Ctrl+`-`/`0`)가 웹뷰 전체를 확대·축소하는지 기록 | 필수 | 필수 |
 
 ## 경계 사례
 
@@ -117,7 +104,7 @@
 
 ## Definition of Done
 
-- AC-PREVIEW018-001~008이 모두 PASS다. 미검증 항목이 있으면 완료가 아니다.
-- 수동 검증 M-0~M-5가 macOS와 Windows 두 OS 모두에서 수행되어 결과가 progress.md §E.2에 OS별로 남아 있다. 한 OS에서라도 미수행인 항목이 있으면 SPEC은 `completed`로 닫지 않는다.
-- M-0 결과가 "도달하지 않음"이면 이 SPEC은 이 판의 범위로는 완료될 수 없으며, 사용자 결정에 따른 SPEC 개정 후 다시 판정한다.
+- 활성 AC(AC-PREVIEW018-001~004, 006~008)가 모두 PASS다. AC-PREVIEW018-005는 삭제되어 판정 대상이 아니다. 미검증 항목이 있으면 완료가 아니다.
+- run 단계 완료 판정: 활성 AC의 단위·grep·diff 부분이 PASS이고 품질 게이트를 통과하면 run 단계를 완료로 표시할 수 있다. 수동 항목 M-1·M-2·M-4·M-5는 사용자가 sync/PR 단계에서 확인하는 항목이며, run 단계 완료 표시를 막지 않는다.
+- SPEC `completed` 판정: M-1·M-2·M-4·M-5가 macOS와 Windows 두 OS 모두에서 수행되어 결과가 progress.md에 OS별로 남아 있어야 한다. 그 전에는 AC-003·004·008의 수동 부분을 PASS로 적지 않으며 SPEC을 `completed`로 닫지 않는다.
 - iframe `sandbox` 속성 줄과 `@MX:WARN` 주석이 바뀌지 않았다(AC-007).

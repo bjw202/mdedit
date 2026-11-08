@@ -68,7 +68,7 @@ export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   // 배율 z에서 iframe을 (100/z)%로 키운 뒤 z배로 줄여 감싸개를 정확히 채운다. 그러면 iframe 문서의
   // CSS 뷰포트 폭이 감싸개 폭 / z가 되어 줄바꿈·미디어 쿼리가 배율에 반응하고, iframe 자체 스크롤도
   // 그대로 동작한다. iframe 요소의 CSS zoom은 엔진마다 결과가 갈리고, iframe 문서에 CSS를 주입하는
-  // 방법은 cross-origin(asset:// vs tauri://)이라 불가능하며 sandbox 변경도 금지라 쓰지 않는다.
+  // 방법은 cross-origin(asset:// vs tauri://)이라 불가능하며 iframe 권한 확대도 금지라 쓰지 않는다.
   // @MX:SPEC: SPEC-PREVIEW-018
   const scale = htmlZoom / 100;
   const zoomStyle =
