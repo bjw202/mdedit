@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-018
 title: "HTML 미리보기 브라우저식 배율(zoom) — 단계 배율 컨트롤·단축키·전역 영속화"
 version: "0.3.0"
-status: in-progress
+status: implemented
 created: 2026-11-08
 updated: 2026-11-09
 author: jw (bjw202)

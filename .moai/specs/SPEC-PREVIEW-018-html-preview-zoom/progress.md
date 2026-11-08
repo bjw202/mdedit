@@ -92,6 +92,7 @@
 - Playwright(`e2e/html-file-viewer.spec.ts`) 미실행: `pele` 미설치로 앱을 띄울 수 없음.
 - `pele` 설치 후 전체 vitest/tsc 재측정 미수행.
 - CodeMirror 기본 키맵의 `Mod-=`/`Mod--`/`Mod-0` 충돌 확인(plan §A 남은 확인) 미수행. `Header`의 문서 단위 리스너는 `keydown` 버블 단계라, 편집기가 먼저 `preventDefault`하면 달라질 수 있다.
+  - [sync 단계 보강, 2026-11-09] 위 항목은 sync에서 해소됨: §E.4 "키맵 충돌 점검" 참조(바인딩 없음, HTML 보기 중 편집기 미마운트). 위 원문은 run 시점 기록으로 보존한다.
 - plan-audit: 이번 개정(v0.3.0)은 새 감사를 거치지 않았다. spec.md가 바뀌어 기존 PASS 캐시는 무효.
 - 원격 브랜치에 프로브 커밋 0dc3c34와 revert 643d901이 모두 남는다(재작성 금지 지시).
 
@@ -101,4 +102,65 @@ _<pending run-phase>_
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+```yaml
+sync_complete_at: 2026-11-09
+sync_status: audit-ready
+sync_commit_sha: <이 기록을 담은 커밋 — 커밋 후 git log -1로 확인>
+changelog_entry_position: "CHANGELOG.md ## [Unreleased] > ### Added, 첫 항목"
+frontmatter_status_transitions:
+  spec_md: "in-progress -> implemented (status, updated만 변경)"
+  plan_md_acceptance_md_progress_md: "미변경 (아래 사유)"
+```
+
+### 동기화한 것
+
+- CHANGELOG.md `[Unreleased]`에 SPEC-PREVIEW-018 항목 추가(`### Added`). 단계·버튼·단축키·영속화·적용 방식은 `src/lib/preview/htmlZoom.ts`, `src/store/uiStore.ts`, `src/components/layout/Header.tsx`, `src/components/preview/HtmlFileViewer.tsx` diff를 읽고 대조해 작성했다.
+- spec.md frontmatter `status: in-progress -> implemented`, `updated: 2026-11-09`. 본문은 건드리지 않았다.
+- README.md·docs/USER_GUIDE.md·docs/USER_MANUAL.md: HTML은 "샌드박스 iframe 보기 전용 렌더링"이라는 서술이 여전히 정확하고, 글자 크기 스테퍼 서술은 마크다운 편집 맥락이라 부정확해지지 않아 수정하지 않았다(USER_MANUAL 헤더 표만 HTML 보기에서 스테퍼가 배율로 바뀌는 점을 담지 않지만 오류는 아니라고 판단, 후속 문서 정리 후보).
+
+### 상태 값 선택 사유
+
+- `implemented`로 설정, `completed`는 아님. 수용 기준 AC-003/004/008이 실기기 수동 확인(M-1, M-2, M-4, M-5)을 요구하고 아직 수행되지 않았다. `spec-workflow.md`의 의존성 충족 정의는 `completed`만 충족으로 보므로, 수동 확인 통과 전에 `completed`로 올리면 미검증 상태를 충족으로 표시하게 된다.
+- plan.md·acceptance.md·progress.md frontmatter는 같은 이유로 이번 커밋에서 전환하지 않았다(`completed` 전환 시 4개 문서를 함께 갱신).
+
+### 키맵 충돌 점검 (sync 작업자가 직접 실행)
+
+- 명령 1: `grep -rnE "(key|mac|win|linux): *\"[^\"]*(Mod|Ctrl|Cmd)-(=|\+|-|0|Minus|Equal)\"" node_modules/@codemirror/{commands,search,language,autocomplete}/dist/index.js` -> 출력 없음(exit 1).
+- 명령 2: `grep -rnE "Mod-(=|\+|-|0)|(Ctrl|Cmd)-(=|\+|-|0)['\"]" src --include='*.ts' --include='*.tsx' | grep -v '/test/'` -> 출력 없음. 앱 자체 키맵(`MarkdownEditor.tsx` 포함)에도 해당 바인딩이 없다. (`src/lib/keyboard-shortcuts.ts`는 이 트리에 존재하지 않는다.)
+- AppLayout은 HTML 파일을 보는 동안 편집기를 마운트하지 않고 보기 전용 자리표시를 보여 주므로 편집기 키맵과 겹칠 경로가 없다.
+
+### 관찰한 검증 수치 (조정자가 이 worktree에서 `npm ci` 후 직접 실행, sync 작업자는 재실행하지 않음)
+
+| 명령 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npx vitest run` | exit 0, 110 files / 1833 tests passed |
+
+위 수치는 §E.2의 이전 수치(`pele` 미설치 환경에서의 실패 345건)를 대체한다. 환경 결함이 `npm ci`로 해소된 뒤의 값이다.
+
+### 남은 수동 확인
+
+| 항목 | macOS | Windows |
+|------|-------|---------|
+| M-1 (배율 적용 모양) | 대기 | 대기 |
+| M-2 (단축키 동작) | 대기 | 대기 |
+| M-4 | 대기 | 대기 |
+| M-5 | 대기 | 대기 |
+
+Windows는 WebView2가 Ctrl+`=`에서 자체 페이지 확대를 함께 적용하는지가 핵심 확인 사항이다.
+
+### Gaps (미검증)
+
+- 수동 확인 M-1, M-2, M-4, M-5(macOS·Windows) 전부 미수행.
+- Playwright e2e(`e2e/html-file-viewer.spec.ts`) 미실행.
+- SPEC v0.3.0 개정(휠·핀치 제외)은 plan-auditor 재감사를 받지 않았다. sync-auditor가 지금 검토한다.
+- 검증 수치는 조정자 실행의 보고값이며 sync 작업자가 재실행하지 않았다. 키맵 grep은 sync 작업자가 직접 실행했다.
+- Ctrl/Cmd+휠·트랙패드 핀치 배율은 범위 제외(사용자 결정 2026-11-09), 후속 SPEC 후보.
+- 키보드 초점이 iframe 문서 안에 있을 때 단축키가 앱에 전달되지 않는 제한은 코드·문서에 알려진 제한으로만 기록했고 실기기에서 확인하지 않았다.
+- `mcp__moai__spec_audit` 등 SPEC 수명주기 감사 도구는 실행하지 않았다.
+
+### Residual risk
+
+- WebView2 자체 확대와의 이중 적용 가능성(Windows).
+- 단위 테스트는 jsdom 기반이라 실제 iframe 크기 역보정·`transform` 렌더 결과(줄바꿈, 스크롤)를 검증하지 못한다(M-1이 담당).
