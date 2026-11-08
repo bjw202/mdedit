@@ -98,14 +98,14 @@
 
 ## §E.3 Run-phase Audit-Ready Signal
 
-_<pending run-phase>_
+_run 단계 완료 기록은 §E.2에 있다. sync-auditor 판정(PASS-WITH-DEBT 0.88): .moai/reports/sync-audit/SPEC-PREVIEW-018.md_
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
 ```yaml
 sync_complete_at: 2026-11-09
 sync_status: audit-ready
-sync_commit_sha: <이 기록을 담은 커밋 — 커밋 후 git log -1로 확인>
+sync_commit_sha: 0338d48
 changelog_entry_position: "CHANGELOG.md ## [Unreleased] > ### Added, 첫 항목"
 frontmatter_status_transitions:
   spec_md: "in-progress -> implemented (status, updated만 변경)"
