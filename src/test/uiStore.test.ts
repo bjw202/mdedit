@@ -459,3 +459,86 @@ describe('uiStore: saveStatus 비영속화 + 마이그레이션 (SPEC-FS-003)', 
     expect(migrated).toEqual(state);
   });
 });
+
+// ---- SPEC-PREVIEW-018: HTML 미리보기 배율 (htmlZoom) ----
+
+describe('uiStore: htmlZoom (SPEC-PREVIEW-018)', () => {
+  const rehydrateWith = async (state: Record<string, unknown>): Promise<void> => {
+    localStorage.setItem('mdedit-ui-store', JSON.stringify({ state, version: 1 }));
+    await useUIStore.persist.rehydrate();
+  };
+
+  beforeEach(() => {
+    localStorage.removeItem('mdedit-ui-store');
+    useUIStore.setState({ htmlZoom: 100, fontSize: 14 });
+  });
+
+  it('기본값은 100이다 (REQ-006)', () => {
+    expect(useUIStore.getState().htmlZoom).toBe(100);
+  });
+
+  it('setHtmlZoom은 단계 값으로 맞춘다', () => {
+    act(() => useUIStore.getState().setHtmlZoom(150));
+    expect(useUIStore.getState().htmlZoom).toBe(150);
+    act(() => useUIStore.getState().setHtmlZoom(113));
+    expect(useUIStore.getState().htmlZoom).toBe(110);
+  });
+
+  it('stepHtmlZoom / resetHtmlZoom이 단계 이동·복귀를 한다 (REQ-002)', () => {
+    act(() => useUIStore.getState().stepHtmlZoom('in'));
+    expect(useUIStore.getState().htmlZoom).toBe(110);
+    act(() => useUIStore.getState().stepHtmlZoom('out'));
+    act(() => useUIStore.getState().stepHtmlZoom('out'));
+    expect(useUIStore.getState().htmlZoom).toBe(90);
+    act(() => useUIStore.getState().resetHtmlZoom());
+    expect(useUIStore.getState().htmlZoom).toBe(100);
+  });
+
+  it('최댓값·최솟값에서 같은 방향 입력은 값을 바꾸지 않는다', () => {
+    act(() => useUIStore.getState().setHtmlZoom(200));
+    act(() => useUIStore.getState().stepHtmlZoom('in'));
+    expect(useUIStore.getState().htmlZoom).toBe(200);
+    act(() => useUIStore.getState().setHtmlZoom(67));
+    act(() => useUIStore.getState().stepHtmlZoom('out'));
+    expect(useUIStore.getState().htmlZoom).toBe(67);
+  });
+
+  it('HTML 배율을 200까지 올렸다 100으로 되돌려도 fontSize는 그대로다 (REQ-007)', () => {
+    act(() => useUIStore.getState().setFontSize(18));
+    for (let i = 0; i < 10; i++) act(() => useUIStore.getState().stepHtmlZoom('in'));
+    expect(useUIStore.getState().htmlZoom).toBe(200);
+    act(() => useUIStore.getState().resetHtmlZoom());
+    expect(useUIStore.getState().fontSize).toBe(18);
+  });
+
+  it('setHtmlZoom 뒤 저장된 JSON에 htmlZoom이 있다 (재시작 후 유지)', () => {
+    act(() => useUIStore.getState().setHtmlZoom(150));
+    const persisted = JSON.parse(localStorage.getItem('mdedit-ui-store') as string);
+    expect(persisted.state.htmlZoom).toBe(150);
+  });
+
+  it('htmlZoom이 없는 기존 저장 상태는 100으로, fontSize는 그대로 재수화된다 (AC-006)', async () => {
+    await rehydrateWith({ fontSize: 16 });
+    expect(useUIStore.getState().htmlZoom).toBe(100);
+    expect(useUIStore.getState().fontSize).toBe(16);
+  });
+
+  it.each([
+    [113, 110],
+    [77.5, 75],
+    [999, 200],
+    [10, 67],
+    [150, 150],
+  ])('저장값 %s는 단계 %s로 정규화된다', async (stored, expected) => {
+    await rehydrateWith({ htmlZoom: stored });
+    expect(useUIStore.getState().htmlZoom).toBe(expected);
+  });
+
+  it.each([['"150"', '150'], ['"abc"', 'abc'], ['null', null], ['true', true]])(
+    '저장값 %s(숫자가 아님)는 100이 된다',
+    async (_label, stored) => {
+      await rehydrateWith({ htmlZoom: stored });
+      expect(useUIStore.getState().htmlZoom).toBe(100);
+    }
+  );
+});

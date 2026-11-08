@@ -1,0 +1,67 @@
+// 파일 종류 판정 순수 함수 — PreviewContainer에서 분리(SPEC-PREVIEW-018).
+// 헤더가 뷰어 컴포넌트 의존 없이 보기 종류만 알기 위해 가벼운 모듈로 둔다. PreviewContainer가
+// 같은 이름으로 다시 내보내므로 기존 import 경로는 그대로 동작한다.
+import type { PreviewStatus } from '@/store/fileStore';
+import { getLangForExtension } from '@/lib/preview/extensionLangMap';
+import { isRasterImagePath, isSvgPath } from '@/lib/preview/mediaExtensions';
+
+/**
+ * 파일 종류를 판단하는 순수 함수 (경로 기반 기본 분류 + previewStatus 오버라이드).
+ *
+ * 분기 우선순위 (SPEC-PREVIEW-008 REQ-PREVIEW008-001 확장자 우선 규약 포함):
+ * 1. .html(대소문자 무관) → 'html'  (SPEC-PREVIEW-004 기존 동작 유지)
+ * 2. .md / .markdown(대소문자 무관) → 'markdown'  (회귀 수정: previewStatus='text'로 덮어써지지 않도록)
+ * 3. 래스터 이미지 확장자(.png/.jpg/.jpeg/.gif/.webp/.bmp/.ico/.avif) → 'image'  (SPEC-PREVIEW-008 신규)
+ * 4. .svg → 'svg'  (SPEC-PREVIEW-008 신규, D6: 'text' 평문 경로로 넘어가지 않도록 previewStatus보다 앞)
+ * 5. extensionLangMap 조회 성공 → 'code'  (SPEC-PREVIEW-005 기존 동작 유지)
+ * 6. previewStatus = 'binary' | 'too-large' → 'unsupported'  (SPEC-PREVIEW-007 신규)
+ * 7. previewStatus = 'text' → 'text'  (SPEC-PREVIEW-007 신규)
+ * 8. 그 외 → 'markdown'  (기존 폴백)
+ *
+ * 3·4순위(이미지·SVG)는 파일 경로(확장자)만으로 판정하며 previewStatus(binary/text) 판정보다
+ * 반드시 앞에 위치한다. read_file이 래스터를 reject(→binary)하거나 svg를 성공 처리(→text)하는
+ * 것을 확장자 분기가 선점하지 않으면 SPEC-PREVIEW-008이 고치려는 오라우팅이 재발한다(D1).
+ *
+ * @param path - 파일 경로 또는 파일명
+ * @param previewStatus - openFile이 판정한 파일 분류 결과 (단일 진실 공급원)
+ * @returns 'html' | 'code' | 'unsupported' | 'text' | 'markdown' | 'image' | 'svg'
+ */
+export function getFileViewType(
+  path: string | null | undefined,
+  previewStatus: PreviewStatus = null
+): 'html' | 'code' | 'unsupported' | 'text' | 'markdown' | 'image' | 'svg' {
+  if (!path) return 'markdown';
+
+  const lower = path.toLowerCase();
+
+  // 1순위: .html 분기 — SPEC-PREVIEW-004 동작 무변경
+  if (lower.endsWith('.html')) return 'html';
+
+  // SPEC-IMG-LOAD-001 REQ-IMG-LOAD-B-001 + D1: too-large 재배치는 .md/.markdown 에만 적용.
+  // 종전 의사코드처럼 모든 확장자 앞에 too-large 를 두면 .html/.json/래스터/SVG 까지
+  // unsupported 로 재라우팅되어 SPEC-PREVIEW-008 래스터/SVG 보호(Non-Goal #8)를 위반한다.
+  // 비-.md 확장자 분기 순서는 현행 유지 — D1 회귀 가드(UT-B5)가 자동 단언.
+  if (previewStatus === 'too-large' && (lower.endsWith('.md') || lower.endsWith('.markdown'))) {
+    return 'unsupported';
+  }
+
+  // 2순위: 마크다운 확장자 명시적 체크 — previewStatus보다 반드시 앞에 위치해야 함
+  // openFile이 .md를 읽으면 previewStatus='text'로 설정하지만,
+  // .md 파일은 항상 마크다운 뷰어로 렌더되어야 한다 (핵심 기능 보호)
+  if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'markdown';
+
+  // 3·4순위: 이미지·SVG 확장자 분기 (SPEC-PREVIEW-008 D1) — previewStatus 판정보다 앞
+  if (isRasterImagePath(path)) return 'image';
+  if (isSvgPath(path)) return 'svg';
+
+  // 5순위: 코드 매핑 조회 — SPEC-PREVIEW-005 기존 동작 유지
+  if (getLangForExtension(path) !== null) return 'code';
+
+  // 6순위: previewStatus 기반 분류 — SPEC-PREVIEW-007 신규
+  // 경로만으로는 바이너리·대용량 여부를 알 수 없으므로 openFile이 판정한 상태를 참조한다
+  if (previewStatus === 'binary' || previewStatus === 'too-large') return 'unsupported';
+  if (previewStatus === 'text') return 'text';
+
+  // 7순위: 폴백
+  return 'markdown';
+}

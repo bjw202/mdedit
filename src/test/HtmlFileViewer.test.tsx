@@ -67,3 +67,45 @@ describe('HtmlFileViewer', () => {
     expect(screen.getByTestId('html-preview-iframe')).toBeDefined();
   });
 });
+
+// ---- SPEC-PREVIEW-018: 브라우저식 배율 적용 (AC-003) ----
+
+describe('HtmlFileViewer 배율 (SPEC-PREVIEW-018)', () => {
+  it('배율 125에서 iframe 크기를 역보정하고 scale을 적용한다', async () => {
+    const { useUIStore } = await import('@/store/uiStore');
+    useUIStore.setState({ htmlZoom: 125 });
+    const { HtmlFileViewer } = await import('@/components/preview/HtmlFileViewer');
+    render(<HtmlFileViewer htmlPath="/project/test.html" />);
+
+    const iframe = screen.getByTestId('html-preview-iframe') as HTMLIFrameElement;
+    expect(iframe.style.width).toBe('80%');
+    expect(iframe.style.height).toBe('80%');
+    expect(iframe.style.transform).toBe('scale(1.25)');
+    expect(['0 0', '0px 0px']).toContain(iframe.style.transformOrigin);
+
+    const wrapper = screen.getByTestId('html-preview-zoom-wrapper');
+    expect(wrapper.style.overflow).toBe('hidden');
+    expect(wrapper.contains(iframe)).toBe(true);
+  });
+
+  it('배율 100에서는 변환이 없다', async () => {
+    const { useUIStore } = await import('@/store/uiStore');
+    useUIStore.setState({ htmlZoom: 100 });
+    const { HtmlFileViewer } = await import('@/components/preview/HtmlFileViewer');
+    render(<HtmlFileViewer htmlPath="/project/test.html" />);
+
+    const iframe = screen.getByTestId('html-preview-iframe') as HTMLIFrameElement;
+    expect(['', 'none']).toContain(iframe.style.transform);
+  });
+
+  it('배율과 무관하게 sandbox와 src는 그대로다', async () => {
+    const { useUIStore } = await import('@/store/uiStore');
+    useUIStore.setState({ htmlZoom: 67 });
+    const { HtmlFileViewer } = await import('@/components/preview/HtmlFileViewer');
+    render(<HtmlFileViewer htmlPath="/project/test.html" />);
+
+    const iframe = screen.getByTestId('html-preview-iframe') as HTMLIFrameElement;
+    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
+    expect(iframe.getAttribute('src')).toBe('asset://localhost/%2Fproject%2Ftest.html'.replace(/%2F/gi, '/'));
+  });
+});

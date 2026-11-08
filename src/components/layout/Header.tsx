@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUIStore } from '@/store/uiStore';
+import { useFileStore } from '@/store/fileStore';
+import { getFileViewType } from '@/lib/preview/fileViewType';
+import {
+  HTML_ZOOM_STEPS,
+  detectPlatform,
+  isMacPlatform,
+  matchZoomShortcut,
+} from '@/lib/preview/htmlZoom';
 import type { Theme } from '@/store/uiStore';
 import { ImageModeToggle } from '@/components/settings/ImageModeToggle';
 import { ViewModeToggle } from '@/components/layout/ViewModeToggle';
@@ -76,6 +84,32 @@ export function Header({
   const setTheme = useUIStore((s) => s.setTheme);
   const fontSize = useUIStore((s) => s.fontSize);
   const setFontSize = useUIStore((s) => s.setFontSize);
+  const htmlZoom = useUIStore((s) => s.htmlZoom);
+  const stepHtmlZoom = useUIStore((s) => s.stepHtmlZoom);
+  const resetHtmlZoom = useUIStore((s) => s.resetHtmlZoom);
+  const currentFile = useFileStore((s) => s.currentFile);
+  const previewStatus = useFileStore((s) => s.previewStatus);
+  const isHtmlView = getFileViewType(currentFile, previewStatus) === 'html';
+
+  // @MX:NOTE: [AUTO] HTML 배율 단축키 — 앱 셸 문서 단위 keydown 리스너 (SPEC-PREVIEW-018 REQ-004).
+  // 수정키는 macOS Cmd(metaKey)만, 그 밖의 OS Ctrl(ctrlKey)만 받는다. 보기 종류가 html이 아니거나,
+  // 모달 대화상자가 열려 있거나, 조합 입력 중이면 처리하지 않고 기본 동작도 막지 않는다.
+  // 키보드 초점이 iframe 문서 안에 있으면 cross-origin이라 이 리스너가 키를 받지 못한다(알려진 제한).
+  // @MX:SPEC: SPEC-PREVIEW-018
+  useEffect(() => {
+    if (!isHtmlView) return;
+    const isMac = isMacPlatform(detectPlatform());
+    const onKeyDown = (e: KeyboardEvent): void => {
+      const action = matchZoomShortcut(e, isMac);
+      if (!action) return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      e.preventDefault();
+      if (action === 'reset') resetHtmlZoom();
+      else stepHtmlZoom(action);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isHtmlView, stepHtmlZoom, resetHtmlZoom]);
 
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -199,15 +233,42 @@ export function Header({
         <span className="md-vdiv" />
         <ImageModeToggle />
         <span className="md-vdiv" />
-        <div className="md-stepper">
-          <button onClick={() => setFontSize(fontSize - 1)} aria-label="Decrease font size">
-            <MinusIcon width={13} height={13} />
-          </button>
-          <span className="val">{fontSize}px</span>
-          <button onClick={() => setFontSize(fontSize + 1)} aria-label="Increase font size">
-            <PlusIcon width={13} height={13} />
-          </button>
-        </div>
+        {isHtmlView ? (
+          <div className="md-stepper">
+            <button
+              onClick={() => stepHtmlZoom('out')}
+              disabled={htmlZoom <= HTML_ZOOM_STEPS[0]}
+              aria-label="Zoom out"
+            >
+              <MinusIcon width={13} height={13} />
+            </button>
+            <button
+              className="val"
+              onClick={resetHtmlZoom}
+              aria-label="Reset zoom to 100%"
+              title="Reset zoom to 100%"
+            >
+              {htmlZoom}%
+            </button>
+            <button
+              onClick={() => stepHtmlZoom('in')}
+              disabled={htmlZoom >= HTML_ZOOM_STEPS[HTML_ZOOM_STEPS.length - 1]}
+              aria-label="Zoom in"
+            >
+              <PlusIcon width={13} height={13} />
+            </button>
+          </div>
+        ) : (
+          <div className="md-stepper">
+            <button onClick={() => setFontSize(fontSize - 1)} aria-label="Decrease font size">
+              <MinusIcon width={13} height={13} />
+            </button>
+            <span className="val">{fontSize}px</span>
+            <button onClick={() => setFontSize(fontSize + 1)} aria-label="Increase font size">
+              <PlusIcon width={13} height={13} />
+            </button>
+          </div>
+        )}
         <button onClick={toggleTheme} className="md-icon-btn" aria-label="Toggle theme">
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
