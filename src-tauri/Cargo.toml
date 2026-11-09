@@ -38,3 +38,10 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
+# SPEC-PREVIEW-022: asset 응답 HTML에 charset을 붙이기 위해 tauri 2.10.3을 vendor 사본으로 대체한다.
+# tauri를 올릴 때의 재적용 절차: .moai/specs/SPEC-PREVIEW-022-html-original-charset/research.md §6
+# 주의: src/test/aiDiagramTypeRegressionGuard.test.ts가 [dependencies]~[profile 사이를 크레이트 목록으로 읽으므로
+# 이 블록은 [profile.release] 뒤(파일 끝)에 둔다.
+[patch.crates-io]
+tauri = { path = "vendor/tauri" }
