@@ -104,7 +104,7 @@ _run 단계 완료 기록은 §E.2에 있다. sync-auditor 판정(PASS-WITH-DEBT
 
 ```yaml
 sync_complete_at: 2026-11-09
-sync_status: audit-ready
+sync_status: completed (2026-11-09, 사용자 결정 종결)
 sync_commit_sha: 0338d48
 changelog_entry_position: "CHANGELOG.md ## [Unreleased] > ### Added, 첫 항목"
 frontmatter_status_transitions:
@@ -164,3 +164,9 @@ Windows는 WebView2가 Ctrl+`=`에서 자체 페이지 확대를 함께 적용�
 
 - WebView2 자체 확대와의 이중 적용 가능성(Windows).
 - 단위 테스트는 jsdom 기반이라 실제 iframe 크기 역보정·`transform` 렌더 결과(줄바꿈, 스크롤)를 검증하지 못한다(M-1이 담당).
+
+## 종결 기록 (2026-11-09)
+
+- 사용자 결정으로 completed 처리. v0.20.0(main 50ad99e, 태그 v0.20.0)에 포함.
+- 실기 확인된 것(macOS): 헤더 `[− N% +]` 배율과 단추·단축키 동작(사용자 "맥에서 동작은 한다"), 100% 초과 시 흐림 관찰 → SPEC-PREVIEW-019로 해결. 019 확인 과정에서 원본 보기(이 SPEC의 transform 경로)로 200% 배율 적용·페이지 스크립트 실행 확인. Windows는 019·SEC-001 확인 과정에서 사용자 보고 "문제 없다".
+- 개별 기록이 없는 항목(갭): M-1 미디어 쿼리 전환 관찰, M-4·M-5 iframe 초점 상태 단축키, Windows Ctrl+= 웹뷰 전체 확대 여부. 이 갭은 알고서 종결한다.
