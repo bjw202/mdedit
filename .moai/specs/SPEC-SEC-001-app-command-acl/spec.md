@@ -2,7 +2,7 @@
 id: SPEC-SEC-001
 title: "앱 명령 ACL 매니페스트 도입 — 원격·불투명 출처 프레임의 앱 명령 호출 차단"
 version: "0.2.1"
-status: draft
+status: in-progress
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
