@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-019
 title: "HTML 미리보기 선명한 확대 — srcdoc 불투명 출처 렌더와 문서 자체 zoom"
 version: "0.1.0"
-status: draft
+status: in-progress
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
