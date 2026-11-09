@@ -32,9 +32,6 @@
     "allow-ai-detect-providers",
     "allow-ai-policy-status",
     "allow-take-pending-open-file",
-    "dialog:allow-open",
-    "dialog:allow-save",
-    "dialog:allow-message",
     "opener:default",
     {
       "identifier": "opener:allow-open-path",
@@ -43,8 +40,6 @@
     {
       "identifier": "opener:allow-reveal-item-in-dir",
       "allow": [{ "path": "**" }]
-    },
-    "shell:allow-execute",
-    "shell:allow-spawn"
+    }
   ]
 }
