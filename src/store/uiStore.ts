@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { HTML_ZOOM_DEFAULT, snapToStep, stepUp, stepDown } from '@/lib/preview/htmlZoom';
 
 // @MX:ANCHOR: [AUTO] useUIStore - persisted UI state store consumed by AppLayout, Header, ResizablePanels, Footer, useTheme, ViewModeToggle
-// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode, statusMessage, htmlZoom); fan_in >= 5; SPEC-UI-004 viewMode 추가, SPEC-UI-005 statusMessage 추가, SPEC-PREVIEW-018 htmlZoom 추가, SPEC-PREVIEW-019 htmlRenderMode 추가
+// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode, statusMessage, htmlZoom); fan_in >= 5; SPEC-UI-004 viewMode 추가, SPEC-UI-005 statusMessage 추가, SPEC-PREVIEW-018 htmlZoom 추가, SPEC-PREVIEW-019 htmlRenderMode 추가, SPEC-PREVIEW-020 htmlRenderMode null(미선택)·영속 버전 2
 // @MX:SPEC: SPEC-UI-004
 // @MX:NOTE: Theme type union for type-safe theme selection
 export type Theme = 'light' | 'dark' | 'system';
