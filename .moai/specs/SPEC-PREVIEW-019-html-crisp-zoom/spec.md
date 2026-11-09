@@ -129,7 +129,7 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 - 그래서 REQ-006: 고정 스크립트 하나에만 해시 허용을 준다. **HTML 페이지 자체의 인라인·외부 `<script>`는 `srcdoc` 문서 안에서만 상속된 `script-src 'self'`로 차단된다.** 이는 사용자가 수용한 제약이며 '원본 보기'가 우회 수단이다.
 - **이 차단은 보안 경계가 아니다 (audit review-1 실측)**: CSP 상속은 `srcdoc` 문서에만 적용된다. 프레임이 asset 문서로 이동하면 — 링크 클릭, **클릭 없는 `<meta http-equiv="refresh">`**, (표준상 추론, 미실측) 중첩 `<iframe src>` — 이동한 문서에는 CSP가 없고 `sandbox="allow-scripts"` 아래에서 스크립트가 실행된다. Playwright Chromium·WebKit 모두 링크 클릭과 meta refresh 뒤 이동한 문서의 스크립트가 실행됨을 확인했다. 따라서 파일 내용만으로 우회되는 이 차단을 방어선으로 세지 않으며, 앱 명령 노출의 최종 방어는 SPEC-SEC-001이다.
 - 상속된 정책의 `'self'`는 셸 출처(`tauri://localhost`, Windows `http://tauri.localhost`)다. 따라서 HTML이 절대 주소로 앱 번들 스크립트를 부르면 프레임 안에서 실행될 수 있다(CSP 규칙에서 추론, 미실측).
-- 같은 이유로 `default-src 'self' tauri: asset:`, `style-src`(REQ-006으로 asset 출처가 더해진 값), `img-src 'self' data: asset:`가 프레임에 적용된다 — 같은 폴더(asset) 스타일시트·이미지는 동작하고, 외부 http(s) 이미지·스타일시트·웹폰트(CDN)는 선명 모드에서 막힌다. 018의 asset iframe은 CSP가 없어 이들이 모두 동작했으므로 **퇴행**이다.
+- 같은 이유로 `default-src`(`'self' tauri: asset: http(s)://asset.localhost`), `style-src`(REQ-006으로 asset 출처가 더해진 값), `img-src`(`'self' data: asset: http(s)://asset.localhost`)가 프레임에 적용된다 — 같은 폴더(asset) 스타일시트·이미지는 동작하고, 외부 http(s) 이미지·스타일시트·웹폰트(CDN)는 선명 모드에서 막힌다. 018의 asset iframe은 CSP가 없어 이들이 모두 동작했으므로 **퇴행**이다.
 - `tauri.conf.json`의 `csp`는 현재 `null`이다. 이후 SPEC이 Tauri가 CSP를 주입하는 설정(`csp` 값 지정)으로 바꾸면 Tauri가 자체 nonce/해시를 덧붙이므로 이 SPEC의 해시 토큰과의 공존을 그때 다시 검증해야 한다.
 
 ### 선명 모드 알려진 한계 (규범)
@@ -179,7 +179,7 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 
 ### Out of Scope — 페이지 스크립트·외부 리소스 지원
 
-- 선명 모드에서 HTML 페이지 자체 스크립트나 외부 CDN 리소스를 허용하려고 셸 CSP를 더 넓히지 않는다(`script-src`에 `'unsafe-inline'`·`asset:`·http(s) 출처 추가 금지, `style-src`·`img-src` 등에 http(s) 출처 추가 금지). REQ-006의 해시 1개와 `style-src` asset 출처 3개가 전부다. 필요한 페이지는 원본 보기를 쓴다.
+- 선명 모드에서 HTML 페이지 자체 스크립트나 외부 CDN 리소스를 허용하려고 셸 CSP를 더 넓히지 않는다(`script-src`에 `'unsafe-inline'`·`asset:`·http(s) 출처 추가 금지, `style-src`·`img-src` 등에 외부 http(s) 출처 추가 금지 — REQ-006의 `http(s)://asset.localhost`는 asset 출처이므로 예외). REQ-006의 해시 1개와 `style-src` asset 출처 3개가 전부다. 필요한 페이지는 원본 보기를 쓴다.
 
 ### Out of Scope — 미디어 쿼리 반응
 

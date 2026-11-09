@@ -13,8 +13,11 @@
 
 - review-1(2026-11-09): **FAIL 0.74** (Tier M 기준 0.80) — `.moai/reports/plan-audit/SPEC-PREVIEW-019-review-1.md`. blocking D1~D6, minor D7~D14. 핵심 실측(Playwright Chromium·WebKit): 해시 1개로 주입 스크립트 실행·`postMessage` 배율 적용은 성립, 그러나 상속된 `style-src`가 asset 스타일시트를 막고(D1), 프레임 이동(링크·meta refresh)으로 CSP 없는 문서의 스크립트가 실행되며(D2), `srcdoc`은 항상 표준 모드다(D3).
 - v0.1.0 개정 1차(2026-11-09, plan 단계 작성자): D2~D14 반영(D2 보안 주장 정정·AC-014 이동 경로 시험, D3 quirks 한계 10 추가, D4 018 `implemented` 충돌 명시, D5 AC-006 토큰 집합·고정 기대값, D6 e2e를 기존 webkit 프로젝트로, D7~D14 경미). D1은 사용자 결정 **D1=A**(2026-11-09, 코디네이터 경유 AskUserQuestion): 셸 CSP `style-src`에 `asset: http://asset.localhost https://asset.localhost`만 추가, 나머지 지시어 불변. spec REQ-006·AC-006·plan M3/§D·한계 목록 반영. D2 정정(프레임 이동 후 CSP 없는 문서 스크립트 실행)은 코디네이터가 SEC-001 run 워커에 '프레임 이동 후 invoke 거부' 시험으로 전달.
-- review-2: (진행 중)
+- review-2(2026-11-09, 커밋 447350c 대상): **PASS 0.92** — `.moai/reports/plan-audit/SPEC-PREVIEW-019-review-2.md`. D1~D14 전부 해소(D1은 Chromium·WebKit에서 `style-src` 수정값으로 스타일시트·`@import`·CSS `url()` 적용을 재실측; macOS `asset:` 스킴 자체는 미실측 → M-2·M-5). 신규 minor N1~N3(문구)는 직후 수정(spec §5 예외 명시, §3 default-src/img-src 값 정확화, acceptance M-4 행). 점수 하락 없음, STOP 신호 없음.
 
 ## §E.1 Plan-phase Audit-Ready Signal
 
-- plan_status: draft (감사 전)
+- plan_status: audit-ready
+- plan_complete_at: 2026-11-09
+- 구현 착수 승인(Implementation Kickoff Approval)은 받지 않았다. run은 (1) SPEC-SEC-001 `status: completed` (2) macOS M-1 프로토타입 관문 통과 (3) 018 상태 확인 뒤에만 시작한다.
+- 열린 질문: spec.md §7 — 원본 보기의 배율 처리(코디네이터 기본값: 018 동작 유지), SEC-001 권한 범위 확정 뒤 REQ-011·M-6 대조.
