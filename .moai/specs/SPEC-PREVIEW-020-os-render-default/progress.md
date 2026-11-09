@@ -12,7 +12,13 @@
 
 ## §E.2 Run-phase Evidence
 
-_<pending run-phase>_
+### M1 관문 — Windows 원본 보기 선명도 (2026-11-09)
+
+- 결과: **PASS (사용자 관찰)**. 사용자가 Windows v0.20.0 릴리스 빌드에서 원본 보기 150%·200% 글자가 선명했다고 답했다(코디네이터 전달, 2026-11-09).
+- 근거의 성격: 사용자 관찰이며 **캡처 없음**. 우리가 측정하거나 자동화로 관찰한 값이 아니다. 수동 M-1의 나머지(새 프로필 기본 열림, Mermaid 그림 표시)는 아직 미확인.
+- 선행: SPEC 개정 0.1.2(툴팁 OS 인식 REQ-PREVIEW020-008) 커밋 `ab6d255`.
+
+_<run-phase M2~M6 evidence pending>_
 
 ## §E.3 Run-phase Audit-Ready Signal
 
