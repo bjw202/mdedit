@@ -19,6 +19,8 @@
 
 검증 계층 원칙: 탐색·추출·조립은 순수 문자열 함수라 vitest + jsdom으로 충분하다. jsdom에서 pele는 내장 글자 폭 표를 쓰고 `readPeleThemeValues`는 빈 표를 돌려주므로(대체값 사용), 단위 테스트는 구조(SVG 존재·`var(--pele-` 0개·감싸개 속성·바이트 보존)만 단언하고 실제 색·글꼴·라벨 넘침은 e2e와 실기기 수동 확인이 맡는다. Playwright WebKit 결과는 WKWebView·WebView2 실기기 증거가 아니다.
 
+글꼴 삽입 상태 규칙: 단위 AC-001~009·011은 **글꼴 삽입을 끈 상태**로 판정한다 — `P`를 직접 부를 때는 `prerenderMermaidBlocks(x, { fonts: false })`, 뷰어 시험(AC-001·008·009)은 뷰어가 기본값으로 부르므로 글꼴 `<style>`이 섞일 수 있지만, 그 시험의 단언(`<svg` 개수, 정확한 속성 개수, 호출 수, sandbox)은 글꼴 `<style>`과 겹치지 않는다(plan.md M4). 글꼴을 켠 상태(`{ fonts: true }`)는 AC-007 둘째 항목과 AC-010에서만 쓴다. 횟수를 세는 단언은 부분 문자열 `data-mdedit-diagram`이 아니라 정확한 속성 `data-mdedit-diagram=""`(또는 DOM 선택자 `[data-mdedit-diagram]`)로 센다 — `data-mdedit-diagram-fonts`·`data-mdedit-diagram-error`와 섞이지 않게 하기 위해서다.
+
 아래에서 `P(x)`는 `prerenderMermaidBlocks(x)`, `OK`는 pele가 그릴 수 있는 원문 `flowchart LR\n  A --> B`, `BAD`는 그릴 수 없는 원문으로, 기존 `src/test/diagramRenderer.test.ts`가 쓰는 오류 픽스처 `errorSource('21-error-line-col')`(실측 `2행 14열`)를 뜻한다. `BAD0`는 위치가 0/0인 픽스처 `errorSource('22-error-line0-semantic')`다. 픽스처 원문을 블록 안에 넣을 때는 `&`·`<`·`>`를 엔티티로 바꿔 넣는다.
 
 ## 시나리오
@@ -26,12 +28,12 @@
 ### AC-PREVIEW021-001 — 선명 모드 srcdoc에 SVG (unit)
 
 - **Given** 실제 렌더 모드가 `'crisp'`이고 `readFileSize`가 작은 값, `readFile`이 `<!doctype html><html><head></head><body><pre class="mermaid">OK</pre></body></html>`를 돌려주도록 모의했을 때, **When** `HtmlFileViewer`를 렌더하고 읽기가 끝나면,
-- **Then** iframe `srcdoc`에 `<svg`가 정확히 1번 나오고 `data-mdedit-diagram`이 1번 나오며, 원문 `A --> B`는 블록 안에 남지 않는다.
+- **Then** iframe `srcdoc`에 `<svg`가 정확히 1번 나오고 `data-mdedit-diagram=""`이 1번 나오며, 원문 `A --> B`는 블록 안에 남지 않는다.
 - **And** iframe `sandbox`는 정확히 `"allow-scripts"`이고 `srcdoc`에는 019 주입(`<base`, `<style>html{zoom:`, 고정 스크립트)이 그대로 1번씩 있다.
 
 ### AC-PREVIEW021-002 — 감지: 잡는 것 (unit, 표 구동)
 
-각 행의 입력을 `P`에 넣으면 결과에 `data-mdedit-diagram`이 기대 횟수만큼 있다.
+각 행의 입력을 `P`(글꼴 끔)에 넣으면 결과에 정확한 속성 `data-mdedit-diagram=""`이 기대 횟수만큼 있다.
 
 | 입력 | 기대 횟수 |
 |------|----------|
@@ -103,8 +105,8 @@ pele에 넘기는 원문을 관찰하기 위해 테스트는 `renderExportDiagra
 ### AC-PREVIEW021-007 — 블록 밖 바이트 보존 (unit)
 
 - 입력 `H = '<!doctype html>\n<html><head><script src="https://cdn.example/mermaid.js"></script><script>mermaid.initialize({theme:"dark"})</script></head><body>\n<p>앞</p>\n<pre class="mermaid">OK</pre>\n<p>뒤</p>\n</body></html>'`에 대해:
-  - 글꼴 삽입을 끈 상태(테스트는 글꼴 삽입 함수를 모의하거나, 경로 (C)면 원래 없음)에서, `P(H)`에서 블록 안쪽 영역과 ` data-processed="true"` 삽입분을 빼고 이어 붙인 문자열이 `H`에서 같은 블록 안쪽 영역을 뺀 문자열과 같다.
-  - 글꼴 삽입을 켠 상태(경로 (A)/(B))에서는 위 비교에서 `<style data-mdedit-diagram-fonts="">…</style>` 1개를 추가로 빼면 같다.
+  - 글꼴 삽입을 끈 상태(`{ fonts: false }`)에서, `P(H)`에서 블록 안쪽 영역과 ` data-processed="true"` 삽입분을 빼고 이어 붙인 문자열이 `H`에서 같은 블록 안쪽 영역을 뺀 문자열과 같다.
+  - 글꼴 삽입을 켠 상태(`{ fonts: true }`, 경로 (A)/(B)를 골랐을 때만)에서는 위 비교에서 `<style data-mdedit-diagram-fonts="">…</style>` 1개를 추가로 빼면 같다.
   - 두 `<script>` 태그가 바이트 그대로 남아 있다.
 - AC-003 표의 모든 입력에서 `P(x) === x`.
 
@@ -121,7 +123,7 @@ pele에 넘기는 원문을 관찰하기 위해 테스트는 `renderExportDiagra
 
 ### AC-PREVIEW021-010 — 글꼴 경로 (M1 관문 + unit)
 
-- progress.md에 M1 결과표가 있다: macOS 개발·배포 빌드에서 경로 (A)의 `document.fonts.check` 결과·라벨 폭 관찰, 셸 CSP `font-src` 값(run 시점 origin/main), 선택한 경로 (A)/(B)/(C)와 근거. Windows 결과는 M-2에서 채운다.
+- progress.md에 M1 결과표가 있다: macOS 개발·배포 빌드에서 경로 (A)의 `document.fonts.check` 결과·라벨 폭 관찰, 셸 CSP `font-src` 값(run 시점 origin/main), 선택한 경로 (A)/(B)/(C)와 근거. Windows 측정 시점과 정지 규칙은 바로 아래 항목을 따른다.
 - M1 표는 OS·빌드별로 앱 출처, 굵기 ↔ 파일 대응(400 → `barlow-400.woff2`, 600 → 실제 고른 파일), `await document.fonts.load('600 16px Barlow')` 뒤의 `document.fonts.check` 결과, 라벨 폭 관찰을 적는다. macOS는 필수, Windows는 가능하면 M1에서 함께 잰다. Windows를 M1에서 재지 못했다면 M-2에서 Windows가 고른 경로로 실패할 때 run을 멈추고 코디네이터에 blocker로 올린다(조용히 넘어가지 않는다).
 - 경로 (A) 또는 (B)를 골랐다면: 렌더 성공 블록이 1개 이상인 입력의 결과에 `data-mdedit-diagram-fonts` `<style>`이 정확히 1번, 어느 블록 안에도 있지 않은 마지막 `</body>` 바로 앞(없으면 끝)에 있고 — 블록 안쪽 원문에 `</body>` 글자가 있어도 그 위치는 쓰지 않는다 —, `font-family` 값에 `Barlow`가 있다. 성공 블록이 0개(실패만, 블록 없음)인 입력에는 없다.
 - 경로 (C)를 골랐다면: 코디네이터를 거친 사용자 확인이 progress.md에 기록되어 있고, spec.md §3 한계에 글꼴 대체 항목이 추가되어 있다(manager-spec 개정).
@@ -143,7 +145,7 @@ pele에 넘기는 원문을 관찰하기 위해 테스트는 `renderExportDiagra
 
 | ID | 내용 | macOS (WKWebView) | Windows (WebView2) |
 |----|------|-------------------|--------------------|
-| M-0 | 글꼴 관문 (M1, AC-010) — **run 첫 관문** | 필수 | 필수(경로 확정 후) |
+| M-0 | 글꼴 관문 (M1, AC-010) — **run 첫 관문** | 필수 | 가능하면 M1에서, 못 하면 M-2에서(실패 시 정지 — AC-010) |
 | M-1 | 선명 모드 그림 표시·색·원본 보기 대조 (AC-012) | 필수 | 필수 |
 | M-2 | 라벨 넘침 없음·배율 선명도 (AC-012) | 필수 | 필수 |
 

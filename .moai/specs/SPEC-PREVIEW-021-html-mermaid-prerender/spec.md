@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-021
 title: "HTML 미리보기 선명 모드에서 mermaid 블록을 pele로 미리 렌더"
-version: "0.1.1"
+version: "0.1.2"
 status: draft
 created: 2026-11-09
 updated: 2026-11-09
@@ -24,6 +24,7 @@ related_specs: [SPEC-PREVIEW-016, SPEC-PREVIEW-017, SPEC-PREVIEW-020, SPEC-SEC-0
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 백로그 카드 t2. 배경: 선명 모드(SPEC-PREVIEW-019, `srcdoc` + `sandbox="allow-scripts"`)는 셸 CSP를 상속해 페이지 자체 스크립트(mermaid CDN 포함)가 막히므로, HTML 파일 안의 mermaid 블록이 그림 대신 원문 글자로 보인다. 사용자 결정(2026-11-09, 코디네이터 경유): (1) 선명 모드에만 적용, 원본 보기는 그대로 (2) `<pre class="mermaid">`·`<div class="mermaid">`만 감지 (3) 색은 앱 팔레트(잉크 앤 허니), 페이지의 mermaid 테마·init 무시 (4) pele 실패 시 원문을 두고 짧은 안내를 붙인다. |
 | 0.1.1 | 2026-11-09 | jw | plan-audit 1차(FAIL 0.84, `.moai/reports/plan-audit/SPEC-PREVIEW-021-review-1.md`) 반영. D1: REQ-006 예외에 글꼴 `<style>`·`data-processed` 삽입 추가, 글꼴 삽입 위치를 "블록 밖 마지막 `</body>`"로 고정, AC-007 비교 방식 수정. D2: 감싸개 대체값을 앱 토큰 리터럴로 통일. D3·D14: M1에 Windows 측정·`document.fonts.load` 선행·굵기 대응 기록, Windows 미측정 시 정지 규칙. D4·D7: 원문 추출 주장 축소(한계 8), dedent 공백 정의. D5: AC-009에 UTF-8 폴백. D6: 한 번 훑는 가림 스캐너, 원문 텍스트 요소 목록 확장, 따옴표 안 `>` 처리, `<svg` 검사 대소문자 무관(한계 9). D8·D11: 문구·DoD 정정. D9: `result.svg.outerHTML`로 확정. D10: 두 번째 호출 성공 시 접미사 없음. D12: 성공 블록 시작 태그에 `data-processed="true"` 추가. D15: `readPeleThemeValues` 1회 호출을 REQ-004로 이동. |
+| 0.1.2 | 2026-11-09 | jw | plan-audit 2차(FAIL 0.88, `review-2.md`) 반영. N1: 단위 AC는 글꼴 끈 상태로 판정한다는 규칙을 acceptance 검증 원칙에 추가, 횟수 단언을 정확한 속성 `data-mdedit-diagram=""`으로 변경. N2: 글꼴 끄기 수단을 모의 대신 `opts.fonts` 옵션으로(plan M4). N3: `div` 깊이 계산도 따옴표를 건너뛰는 정규식 사용. N4: Windows 측정 시점 문구 통일. N5: 재실행 문구 축소. |
 
 ## §1 Overview
 
@@ -63,7 +64,7 @@ related_specs: [SPEC-PREVIEW-016, SPEC-PREVIEW-017, SPEC-PREVIEW-020, SPEC-SEC-0
 #### REQ-PREVIEW021-004: 렌더와 삽입 (Event-driven + Ubiquitous)
 
 - **When** 원문이 비어 있지 않으면, the 변환 shall `renderExportDiagram(원문, values)`로 렌더한다. `values`는 변환 1회 호출마다 `readPeleThemeValues('light')`를 정확히 한 번 불러 얻고 모든 블록이 같이 쓴다. 페이지 안의 mermaid 테마·`mermaid.initialize` 설정은 반영하지 않는다(pele 고정 옵션 `PELE_RENDER_OPTIONS` 불변). `'light'` 탐침은 다이어그램 팔레트가 테마와 무관하게 같은 값이라는 SPEC-PREVIEW-016 결정에 따른다.
-- **When** 렌더가 성공하면, the 변환 shall (a) 블록 안쪽 내용만 다음으로 바꾼다: 인라인 style로 바탕·테두리 1px solid·반경·가운데 정렬을 준 `<div data-mdedit-diagram="">` 안에 `result.svg.outerHTML`(HTML 직렬화) 1개. 감싸개 색 값은 `values['--pele-bg']`·`values['--pele-border']`·`values['--pele-radius']`이고, 값이 없으면 앱 토큰 리터럴 `#FAF9F6`·`#97A4B1`·`3px`(`mdedit-tokens.css` `:root`와 같은 값)를 쓴다. 페이지 바탕색을 알 수 없으므로 테두리·반경은 라이트·다크와 무관하게 항상 넣는다(마크다운 미리보기의 다크 종이 카드 모양). (b) 시작 태그의 `>`(또는 `/>`) 바로 앞에 ` data-processed="true"`를 넣는다 — mermaid 원본 라이브러리가 그린 뒤 붙이는 표시와 같아, 이 표시가 없을 때 블록을 숨기는 페이지 CSS에서도 그림이 보이고 변환을 다시 돌려도 같은 결과가 된다. 닫는 태그는 그대로 둔다.
+- **When** 렌더가 성공하면, the 변환 shall (a) 블록 안쪽 내용만 다음으로 바꾼다: 인라인 style로 바탕·테두리 1px solid·반경·가운데 정렬을 준 `<div data-mdedit-diagram="">` 안에 `result.svg.outerHTML`(HTML 직렬화) 1개. 감싸개 색 값은 `values['--pele-bg']`·`values['--pele-border']`·`values['--pele-radius']`이고, 값이 없으면 앱 토큰 리터럴 `#FAF9F6`·`#97A4B1`·`3px`(`mdedit-tokens.css` `:root`와 같은 값)를 쓴다. 페이지 바탕색을 알 수 없으므로 테두리·반경은 라이트·다크와 무관하게 항상 넣는다(마크다운 미리보기의 다크 종이 카드 모양). (b) 시작 태그의 `>`(또는 `/>`) 바로 앞에 ` data-processed="true"`를 넣는다 — mermaid 원본 라이브러리가 그린 뒤 붙이는 표시와 같아, 이 표시가 없을 때 블록을 숨기는 페이지 CSS에서도 그림이 보이고, 성공 블록은 변환을 다시 돌려도 다시 그려지지 않는다(변환은 REQ-007대로 문서마다 한 번만 돈다). 닫는 태그는 그대로 둔다.
 - The 삽입된 SVG shall `var(--pele-` 문자열을 0개 포함한다(앱 CSS가 없는 srcdoc에서도 같은 색).
 - The 변환 shall 블록마다 독립적으로 렌더해 한 블록의 실패가 다른 블록에 영향을 주지 않는다.
 
