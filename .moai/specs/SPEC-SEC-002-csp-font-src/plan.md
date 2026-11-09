@@ -23,7 +23,7 @@
 
 ## C. 마일스톤
 
-- **M0 — setup.ts 가드**: `src/test/setup.ts` 두 블록을 가드하고, `npx vitest run src/test/htmlSrcdocCsp.test.ts`(jsdom)가 그대로 통과함을 확인한다.
+- **M0 — setup.ts 가드**: `src/test/setup.ts` 두 블록을 가드하고, `npx vitest run src/test/htmlSrcdocCsp.test.ts src/test/useTheme.test.ts`(jsdom)가 그대로 통과함을 확인한다. `useTheme.test.ts`는 `matchMedia` 모의 객체를 실제로 쓰므로, 가드 뒤에도 jsdom에서 모의 객체가 적용되는지 보여 준다(3차 감사 D-15).
 - **M1 — 기준 측정(RED)**: `npm ci` → main 그대로 `npx vite build --outDir "$TMPDIR/sec002-before" --emptyOutDir` → AC-002의 세 값을 progress.md §E.2에 붙인다(재현: `data:font` 1 이상). 새 테스트 `src/test/viteFontInline.test.ts`를 먼저 쓰고 실패 출력을 붙인다.
 - **M2 — 구현(GREEN)**: `vite.config.ts`에 판정 함수 + `build.assetsInlineLimit` 연결 + `@MX:NOTE`. AC-001 통과. `npm run typecheck`를 이 시점에 한 번 돌려 D-2 가설(TS6305)이 해당 없음을 확인한다.
 - **M3 — 검증**: AC-002(수정 후 빌드), AC-003, AC-004 실행 결과를 progress.md에 붙인다. M-1은 macOS에서 수행하고 결과(또는 `vite preview` 대체 여부)를 적는다.
