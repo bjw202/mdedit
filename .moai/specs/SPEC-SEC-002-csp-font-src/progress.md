@@ -79,3 +79,15 @@ D-1 결정: 배포 빌드 앱의 Web Inspector가 열리지 않으면 `vite prev
 4. (ii) 시점에 콘솔에서 `performance.getEntriesByType('resource').map(e => e.name).filter(n => n.includes('KaTeX_Size3'))` 실행. 기대: `.woff2` 로 끝나는 항목 1개 이상, `/\.woff$/` 에 걸리는 항목 0개.
 5. 수정 전(main) 같은 절차의 결과도 적는다(개발 모드는 전·후 모두 0건일 수 있음).
 - 결과: (미기록)
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+- sync_status: audit-ready (PR 대기, 병합 전)
+- sync_complete_at: 2026-11-09
+- sync_commit_sha: pending-backfill
+- SPEC status: `implemented` (`completed`가 아님). 이유: 수동 확인 M-1이 아직 없고, Windows 확인은 사용자 결정(D-2)으로 생략했다. M-1이 끝나면 별도 close 커밋으로 `completed`로 올린다.
+- 문서 변경: `CHANGELOG.md` [Unreleased] > Changed에 SPEC-SEC-002 항목 추가. README·docs는 이 변경을 언급하지 않아 수정하지 않았다(`grep -rn "font-src\|SEC-002" README.md docs` 결과 없음).
+- 백로그 카드 t1: PR 본문에서 해소로 표기. `moai todo` 변경은 코디네이터가 한다.
+- 대기 중인 수동 확인: **M-1 (macOS)** — 위 절차. 병합 전 수행 권장.
+- Gap: 이미지 등 다른 자산의 인라인 수 전·후 비교 없음(단위 테스트로만 확인). Windows 실기기 미확인.
+- sync-audit: (아래에 기록)

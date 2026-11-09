@@ -2,7 +2,7 @@
 id: SPEC-SEC-002
 title: "KaTeX 글꼴 CSP 거부 해소 — 글꼴 자산을 data URI로 넣지 않기"
 version: "0.1.2"
-status: draft
+status: implemented
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
