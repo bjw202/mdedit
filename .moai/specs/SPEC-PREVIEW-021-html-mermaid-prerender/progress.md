@@ -131,4 +131,7 @@ changelog_entry_position: "[Unreleased] > ### Added (SPEC-PREVIEW-021 1건)"
 - M1 글꼴 관문은 macOS 개발 빌드에서 사용자의 화면 관찰로만 통과했고 `document.fonts.check`·네트워크 값은 없다.
 - 따라서 AC-PREVIEW021-010과 AC-PREVIEW021-012는 수동 확인 전까지 PARTIAL로 남는다.
 
-sync-audit verdict: pending (orchestrator fills in)
+sync-audit verdict: **PASS-WITH-DEBT 0.85** (Functionality 0.85 / Security 0.84 / Craft 0.82 / Consistency 0.88, Tier M 기준 0.80) — 보고서 `.moai/reports/sync-audit/SPEC-PREVIEW-021.md`. BLOCKING 없음.
+- 반영한 지적: F1(`>` 없는 조작 입력에서 시작 태그 정규식 이차 시간 — 4만 개에 15초) → `prerenderMermaidBlocks` 앞에서 `mermaid` 글자나 `>`가 없으면 입력 그대로 반환, RED 테스트 2건(실패 15.5초·15.8초 확인) 후 GREEN. F2(판단 노드 톤 단언이 공허) → `#8a6410` 유무 대조로 교체. F3(CHANGELOG 호출 순서 서술 오류) 정정.
+- 남긴 지적(조치 안 함): F4 한계 주석 일부 누락, F5 앱 테마 변경 시험 부재, F6 속성 값 안 `<!--`가 뒤 블록을 가림(원문 유지 방향, 안전), F7 AC-010 PARTIAL(수동 확인 이월, 사용자 결정 기록됨). 잔여: `mermaid`와 `<div ` 수만 개가 있고 `>`가 하나라도 있는 조작 입력의 이차 시간은 막지 못했다(정상 HTML 5 MB는 15 ms).
+- 감사 후 재실행(HEAD 반영 전 작업 트리): `npm run typecheck` 0, `npm run lint` 0, `npx vitest run --dir src` 0(118 파일, 2041 테스트), `npx playwright test e2e/html-file-viewer.spec.ts` 0(5 통과).

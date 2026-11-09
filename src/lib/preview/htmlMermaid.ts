@@ -180,6 +180,8 @@ function fontStyle(): string | null {
  * @param opts.fonts 앱 출처 글꼴 `<style>` 삽입 여부(기본 true). 단위 테스트가 글꼴을 끄고 켜는 데 쓴다.
  */
 export function prerenderMermaidBlocks(html: string, opts?: { fonts?: boolean }): string {
+  // 시작 태그 정규식은 닫는 `>`가 없으면 태그 수에 대해 이차 시간이 든다. 블록이 있을 수 없는 입력은 스캔 전에 돌려보낸다.
+  if (!/mermaid/i.test(html) || html.indexOf('>') === -1) return html;
   try {
     const masked = maskNonMarkup(html);
     const blocks = findMermaidBlocks(masked);

@@ -174,8 +174,11 @@ describe('AC-PREVIEW021-005 렌더 삽입', () => {
   });
 
   it('판단 노드에 모양 톤이 들어온다', () => {
-    const out = P('<pre class="mermaid">flowchart TD\n  A{x?} --> B</pre>');
-    expect(out).toContain('--_s:');
+    const decision = P('<pre class="mermaid">flowchart TD\n  A{x?} --> B</pre>');
+    const plain = P('<pre class="mermaid">flowchart TD\n  A[x] --> B</pre>');
+    // 판단 노드가 없으면 판단 테두리 색이 나오지 않아야 하고, 있으면 나와야 한다(공허한 단언 방지).
+    expect(decision.toLowerCase()).toContain('#8a6410');
+    expect(plain.toLowerCase()).not.toContain('#8a6410');
   });
 
   it('블록 20개를 모두 그린다', () => {
@@ -286,5 +289,21 @@ describe('AC-PREVIEW021-010 글꼴 <style> 삽입 위치', () => {
     const failOnly = `<pre class="mermaid">${BAD}</pre>`;
     expect(count(run(failOnly), 'data-mdedit-diagram-fonts')).toBe(0);
     expect(count(run('<p>none</p>'), 'data-mdedit-diagram-fonts')).toBe(0);
+  });
+});
+
+describe('입력 폭주 방어 (sync-audit F1)', () => {
+  it('닫는 `>`가 없는 시작 태그 4만 개도 즉시 입력을 그대로 돌려준다', () => {
+    const hostile = '<div '.repeat(40000) + ' mermaid';
+    const t0 = Date.now();
+    expect(P(hostile)).toBe(hostile);
+    expect(Date.now() - t0).toBeLessThan(500);
+  });
+
+  it('mermaid 글자가 없으면 스캔 없이 입력을 그대로 돌려준다', () => {
+    const hostile = '<div '.repeat(40000);
+    const t0 = Date.now();
+    expect(P(hostile)).toBe(hostile);
+    expect(Date.now() - t0).toBeLessThan(500);
   });
 });
