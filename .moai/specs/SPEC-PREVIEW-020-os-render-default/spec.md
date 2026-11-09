@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-020
 title: "HTML 미리보기 OS별 기본 렌더 모드 — Windows는 원본 보기, macOS는 선명 모드"
-version: "0.1.1"
+version: "0.1.2"
 status: draft
 created: 2026-11-09
 updated: 2026-11-09
@@ -24,6 +24,7 @@ related_specs: [SPEC-PREVIEW-018, SPEC-PREVIEW-019]
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 계기: 사용자가 v0.20.0 Windows 릴리스 빌드에서 확인한 두 가지(2026-11-09). (1) 원본 보기(asset iframe + transform 배율)가 Windows(WebView2/Chromium)에서는 확대해도 충분히 선명하다. macOS(WKWebView)에서는 100% 초과 시 흐리다. (2) 선명 모드는 페이지 자체 스크립트를 막으므로 HTML 안의 Mermaid가 그림이 아니라 텍스트로 보인다. 사용자 결정(구속): OS별 기본값 — Windows는 `'original'`, macOS는 `'crisp'`. 토글은 유지한다. 사용자가 명시적으로 고른 값(영속)이 항상 이기고, OS 기본값은 고른 적이 없을 때만 적용한다. Linux는 `'crisp'`(가정). 이 SPEC은 SPEC-PREVIEW-019 REQ-PREVIEW019-001의 기본값 조항을 부분 개정한다(§5). Mermaid 사전 렌더(백로그 t2)와 스크립트 페이지 자동 원본 전환은 범위 밖이다. |
 | 0.1.1 | 2026-11-09 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-PREVIEW-020-review-1.md`, PASS 0.82) 결함 D1~D10 반영. 요구·수용 기준의 의미는 바꾸지 않았다. (D1) §5 "세 단위 테스트"를 구체 목록으로 바꾸고 `src/test/uiStore.test.ts`를 갱신 대상에 추가. (D2) §7-4의 열린 질문을 SPEC-SEC-001 증거로 대체하고 `depends_on: [SPEC-SEC-001]` 추가. (D3) e2e에는 v1 저장소 마이그레이션 사례가 없고 마이그레이션은 단위 테스트가 전담함을 명시. (D4) 사용자 기반 서술을 미측정 가정으로 고치고 조용한 선택 소실을 비용으로 명시. (D5) AC-001·002의 항진 문장 제거, 영속화 유발 방법을 명시. (D7) AC-007의 diff 범위에 import 줄 포함. (D8) REQ-001 첫 문장 재작성. |
+| 0.1.2 | 2026-11-09 | jw | 사용자 결정(구속, 2026-11-09): 열린 질문 3(토글 툴팁 불일치)을 이 SPEC에서 해결한다. REQ-PREVIEW020-008 신설 — 토글 `title`이 현재 OS의 기본 모드를 말하고, 100% 초과 흐림 경고는 기본이 선명 모드인 OS(macOS·Linux)에만 남기며 Windows에서는 뺀다. REQ-007에서 "토글 `title` 문구 불변" 조항을 걷어내고 툴팁을 의도한 유일한 문구 변경으로 바꿨다. AC-006에 툴팁 검증(정확한 부분 문자열, 순수 헬퍼 단위 표)을 합치고 AC-007의 Header.tsx diff 허용 범위를 토글 상태·핸들러·`title` 식으로 넓혔다. §6 "UI 문구" 제외 항목과 §7-3을 해소로 고쳤다. 소스 파일 수(4개)와 AC 수(8건)는 그대로다. 개정 범위는 이 한 가지이며 재감사는 하지 않았다. |
 
 ## §1 Overview
 
@@ -41,7 +42,7 @@ related_specs: [SPEC-PREVIEW-018, SPEC-PREVIEW-019]
 
 ### Tier 판단
 
-- **Tier S.** 소스 변경 4개(`src/store/uiStore.ts`, `src/lib/preview/htmlZoom.ts`, `src/components/layout/Header.tsx`, `src/components/preview/HtmlFileViewer.tsx`), 소스 약 60~120 LOC. 활성 REQ 7건·AC 8건으로 Tier S 상한(각 8) 안이다.
+- **Tier S.** 소스 변경 4개(`src/store/uiStore.ts`, `src/lib/preview/htmlZoom.ts`, `src/components/layout/Header.tsx`, `src/components/preview/HtmlFileViewer.tsx`), 소스 약 60~120 LOC. 활성 REQ 8건·AC 8건으로 Tier S 상한(각 8) 안이다(REQ-008은 AC-006에 합쳐 AC 수를 늘리지 않았다).
 - Tier M으로 올리지 않는 이유: 새 보안 경계나 새 CSP 변경이 없고(019가 만든 두 렌더 경로를 그대로 쓴다), 새 모듈·새 UI·새 Rust 명령이 없으며, 소스 파일이 5개 미만이다. 유일하게 까다로운 부분은 영속 저장소 마이그레이션이며, 이는 표 구동 단위 테스트(AC-004)로 닫힌다. 테스트·e2e 파일 수정은 소스 1개당 짝이 되는 검증 파일이라 018과 같은 기준으로 파일 수에서 제외해 판단했다.
 
 ## §2 Requirements (GEARS)
@@ -82,8 +83,17 @@ related_specs: [SPEC-PREVIEW-018, SPEC-PREVIEW-019]
 
 #### REQ-PREVIEW020-007: 그 밖의 동작은 바꾸지 않는다 (Unwanted)
 
-- The 이 SPEC shall not 선명 모드·원본 보기 두 렌더 경로의 내용과 동작, SPEC-PREVIEW-019 REQ-007의 폴백(`'original'` 방식 렌더, 저장된 모드 불변), 앱 셸 CSP, 토글 `title`(툴팁) 문구, 018 배율 컨트롤·단축키·`htmlZoom` 영속화를 바꾼다.
+- The 이 SPEC shall not 선명 모드·원본 보기 두 렌더 경로의 내용과 동작, SPEC-PREVIEW-019 REQ-007의 폴백(`'original'` 방식 렌더, 저장된 모드 불변), 앱 셸 CSP, 018 배율 컨트롤·단축키·`htmlZoom` 영속화를 바꾼다.
+- The 토글 `title`(툴팁) 문구는 REQ-PREVIEW020-008이 바꾸는 유일한 문구다. The 이 SPEC shall not 그 밖의 헤더 문구(`aria-label="Original view"`, 버튼 글자 `원본 보기`)를 바꾼다.
 - The 이 SPEC shall not "OS 기본값으로 되돌리기" UI나 새 설정 항목을 더한다.
+
+#### REQ-PREVIEW020-008: 토글 툴팁은 현재 OS의 기본값을 말한다 (Ubiquitous + capability-gate)
+
+- The `htmlRenderToggleTitle(platform)` shall 플랫폼 문자열만의 순수 함수로서 토글 `title` 문구를 돌려준다. 저장된 선택·해소된 모드·`navigator`·DOM을 읽지 않는다. 헤더 토글의 `title`은 `detectPlatform()`을 넘긴 이 함수의 결과다.
+- **Where** `defaultHtmlRenderMode(platform)`이 `'original'`이면(Windows), the 툴팁 shall 이 기기의 기본이 원본 보기임을 밝히고, 페이지 자체 스크립트·외부 리소스 제약이 선명 모드 쪽에 있음을 안내한다. 이 툴팁은 100% 초과 확대가 흐릿하다는 경고를 담지 않고, "선명 모드(기본)"이라는 표기도 담지 않는다.
+- **Where** `defaultHtmlRenderMode(platform)`이 `'crisp'`이면(macOS·Linux·그 밖), the 툴팁 shall 이 기기의 기본이 선명 모드임을 밝히고, 선명 모드의 스크립트·외부 리소스 제약과 "원본 보기에서는 100% 초과 확대가 흐릿합니다" 경고를 담는다.
+- The 툴팁 shall 사용자가 명시 저장한 선택에 따라 달라지지 않는다. 명시 선택은 `aria-pressed`와 `is-active`만 바꾼다.
+- 사유: SPEC-PREVIEW-019의 문구는 모든 OS에서 선명 모드가 기본이고 원본 보기가 흐리다고 말한다. 이 SPEC 이후 Windows에서는 둘 다 사실이 아니다. 경고는 사실인 곳(WKWebView 계열의 기본 선명 모드)에만 남긴다.
 
 ## §3 Acceptance Criteria
 
@@ -143,17 +153,26 @@ Tier S이므로 수용 기준을 이 절에 둔다(별도 `acceptance.md` 없음
 - **Given** `"Win32"`이고 저장값이 명시적 `'crisp'`이면 선명 모드, `"MacIntel"`이고 명시적 `'original'`이면 원본 보기가 렌더된다.
 - **And** 렌더 중에 저장값을 바꾸면(`setHtmlRenderMode`) 해소된 모드에 맞는 렌더 경로로 전환된다.
 
-### AC-PREVIEW020-006 — 헤더 토글 (unit, REQ-003)
+### AC-PREVIEW020-006 — 헤더 토글과 툴팁 (unit, REQ-003·008)
 
 - **Given** `html` 파일이 열려 있고 `detectPlatform`이 `"Win32"`, 저장값 `null`이면, **Then** 토글 `Original view`는 `aria-pressed="true"`이고 `is-active` 클래스가 있다. 누르면 저장값이 `'crisp'`이 되고 `aria-pressed="false"`가 된다.
 - **Given** `"MacIntel"`, 저장값 `null`이면, **Then** `aria-pressed="false"`이고 누르면 저장값이 `'original'`이 되고 `aria-pressed="true"`가 된다.
 - **And** 명시 저장값이 있으면 플랫폼과 무관하게 그 값에 따라 `aria-pressed`가 정해진다(`"Win32"` + `'crisp'` → `false`, `"MacIntel"` + `'original'` → `true`).
 - **And** `html`이 아닌 보기 종류에서는 토글이 보이지 않는다(019 AC-009 유지).
+- **And** (툴팁, REQ-008 — 순수 헬퍼) `htmlRenderToggleTitle`은 `src/lib/preview/htmlZoom.ts`가 내보내는 순수 함수이며, `src/test/htmlZoom.test.ts`가 아래 표를 검증한다. 모든 문구는 공통으로 부분 문자열 `스크립트`, `외부`, `원본 보기`를 담는다(기존 `HeaderRenderMode.test.tsx`의 한계 안내 단언 유지).
+
+  | platform | 반드시 포함하는 부분 문자열 | 포함하면 안 되는 부분 문자열 |
+  |----------|---------------------------|----------------------------|
+  | `"Win32"`, `"Windows"`, `"win32"` | `이 기기의 기본은 원본 보기입니다` | `흐릿`, `선명 모드(기본)` |
+  | `"MacIntel"`, `"macOS"`, `"Darwin"`, `"Linux x86_64"`, `"Linux"`, `""` | `이 기기의 기본은 선명 모드입니다`, `원본 보기에서는 100% 초과 확대가 흐릿합니다` | `이 기기의 기본은 원본 보기입니다`, `선명 모드(기본)` |
+
+- **And** (툴팁, 헤더 연결) `src/test/HeaderRenderMode.test.tsx`에서 `detectPlatform`을 `"Win32"`로 모의하면 토글의 `title` 속성이 위 Windows 행을 만족하고, `"MacIntel"`과 `"Linux x86_64"`로 모의하면 위 비Windows 행을 만족한다.
+- **And** (툴팁은 명시 선택과 무관) 같은 플랫폼에서 저장값이 `null`·`'crisp'`·`'original'`이어도 `title` 문자열은 모두 같다(`"Win32"`와 `"MacIntel"` 각각). 저장값은 `aria-pressed`만 바꾼다. `navigator.platform`을 getter 스파이로 두고 `htmlRenderToggleTitle`을 표 전체에 호출했을 때 스파이 호출 횟수가 0이다(AC-001과 같은 방법).
 
 ### AC-PREVIEW020-007 — 변경 범위와 회귀 (unit + grep, REQ-007)
 
 - **Given** 구현이 끝난 브랜치에서, **Then** `git diff --name-only <base>...HEAD`의 소스 파일은 `src/store/uiStore.ts`, `src/lib/preview/htmlZoom.ts`, `src/components/layout/Header.tsx`, `src/components/preview/HtmlFileViewer.tsx` 4개이며, `index.html`·`src-tauri/`는 diff에 없다.
-- **And** 토글 `title` 문구 줄은 019 병합본과 바이트 단위로 같다(`git diff -- src/components/layout/Header.tsx`에서 `title="원본 보기` 줄이 `+`/`-`로 나타나지 않는다).
+- **And** `Header.tsx`의 diff는 해소된 모드를 쓰는 `aria-pressed`·`is-active`·클릭 핸들러 줄, `title` 속성 줄(툴팁 헬퍼 호출로 바뀜), `@/lib/preview/htmlZoom` import 줄로 한정된다. `aria-label="Original view"` 줄과 버튼 글자 `원본 보기` 줄은 diff에 없다(검증: `git diff -- src/components/layout/Header.tsx`의 `+`/`-` 줄을 위 허용 목록과 대조). 툴팁 문구 자체의 검증은 AC-006이 맡는다.
 - **And** `HtmlFileViewer.tsx`에서 `OriginalHtmlView`·`CrispHtmlView` 본문, `sandbox` 속성 줄, `HTML_CRISP_MAX_BYTES` 폴백 로직은 diff에 없다. 이 파일에서 바뀌는 것은 `@/lib/preview/htmlZoom`에서 `detectPlatform`·`resolveHtmlRenderMode`를 가져오는 import 줄, 분기 줄, 해소 호출뿐이다(그 밖의 줄은 diff에 없다).
 - **And** 019 폴백 테스트(`HtmlFileViewerCrisp.test.tsx`의 폴백 후 저장 모드 불변 단언)가 명시 `'crisp'` 시드로 계속 통과한다.
 - **And** `npm run typecheck`, `npm run lint`, `npx vitest run`이 exit 0이다.
@@ -178,6 +197,7 @@ Tier S이므로 수용 기준을 이 절에 둔다(별도 `acceptance.md` 없음
 | REQ-PREVIEW020-005 | AC-PREVIEW020-004, AC-PREVIEW020-008 | unit 표 + 수동 M-4 |
 | REQ-PREVIEW020-006 | AC-PREVIEW020-002, AC-PREVIEW020-008 | unit + 수동 M-1~M-3 |
 | REQ-PREVIEW020-007 | AC-PREVIEW020-007 | unit + git diff + grep |
+| REQ-PREVIEW020-008 | AC-PREVIEW020-006 | unit — 순수 헬퍼 표 + 헤더 `title` 속성 |
 
 ## §5 Constraints, Assumptions, and Supersession
 
@@ -226,7 +246,7 @@ Windows 기본이 원본 보기(`sandbox="allow-scripts allow-same-origin"`, ass
 
 ### Out of Scope — UI 문구와 새 설정 UI
 
-- 토글 `title`(툴팁) 문구는 바꾸지 않는다. 이 문구는 선명 모드가 기본이라고 말하고 원본 보기가 흐리다고 말하는데, Windows 기본에서는 사실과 다르다. 알려진 불일치이며 후속 과제 후보다(§7).
+- 토글 `title`(툴팁)을 뺀 헤더 문구(`aria-label`, 버튼 글자)는 바꾸지 않는다. 툴팁은 REQ-PREVIEW020-008이 OS별로 바로잡으므로 더 이상 제외 항목이 아니다.
 - "OS 기본값으로 되돌리기" 버튼이나 렌더 모드 설정 화면은 만들지 않는다.
 
 ### Out of Scope — 배율·다른 뷰어
@@ -237,7 +257,7 @@ Windows 기본이 원본 보기(`sandbox="allow-scripts allow-same-origin"`, ass
 
 1. **macOS 기본값 재검토**: macOS에서 선명 모드가 스크립트 페이지(Mermaid)를 텍스트로 보이게 하는 문제는 그대로 남는다. 선명도 때문에 macOS는 `'crisp'`을 유지하지만, 스크립트 페이지 자동 원본 전환(범위 밖)이 생기면 기본값 정책을 다시 볼 수 있다.
 2. **Linux 미검증**: 기본값 `'crisp'`은 가정이다. Linux 빌드를 배포하게 되면 WebKitGTK에서 원본 보기의 100% 초과 선명도를 측정해야 한다.
-3. **툴팁 불일치**: 토글 `title`이 "선명 모드(기본)", "원본 보기에서는 100% 초과 확대가 흐릿합니다"라고 안내한다. Windows 기본에서는 틀린 안내다. 문구를 OS별로 나누는 후속 변경이 필요한지 사용자가 정한다.
+3. **툴팁 불일치 (해소됨 — REQ-PREVIEW020-008)**: 토글 `title`이 "선명 모드(기본)", "원본 보기에서는 100% 초과 확대가 흐릿합니다"라고 안내해 Windows 기본에서는 틀린 안내였다. 사용자 결정(2026-11-09)에 따라 이 SPEC에서 OS별 문구로 고친다. 열린 질문이 아니다. 번호는 다른 절의 참조(§7-4 등)를 위해 유지한다.
 4. **Windows 기본 보안 자세 (증거로 정리됨)**: 열린 질문이 아니라 §5 "Windows 기본 보안 자세 — SPEC-SEC-001 증거"에 정리했다. 남은 선택 하나: 수동 M-1 때 SEC-001 탐침을 원본 보기에서 한 번 더 돌릴지는 사용자가 정한다. 돌리지 않아도 SEC-001의 Windows M-2 결과(사용자 보고, 캡처 없음)가 이미 있다.
 5. **019 문서 역참조**: 019의 HISTORY에 "REQ-001 기본값은 SPEC-PREVIEW-020이 개정"이라는 한 줄을 sync 단계에서 달지 여부.
 
