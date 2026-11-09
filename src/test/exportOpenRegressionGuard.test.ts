@@ -38,15 +38,8 @@ describe('SPEC-EXPORT-002 regression guard', () => {
       expect.arrayContaining([expect.objectContaining({ path: '**' })]),
     );
     // 기존 항목 미제거 확인(회귀 방지).
-    for (const required of [
-      'core:default',
-      'dialog:allow-open',
-      'dialog:allow-save',
-      'dialog:allow-message',
-      'opener:default',
-      'shell:allow-execute',
-      'shell:allow-spawn',
-    ]) {
+    // SPEC-SEC-001 REQ-008: dialog:*·shell:* 은 프런트가 쓰지 않아(대화상자는 Rust DialogExt) 의도적으로 제거했다.
+    for (const required of ['core:default', 'opener:default']) {
       expect(caps.permissions).toContain(required);
     }
   });
