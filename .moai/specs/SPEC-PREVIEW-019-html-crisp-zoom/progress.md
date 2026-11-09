@@ -119,3 +119,14 @@
 - 알려진 한계(후속): HTML 안의 mermaid 다이어그램은 선명 모드에서 페이지 스크립트가 막혀 그려지지 않고 앱 pele 팔레트도 쓰지 않음 -> 백로그 카드 t2.
 - SPEC-PREVIEW-018의 대기 중 수동 M-1·M-2·M-4·M-5는 '원본 보기'로 바꾼 상태에서 수행해야 한다.
 - Gaps: lint·tsc·vitest·cargo는 위 재검증으로 sync 단계에서 직접 다시 실행했다. Playwright e2e는 다시 실행하지 않았고 §E.2의 4건 통과를 인용했다. USER_MANUAL/README 문구를 실제 화면에서 확인하지 않았다. 커버리지 도구가 설치돼 있지 않아 측정하지 못했다.
+
+## 수동 확인 결과 — macOS (2026-11-09, 사용자 실기기, 오케스트레이터 기록)
+
+- 빌드: WT-crisp-zoom 39106e3 (`npm run dev`).
+- M-1 선명도: 100·150·200% 모두 선명(사용자 캡처 3장, 줄바꿈 재계산 확인) → PASS. 배율 변경 시 스크롤 위치 유지 → PASS.
+- M-2 상대 자원: 같은 폴더 `style.css`·`img.svg` 적용 확인 → PASS(하위 폴더·한글/공백 폴더 이름 자원은 미확인).
+- M-3 해시 링크: `#bottom`으로 프레임 안 이동, "맨 위로" 복귀 → PASS.
+- M-4 한계 관찰: 선명 모드에서 `test-plain.html` 인라인 스크립트 차단("실행됨" 문구 없음) → PASS. doctype·head 없는 문서도 정상 표시.
+- 원본 보기 토글: 스크립트 실행됨(빨간 문구 표시) → PASS. 200% 배율 적용(018 방식).
+- 관찰(019 회귀 아님): 원본 보기에서 `<meta charset>` 없는 UTF-8 HTML의 한글이 깨짐. asset 프로토콜이 `Content-Type`에 charset을 붙이지 않아(tauri-2.10.3 protocol/asset.rs:100) WebKit이 레거시 인코딩으로 해석하는 기존 동작. 선명 모드(srcdoc)는 앱이 UTF-8로 읽어 넣으므로 정상.
+- 미수행: M-5(엔진 CSP 상속은 M-4 결과로 간접 확인), M-6(invoke 거부), Windows 전 항목.
