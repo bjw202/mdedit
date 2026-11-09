@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useUIStore } from '@/store/uiStore';
 import { readFile, readFileSize } from '@/lib/tauri/ipc';
+import { detectPlatform, resolveHtmlRenderMode } from '@/lib/preview/htmlZoom';
 import {
   FRAME_ZOOM_MESSAGE_TYPE,
   HTML_CRISP_MAX_BYTES,
@@ -41,7 +42,7 @@ function toAssetUrl(htmlPath: string): string {
  */
 export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   const mode = useUIStore((state) => state.htmlRenderMode);
-  return mode === 'original' ? (
+  return resolveHtmlRenderMode(mode, detectPlatform()) === 'original' ? (
     <OriginalHtmlView htmlPath={htmlPath} />
   ) : (
     <CrispHtmlView htmlPath={htmlPath} />

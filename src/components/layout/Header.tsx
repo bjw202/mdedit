@@ -5,7 +5,9 @@ import { getFileViewType } from '@/lib/preview/fileViewType';
 import {
   HTML_ZOOM_STEPS,
   detectPlatform,
+  htmlRenderToggleTitle,
   isMacPlatform,
+  resolveHtmlRenderMode,
   matchZoomShortcut,
 } from '@/lib/preview/htmlZoom';
 import type { Theme } from '@/store/uiStore';
@@ -87,7 +89,10 @@ export function Header({
   const htmlZoom = useUIStore((s) => s.htmlZoom);
   const stepHtmlZoom = useUIStore((s) => s.stepHtmlZoom);
   const resetHtmlZoom = useUIStore((s) => s.resetHtmlZoom);
-  const htmlRenderMode = useUIStore((s) => s.htmlRenderMode);
+  const htmlRenderMode = resolveHtmlRenderMode(
+    useUIStore((s) => s.htmlRenderMode),
+    detectPlatform()
+  );
   const setHtmlRenderMode = useUIStore((s) => s.setHtmlRenderMode);
   const currentFile = useFileStore((s) => s.currentFile);
   const previewStatus = useFileStore((s) => s.previewStatus);
@@ -243,7 +248,7 @@ export function Header({
                 onClick={() => setHtmlRenderMode(htmlRenderMode === 'original' ? 'crisp' : 'original')}
                 aria-label="Original view"
                 aria-pressed={htmlRenderMode === 'original'}
-                title="원본 보기 — 선명 모드(기본)에서는 페이지 자체 스크립트와 외부 리소스(CDN 등)가 동작하지 않습니다. 필요한 페이지는 원본 보기를 사용하세요. (원본 보기에서는 100% 초과 확대가 흐릿합니다.)"
+                title={htmlRenderToggleTitle(detectPlatform())}
                 className={`md-seg-opt ${htmlRenderMode === 'original' ? 'is-active' : ''}`}
               >
                 <span>원본 보기</span>
