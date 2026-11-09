@@ -216,3 +216,61 @@ test.describe('HtmlFileViewer E2E — 선명 모드 (SPEC-PREVIEW-019)', () => {
     expect(consoleMessages.some((t) => /script-src|Content Security Policy|Refused to execute/i.test(t))).toBe(true);
   });
 });
+
+// ---- SPEC-PREVIEW-021 (AC-012 부분 증거): 선명 모드 mermaid 미리 그리기 ----
+// Playwright WebKit의 부분 증거다. WKWebView·WebView2 실기기 증거가 아니다(수동 M-1·M-2).
+test.describe('HtmlFileViewer E2E — mermaid 미리 그리기 (SPEC-PREVIEW-021)', () => {
+  test.use({ userAgent: WINDOWS_UA });
+
+  // 성공 1(pre), 실패 1(div, 기존 오류 픽스처 21-error-line-col), 범위 밖 형식 1(code.language-mermaid)
+  const MERMAID_PAGE_HTML =
+    '<!doctype html><html><head><title>t</title></head><body>' +
+    '<pre class="mermaid">flowchart LR\n  A --&gt; B</pre>' +
+    '<div class="mermaid">sequenceDiagram\n  A-&gt;&gt;B hello</div>' +
+    '<pre><code class="language-mermaid">flowchart LR\n  X --&gt; Y</code></pre>' +
+    '<script>document.body.setAttribute("data-page-script","ran")</script></body></html>';
+
+  test.beforeEach(async ({ tauriPage }) => {
+    await tauriPage.addInitScript(() => {
+      localStorage.setItem(
+        'mdedit-ui-store',
+        JSON.stringify({ state: { htmlRenderMode: 'crisp' }, version: 2 }),
+      );
+    });
+    await tauriPage.addInitScript((html: string) => {
+      const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a?: unknown) => Promise<unknown> } })
+        .__TAURI_INTERNALS__;
+      const original = internals.invoke;
+      internals.invoke = (cmd: string, args?: unknown) => {
+        if (cmd === 'read_file') return Promise.resolve(html);
+        if (cmd === 'read_file_size') return Promise.resolve(html.length);
+        return original(cmd, args);
+      };
+    }, MERMAID_PAGE_HTML);
+  });
+
+  test('성공 블록은 SVG로, 실패 블록은 원문 + 안내로, 범위 밖 형식은 그대로 보인다', async ({ tauriPage }) => {
+    await tauriPage.goto('/');
+    await tauriPage.locator('.cm-editor').waitFor({ timeout: 15_000 });
+    await tauriPage.evaluate(async (filePath: string) => {
+      const mod = await import('/src/store/fileStore.ts');
+      mod.useFileStore.getState().setCurrentFile(filePath);
+    }, 'C:/test/page.html');
+
+    const iframe = tauriPage.locator('[data-testid="html-preview-iframe"]');
+    await expect(iframe).toBeVisible({ timeout: 8000 });
+    expect(await iframe.getAttribute('sandbox')).toBe('allow-scripts');
+
+    const handle = await iframe.elementHandle();
+    const frame = await handle!.contentFrame();
+    expect(frame).not.toBeNull();
+    await frame!.waitForLoadState('load');
+
+    await expect(frame!.locator('[data-mdedit-diagram] svg')).toHaveCount(1);
+    await expect(frame!.locator('[data-mdedit-diagram-error]')).toHaveCount(1);
+    await expect(frame!.locator('[data-mdedit-diagram-error]')).toContainText('그릴 수 없었습니다');
+    await expect(frame!.locator('code.language-mermaid')).toContainText('X --> Y');
+    // 019 동작 유지: 페이지 자체 스크립트는 실행되지 않는다.
+    expect(await frame!.evaluate(() => document.body.getAttribute('data-page-script'))).toBeNull();
+  });
+});
