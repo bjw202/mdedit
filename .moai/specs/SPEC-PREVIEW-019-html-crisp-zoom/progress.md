@@ -108,7 +108,7 @@
 - sync 단계 독립 재검증(오케스트레이터 직접 실행, 이 트리, HEAD edee991 + 문서 변경): `npm run lint` 종료 0, `npx tsc --noEmit` 종료 0, `npx vitest run` 종료 0(`Test Files 116 passed`, `Tests 1924 passed`), `cargo test --manifest-path src-tauri/Cargo.toml` 종료 0(lib 367 passed, `tests/app_acl.rs` 3 passed). 로그: `.moai/state/verify/sync-019/`(gitignore).
 
 - sync_complete_at: 2026-11-09
-- sync_commit_sha: pending-backfill (the sync commit cannot name its own SHA; the orchestrator backfills after commit)
+- sync_commit_sha: 0c3a89f7f98d6a41dc2e7d586f80777825173f78
 - sync_status: docs written, SPEC frontmatter `status: in-progress -> implemented` (spec.md only; plan.md and acceptance.md carry no frontmatter)
 - 문서 목록: `CHANGELOG.md` [Unreleased] ### Added 항목 1건 / `docs/USER_MANUAL.md` 새 소절 4-4(HTML 파일 보기와 '원본 보기') / `README.md` 지원 파일 형식 표 `.html` 행에 토글 한 구절.
 - B12 자기 점검: (1) `grep -c 'SPEC-PREVIEW-019' CHANGELOG.md` 작성 전 0 (2) acceptance.md 고유 AC 식별자 `grep -oE 'AC-([A-Z0-9]+-)*[0-9]+' ... | sort -u | wc -l` = 25(비영); CHANGELOG는 AC 개별 나열 없이 AC-001~011 PASS / AC-012~015 대기로 기술 (3) CHANGELOG에 적은 경로(`index.html`, `src/store/uiStore.ts` 등)는 `git diff origin/main...HEAD --stat` 출력에 존재.
