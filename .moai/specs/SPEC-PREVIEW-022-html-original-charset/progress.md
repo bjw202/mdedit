@@ -105,4 +105,34 @@ test result: FAILED. 0 passed; 1 failed   exit=101
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+- sync_status: synced, status implemented, manual-verification-pending
+- sync 날짜: 2026-11-09
+
+### 병합
+
+- `origin/main`(`8e5f1b8`, SPEC-SEC-002)을 이 브랜치에 병합 커밋 `ca7b2e1`로 합쳤다. 충돌 없음.
+
+### 게이트 (병합 후, `npm ci` 뒤, 로그는 `/private/tmp/claude-501/gates/`)
+
+| 명령 | 종료 코드 | 로그 끝부분(그대로) |
+|------|-----------|--------------------|
+| `npm run typecheck` | 0 | `> mdedit@0.20.0 typecheck` / `> tsc --noEmit` |
+| `npm run lint` | 0 | `> mdedit@0.20.0 lint` / `> eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0` |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 0 | `test result: ok. 367 passed; 0 failed; ...`(lib) / `ok. 0 passed`(빈 바이너리) / `ok. 3 passed`(app_acl) / `ok. 8 passed`(asset_charset) / `ok. 0 passed`(doc-tests) |
+
+- §E.2의 `typecheck` 종료 코드 2(`pele` 미설치, 환경 문제)는 이 worktree에서 `npm ci`를 한 뒤 종료 코드 0으로 해소되었다.
+- `vitest`는 프런트엔드 변경이 없어 이번 sync에서도 돌리지 않았다(병합한 SPEC-SEC-002 변경은 별도 검증됨).
+
+### 열린 편차 (OPEN DEVIATION) — REQ-PREVIEW022-011
+
+- SPEC은 수정 전에 깨짐 재현이 기록되어야 한다고 요구하지만, GREEN 커밋 `bca2bf9`는 재현 기록 없이 먼저 만들어졌다.
+- 해소 계획: 사용자가 마지막 통합 수동 확인 때 M-1을 한다. macOS는 설치된 mdedit 0.19.0(패치 전), Windows는 v0.20.0에서 원본 보기(iframe)로 `src-tauri/tests/fixtures/charset/utf8-no-meta.html`과 `euckr-meta.html`을 연다.
+- **병합 조건**: 이 PR은 M-1이 한 OS 이상에서 깨짐을 재현하기 전에는 병합하지 않는다. 두 OS 모두 깨지지 않으면 수정 커밋 `bca2bf9`를 되돌린다.
+
+### 보류
+
+- Windows 실기기 확인(AC-009·010·011)은 다음 릴리스 초안 빌드로 미룬다. 그때까지 SPEC은 `implemented`이며, 모두 PASS이면 `completed`로 닫는 PR을 따로 올린다.
+
+### vendor 유지 규칙 (계획안 X)
+
+- 출처: `research.md` §6 "상류 재동기화 규칙". tauri를 올릴 때 (0) 새 버전 `asset.rs`가 charset을 붙이는지 `grep -n charset`으로 먼저 확인하고, 붙이면 패치·`[patch.crates-io]`·vendor 디렉터리 제거를 먼저 검토한다. (1) 새 레지스트리 소스를 `src-tauri/vendor/tauri/`에 숨김 파일까지 `cp -R`로 다시 복사한다. (2) 패치(`asset.rs` 헤더 결정부, `asset/charset.rs`)를 다시 적용한다. (3) 바뀐 `asset.rs`가 REQ-004~006을 여전히 만족하는지 읽고 확인한다. (4) `src-tauri/tests/asset_charset.rs`의 기준 버전 상수를 고친다(REQ-010 가드가 그 전까지 실패한다). (5) `cargo build` 뒤 `diff -rq`가 AC-004 허용 목록과 같은지 확인한다. (6) 실기기 확인(AC-009·011)을 다시 한다.

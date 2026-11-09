@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-022
 title: "HTML 원본 보기 문자 인코딩 — meta charset 없는 UTF-8 HTML의 한글 깨짐 수정"
 version: "0.1.1"
-status: draft
+status: implemented
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
