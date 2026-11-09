@@ -19,3 +19,7 @@
 *.exe binary
 *.msi binary
 *.zip binary
+
+# SPEC-PREVIEW-022: tauri 사본·charset fixture 바이트 보존
+src-tauri/vendor/** -text
+src-tauri/tests/fixtures/charset/** binary
