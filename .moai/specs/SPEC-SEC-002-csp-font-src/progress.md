@@ -91,3 +91,9 @@ D-1 결정: 배포 빌드 앱의 Web Inspector가 열리지 않으면 `vite prev
 - 대기 중인 수동 확인: **M-1 (macOS)** — 위 절차. 병합 전 수행 권장.
 - Gap: 이미지 등 다른 자산의 인라인 수 전·후 비교 없음(단위 테스트로만 확인). Windows 실기기 미확인.
 - sync-audit: **PASS 0.87** (Tier S 기준 0.75; Functionality 0.85 / Security 0.92 / Craft 0.85 / Consistency 0.88). 차단 결함 0건. 보고서 `.moai/reports/sync-audit/SPEC-SEC-002.md`(로컬, git 미추적). 반영: D-1(CHANGELOG "4,096B 미만"), D-5(이 줄). 미반영: D-2·D-4·D-6(선택/범위 밖), D-3(M-1 수동 확인 대기).
+
+## 수동 확인 결과 (v0.21.0 초안 빌드)
+
+- 일시·빌드: 2026-11-09, v0.21.0 초안 빌드(f14fa99). 결과는 사용자 보고이며 캡처는 대화에만 있다.
+- macOS 콘솔 글꼴 거부 확인: 수행하지 않음(갭). Windows: 사용자 결정 D-2로 생략.
+- 위 갭을 명시하고 completed 처리. CI 빌드 측정 결과는 위 §E에 이미 기록되어 있다.
