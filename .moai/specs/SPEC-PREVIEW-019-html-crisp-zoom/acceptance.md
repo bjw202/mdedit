@@ -18,7 +18,7 @@
 | AC-PREVIEW019-012 | REQ-PREVIEW019-002, 004 | 수동 M-1 (두 OS) |
 | AC-PREVIEW019-013 | REQ-PREVIEW019-003, 004, 005 | 수동 M-2·M-3·M-4 (두 OS) |
 | AC-PREVIEW019-014 | REQ-PREVIEW019-011 | 수동 M-6 (두 OS, SEC-001 이후) |
-| AC-PREVIEW019-015 | REQ-PREVIEW019-006 | 수동 M-5 (두 OS) + e2e(Chromium) |
+| AC-PREVIEW019-015 | REQ-PREVIEW019-006 | 수동 M-5 (두 OS) + e2e(Playwright WebKit, 부분 증거) |
 
 검증 계층 원칙: 조립 함수·저장소·헤더·자식 처리기 논리는 vitest + jsdom으로 충분하다. 렌더 선명도, WKWebView·WebView2의 CSP 상속과 해시 허용, 불투명 출처에서의 IPC 거부는 jsdom이 재현하지 못하므로(레이아웃·래스터·네이티브 IPC가 없다) 실기기 수동 검증 없이 PASS로 기록하지 않는다. 프로젝트의 Playwright e2e는 `webkit` 프로젝트 하나뿐이다(`playwright.config.ts`). 이 e2e는 해시 허용이 스크립트를 실행시키는지에 대한 **Playwright WebKit(WKWebView와 같은 엔진 계열이나 같은 빌드가 아님)의 부분 증거**일 뿐 WKWebView·WebView2 실기기 증거가 아니다.
 
@@ -78,12 +78,12 @@
 - `other.html`·`https://x/`·내부 요소(`<a>` 안의 `<span>`을 눌러도 `closest('a')`로 해석) 중 해시가 아닌 링크는 `defaultPrevented === false`.
 - 퍼센트 인코딩된 `#%ED%95%9C`(한글 id)는 디코드해서 찾는다. 잘못된 퍼센트 시퀀스(`#%E0%A4%A`)는 예외를 던지지 않고 `defaultPrevented === true`이며 스크롤 호출이 없다.
 
-### AC-PREVIEW019-006 — CSP 해시 일치 (unit)
+### AC-PREVIEW019-006 — CSP 해시 일치와 지시어 형태 (unit)
 
 - **Given** 주입 스크립트 상수 `HTML_ZOOM_FRAME_SCRIPT`와 저장소의 `index.html`을 읽는 테스트에서,
 - **Then** `sha256(HTML_ZOOM_FRAME_SCRIPT)`의 base64가 `index.html` 메타 CSP `script-src`의 `'sha256-…'` 토큰 값과 정확히 같다. 해시 토큰은 `script-src` 안에 정확히 1개다.
 - **And** `script-src` 지시어 값에 `'unsafe-inline'`, `'unsafe-eval'`이 없고, `asset:`·`http`로 시작하는 출처 토큰이 없다.
-- **And** 메타 CSP를 `;`로 지시어별로 나누고 각 지시어를 공백으로 나눈 **토큰 집합**으로 비교한다. `script-src`의 토큰 집합은 기준 집합 + 해시 토큰 정확히 1개이고, 나머지 지시어의 토큰 집합과 지시어 이름 집합은 기준과 같다. 기준은 git 이력이 아니라 **테스트 안의 고정 기대값**이다 — run 착수 시점(SEC-001 병합 뒤)의 `index.html` 메타 CSP에서 해시를 뺀 값으로 확정해 테스트에 박는다(CI의 shallow checkout에서도 동작하고, 이후 다른 SPEC이 CSP를 바꾸면 이 기대값을 함께 갱신한다). 공백·순서 차이는 비교에 영향을 주지 않는다.
+- **And** 메타 CSP를 `;`로 지시어별로 나누고 각 지시어를 공백으로 나눈 **토큰 집합**으로 비교한다. `script-src`의 토큰 집합은 기준 집합 + 해시 토큰 정확히 1개이고, `style-src`의 토큰 집합은 기준 집합 + `asset:`·`http://asset.localhost`·`https://asset.localhost` 정확히 3개이며(이 세 토큰 외 추가 없음), 나머지 지시어(`default-src`, `img-src`, `connect-src`, `frame-src` 등)의 토큰 집합과 지시어 이름 집합은 기준과 같다. 기준에 이미 위 `style-src` 토큰이 있으면(다른 SPEC이 먼저 넣은 경우) 중복 없이 존재만 확인한다. 기준은 git 이력이 아니라 **테스트 안의 고정 기대값**이다 — run 착수 시점(SEC-001 병합 뒤)의 `index.html` 메타 CSP에서 해시를 뺀 값으로 확정해 테스트에 박는다(CI의 shallow checkout에서도 동작하고, 이후 다른 SPEC이 CSP를 바꾸면 이 기대값을 함께 갱신한다). 공백·순서 차이는 비교에 영향을 주지 않는다.
 - **And** 스크립트 상수에 `</script`, `<!--`이 들어 있지 않다. 스크립트 상수는 템플릿 보간 없는 고정 문자열이며 `buildSrcdoc`이 태그 사이에 한 글자도 바꾸지 않고 넣는다(`buildSrcdoc` 결과에서 `<script>…</script>` 사이 텍스트가 상수와 동일).
 
 ### AC-PREVIEW019-007 — 폴백 (unit)
@@ -126,7 +126,7 @@
 
 ### AC-PREVIEW019-013 — 상대 자원·해시 링크·한계 관찰 (수동 M-2·M-3·M-4, 두 OS)
 
-- M-2: 같은 폴더의 `style.css`, 하위 폴더 `img/a.png`, 한글·공백 폴더 이름 아래 자원이 `<base>`로 정상 로드된다(Windows는 `C%3A` 형식 경로 포함).
+- M-2: 같은 폴더의 `style.css`(`<link rel=stylesheet>` — 셸 CSP `style-src`의 asset 출처 3개 덕분에 로드되어 실제로 본문 스타일이 적용되는지 눈으로 확인), 하위 폴더 `img/a.png`, 한글·공백 폴더 이름 아래 자원이 `<base>`로 정상 로드된다(Windows는 `C%3A` 형식 경로 포함).
 - M-3: 긴 문서에서 `#section` 목차 링크를 누르면 프레임 안에서 해당 위치로 스크롤하고 프레임이 asset 주소로 이동하지 않는다. 이어서 배율을 바꿔도 `srcdoc`이 유지된다.
 - M-4(한계 관찰, 실패가 아니라 기록): `@media (max-width)` 페이지가 배율에 반응하지 않는 것, 인라인 `<script>`가 막히는 것(콘솔 CSP 위반), doctype 없는 파일이 선명 모드에서 표준 모드로 렌더되어 원본 보기와 달라지는지(`document.compatMode`가 아니라 눈으로 보이는 차이)를 확인하고 결과를 기록한다. 같은 페이지가 원본 보기에서는 앞의 두 가지가 018대로 동작한다.
 

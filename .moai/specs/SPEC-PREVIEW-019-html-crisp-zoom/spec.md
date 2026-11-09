@@ -22,7 +22,7 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 0.1.0 | 2026-11-09 | jw | 최초 작성. 배경: SPEC-PREVIEW-018(병합, main 57b3231)의 배율은 감싸개 + `transform: scale`이라 macOS(WebKit)에서 100% 초과 시 iframe 비트맵이 늘어나 흐리다(사용자 실측). iframe 요소의 CSS `zoom`은 WebKit에서 내용에 효과가 없음이 실기기에서 확인됐다. 기각된 018 v0.4.0 설계(`mdhtml` 사용자 정의 스킴)는 Local 출처 판정 때문에 Windows에서 앱 IPC에 노출되어 기각됐다(`.moai/reports/plan-audit/SPEC-PREVIEW-018-review-3.md` D1, `SPEC-PREVIEW-018-advisor.md`). 사용자 결정(오케스트레이터 경유, 2026-11-09): (1) 100% 초과 확대가 선명해야 하며 그것이 최우선이다 (2) 방식은 `srcdoc`(advisor 후보 (b)) (3) 보안 SPEC(SPEC-SEC-001, 앱 ACL 매니페스트)과 병행 계획하되 구현은 SEC-001 병합 뒤 (4) **Q1=A**: 앱 셸 메타 CSP의 `script-src`에 고정 주입 스크립트의 sha256 해시 1개만 추가한다(`'unsafe-inline'` 금지) (5) **Q2=토글 포함**: 기본은 선명 모드(srcdoc), 헤더의 '원본 보기' 토글로 기존 asset iframe 방식을 쓸 수 있고 선택은 전역 영속(`htmlRenderMode`). 코디네이터 기본값(열린 질문, §7): 원본 보기 모드에서는 SPEC-PREVIEW-018 동작(transform 배율, 100% 초과 시 흐림)을 그대로 유지한다. plan 단계 실측: 앱 셸 `index.html`의 메타 CSP는 `srcdoc` iframe에 상속된다(Chromium 직접 확인, §3). 감사 전 초안. |
+| 0.1.0 | 2026-11-09 | jw | 최초 작성. 배경: SPEC-PREVIEW-018(병합, main 57b3231)의 배율은 감싸개 + `transform: scale`이라 macOS(WebKit)에서 100% 초과 시 iframe 비트맵이 늘어나 흐리다(사용자 실측). iframe 요소의 CSS `zoom`은 WebKit에서 내용에 효과가 없음이 실기기에서 확인됐다. 기각된 018 v0.4.0 설계(`mdhtml` 사용자 정의 스킴)는 Local 출처 판정 때문에 Windows에서 앱 IPC에 노출되어 기각됐다(`.moai/reports/plan-audit/SPEC-PREVIEW-018-review-3.md` D1, `SPEC-PREVIEW-018-advisor.md`). 사용자 결정(오케스트레이터 경유, 2026-11-09): (1) 100% 초과 확대가 선명해야 하며 그것이 최우선이다 (2) 방식은 `srcdoc`(advisor 후보 (b)) (3) 보안 SPEC(SPEC-SEC-001, 앱 ACL 매니페스트)과 병행 계획하되 구현은 SEC-001 병합 뒤 (4) **Q1=A**: 앱 셸 메타 CSP의 `script-src`에 고정 주입 스크립트의 sha256 해시 1개만 추가한다(`'unsafe-inline'` 금지) (5) **Q2=토글 포함**: 기본은 선명 모드(srcdoc), 헤더의 '원본 보기' 토글로 기존 asset iframe 방식을 쓸 수 있고 선택은 전역 영속(`htmlRenderMode`). 코디네이터 기본값(열린 질문, §7): 원본 보기 모드에서는 SPEC-PREVIEW-018 동작(transform 배율, 100% 초과 시 흐림)을 그대로 유지한다. plan 단계 실측: 앱 셸 `index.html`의 메타 CSP는 `srcdoc` iframe에 상속된다(Chromium 직접 확인, §3). plan-audit 1차(FAIL 0.74) 후 사용자 결정(2026-11-09, 오케스트레이터 경유) **D1=A**: 상속된 `style-src`가 asset 스타일시트를 막는 문제(Chromium·WebKit 실측)에 대해 셸 CSP `style-src`에 `asset: http://asset.localhost https://asset.localhost` 3개만 추가한다(`script-src` 해시 외 다른 지시어 불변). 확정 사용자 결정이며 열린 질문이 아니다. 1차 감사 지적 D2~D14 반영: 선명 모드의 스크립트 차단은 `srcdoc` 문서 안에서만 유효하며 프레임 이동(링크·`<meta refresh>`·중첩 iframe) 뒤에는 CSP 없는 문서의 스크립트가 실행된다고 정정(보안 경계로 세지 않음, SEC-001 시험 항목으로 전달), `srcdoc` 항상 표준 모드 한계 추가, SPEC-PREVIEW-018 `implemented` 충돌 명시, AC-006 토큰 집합 비교, e2e는 기존 webkit 프로젝트. |
 
 ## §1 Overview
 
@@ -72,11 +72,12 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 - The 주입 스크립트 shall `#`으로 시작하지 않는 링크는 가로채지 않는다(§3: 상대 파일·외부 링크 이동은 이 SPEC 범위 밖).
 - 사유: `<base>`가 있으면 `#anchor`가 base 기준 주소로 풀려 프레임이 `srcdoc`을 벗어나 asset 주소로 이동한다.
 
-#### REQ-PREVIEW019-006: 앱 셸 CSP — 해시 1개 (Ubiquitous + Unwanted)
+#### REQ-PREVIEW019-006: 앱 셸 CSP — 스크립트 해시 1개 + 스타일 asset 출처 (Ubiquitous + Unwanted)
 
 - The 앱 셸 `index.html`의 메타 CSP `script-src` shall 기존 토큰에 더해, REQ-003(c) 고정 스크립트 본문의 sha256 해시 `'sha256-<base64>'` 정확히 1개를 갖는다.
 - The 해시 shall 주입 스크립트 상수 본문(태그 사이의 바이트 그대로)의 sha256 base64 값과 일치한다. 스크립트가 바뀌면 해시도 함께 바뀌어야 하며, 이 일치를 자동 검사하는 테스트가 있다.
-- The 앱 셸 CSP shall not `'unsafe-inline'`, `'unsafe-eval'`, 새 출처(`asset:` 등)를 `script-src`에 추가하지 않으며, `script-src` 밖의 지시어(`default-src`, `style-src`, `img-src`, `connect-src`, `frame-src`)는 바꾸지 않는다.
+- The 앱 셸 `index.html`의 메타 CSP `style-src` shall 기존 토큰에 더해 asset 출처 토큰 `asset:`, `http://asset.localhost`, `https://asset.localhost` 정확히 3개를 갖는다(사용자 결정 D1=A, 2026-11-09). 사유: 선명 모드 `srcdoc` 문서는 셸 CSP를 상속하므로 `<base>`로 풀린 같은 폴더 `<link rel=stylesheet>`가 `style-src`에 막힌다(audit review-1 실측).
+- The 앱 셸 CSP shall not `'unsafe-inline'`, `'unsafe-eval'`, 새 출처를 `script-src`에 추가한다. 또한 shall not `script-src`·`style-src` 외 지시어(`default-src`, `img-src`, `connect-src`, `frame-src` 등)를 바꾼다. `style-src`에는 위 asset 출처 3개 외 토큰을 더하지 않는다.
 - The 주입 스크립트 상수 shall 동적 값을 담지 않는 고정 문자열이다(초기 배율은 REQ-003(b)의 `<style>`로 전달).
 
 #### REQ-PREVIEW019-007: 읽기 실패·비 UTF-8·대용량 폴백 (Event-driven)
@@ -128,7 +129,7 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 - 그래서 REQ-006: 고정 스크립트 하나에만 해시 허용을 준다. **HTML 페이지 자체의 인라인·외부 `<script>`는 `srcdoc` 문서 안에서만 상속된 `script-src 'self'`로 차단된다.** 이는 사용자가 수용한 제약이며 '원본 보기'가 우회 수단이다.
 - **이 차단은 보안 경계가 아니다 (audit review-1 실측)**: CSP 상속은 `srcdoc` 문서에만 적용된다. 프레임이 asset 문서로 이동하면 — 링크 클릭, **클릭 없는 `<meta http-equiv="refresh">`**, (표준상 추론, 미실측) 중첩 `<iframe src>` — 이동한 문서에는 CSP가 없고 `sandbox="allow-scripts"` 아래에서 스크립트가 실행된다. Playwright Chromium·WebKit 모두 링크 클릭과 meta refresh 뒤 이동한 문서의 스크립트가 실행됨을 확인했다. 따라서 파일 내용만으로 우회되는 이 차단을 방어선으로 세지 않으며, 앱 명령 노출의 최종 방어는 SPEC-SEC-001이다.
 - 상속된 정책의 `'self'`는 셸 출처(`tauri://localhost`, Windows `http://tauri.localhost`)다. 따라서 HTML이 절대 주소로 앱 번들 스크립트를 부르면 프레임 안에서 실행될 수 있다(CSP 규칙에서 추론, 미실측).
-- 같은 이유로 `default-src 'self' tauri: asset:`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data: asset:`가 프레임에 적용된다 — 외부 http(s) 이미지·스타일시트·웹폰트(CDN)는 선명 모드에서 막힌다. 018의 asset iframe은 CSP가 없어 이들이 모두 동작했으므로 **퇴행**이다.
+- 같은 이유로 `default-src 'self' tauri: asset:`, `style-src`(REQ-006으로 asset 출처가 더해진 값), `img-src 'self' data: asset:`가 프레임에 적용된다 — 같은 폴더(asset) 스타일시트·이미지는 동작하고, 외부 http(s) 이미지·스타일시트·웹폰트(CDN)는 선명 모드에서 막힌다. 018의 asset iframe은 CSP가 없어 이들이 모두 동작했으므로 **퇴행**이다.
 - `tauri.conf.json`의 `csp`는 현재 `null`이다. 이후 SPEC이 Tauri가 CSP를 주입하는 설정(`csp` 값 지정)으로 바꾸면 Tauri가 자체 nonce/해시를 덧붙이므로 이 SPEC의 해시 토큰과의 공존을 그때 다시 검증해야 한다.
 
 ### 선명 모드 알려진 한계 (규범)
@@ -149,7 +150,7 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 
 - 선명 모드 `sandbox="allow-scripts"`는 004/018의 `allow-scripts allow-same-origin`보다 **조인 것**이다(불투명 출처). 004 REQ-002/005와 018 REQ-003의 "sandbox 값 불변"은 asset 방식(원본 보기)에 계속 적용되며, 선명 모드는 새 분기이므로 위반이 아니다.
 - **SPEC-PREVIEW-018과의 관계 (인정되는 충돌)**: 018은 병합됐지만 `status: implemented`이며 `completed`가 아니다(수동 M-1·M-2·M-4·M-5 미기록, 018 acceptance DoD). 이 SPEC의 run은 018의 다음 조건을 더는 참으로 만들 수 없다: (a) 018 AC-007의 `git diff -w 00c0edb -- HtmlFileViewer.tsx | grep sandbox` = 0 과 DoD "sandbox 속성 줄과 `@MX:WARN`이 바뀌지 않았다"(선명 분기 sandbox 줄 추가·`@MX:WARN` 갱신) — 원본 분기 보존은 이 SPEC의 AC-008 grep이 대신 지킨다. (b) 018 수동 M-1(미디어 쿼리가 배율에 반응)은 019 병합 뒤 기본값(선명 모드)에서 수행하면 한계 5로 실패해 보이므로 **원본 보기에서 수행해야 한다.** 이 SPEC은 018 본문을 수정하지 않는다.
-- 앱 셸 CSP는 해시 1개만 넓어진다. 이 해시가 허용하는 것은 앱이 만든 고정 스크립트 한 덩어리뿐이며, 앱 셸 문서 자체에 같은 바이트의 스크립트가 들어갈 때만 의미가 있다.
+- 앱 셸 CSP는 두 곳만 넓어진다: `script-src`에 해시 1개, `style-src`에 asset 출처 3개(사용자 결정 Q1=A, D1=A). 해시가 허용하는 것은 앱이 만든 고정 스크립트 한 덩어리뿐이다. `style-src`의 asset 출처는 앱 셸 문서도 asset 출처 스타일시트를 불러올 수 있게 한다 — CSS 한정이며 `img-src`·`frame-src`·`default-src`에 이미 asset 출처가 있어 추가 노출은 작다고 판단한다(CSS 기반 데이터 유출 경로는 `connect-src`/`img-src`가 기존대로 제한).
 
 ### 배율 방식 가정 (run 첫 관문)
 
@@ -178,7 +179,7 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 
 ### Out of Scope — 페이지 스크립트·외부 리소스 지원
 
-- 선명 모드에서 HTML 페이지 자체 스크립트나 외부 CDN 리소스를 허용하려고 셸 CSP를 넓히지 않는다(`'unsafe-inline'`, `asset:`/http(s) 출처 추가 금지). 필요한 페이지는 원본 보기를 쓴다.
+- 선명 모드에서 HTML 페이지 자체 스크립트나 외부 CDN 리소스를 허용하려고 셸 CSP를 더 넓히지 않는다(`script-src`에 `'unsafe-inline'`·`asset:`·http(s) 출처 추가 금지, `style-src`·`img-src` 등에 http(s) 출처 추가 금지). REQ-006의 해시 1개와 `style-src` asset 출처 3개가 전부다. 필요한 페이지는 원본 보기를 쓴다.
 
 ### Out of Scope — 미디어 쿼리 반응
 

@@ -51,7 +51,7 @@
 ## §D Constraints
 
 - 원본 분기의 `sandbox="allow-scripts allow-same-origin"` 속성 줄·`src` 정규화·`onError`·감싸개 스타일 무변경.
-- 셸 CSP는 `script-src`에 해시 토큰 1개만 추가. `unsafe-inline`/`unsafe-eval`/새 출처 금지. 다른 지시어 무변경.
+- 셸 CSP 변경은 정확히 두 가지: `script-src`에 해시 토큰 1개, `style-src`에 asset 출처 3개(`asset:`, `http://asset.localhost`, `https://asset.localhost`). `unsafe-inline`/`unsafe-eval`/그 밖의 새 출처 금지. 다른 지시어 무변경(사용자 결정 Q1=A, D1=A).
 - 새 Rust 명령 금지(기존 `read_file`, `read_file_size`만).
 - 018 배율 컨트롤·단축키·`htmlZoom` 영속화·`previewZoom.ts`·`SvgFileViewer` 무변경. 웹뷰 zoom API·휠 리스너 금지.
 - 부모에 이 프레임용 `message` 리스너 금지. 주입 스크립트에 네트워크·저장소·`parent`/`top` 접근 금지.
@@ -105,9 +105,9 @@
 - `baseHrefFromAssetUrl`: 입력은 018 정규화가 끝난 주소. 쿼리·해시는 없다고 보고 마지막 `/`까지 자른다. `<base href>` 속성값은 `&`, `"`, `<`를 이스케이프.
 - 기각한 대안: 스크립트에 초기 배율을 보간(해시가 배율마다 달라져 CSP 불가) → 초기 배율은 `<style>`로 전달. 각 문자열 보간 대신 고정 상수 + `<style>` 분리.
 
-### M3 — 앱 셸 CSP 해시 (Priority High)
+### M3 — 앱 셸 CSP 해시 + 스타일 asset 출처 (Priority High)
 
-- `index.html` 메타 CSP `script-src 'self' 'wasm-unsafe-eval' 'sha256-<base64>'`. 해시는 `HTML_ZOOM_FRAME_SCRIPT`에서 계산한 값(계산 한 줄 명령을 progress.md에 기록). 개발 서버(vite)와 번들 빌드 모두에서 메타가 변형되지 않는지 확인(번들 산출물의 `index.html` 메타에 토큰이 남는지 `grep`).
+- `index.html` 메타 CSP 두 곳만 변경: `style-src 'self' 'unsafe-inline' asset: http://asset.localhost https://asset.localhost`(사용자 결정 D1=A, review-1 실측: 상속된 `style-src`가 asset 스타일시트를 차단), `script-src 'self' 'wasm-unsafe-eval' 'sha256-<base64>'`. 해시는 `HTML_ZOOM_FRAME_SCRIPT`에서 계산한 값(계산 한 줄 명령을 progress.md에 기록). 개발 서버(vite)와 번들 빌드 모두에서 메타가 변형되지 않는지 확인(번들 산출물의 `index.html` 메타에 토큰이 남는지 `grep`).
 - [NEW] `src/test/htmlSrcdocCsp.test.ts` — AC-006.
 
 ### M4 — 저장소 `htmlRenderMode` (Priority Medium)
