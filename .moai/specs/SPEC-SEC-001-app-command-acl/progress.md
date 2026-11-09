@@ -92,6 +92,7 @@ implementation_kickoff: 승인됨(2026-11-09, 사용자 → 코디네이터 경�
 
 - **M-1 (기준선, 코드 변경 전)**: Windows·macOS. 26e669d 빌드로 `probe.html`을 미리보기로 연다. 판정 규칙은 acceptance.md M-1.
 - **M-2 (적용 후)**: Windows·macOS. 251b3e0 이후 빌드로 `probe.html`과 `probe-srcdoc.html` 실행. `read_file`·`ai_policy_status`·`plugin:dialog|message`가 모두 err이거나 internals가 undefined여야 PASS. srcdoc 거부가 확인되지 않으면 PREVIEW-019 전제 미충족(SPEC-SEC-001 FAIL 아님, 코디네이터 보고).
+- **M-2b (프레임 이동 후)**: Windows·macOS. 251b3e0 이후 빌드에서 `probe-nav-a.html`을 미리보기로 연다. (1) 링크 1을 클릭해 이동한 뒤 출력된 JSON을 기록한다. (2) `probe-nav-a.html`을 다시 열고 링크 2를 클릭하면 meta refresh로 nav-b로 넘어가므로 그 JSON을 기록한다. PASS = 모든 호출이 err이거나 internals가 undefined.
 - **M-3 (전 기능 스모크)**: `tauri dev` + 릴리스 빌드(macOS 필수). 거부 로그 0건이어야 한다. REQ-008 제거(커밋 4ed9aaf)는 정적 근거만으로 수행했고 M-3 이후 확정이다. 거부가 나오면 4ed9aaf(+ 251b3e0 가드 수정)만 되돌린다.
 
 탐침 수행 절차(두 OS 공통):
@@ -108,6 +109,8 @@ implementation_kickoff: 승인됨(2026-11-09, 사용자 → 코디네이터 경�
 | Windows 기준선 | 26e669d | probe.html | (대기) | (대기) | (대기) | (대기) |
 | macOS 적용 후 | 251b3e0~ | probe.html / probe-srcdoc.html | (대기) | (대기) | (대기) | (대기) |
 | Windows 적용 후 | 251b3e0~ | probe.html / probe-srcdoc.html | (대기) | (대기) | (대기) | (대기) |
+| macOS M-2b | 251b3e0~ | probe-nav-a.html → nav-b / nav-c | (대기) | (대기) | (대기) | (대기) |
+| Windows M-2b | 251b3e0~ | probe-nav-a.html → nav-b / nav-c | (대기) | (대기) | (대기) | (대기) |
 
 ## §E.3 Run-phase Audit-Ready Signal
 
@@ -117,3 +120,21 @@ run_commits: b1f64c3 (M1), 4ed9aaf (REQ-008), 251b3e0 (가드 조정), 이 progr
 Gaps: M-1 기준선 미측정, M-2 적용 후 탐침 미실행, M-3 전 기능 스모크 미실행, 동적 이름 `invoke(변수)` 호출은 정적 검사로 못 잡음, `tauri dev`(devUrl) 출처 인정 여부(R-4) 미확인, Windows 판정 전부 미검증(R-7).
 Residual-risk: 권한 누락은 빌드 통과·런타임 거부 유형이라 M-3 전까지 "전 기능 무회귀"는 확정 불가. Rust 테스트는 CI에 없으므로 로컬 증거에 의존.
 sync 진입 조건: R-7에 따라 Windows 판정이 없으면 SPEC은 implemented까지만 닫는다.
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+```yaml
+sync_status: implemented (completed 보류 — R-7, 수동 M-1·M-2·M-2b·M-3 대기)
+sync_complete_at: 2026-11-09
+files_touched:
+  - CHANGELOG.md            # [Unreleased] ### Security 항목 추가
+  - .moai/specs/SPEC-SEC-001-app-command-acl/spec.md      # status/version 0.2.3 + HISTORY 행만
+  - .moai/specs/SPEC-SEC-001-app-command-acl/progress.md  # M-2b 항목·결과표 행, 본 §E.4
+doc_sync:
+  README.md: 변경 없음 (보안·권한 관련 서술 없음, 거짓이 된 문장 없음)
+  docs/: 변경 없음 (docs/*.md와 README.md에서 capability·ACL·allow-execute grep 결과 0건)
+gaps: M-1, M-2, M-2b, M-3 미수행(macOS·Windows), Windows 전부 미검증, 동적 invoke(변수) 정적 검사 불가, tauri dev devUrl 출처(R-4) 미확인
+residual_risk: 권한 누락은 빌드 통과·런타임 거부 유형이라 M-3 전에는 무회귀 확정 불가. Rust 테스트는 CI에 없음.
+```
+
+주의(탐침 파일 위치): 탐침 파일은 gitignore 대상인 `.moai/state/verify/sec-001-probe/`에 있어 PR에 포함되지 않습니다. 수동 검증자는 worktree `.claude/worktrees/sec-acl`의 해당 폴더에서 `probe.html`, `probe-srcdoc.html`, `probe-nav-a.html`, `probe-nav-b.html`, `probe-nav-c.html`을 복사해 사용하세요.

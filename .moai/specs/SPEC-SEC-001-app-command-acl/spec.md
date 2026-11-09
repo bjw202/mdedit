@@ -1,8 +1,8 @@
 ---
 id: SPEC-SEC-001
 title: "앱 명령 ACL 매니페스트 도입 — 원격·불투명 출처 프레임의 앱 명령 호출 차단"
-version: "0.2.2"
-status: in-progress
+version: "0.2.3"
+status: implemented
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
@@ -23,6 +23,7 @@ tier: M
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 근거: SPEC-PREVIEW-018 super-advisor 처방(`.moai/reports/plan-audit/SPEC-PREVIEW-018-advisor.md` Q1·Q3)과 plan-audit review-3 D1. 사용자 결정 없음(코디네이터 브리프 기준). |
 | 0.2.0 | 2026-11-09 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-SEC-001-review-1.md`, FAIL 0.69) 반영. 프런트 리터럴 호출 24→26 정정, REQ-001·002·003에서 구현 세부 분리, REQ-008 결과 단일화, Out of Scope 글머리표, R-6(srcdoc 거부는 미검증 가설)·R-7(Windows 기기 없음) 추가, `module` 경로형. REQ 9 / AC 8 + 수동 3 (번호 변경 없음). |
 | 0.2.2 | 2026-11-09 | jw | sync 단계 보강: PREVIEW-019 감사가 지적한 프레임 이동(링크 클릭·meta refresh) 후에도 앱 명령이 거부되는지 확인하는 수동 항목 M-2b 추가. AC/REQ 번호 변경 없음. |
+| 0.2.3 | 2026-11-09 | jw | sync: status in-progress→implemented (자동 AC 8/8 PASS, 수동 M-1·M-2·M-2b·M-3 대기로 completed 보류, R-7). |
 
 ## Overview
 
