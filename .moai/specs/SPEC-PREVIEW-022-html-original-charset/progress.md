@@ -128,6 +128,9 @@ test result: FAILED. 0 passed; 1 failed   exit=101
 - SPEC은 수정 전에 깨짐 재현이 기록되어야 한다고 요구하지만, GREEN 커밋 `bca2bf9`는 재현 기록 없이 먼저 만들어졌다.
 - 해소 계획: 사용자가 마지막 통합 수동 확인 때 M-1을 한다. macOS는 설치된 mdedit 0.19.0(패치 전), Windows는 v0.20.0에서 원본 보기(iframe)로 `src-tauri/tests/fixtures/charset/utf8-no-meta.html`과 `euckr-meta.html`을 연다.
 - **병합 조건**: 이 PR은 M-1이 한 OS 이상에서 깨짐을 재현하기 전에는 병합하지 않는다. 두 OS 모두 깨지지 않으면 수정 커밋 `bca2bf9`를 되돌린다.
+- **병합 전 필수 수동 확인 전체 목록(acceptance.md 완료 기준)**: (1) AC-008(M-1) 재현 — 한 OS 이상 깨짐. (2) macOS에서 AC-009·010·011 확인 + 빌드 식별자 기록. AC-011(보안 탐침)에서 하나라도 ok면 병합 금지. (3) 병합한 트리의 vitest 결과(PR CI 결과 인용). Windows AC-009·010·011만 병합 뒤 다음 릴리스 초안 빌드로 미룬다.
+- **status 잠정 표기**: spec.md의 `status: implemented`는 코드·자동 검사 기준의 잠정 상태다. 위 병합 전 수동 확인이 기록되기 전에는 완료로 보지 않으며, M-1 결과에 따라 `bca2bf9`가 되돌려지면 상태도 되돌린다.
+- **sync 감사(독립)**: PASS-WITH-DEBT 0.84 (Functionality 0.80 / Security 0.85 / Craft 0.85 / Consistency 0.90). 보고서: `.moai/reports/sync-audit/SPEC-PREVIEW-022.md`. 감사 결함 F1(병합 조건 누락)·F2(status 잠정 표기)는 이 항목들로 반영. 부채: F3(spec.md 155행 "레거시 인코딩이 우연히 유효한 UTF-8이 되는 일은 드물다"는 ISO-2022-JP/KR·HZ 같은 7비트 인코딩에 맞지 않음 — SPEC 본문은 manager-spec 소관이라 후속으로 둠), F4(헤더 교체 경로 자동 테스트 없음, 설계상 수용), F6(M-1 때 0.19.0 빌드 식별자 기록).
 
 ### 보류
 
