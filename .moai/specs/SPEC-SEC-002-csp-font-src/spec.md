@@ -1,8 +1,8 @@
 ---
 id: SPEC-SEC-002
 title: "KaTeX 글꼴 CSP 거부 해소 — 글꼴 자산을 data URI로 넣지 않기"
-version: "0.1.2"
-status: implemented
+version: "0.1.3"
+status: completed
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
@@ -20,6 +20,7 @@ tier: S
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.1.3 | 2026-11-09 | jw | v0.21.0 초안 빌드(f14fa99) 수동 확인 후 사용자 결정으로 종결(status implemented → completed). 확인 결과와 갭은 progress.md 참조. |
 | 0.1.2 | 2026-11-09 | jw | plan-audit 2차(`.moai/reports/plan-audit/SPEC-SEC-002-review-2.md`, FAIL 0.80) 반영: D-11 node 환경 테스트를 위해 `src/test/setup.ts`의 `window`·`navigator` 블록 가드를 AC-001 선행 조건으로 추가, D-12 woff2 확인 시점을 수식 렌더 뒤로, D-13 `.woff` 판정을 끝 일치로. REQ/AC 번호 변경 없음. |
 | 0.1.1 | 2026-11-09 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-SEC-002-review-1.md`, FAIL 0.67) D-1~D-10 반영: AC-004 eslint 대상에서 `vite.config.ts` 제외, AC-001을 `resolveConfig` 방식으로(정적 import 제거), Out of Scope H3 제목, REQ-003·AC-003 경로에 `tauri.conf.json`·`HtmlFileViewer.tsx` 추가, AC-002 참조 일치를 `diff`로, REQ-001 예외 명시, 배경에 `load-only` 거부 반영, M-1 로드 확인을 resource timing으로, srcdoc 문구 정정. REQ/AC 번호 변경 없음. |
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 근거: 백로그 카드 t1, `.moai/specs/SPEC-PREVIEW-015-pele-renderer/m1/checks.md` M1b 5번. 두 해결안(CSP `font-src` 추가 / Vite 인라인 기준 조정) 비교 후 후자 채택. REQ 4 / AC 4 + 수동 1. |
