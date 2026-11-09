@@ -1,8 +1,8 @@
 ---
 id: SPEC-PREVIEW-021
 title: "HTML 미리보기 선명 모드에서 mermaid 블록을 pele로 미리 렌더"
-version: "0.1.2"
-status: implemented
+version: "0.1.3"
+status: completed
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
@@ -25,6 +25,7 @@ related_specs: [SPEC-PREVIEW-016, SPEC-PREVIEW-017, SPEC-PREVIEW-020, SPEC-SEC-0
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 백로그 카드 t2. 배경: 선명 모드(SPEC-PREVIEW-019, `srcdoc` + `sandbox="allow-scripts"`)는 셸 CSP를 상속해 페이지 자체 스크립트(mermaid CDN 포함)가 막히므로, HTML 파일 안의 mermaid 블록이 그림 대신 원문 글자로 보인다. 사용자 결정(2026-11-09, 코디네이터 경유): (1) 선명 모드에만 적용, 원본 보기는 그대로 (2) `<pre class="mermaid">`·`<div class="mermaid">`만 감지 (3) 색은 앱 팔레트(잉크 앤 허니), 페이지의 mermaid 테마·init 무시 (4) pele 실패 시 원문을 두고 짧은 안내를 붙인다. |
 | 0.1.1 | 2026-11-09 | jw | plan-audit 1차(FAIL 0.84, `.moai/reports/plan-audit/SPEC-PREVIEW-021-review-1.md`) 반영. D1: REQ-006 예외에 글꼴 `<style>`·`data-processed` 삽입 추가, 글꼴 삽입 위치를 "블록 밖 마지막 `</body>`"로 고정, AC-007 비교 방식 수정. D2: 감싸개 대체값을 앱 토큰 리터럴로 통일. D3·D14: M1에 Windows 측정·`document.fonts.load` 선행·굵기 대응 기록, Windows 미측정 시 정지 규칙. D4·D7: 원문 추출 주장 축소(한계 8), dedent 공백 정의. D5: AC-009에 UTF-8 폴백. D6: 한 번 훑는 가림 스캐너, 원문 텍스트 요소 목록 확장, 따옴표 안 `>` 처리, `<svg` 검사 대소문자 무관(한계 9). D8·D11: 문구·DoD 정정. D9: `result.svg.outerHTML`로 확정. D10: 두 번째 호출 성공 시 접미사 없음. D12: 성공 블록 시작 태그에 `data-processed="true"` 추가. D15: `readPeleThemeValues` 1회 호출을 REQ-004로 이동. |
 | 0.1.2 | 2026-11-09 | jw | plan-audit 2차(FAIL 0.88, `review-2.md`) 반영. N1: 단위 AC는 글꼴 끈 상태로 판정한다는 규칙을 acceptance 검증 원칙에 추가, 횟수 단언을 정확한 속성 `data-mdedit-diagram=""`으로 변경. N2: 글꼴 끄기 수단을 모의 대신 `opts.fonts` 옵션으로(plan M4). N3: `div` 깊이 계산도 따옴표를 건너뛰는 정규식 사용. N4: Windows 측정 시점 문구 통일. N5: 재실행 문구 축소. |
+| 0.1.3 | 2026-11-09 | jw | v0.21.0 초안 빌드(f14fa99) 수동 확인 후 사용자 결정으로 종결(status implemented → completed). 확인 결과와 갭은 progress.md 참조. |
 
 ## §1 Overview
 
