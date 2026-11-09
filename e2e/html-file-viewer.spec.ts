@@ -62,6 +62,17 @@ void tauriInternalsConvertFileSrc;
 test.describe('HtmlFileViewer E2E', () => {
   test.use({ userAgent: WINDOWS_UA });
 
+  // SPEC-PREVIEW-019: 기본 렌더 모드가 선명(srcdoc)으로 바뀌었으므로, 아래 asset iframe 시나리오는
+  // 원본 보기 모드를 저장소에 시드해서 실행한다. 선명 모드는 파일 하단의 별도 describe가 시험한다.
+  test.beforeEach(async ({ tauriPage }) => {
+    await tauriPage.addInitScript(() => {
+      localStorage.setItem(
+        'mdedit-ui-store',
+        JSON.stringify({ state: { htmlRenderMode: 'original' }, version: 1 }),
+      );
+    });
+  });
+
   test('HTML 파일 선택 시 iframe이 렌더링된다', async ({ tauriPage }) => {
     // asset.localhost 요청을 인터셉트하여 실제 파일 없이도 iframe src가 로드되도록 한다.
     await tauriPage.route('http://asset.localhost/**', async (route) => {
@@ -140,5 +151,60 @@ test.describe('HtmlFileViewer E2E', () => {
     const src = await iframe.getAttribute('src');
     expect(src).not.toBeNull();
     expect(src!.startsWith('http://asset.localhost/')).toBe(true);
+  });
+});
+
+// ---- SPEC-PREVIEW-019 (AC-015 부분 증거): 선명 모드 srcdoc ----
+// Playwright WebKit의 부분 증거다. WKWebView·WebView2 실기기 증거가 아니다(수동 M-5).
+test.describe('HtmlFileViewer E2E — 선명 모드 (SPEC-PREVIEW-019)', () => {
+  test.use({ userAgent: WINDOWS_UA });
+
+  const PAGE_HTML =
+    '<!doctype html><html><head><title>t</title></head><body><h1>Crisp</h1>' +
+    '<script>document.body.setAttribute("data-page-script","ran")</script></body></html>';
+
+  test.beforeEach(async ({ tauriPage }) => {
+    // read_file / read_file_size만 응답하도록 invoke 모의를 덧씌운다(나머지는 기존 모의 그대로).
+    await tauriPage.addInitScript((html: string) => {
+      const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a?: unknown) => Promise<unknown> } })
+        .__TAURI_INTERNALS__;
+      const original = internals.invoke;
+      internals.invoke = (cmd: string, args?: unknown) => {
+        if (cmd === 'read_file') return Promise.resolve(html);
+        if (cmd === 'read_file_size') return Promise.resolve(html.length);
+        return original(cmd, args);
+      };
+    }, PAGE_HTML);
+  });
+
+  test('해시 스크립트가 실행되어 배율이 적용되고 페이지 인라인 스크립트는 막힌다', async ({ tauriPage }) => {
+    const consoleMessages: string[] = [];
+    tauriPage.on('console', (m) => consoleMessages.push(m.text()));
+
+    await tauriPage.goto('/');
+    await tauriPage.locator('.cm-editor').waitFor({ timeout: 15_000 });
+    await tauriPage.evaluate(async (filePath: string) => {
+      const mod = await import('/src/store/fileStore.ts');
+      mod.useFileStore.getState().setCurrentFile(filePath);
+    }, 'C:/test/page.html');
+
+    const iframe = tauriPage.locator('[data-testid="html-preview-iframe"]');
+    await expect(iframe).toBeVisible({ timeout: 8000 });
+    expect(await iframe.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(await iframe.getAttribute('src')).toBeNull();
+
+    const handle = await iframe.elementHandle();
+    const frame = await handle!.contentFrame();
+    expect(frame).not.toBeNull();
+    await frame!.waitForLoadState('load');
+
+    await tauriPage.getByLabel('Zoom in').click();
+    await expect
+      .poll(() => frame!.evaluate(() => document.documentElement.style.zoom), { timeout: 5000 })
+      .toBe('1.1');
+
+    // 페이지 자체 인라인 스크립트는 상속된 CSP(script-src)가 막는다.
+    expect(await frame!.evaluate(() => document.body.getAttribute('data-page-script'))).toBeNull();
+    expect(consoleMessages.some((t) => /script-src|Content Security Policy|Refused to execute/i.test(t))).toBe(true);
   });
 });
