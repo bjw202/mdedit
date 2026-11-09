@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { HTML_ZOOM_DEFAULT, snapToStep, stepUp, stepDown } from '@/lib/preview/htmlZoom';
 
 // @MX:ANCHOR: [AUTO] useUIStore - persisted UI state store consumed by AppLayout, Header, ResizablePanels, Footer, useTheme, ViewModeToggle
-// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode, statusMessage, htmlZoom); fan_in >= 5; SPEC-UI-004 viewMode 추가, SPEC-UI-005 statusMessage 추가, SPEC-PREVIEW-018 htmlZoom 추가
+// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode, statusMessage, htmlZoom); fan_in >= 5; SPEC-UI-004 viewMode 추가, SPEC-UI-005 statusMessage 추가, SPEC-PREVIEW-018 htmlZoom 추가, SPEC-PREVIEW-019 htmlRenderMode 추가
 // @MX:SPEC: SPEC-UI-004
 // @MX:NOTE: Theme type union for type-safe theme selection
 export type Theme = 'light' | 'dark' | 'system';
@@ -18,6 +18,14 @@ export type ImageInsertMode = 'inline-blob' | 'file-save';
 // @MX:NOTE: ViewMode는 Editor/Preview 영역의 표시 상태를 나타내는 3-state 타입 (SPEC-UI-004)
 // 'split'(기본) | 'editor'(편집 전용) | 'preview'(미리보기 전용)
 export type ViewMode = 'split' | 'editor' | 'preview';
+
+// HTML 미리보기 렌더 모드: 'crisp'(srcdoc, 선명한 확대) | 'original'(asset iframe, 018 동작) (SPEC-PREVIEW-019)
+export type HtmlRenderMode = 'crisp' | 'original';
+
+/** 허용 밖 값은 기본값 'crisp'으로 정규화한다. */
+function normalizeHtmlRenderMode(v: unknown): HtmlRenderMode {
+  return v === 'original' ? 'original' : 'crisp';
+}
 
 // @MX:NOTE: [AUTO] statusMessage auto-clear 타이머를 보관하는 module-level ref (SPEC-UI-005).
 // 컴포넌트 unmount 와 무관하게 동작하며, store 상태가 아니므로 zustand 내부에 두지 않는다.
@@ -35,6 +43,8 @@ interface UIState {
    * fontSize와 독립이다. 영속화 대상.
    */
   htmlZoom: number;
+  /** HTML 미리보기 렌더 모드 — 모든 HTML 파일에 공통, 영속 (SPEC-PREVIEW-019). */
+  htmlRenderMode: HtmlRenderMode;
   sidebarCollapsed: boolean;
   /** Current file save status */
   saveStatus: SaveStatus;
@@ -106,6 +116,8 @@ interface UIState {
   stepHtmlZoom: (dir: 'in' | 'out') => void;
   /** HTML 배율을 100으로 되돌린다 (SPEC-PREVIEW-018). */
   resetHtmlZoom: () => void;
+  /** HTML 렌더 모드를 설정한다. 허용 밖 값은 'crisp' (SPEC-PREVIEW-019). */
+  setHtmlRenderMode: (mode: HtmlRenderMode) => void;
 }
 
 // @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth 는 퍼센트로 저장하되 방어적
@@ -122,6 +134,7 @@ export const useUIStore = create<UIState>()(
       theme: 'system',
       fontSize: 14,
       htmlZoom: HTML_ZOOM_DEFAULT,
+      htmlRenderMode: 'crisp',
       sidebarCollapsed: false,
       saveStatus: 'new',
       scrollSyncEnabled: true,
@@ -184,6 +197,8 @@ export const useUIStore = create<UIState>()(
           htmlZoom: dir === 'in' ? stepUp(state.htmlZoom) : stepDown(state.htmlZoom),
         })),
       resetHtmlZoom: () => set({ htmlZoom: HTML_ZOOM_DEFAULT }),
+      setHtmlRenderMode: (mode: HtmlRenderMode) =>
+        set({ htmlRenderMode: normalizeHtmlRenderMode(mode) }),
     }),
     {
       name: 'mdedit-ui-store',
@@ -205,6 +220,8 @@ export const useUIStore = create<UIState>()(
           ...currentState,
           ...persisted,
           htmlZoom: snapToStep(persisted.htmlZoom),
+          // SPEC-PREVIEW-019: 필드 없음·허용 밖 값은 'crisp'으로 정규화(version 범프 불필요).
+          htmlRenderMode: normalizeHtmlRenderMode(persisted.htmlRenderMode),
         };
       },
       // V2(SPEC-FS-003): version 0→1 마이그레이션. 기존 사용자 localStorage에 잔류한 stale

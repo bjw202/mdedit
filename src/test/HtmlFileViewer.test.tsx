@@ -8,6 +8,13 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
 
+// SPEC-PREVIEW-019: 기본 렌더 모드가 선명(srcdoc)으로 바뀌었으므로, 이 파일의 004/018 시나리오(asset iframe)는
+// 원본 보기 모드를 시드해서 실행한다. 어서션은 바꾸지 않았다. 선명 모드는 HtmlFileViewerCrisp.test.tsx에서 시험한다.
+beforeEach(async () => {
+  const { useUIStore } = await import('@/store/uiStore');
+  useUIStore.setState({ htmlRenderMode: 'original' });
+});
+
 // ---- HtmlFileViewer 컴포넌트 렌더 테스트 ----
 
 describe('HtmlFileViewer', () => {

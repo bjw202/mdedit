@@ -87,6 +87,8 @@ export function Header({
   const htmlZoom = useUIStore((s) => s.htmlZoom);
   const stepHtmlZoom = useUIStore((s) => s.stepHtmlZoom);
   const resetHtmlZoom = useUIStore((s) => s.resetHtmlZoom);
+  const htmlRenderMode = useUIStore((s) => s.htmlRenderMode);
+  const setHtmlRenderMode = useUIStore((s) => s.setHtmlRenderMode);
   const currentFile = useFileStore((s) => s.currentFile);
   const previewStatus = useFileStore((s) => s.previewStatus);
   const isHtmlView = getFileViewType(currentFile, previewStatus) === 'html';
@@ -233,6 +235,23 @@ export function Header({
         <span className="md-vdiv" />
         <ImageModeToggle />
         <span className="md-vdiv" />
+        {isHtmlView && (
+          // 선명 모드(기본)와 원본 보기 전환 (SPEC-PREVIEW-019). 선택은 전역 영속(htmlRenderMode).
+          <>
+            <div className="md-seg" role="group" aria-label="HTML 렌더 모드">
+              <button
+                onClick={() => setHtmlRenderMode(htmlRenderMode === 'original' ? 'crisp' : 'original')}
+                aria-label="Original view"
+                aria-pressed={htmlRenderMode === 'original'}
+                title="원본 보기 — 선명 모드(기본)에서는 페이지 자체 스크립트와 외부 리소스(CDN 등)가 동작하지 않습니다. 필요한 페이지는 원본 보기를 사용하세요. (원본 보기에서는 100% 초과 확대가 흐릿합니다.)"
+                className={`md-seg-opt ${htmlRenderMode === 'original' ? 'is-active' : ''}`}
+              >
+                <span>원본 보기</span>
+              </button>
+            </div>
+            <span className="md-vdiv" />
+          </>
+        )}
         {isHtmlView ? (
           <div className="md-stepper">
             <button
