@@ -20,6 +20,7 @@ import {
   baseHrefFromAssetUrl,
   buildSrcdoc,
 } from '@/lib/preview/htmlSrcdoc';
+import { prerenderMermaidBlocks } from '@/lib/preview/htmlMermaid';
 
 interface HtmlFileViewerProps {
   /** 렌더링할 HTML 파일의 절대 경로 */
@@ -68,7 +69,10 @@ const FALLBACK_MESSAGE: Record<FallbackReason, string> = {
 // 배율 변경은 부모 → 자식 postMessage로 documentElement.style.zoom만 바꾼다(srcdoc 문자열·iframe 불변, 스크롤 유지).
 // 문서 자신의 zoom은 레이아웃부터 다시 그려 100% 초과에서도 선명하다(iframe 요소 transform은 비트맵 확대라 흐림).
 // 018식 크기 역보정을 함께 쓰면 선명도가 되돌아가므로 쓰지 않는다. 부모는 이 프레임의 message를 받지 않는다.
-// @MX:SPEC: SPEC-PREVIEW-019
+// SPEC-PREVIEW-021: 읽은 직후 `pre.mermaid`·`div.mermaid` 블록만 pele SVG로 미리 그려 넣는다(앱 팔레트 고정, 읽기 시 1회).
+// 한계: (1) `code.language-mermaid` 등 다른 형식과 페이지 스크립트가 만드는 그림은 그대로다 (2) 앱 테마를 바꿔도 다시 그리지 않는다
+// (3) 글꼴은 앱 출처 @font-face에 기대며, 배포 빌드·Windows에서 막히면 라벨이 노드 밖으로 넘칠 수 있다.
+// @MX:SPEC: SPEC-PREVIEW-019, SPEC-PREVIEW-021
 function CrispHtmlView({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   const htmlZoom = useUIStore((state) => state.htmlZoom);
   const [state, setState] = useState<CrispState>({ kind: 'loading' });
@@ -90,7 +94,7 @@ function CrispHtmlView({ htmlPath }: HtmlFileViewerProps): JSX.Element {
         const text = await readFile(htmlPath);
         if (cancelled) return;
         // 초기 배율은 조립 시점에 한 번만 읽는다 — 이후 배율 변경이 srcdoc 문자열을 바꾸지 않게 한다.
-        const srcdoc = buildSrcdoc(text, {
+        const srcdoc = buildSrcdoc(prerenderMermaidBlocks(text), {
           baseHref: baseHrefFromAssetUrl(toAssetUrl(htmlPath)),
           zoomPercent: useUIStore.getState().htmlZoom,
         });

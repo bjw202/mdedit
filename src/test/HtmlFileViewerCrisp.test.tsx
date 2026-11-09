@@ -22,7 +22,14 @@ vi.mock('@/lib/preview/htmlZoom', async (importOriginal) => ({
   detectPlatform: vi.fn().mockReturnValue('Win32'),
 }));
 
+// SPEC-PREVIEW-021: 호출 수만 세고 실제 렌더는 그대로 통과시킨다.
+vi.mock('@/lib/export/exportUtils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/export/exportUtils')>();
+  return { ...actual, renderExportDiagram: vi.fn(actual.renderExportDiagram) };
+});
+
 import { HtmlFileViewer } from '@/components/preview/HtmlFileViewer';
+import { renderExportDiagram } from '@/lib/export/exportUtils';
 
 const HTML = '<html><head></head><body>hi</body></html>';
 
@@ -248,6 +255,71 @@ describe('원본 보기 회귀 (AC-008)', () => {
     expect(screen.getByTestId('html-preview-zoom-wrapper').style.overflow).toBe('hidden');
     expect(readFileMock).not.toHaveBeenCalled();
     expect(readFileSizeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('mermaid 미리 그리기 (SPEC-PREVIEW-021 AC-001·008·009)', () => {
+  const MERMAID_HTML =
+    '<!doctype html><html><head></head><body><pre class="mermaid">flowchart LR\n  A --> B</pre></body></html>';
+  const renderSpy = vi.mocked(renderExportDiagram);
+  const count = (s: string, needle: string) => s.split(needle).length - 1;
+
+  beforeEach(() => {
+    renderSpy.mockClear();
+  });
+
+  it('AC-001: srcdoc에 SVG가 들어가고 019 주입·sandbox는 그대로다', async () => {
+    readFileMock.mockResolvedValue(MERMAID_HTML);
+    render(<HtmlFileViewer htmlPath="/project/test.html" />);
+    const iframe = (await screen.findByTestId('html-preview-iframe')) as HTMLIFrameElement;
+    const srcdoc = iframe.getAttribute('srcdoc') ?? '';
+    expect(count(srcdoc, '<svg')).toBe(1);
+    expect(count(srcdoc, 'data-mdedit-diagram=""')).toBe(1);
+    expect(srcdoc).not.toContain('A --> B');
+    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(count(srcdoc, '<base')).toBe(1);
+    expect(count(srcdoc, '<style>html{zoom:')).toBe(1);
+  });
+
+  it('AC-008: 읽기 뒤 배율을 바꿔도 다시 그리지 않고 srcdoc도 같다', async () => {
+    readFileMock.mockResolvedValue(MERMAID_HTML);
+    render(<HtmlFileViewer htmlPath="/project/test.html" />);
+    const iframe = (await screen.findByTestId('html-preview-iframe')) as HTMLIFrameElement;
+    const before = iframe.getAttribute('srcdoc');
+    const calls = renderSpy.mock.calls.length;
+    expect(calls).toBeGreaterThan(0);
+    await act(async () => {
+      useUIStore.setState({ htmlZoom: 125 });
+    });
+    expect(renderSpy.mock.calls.length).toBe(calls);
+    expect((screen.getByTestId('html-preview-iframe') as HTMLIFrameElement).getAttribute('srcdoc')).toBe(before);
+  });
+
+  it('AC-009: 원본 보기에서는 파일을 읽지도, 그리지도 않는다', async () => {
+    useUIStore.setState({ htmlRenderMode: 'original' });
+    render(<HtmlFileViewer htmlPath="/project/test.html" />);
+    const iframe = screen.getByTestId('html-preview-iframe') as HTMLIFrameElement;
+    expect(iframe.hasAttribute('srcdoc')).toBe(false);
+    expect(iframe.hasAttribute('src')).toBe(true);
+    expect(renderSpy).not.toHaveBeenCalled();
+  });
+
+  it('AC-009: 크기·읽기·UTF-8 폴백에서는 그리지 않는다', async () => {
+    readFileSizeMock.mockResolvedValue(HTML_CRISP_MAX_BYTES + 1);
+    const { unmount } = render(<HtmlFileViewer htmlPath="/project/a.html" />);
+    await screen.findByRole('status');
+    unmount();
+
+    readFileSizeMock.mockResolvedValue(1024);
+    readFileMock.mockRejectedValue(new Error('disk error'));
+    const second = render(<HtmlFileViewer htmlPath="/project/b.html" />);
+    await screen.findByRole('status');
+    second.unmount();
+
+    readFileMock.mockRejectedValue(new Error('stream did not contain valid UTF-8'));
+    render(<HtmlFileViewer htmlPath="/project/c.html" />);
+    await screen.findByRole('status');
+    expect(renderSpy).not.toHaveBeenCalled();
   });
 });
 
