@@ -130,4 +130,9 @@
 - 원본 보기 토글: 스크립트 실행됨(빨간 문구 표시) → PASS. 200% 배율 적용(018 방식).
 - 관찰(019 회귀 아님): 원본 보기에서 `<meta charset>` 없는 UTF-8 HTML의 한글이 깨짐. asset 프로토콜이 `Content-Type`에 charset을 붙이지 않아(tauri-2.10.3 protocol/asset.rs:100) WebKit이 레거시 인코딩으로 해석하는 기존 동작. 선명 모드(srcdoc)는 앱이 UTF-8로 읽어 넣으므로 정상.
 - M-6 invoke 거부(SEC-001 적용 main a97d63c 병합 상태, 선명 모드에서 시작): 탐침 `.moai/state/verify/m6/`(sec-001-probe/probe.html 복사본 + 진입 페이지 3종, 커밋 안 함). (a) `<meta refresh>` 자동 이동 → probe.html 실행, `internals: undefined`, href asset:// → PASS. (b) 링크 클릭 이동 → `internals: undefined` → PASS(사용자 확인: 링크 클릭 직후 화면; 이때 탐색기 선택·헤더 파일명이 probe.html로 표시됨 — 관찰만). (c) 중첩 `<iframe src=probe.html>` → `internals: undefined` → PASS. 앱 명령 호출 통로 자체가 없음.
-- 미수행: M-5(엔진 CSP 상속은 M-4 결과로 간접 확인), Windows 전 항목.
+- 미수행(macOS): M-5는 M-4 결과로 간접 확인.
+
+## 수동 확인 결과 — Windows (2026-11-09, 사용자 실기기)
+
+- 사용자 보고 "된다": WT-crisp-zoom 빌드로 macOS와 같은 순서(M-1~M-4, 원본 보기, M-6 a/b/c) 확인 → PASS. 증거는 구두 보고뿐(캡처 없음).
+- 결론: AC-012~015 수동 항목 두 OS 완료 → status completed.
