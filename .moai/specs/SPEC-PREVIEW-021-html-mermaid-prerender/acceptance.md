@@ -21,7 +21,7 @@
 
 글꼴 삽입 상태 규칙: 단위 AC-001~009·011은 **글꼴 삽입을 끈 상태**로 판정한다 — `P`를 직접 부를 때는 `prerenderMermaidBlocks(x, { fonts: false })`, 뷰어 시험(AC-001·008·009)은 뷰어가 기본값으로 부르므로 글꼴 `<style>`이 섞일 수 있지만, 그 시험의 단언(`<svg` 개수, 정확한 속성 개수, 호출 수, sandbox)은 글꼴 `<style>`과 겹치지 않는다(plan.md M4). 글꼴을 켠 상태(`{ fonts: true }`)는 AC-007 둘째 항목과 AC-010에서만 쓴다. 횟수를 세는 단언은 부분 문자열 `data-mdedit-diagram`이 아니라 정확한 속성 `data-mdedit-diagram=""`(또는 DOM 선택자 `[data-mdedit-diagram]`)로 센다 — `data-mdedit-diagram-fonts`·`data-mdedit-diagram-error`와 섞이지 않게 하기 위해서다.
 
-아래에서 `P(x)`는 `prerenderMermaidBlocks(x)`, `OK`는 pele가 그릴 수 있는 원문 `flowchart LR\n  A --> B`, `BAD`는 그릴 수 없는 원문으로, 기존 `src/test/diagramRenderer.test.ts`가 쓰는 오류 픽스처 `errorSource('21-error-line-col')`(실측 `2행 14열`)를 뜻한다. `BAD0`는 위치가 0/0인 픽스처 `errorSource('22-error-line0-semantic')`다. 픽스처 원문을 블록 안에 넣을 때는 `&`·`<`·`>`를 엔티티로 바꿔 넣는다.
+아래에서 `P(x)`는 `prerenderMermaidBlocks(x, { fonts: false })`(글꼴 끔, 위 규칙), `OK`는 pele가 그릴 수 있는 원문 `flowchart LR\n  A --> B`, `BAD`는 그릴 수 없는 원문으로, 기존 `src/test/diagramRenderer.test.ts`가 쓰는 오류 픽스처 `errorSource('21-error-line-col')`(실측 `2행 14열`)를 뜻한다. `BAD0`는 위치가 0/0인 픽스처 `errorSource('22-error-line0-semantic')`다. 픽스처 원문을 블록 안에 넣을 때는 `&`·`<`·`>`를 엔티티로 바꿔 넣는다.
 
 ## 시나리오
 
@@ -48,6 +48,7 @@
 | `<script>var s='<!--';</script><pre class="mermaid">OK</pre>` (스크립트 안의 닫히지 않은 `<!--`가 뒤 블록을 가리지 않음) | 1 |
 | `<div title="a>b" class="mermaid">OK</div>` (따옴표 안 `>`) | 1 |
 | `<div class="mermaid"><!-- </div> --><div>OK</div></div>` (주석 안 `</div>`는 깊이에 안 셈) | 1 |
+| `<div class="mermaid"><div title="</div>">OK</div></div><p>after</p>` (속성 값 안 `</div>`는 닫기로 안 셈 — 시작·닫는 태그를 왼쪽부터 한 번에 훑어야 성립, `<p>after</p>`는 블록 밖) | 1 |
 
 ### AC-PREVIEW021-003 — 감지: 잡지 않는 것 (unit, 표 구동)
 

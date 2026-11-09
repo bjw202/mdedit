@@ -16,7 +16,12 @@
 - review-2(2026-11-09, 커밋 f334037 대상): **FAIL 0.88**(+0.04) — `review-2.md`. 차원: Clarity 0.88 / Completeness 0.95 / Testability 0.78 / Traceability 0.95. 이전 결함 13건 해소, 남은 BLOCKING N1(글꼴 `<style>`이 AC-001·002·005 단언과 충돌), SHOULD-FIX N2(같은 모듈 함수는 모의 불가), MINOR N3~N6.
 - v0.1.2 개정(2026-11-09): N1~N5 반영(spec HISTORY 0.1.2). 작성자 확인: `node -p 'String.fromCharCode(160).concat("x").trim().length'` → `1`(trim이 U+00A0 제거, AC-004 예시 성립).
 
+- review-3(2026-11-09, 커밋 b417ac7 대상): **PASS 0.92**(+0.04, 단조 증가) — `review-3.md`. 차원: Clarity 0.90 / Completeness 0.95 / Testability 0.88 / Traceability 0.95. N1~N5 해소, 새 모순 없음. 선택 사항 R1(`P` 정의에 `{ fonts: false }`)·R2(속성 값 안 `</div>` 시험 행)는 직후 반영. R3(병행 SPEC 부재)는 조치 불필요.
+- 감사 3회 모두 vitest 미실행(이 worktree에 `node_modules` 없음). 실기기 글꼴 동작은 미측정 — run M1이 맡는다.
+
 ## §E.1 Plan-phase Audit-Ready Signal
 
-- plan_status: pending-audit
-- 구현 착수 승인(Implementation Kickoff Approval)은 받지 않았다.
+- plan_status: audit-ready
+- plan_complete_at: 2026-11-09
+- 구현 착수 승인(Implementation Kickoff Approval)은 받지 않았다. run은 (1) origin/main 병합(t1 SPEC-SEC-002·t3 SPEC-PREVIEW-022 반영) (2) SPEC-PREVIEW-019·015 `completed` 확인 (3) M1 글꼴 관문(macOS 필수, Windows 가능하면) 순서로 시작한다.
+- 열린 질문: spec.md §7 — SEC-002가 `font-src`에 `data:`를 넣는지, M1에서 (A)·(B) 모두 실패 시 (C) 수용 여부.
