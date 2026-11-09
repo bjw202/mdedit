@@ -438,9 +438,9 @@ describe('uiStore: saveStatus 비영속화 + 마이그레이션 (SPEC-FS-003)', 
     expect(persisted.state).not.toHaveProperty('saveStatus');
   });
 
-  it('persist version이 1로 범프되었다 (V2 — 기존 사용자 마이그레이션 트리거)', () => {
+  it('persist version이 2로 범프되었다 (SPEC-PREVIEW-020 — 기존 사용자 마이그레이션 트리거)', () => {
     const opts = useUIStore.persist.getOptions();
-    expect(opts.version).toBe(1);
+    expect(opts.version).toBe(2);
   });
 
   it('migrate가 version<1의 stale saveStatus를 제거하고 다른 필드는 보존한다 (V2, AC-004)', () => {
@@ -450,13 +450,31 @@ describe('uiStore: saveStatus 비영속화 + 마이그레이션 (SPEC-FS-003)', 
     expect(migrated).not.toHaveProperty('saveStatus');
     expect(migrated).toHaveProperty('theme', 'dark');
     expect(migrated).toHaveProperty('fontSize', 18);
+    // 버전 0은 두 번째 단계도 거친다: 고른 적 없는 htmlRenderMode는 null (SPEC-PREVIEW-020)
+    expect(migrated).toHaveProperty('htmlRenderMode', null);
   });
 
-  it('migrate는 version>=1의 상태를 그대로 반환한다', () => {
+  it('migrate는 version 0 상태의 저장된 original을 보존한다 (SPEC-PREVIEW-020)', () => {
     const opts = useUIStore.persist.getOptions();
-    const state = { theme: 'light' };
-    const migrated = opts.migrate!(state, 1);
-    expect(migrated).toEqual(state);
+    const migrated = opts.migrate!({ saveStatus: 'unsaved', htmlRenderMode: 'original' }, 0) as Record<string, unknown>;
+    expect(migrated).not.toHaveProperty('saveStatus');
+    expect(migrated).toHaveProperty('htmlRenderMode', 'original');
+  });
+
+  it.each([
+    [{ htmlRenderMode: 'crisp', theme: 'light' }, { htmlRenderMode: null, theme: 'light' }],
+    [{ htmlRenderMode: 'original', theme: 'light' }, { htmlRenderMode: 'original', theme: 'light' }],
+    [{ theme: 'light' }, { htmlRenderMode: null, theme: 'light' }],
+    [{ htmlRenderMode: 'garbage', theme: 'light' }, { htmlRenderMode: null, theme: 'light' }],
+  ])('migrate는 version 1 상태 %j 를 %j 로 바꾼다 (REQ-005)', (input, expected) => {
+    const opts = useUIStore.persist.getOptions();
+    expect(opts.migrate!(input, 1)).toEqual(expected);
+  });
+
+  it('migrate는 version>=2의 상태를 그대로 반환한다 (명시 선택 보존)', () => {
+    const opts = useUIStore.persist.getOptions();
+    const state = { htmlRenderMode: 'crisp', theme: 'light' };
+    expect(opts.migrate!(state, 2)).toEqual(state);
   });
 });
 
