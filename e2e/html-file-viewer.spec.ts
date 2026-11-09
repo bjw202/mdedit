@@ -62,13 +62,13 @@ void tauriInternalsConvertFileSrc;
 test.describe('HtmlFileViewer E2E', () => {
   test.use({ userAgent: WINDOWS_UA });
 
-  // SPEC-PREVIEW-019: 기본 렌더 모드가 선명(srcdoc)으로 바뀌었으므로, 아래 asset iframe 시나리오는
-  // 원본 보기 모드를 저장소에 시드해서 실행한다. 선명 모드는 파일 하단의 별도 describe가 시험한다.
+  // SPEC-PREVIEW-019/020: 기본 렌더 모드는 OS에 따라 달라지므로, 아래 asset iframe 시나리오는
+  // 원본 보기 모드를 저장소(영속 버전 2)에 시드해서 실행한다. 선명 모드는 파일 하단의 별도 describe가 시험한다.
   test.beforeEach(async ({ tauriPage }) => {
     await tauriPage.addInitScript(() => {
       localStorage.setItem(
         'mdedit-ui-store',
-        JSON.stringify({ state: { htmlRenderMode: 'original' }, version: 1 }),
+        JSON.stringify({ state: { htmlRenderMode: 'original' }, version: 2 }),
       );
     });
   });
@@ -164,6 +164,14 @@ test.describe('HtmlFileViewer E2E — 선명 모드 (SPEC-PREVIEW-019)', () => {
     '<script>document.body.setAttribute("data-page-script","ran")</script></body></html>';
 
   test.beforeEach(async ({ tauriPage }) => {
+    // SPEC-PREVIEW-020: 기본값이 OS에 따라 달라지므로 선명 모드를 명시 시드한다(영속 버전 2).
+    //   WINDOWS_UA가 navigator.platform까지 바꾸는지는 확인하지 않았으므로 이 시드로 의존을 끊는다.
+    await tauriPage.addInitScript(() => {
+      localStorage.setItem(
+        'mdedit-ui-store',
+        JSON.stringify({ state: { htmlRenderMode: 'crisp' }, version: 2 }),
+      );
+    });
     // read_file / read_file_size만 응답하도록 invoke 모의를 덧씌운다(나머지는 기존 모의 그대로).
     await tauriPage.addInitScript((html: string) => {
       const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a?: unknown) => Promise<unknown> } })

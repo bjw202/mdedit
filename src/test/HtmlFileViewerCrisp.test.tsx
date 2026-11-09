@@ -16,6 +16,12 @@ vi.mock('@/lib/tauri/ipc', () => ({
   readFileSize: (p: string) => readFileSizeMock(p),
 }));
 
+// SPEC-PREVIEW-020: 플랫폼을 Windows로 고정한다 — 'crisp' 명시 시드가 OS 기본값('original')을 이긴다는 것도 겸해 확인한다.
+vi.mock('@/lib/preview/htmlZoom', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/preview/htmlZoom')>()),
+  detectPlatform: vi.fn().mockReturnValue('Win32'),
+}));
+
 import { HtmlFileViewer } from '@/components/preview/HtmlFileViewer';
 
 const HTML = '<html><head></head><body>hi</body></html>';
