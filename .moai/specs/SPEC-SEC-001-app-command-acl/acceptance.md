@@ -39,11 +39,11 @@
   - `node -e "const c=require('./src-tauri/capabilities/main.json');process.exit(c.remote===undefined&&JSON.stringify(c.windows)==='[\"main\"]'?0:1)"` → PASS = 종료 코드 0
 
 ### AC-004: 거부 경로 단위 증명 (REQ-004)
-- Given `cargo build`가 끝난 뒤 `src-tauri/gen/schemas/`에 tauri-build가 쓴 `acl-manifests.json`·`capabilities.json`(소스: `tauri-build-2.5.6/src/acl.rs` `save_acl_manifests`·`save_capabilities`, 앱 키 `__app__`)
+- Given `cargo build`가 끝난 뒤 `src-tauri/gen/schemas/`에 tauri-build가 쓴 `acl-manifests.json`·`capabilities.json`(소스: `tauri-build-2.5.6/src/acl.rs` `save_acl_manifests`·`save_capabilities`, 앱 키 `__app-acl__` = `tauri_utils::acl::APP_ACL_KEY`, `tauri-utils-2.8.3/src/acl/mod.rs:50`; `__app__`은 tauri-build 내부 패키지 이름이라 JSON 키가 아니다)
 - When 두 파일을 읽으면
 - Then 앱 매니페스트가 있고 `allow-*` 권한이 26개이며, `main-capability`에 `allow-read-file`이 있고 `remote` 항목이 없다. 이 정적 증거는 "앱 명령이 ACL 대상이 되었고 원격 출처에는 허용된 적이 없다"를 기기 없이 보인다(실제 거부는 M-2가 증명).
-  - `node -e "const m=require('./src-tauri/gen/schemas/acl-manifests.json')['__app__'];const c=Object.values(require('./src-tauri/gen/schemas/capabilities.json')).find(x=>x.identifier==='main-capability');const n=Object.keys(m.permissions).filter(k=>k.startsWith('allow-')).length;console.log(n);process.exit(n===26&&c&&!c.remote&&c.permissions.includes('allow-read-file')?0:1)"` → PASS = 종료 코드 0이고 출력 26. FAIL = 그 외. 파일 구조가 다르면 M1에서 구조를 확인해 같은 의미로 보정하고 progress.md에 적는다(보정은 단언을 약화하지 않는다).
-- Then 이 AC의 사전 상태(매니페스트 도입 전)에서는 `acl-manifests.json`에 `__app__`가 없어 같은 명령이 실패한다(RED 증거).
+  - `node -e "const m=require('./src-tauri/gen/schemas/acl-manifests.json')['__app-acl__'];const c=Object.values(require('./src-tauri/gen/schemas/capabilities.json')).find(x=>x.identifier==='main-capability');const n=Object.keys(m.permissions).filter(k=>k.startsWith('allow-')).length;console.log(n);process.exit(n===26&&c&&!c.remote&&c.permissions.includes('allow-read-file')?0:1)"` → PASS = 종료 코드 0이고 출력 26. FAIL = 그 외. 파일 구조가 다르면 M1에서 구조를 확인해 같은 의미로 보정하고 progress.md에 적는다(보정은 단언을 약화하지 않는다).
+- Then 이 AC의 사전 상태(매니페스트 도입 전)에서는 `acl-manifests.json`에 `__app-acl__`가 없어 같은 명령이 실패한다(RED 증거 — 매니페스트 도입 전 트리에서 실행해 종료 코드 1을 progress.md에 붙인다).
 
 ### AC-005: 프런트엔드 호출 계약 (REQ-005)
 - Given `src/**`의 `invoke('…')` 문자열 리터럴
@@ -55,14 +55,14 @@
 - Given 변경 후 전체 트리
 - When `npm test`, `npm run lint`, `npx tsc --noEmit`, `cargo test --manifest-path src-tauri/Cargo.toml`을 실행하면
 - Then 네 명령 모두 종료 코드 0이고 기존 테스트 수가 줄지 않는다(기준선 수는 M1 시작 때 기록).
-- Then 누락 검출이 실제로 동작함을 보인다(RED 증거 2건을 progress.md에 붙인다): (a) `main.json`에서 `allow-read-file` 하나를 지우고 `capability_covers_every_app_command`를 돌리면 실패, (b) 그 상태에서 `cargo build`도 `validate_capabilities` 단계에서 실패하거나 통과하는지 기록(통과해도 (a)가 잡는다). 확인 뒤 되돌린다.
+- Then 누락 검출이 실제로 동작함을 보인다(RED 증거 2건을 progress.md에 붙인다): (a) `main.json`에서 `allow-read-file` 하나를 지우고 `capability_covers_every_app_command`를 돌리면 실패, (b) 참고로 그 상태의 `cargo build` 결과(실패/통과)를 progress.md에 적는다 — 판정에는 쓰지 않으며 (a)만 PASS/FAIL 근거다. 확인 뒤 되돌린다.
 
 ### AC-007: 미사용 권한 정리 증거 (REQ-008, Should)
 - Given M-3 스모크가 통과한 뒤의 `main.json`
 - When 테스트 파일을 뺀 소스에서 `@tauri-apps/plugin-shell`·`@tauri-apps/plugin-dialog` import를 찾으면
   - `grep -rnE "from ['\"]@tauri-apps/plugin-(shell|dialog)" src --exclude-dir=test` → 출력 없음(종료 코드 1)
 - Then 최종 상태는 하나다: `main.json`에 `shell:allow-execute`·`shell:allow-spawn`·`dialog:allow-*` 권한이 없다. 제거 뒤 M-3 스모크를 다시 통과해야 하고, 거부가 나온 권한이 있으면 그 권한만 되돌린 상태가 최종 상태이며 progress.md에 사유가 있다.
-  - `grep -c '"shell:allow-' src-tauri/capabilities/main.json` → PASS = 출력 0(되돌린 경우 progress.md의 사유로 대체)
+  - `grep -cE '"(shell|dialog):allow-' src-tauri/capabilities/main.json` → PASS = 출력 0(되돌린 경우 progress.md의 사유로 대체)
   - `grep -c "opener:allow-open-path" src-tauri/capabilities/main.json` → PASS = 1 이상(제거 금지 항목)
 
 ### AC-008: 안내 주석 (REQ-009)
@@ -84,7 +84,7 @@
 - Given 매니페스트가 적용된 빌드
 - When 같은 탐침을 Windows와 macOS에서 다시 열면
 - Then `read_file`·`ai_policy_status`·`plugin:dialog|message` 호출이 모두 err(거부)이거나 `internals`가 `undefined`다. ok가 하나라도 있으면 FAIL이며 run을 멈추고 보고한다.
-- 추가: `srcdoc` + `sandbox="allow-scripts"` 불투명 출처 프레임에서도 같은 호출을 시험해 거부를 확인한다(PREVIEW-019 전제 증거). 시험용 임시 HTML이며 저장소에 커밋하지 않는다.
+- 추가: `srcdoc` + `sandbox="allow-scripts"` 불투명 출처 프레임에서도 같은 호출을 시험해 거부를 확인한다(PREVIEW-019 전제 증거). 시험용 임시 HTML이며 저장소에 커밋하지 않는다. 이 항목에서 호출이 거부되지 않으면 SPEC-SEC-001 자체의 FAIL이 아니라(asset 출처 거부는 위 판정이 증명) PREVIEW-019 전제 미충족이다: run을 멈추지 말고 결과를 코디네이터에 보고해 PREVIEW-019 설계 재검토를 요청한다(spec.md R-6).
 
 ### M-3: 전 기능 스모크 (REQ-005)
 - Given 매니페스트가 적용된 `tauri dev` 빌드와 릴리스 빌드(macOS 필수, Windows는 가능한 한)
