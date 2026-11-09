@@ -50,4 +50,24 @@ _<pending run-phase>_
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
-_<pending sync-phase>_
+- sync_status: audit-ready (status `implemented`; `completed`는 수동 M-1~M-4 확인 후 별도 close PR에서 — SPEC-PREVIEW-018과 같은 방식)
+- sync_commit_sha: pending-backfill
+- 문서: CHANGELOG `[Unreleased]` 항목, README HTML 행, `docs/USER_MANUAL.md` §4-4, SPEC-PREVIEW-019 HISTORY 주석 행(REQ-001 기본값은 SPEC-PREVIEW-020이 OS별로 개정)
+- spec.md `status: draft → implemented`
+
+### 동기화 시점 게이트 (이 트리, 코드 HEAD `34095b3` 기준; 로그 `.moai/state/verify/sync-020/`)
+- `npm run typecheck` → exit 0
+- `npm run lint` → exit 0
+- `npx vitest run --dir src` → exit 0, `Test Files  116 passed (116)`, `Tests  1967 passed (1967)` (run 단계의 117/1991은 `src` 밖 테스트 파일까지 포함한 수치)
+- `npx playwright test e2e/html-file-viewer.spec.ts` (webkit) → exit 0, `4 passed`
+
+### AC-007 문구 결정
+- 사실: 구현은 `Header.tsx`의 `htmlRenderMode` 선언부 한 곳에서 해소한 값을 만들고, `aria-pressed`·`is-active`·클릭 핸들러 세 줄은 그대로 둔다(diff에 없음). AC-007이 허용한 줄 목록과 글자 그대로는 다르다.
+- 결정: **AC-007 문구는 고치지 않는다.** 이유: (1) AC의 의도(`aria-label`·버튼 글자 줄 불변, diff 최소)는 지켜졌고 실제 diff가 허용 목록보다 작다. (2) 허용 목록은 "허용 상한"이지 "반드시 바꿔야 할 줄"이 아니며 선언부 한 줄 변경은 같은 해소 값을 쓰는 세 줄을 바꾼 것과 동등하다. (3) spec 본문 수정은 manager-spec 소관이고 재감사를 부르는데 결함이 아니라 문구 차이라 비용이 크다. 코드는 바꾸지 않는다.
+- 이 차이는 sync 감사에 그대로 제출한다.
+
+### 수동 확인 (사용자 실행, 병합 전) — 모두 PENDING
+M-1 Windows 새 프로필(원본 열림·토글 눌림·Mermaid 그림 표시), M-2 macOS 새 프로필(선명 모드 기본), M-3 두 OS에서 명시 선택 영속(재시작), M-4 두 OS 업그레이드 경로(v1 저장소 심기).
+
+### sync-auditor 판정
+_<기록 예정>_

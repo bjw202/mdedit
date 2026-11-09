@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-020
 title: "HTML 미리보기 OS별 기본 렌더 모드 — Windows는 원본 보기, macOS는 선명 모드"
 version: "0.1.2"
-status: draft
+status: implemented
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
