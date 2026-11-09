@@ -43,6 +43,9 @@
 | `<div id="x" class="mermaid" data-a="1">OK</div>` (다른 속성 함께) | 1 |
 | `<div class="mermaid"><div>OK</div></div><p>after</p>` (중첩 div — 바깥 블록 1개, `<p>after</p>`는 블록 밖에 그대로) | 1 |
 | `<pre class="mermaid">OK</pre><div class="mermaid">OK</div>` (2개) | 2 |
+| `<script>var s='<!--';</script><pre class="mermaid">OK</pre>` (스크립트 안의 닫히지 않은 `<!--`가 뒤 블록을 가리지 않음) | 1 |
+| `<div title="a>b" class="mermaid">OK</div>` (따옴표 안 `>`) | 1 |
+| `<div class="mermaid"><!-- </div> --><div>OK</div></div>` (주석 안 `</div>`는 깊이에 안 셈) | 1 |
 
 ### AC-PREVIEW021-003 — 감지: 잡지 않는 것 (unit, 표 구동)
 
@@ -58,6 +61,7 @@
 | `<style>/* <div class="mermaid">OK</div> */</style>` | 스타일 안 |
 | `<textarea><pre class="mermaid">OK</pre></textarea>` | textarea 안 |
 | `<template><pre class="mermaid">OK</pre></template>` | template 안 |
+| `<title><pre class="mermaid">OK</pre></title>` / `<noscript><div class="mermaid">OK</div></noscript>` | 원문 텍스트 요소 안 |
 | `<pre class="mermaid">OK` (닫는 태그 없음) | 닫기 실패 |
 | `<div class="mermaid"><svg id="m"></svg></div>` | 이미 그려짐(`<svg`) |
 | `<pre class="mermaid" data-processed="true">OK</pre>` | 이미 그려짐(`data-processed`) |
@@ -73,16 +77,19 @@ pele에 넘기는 원문을 관찰하기 위해 테스트는 `renderExportDiagra
 - `<div class="mermaid">flowchart LR\n  A[a<br>b] --> B</div>` → 원문에 `a<br/>b`가 있다(`<br>` 요소 → 글자).
 - `<div class="mermaid">flowchart LR\n  A[<b>x</b>] --> B</div>` → 원문에 `A[x]`(다른 태그는 버려짐).
 - `&#65;`·`&#x41;` → `A`로 디코드된다.
+- `<pre class="mermaid">\n\tflowchart TD\n\n\t  A --> B\n</pre>` → 원문 `flowchart TD\n\n  A --> B`(탭 접두사 공통 제거, 빈 줄은 계산에서 제외).
+- `<pre class="mermaid">\n  &nbsp;flowchart TD\n  A --> B</pre>` → dedent는 공백 2칸만 걷어 내고(U+00A0는 공통 접두사에 넣지 않음), 마지막 `String.prototype.trim`이 앞의 U+00A0를 지워 원문은 `flowchart TD\nA --> B`다.
 - 추출 중 `document.body`의 자식 수가 바뀌지 않는다(비활성 `<template>`만 사용).
 
 ### AC-PREVIEW021-005 — 렌더 삽입 (unit)
 
 - **Given** 입력 `<body><pre class="mermaid" id="d1">OK</pre></body>`, **When** `P`, **Then**
-  - 결과는 `<body><pre class="mermaid" id="d1">`로 시작하고 `</pre></body>`로 끝난다(시작·닫는 태그 원문 유지).
+  - 결과는 `<body><pre class="mermaid" id="d1" data-processed="true">`로 시작하고 `</pre></body>`로 끝난다(시작 태그는 표시 속성만 추가, 닫는 태그 원문 유지). 결과를 다시 `P`에 넣으면 같은 문자열이 나온다(이미 그려진 블록으로 건너뜀).
+  - 시작 태그가 `<div class="mermaid"/>`·`<div class=mermaid >`처럼 `/>`·공백으로 끝나도 표시 속성은 `>`(또는 `/>`) 바로 앞에 한 번만 들어간다.
   - 그 사이는 `<div data-mdedit-diagram="" style="…">` 하나이고, 그 안에 `<svg` 1개가 있다.
   - 결과 전체에 `var(--pele-`가 0번 나온다.
-  - 감싸개 `style`에 `background`·`border`·`border-radius`가 있고 값에 `var(`가 없다.
-- **And** `renderExportDiagram`의 두 번째 인자는 `readPeleThemeValues('light')`의 결과이며, 블록이 3개여도 `readPeleThemeValues`는 1번만 호출된다.
+  - 감싸개 `style`에 `background`·`border`·`border-radius`가 있고 값에 `var(`가 없다. jsdom(빈 값 표)에서는 값이 각각 `#FAF9F6`·`#97A4B1`·`3px`를 포함한다.
+- **And** `renderExportDiagram`의 두 번째 인자는 `readPeleThemeValues('light')`의 결과이며, 블록이 3개여도 `P` 한 번 호출에 `readPeleThemeValues`는 1번만 호출된다.
 - **And** 판단 노드가 있는 원문(`flowchart TD\n  A{x?} --> B`)이면 결과 SVG의 `.pele-shape-diam` 노드 `style`에 `--_s:`가 있다(모양 톤이 `renderExportDiagram`을 통해 들어옴).
 
 ### AC-PREVIEW021-006 — 실패 안내 (unit)
@@ -90,12 +97,14 @@ pele에 넘기는 원문을 관찰하기 위해 테스트는 `renderExportDiagra
 - **Given** 입력 `<pre class="mermaid">BAD</pre><p>x</p>`, **When** `P`, **Then** 결과는 `<pre class="mermaid">BAD</pre><p data-mdedit-diagram-error="" style="…">⚠ 이 다이어그램은 그릴 수 없었습니다…</p><p>x</p>`이다(블록 바이트 그대로 + 바로 뒤 안내 1개).
 - **And** `BAD`이면 안내 문구가 정확히 `⚠ 이 다이어그램은 그릴 수 없었습니다 (2행 14열)`이고, `BAD0`이면 정확히 `⚠ 이 다이어그램은 그릴 수 없었습니다`다(실제 pele 실행, 모의 없음).
 - **And** `renderExportDiagram`이 `null`, `renderDiagram`이 `{ ok: false, error: { code: 'x', message: '<img src=x onerror=alert(1)>', line: 1, column: 2 } }`를 돌려주도록 모의하면, 안내 `<p>`의 안쪽 HTML이 정확히 `⚠ 이 다이어그램은 그릴 수 없었습니다 (1행 2열)`이다(오류 메시지 문자열 미포함, 결과 전체에 `onerror`가 없다).
+- **And** `renderExportDiagram`이 `null`인데 두 번째 `renderDiagram`이 `ok: true`를 돌려주도록 모의하면 안내 문구는 접미사 없이 정확히 `⚠ 이 다이어그램은 그릴 수 없었습니다`다.
 - **And** 성공 1 + 실패 1 블록 입력에서 성공 블록은 그려지고 실패 블록에만 안내가 붙는다.
 
 ### AC-PREVIEW021-007 — 블록 밖 바이트 보존 (unit)
 
 - 입력 `H = '<!doctype html>\n<html><head><script src="https://cdn.example/mermaid.js"></script><script>mermaid.initialize({theme:"dark"})</script></head><body>\n<p>앞</p>\n<pre class="mermaid">OK</pre>\n<p>뒤</p>\n</body></html>'`에 대해:
-  - `P(H)`에서 첫 블록의 안쪽 영역을 빼고 이어 붙인 문자열이 `H`에서 같은 영역을 뺀 문자열과 같다.
+  - 글꼴 삽입을 끈 상태(테스트는 글꼴 삽입 함수를 모의하거나, 경로 (C)면 원래 없음)에서, `P(H)`에서 블록 안쪽 영역과 ` data-processed="true"` 삽입분을 빼고 이어 붙인 문자열이 `H`에서 같은 블록 안쪽 영역을 뺀 문자열과 같다.
+  - 글꼴 삽입을 켠 상태(경로 (A)/(B))에서는 위 비교에서 `<style data-mdedit-diagram-fonts="">…</style>` 1개를 추가로 빼면 같다.
   - 두 `<script>` 태그가 바이트 그대로 남아 있다.
 - AC-003 표의 모든 입력에서 `P(x) === x`.
 
@@ -108,12 +117,13 @@ pele에 넘기는 원문을 관찰하기 위해 테스트는 `renderExportDiagra
 ### AC-PREVIEW021-009 — 원본 보기·폴백 미적용 (unit)
 
 - 실제 렌더 모드가 `'original'`이면 iframe에 `srcdoc`이 없고 `src`(asset 주소)가 있으며 `renderExportDiagram`이 호출되지 않는다.
-- 선명 모드에서 `readFileSize`가 10 MiB 초과(크기 폴백) 또는 `readFile`이 거부(읽기 폴백)되면 `renderExportDiagram`이 호출되지 않는다.
+- 선명 모드에서 `readFileSize`가 10 MiB 초과(크기 폴백), `readFile`이 일반 오류로 거부(읽기 폴백), `readFile`이 `utf-8` 문구를 담은 오류로 거부(UTF-8 폴백)되는 세 경우 모두 `renderExportDiagram`이 호출되지 않는다.
 
 ### AC-PREVIEW021-010 — 글꼴 경로 (M1 관문 + unit)
 
 - progress.md에 M1 결과표가 있다: macOS 개발·배포 빌드에서 경로 (A)의 `document.fonts.check` 결과·라벨 폭 관찰, 셸 CSP `font-src` 값(run 시점 origin/main), 선택한 경로 (A)/(B)/(C)와 근거. Windows 결과는 M-2에서 채운다.
-- 경로 (A) 또는 (B)를 골랐다면: 렌더 성공 블록이 1개 이상인 입력의 결과에 `data-mdedit-diagram-fonts` `<style>`이 정확히 1번, `</body>` 바로 앞(없으면 끝)에 있고, `font-family` 값에 `Barlow`가 있다. 성공 블록이 0개(실패만, 블록 없음)인 입력에는 없다.
+- M1 표는 OS·빌드별로 앱 출처, 굵기 ↔ 파일 대응(400 → `barlow-400.woff2`, 600 → 실제 고른 파일), `await document.fonts.load('600 16px Barlow')` 뒤의 `document.fonts.check` 결과, 라벨 폭 관찰을 적는다. macOS는 필수, Windows는 가능하면 M1에서 함께 잰다. Windows를 M1에서 재지 못했다면 M-2에서 Windows가 고른 경로로 실패할 때 run을 멈추고 코디네이터에 blocker로 올린다(조용히 넘어가지 않는다).
+- 경로 (A) 또는 (B)를 골랐다면: 렌더 성공 블록이 1개 이상인 입력의 결과에 `data-mdedit-diagram-fonts` `<style>`이 정확히 1번, 어느 블록 안에도 있지 않은 마지막 `</body>` 바로 앞(없으면 끝)에 있고 — 블록 안쪽 원문에 `</body>` 글자가 있어도 그 위치는 쓰지 않는다 —, `font-family` 값에 `Barlow`가 있다. 성공 블록이 0개(실패만, 블록 없음)인 입력에는 없다.
 - 경로 (C)를 골랐다면: 코디네이터를 거친 사용자 확인이 progress.md에 기록되어 있고, spec.md §3 한계에 글꼴 대체 항목이 추가되어 있다(manager-spec 개정).
 
 ### AC-PREVIEW021-011 — 보안·불변 형태 (unit + grep + git diff)
@@ -139,7 +149,7 @@ pele에 넘기는 원문을 관찰하기 위해 테스트는 `renderExportDiagra
 
 ## 경계 사례
 
-- `<pre class="mermaid">` 바로 뒤 줄바꿈: HTML 파서가 첫 줄바꿈을 버리므로 원문 앞 빈 줄은 trim으로 사라진다(AC-004).
+- `<pre class="mermaid">` 바로 뒤 줄바꿈: 안쪽 HTML을 `<template>`에 넣을 때는 `pre`가 아니라 내용만 파싱되므로 줄바꿈은 남고, 마지막 trim 단계에서 사라진다(AC-004).
 - 같은 문서에 블록 수십 개: 동기 렌더로 한 번에 처리한다(spec §3 한계 6). 시험은 블록 20개 입력에서 결과 블록 수 20을 확인하는 정도로 둔다.
 - `div.mermaid` 안에 `</div>`를 담은 주석: 가림 사본에서 주석이 공백이 되어 깊이 계산이 흔들리지 않는다.
 - 블록 안에 `<script>`: 블록 안쪽은 교체되거나(성공) 그대로 남는다(실패). 어느 쪽이든 그 스크립트는 셸 CSP 때문에 실행되지 않는다(019 동작).
@@ -152,6 +162,6 @@ pele에 넘기는 원문을 관찰하기 위해 테스트는 `renderExportDiagra
 
 ## Definition of Done
 
-- 활성 AC 001~011이 PASS이고 품질 게이트 통과. 미검증 항목이 있으면 완료가 아니다.
+- run 단계 완료: 활성 AC 001~011 PASS + AC-012의 e2e 부분 PASS + 품질 게이트 통과. 미검증 항목이 있으면 완료가 아니다. AC-012의 수동 부분(M-1·M-2)은 SPEC을 `completed`로 닫는 조건이다.
 - run 착수 조건: SPEC-PREVIEW-019·015 `status: completed` 확인 + origin/main 병합(t1·t3 반영) + M1 글꼴 관문 결과 기록.
 - SPEC을 `completed`로 닫으려면 수동 M-0~M-2가 macOS·Windows 모두에서 progress.md에 OS별로 남아 있어야 한다.

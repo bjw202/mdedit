@@ -11,7 +11,8 @@
 
 ## Plan-audit History
 
-(감사 후 기록)
+- review-1(2026-11-09, 커밋 490f887 대상): **FAIL 0.84**(Tier M 기준 0.80, 점수는 넘었으나 BLOCKING D1) — `.moai/reports/plan-audit/SPEC-PREVIEW-021-review-1.md`. 차원: Clarity 0.80 / Completeness 0.95 / Testability 0.75 / Traceability 0.90. MP-1~7 통과. D1(REQ-006 vs REQ-008 바이트 보존 모순) BLOCKING, D2~D4 SHOULD-FIX, D5~D15 MINOR. 감사자가 vitest를 돌리지 못함(이 worktree에 `node_modules` 없음) — 오류 픽스처 위치는 읽기로만 확인.
+- v0.1.1 개정(2026-11-09): D1~D12·D14·D15 반영(spec HISTORY 0.1.1 참조). D13은 조치 불필요(pre-flight 2가 이미 확인). 계획 정규식은 `node -e`로 7개 입력에 대해 의도대로 일치함을 확인(따옴표 안 `>`, 대문자, 따옴표 없음, `/>`, `<header>` 불일치).
 
 ## §E.1 Plan-phase Audit-Ready Signal
 

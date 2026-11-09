@@ -53,14 +53,15 @@
 ### M1 — 글꼴 관문 (Priority High, 측정만, 운영 코드 커밋 금지)
 
 - 목적: REQ-008 경로 (A)/(B)/(C) 결정.
-- 방법: macOS 개발 빌드에서 선명 모드로, mermaid 블록 1개를 손으로 SVG 치환한 HTML 시안을 연다. (A) `@font-face { font-family: 'Barlow'; src: url('<앱 출처>/fonts/barlow-400.woff2') }`를 넣고 `document.fonts.check('16px Barlow')`와 라벨 폭을 웹 검사기로 확인. 앱 출처 값은 개발(`http://localhost:1420`)·배포(`tauri://localhost`, Windows `http://tauri.localhost`)를 각각 적는다. (B) SEC-002가 `data:`를 허용했다면 같은 방식으로 `data:font/woff2;base64,…`를 확인.
-- 기록: progress.md에 OS·빌드별 결과표. (A)/(B)가 모두 실패하면 run을 멈추고 (C) 수용 여부를 blocker로 코디네이터에 올린다.
+- 방법: macOS 개발 빌드에서 선명 모드로, mermaid 블록 1개를 손으로 SVG 치환한 HTML 시안을 연다. (A) `@font-face { font-family: 'Barlow'; src: url('<앱 출처>/fonts/barlow-400.woff2') }`를 넣고 `await document.fonts.load('16px Barlow')`·`await document.fonts.load('600 16px Barlow')` 뒤 `document.fonts.check(…)`(로드 전 `check`는 거짓이 나올 수 있다), 웹 검사기의 네트워크·콘솔(CORS·CSP 거부), 라벨 폭을 확인. 굵기 ↔ 파일 대응(pele 제목·머리글 600 → 500/700 중 무엇을 쓰는지)을 표에 적는다. Windows(WebView2, `http://tauri.localhost`)는 CORS 처리가 다를 수 있으므로 가능하면 M1에서 함께 잰다. 앱 출처 값은 개발(`http://localhost:1420`)·배포(`tauri://localhost`, Windows `http://tauri.localhost`)를 각각 적는다. (B) SEC-002가 `data:`를 허용했다면 같은 방식으로 `data:font/woff2;base64,…`를 확인.
+- 기록: progress.md에 OS·빌드별 결과표. (A)/(B)가 모두 실패하면 run을 멈추고 (C) 수용 여부를 blocker로 코디네이터에 올린다. Windows를 M1에서 재지 못했으면 표에 "Windows 미측정"으로 적고, M-2에서 Windows가 실패하면 run을 멈추고 blocker로 올린다.
 
 ### M2 — 블록 탐색기 (Priority High, 순수 함수, TDD)
 
 - `src/lib/preview/htmlMermaid.ts`에 내부 함수 `findMermaidBlocks(html): Block[]`(`{ start, innerStart, innerEnd, end }` 오프셋).
-- 가림 사본: 주석 → 공백, `<script|style|textarea|template …>…</…>`의 안쪽 → 공백(오프셋 보존).
-- 시작 태그 정규식: `<(pre|div)(\s[^>]*)?>`(대소문자 무관) → 속성 문자열에서 `class` 값을 세 형식으로 꺼내 토큰 검사. `data-processed` 속성 검사.
+- 가림 사본(spec REQ-002): 앞에서부터 **한 번** 훑는 작은 스캐너. `<!--`를 만나면 다음 `-->`(없으면 끝)까지, 원문 텍스트 요소(`script|style|textarea|title|template|xmp|iframe|noembed|noframes|noscript`) 시작 태그를 만나면 안쪽을 짝 닫는 태그(대소문자 무관, 없으면 끝)까지 공백으로 바꾼다(오프셋 보존). 기존 `htmlSrcdoc.ts` `maskComments`는 주석만 먼저 가려 스크립트 안의 닫히지 않은 `<!--`가 뒤 전체를 가리므로 재사용하지 않는다.
+- 시작 태그 정규식은 따옴표 값을 건너뛴다: `<(pre|div)((?:\s+[^\s=>/"']+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']+))?)*)\s*\/?>`(대소문자 무관, 같은 정규식을 스캐너의 원문 텍스트 요소 시작 태그에도 쓴다). 속성 문자열에서 `class` 값을 세 형식으로 꺼내 토큰 검사, `data-processed` 속성 유무 검사. `/>` 여부와 `>` 위치를 기록해 REQ-004 (b) 삽입 위치로 쓴다.
+- 이미 그려짐 검사의 `<svg`는 가림 사본의 블록 안쪽에서 대소문자 무관으로 찾는다.
 - 닫기: `pre`는 다음 `</pre\s*>`; `div`는 `<div(\s[^>]*)?>` +1 / `</div\s*>` −1 깊이 계산.
 - RED 먼저: AC-002·003 표의 각 행을 실패 테스트로 쓴다.
 
@@ -68,13 +69,13 @@
 
 - 공개 함수 `prerenderMermaidBlocks(html: string): string` — 예외를 잡아 입력 반환.
 - 원문: `document.createElement('template')`의 `innerHTML`에 안쪽 HTML → `br` 요소를 글자 노드 `<br/>`로 교체 → `content.textContent` → dedent·trim.
-- 렌더: `renderExportDiagram(src, readPeleThemeValues('light'))`(값 표는 호출당 1번만 읽는다). 성공: `new XMLSerializer().serializeToString(svg)` 또는 `svg.outerHTML`을 감싸개 `<div data-mdedit-diagram="" style="…">`에 넣어 안쪽 교체. 감싸개 style 값은 치환 값 표에서, 없으면 대체 리터럴(`#FAF9F6`·`#97A4B1`·`3px`).
-- 실패: `renderDiagram(src)`를 한 번 더 불러 line·column만 얻고 안내 `<p data-mdedit-diagram-error="" style="font-size:0.875rem;color:#F59E0B;font-style:italic;margin:0.25rem 0">⚠ 이 다이어그램은 그릴 수 없었습니다 (L행 C열)</p>`를 닫는 태그 뒤에 넣는다.
+- 렌더: `const values = readPeleThemeValues('light')`(변환 호출당 1번) → 블록마다 `renderExportDiagram(src, values)`. 반환값은 `{ svg, width, height }`이므로 `result.svg.outerHTML`(HTML 직렬화 — srcdoc은 HTML 파서로 다시 읽는다)을 감싸개 `<div data-mdedit-diagram="" style="display:flex;justify-content:center;background:…;border:1px solid …;border-radius:…;margin:0 0 1rem">`에 넣어 안쪽 교체. 감싸개 값은 `values`에서, 없으면 앱 토큰 리터럴(`#FAF9F6`·`#97A4B1`·`3px`). 성공 블록의 시작 태그 `>`(또는 `/>`) 앞에 ` data-processed="true"`.
+- 실패(`null`): `renderDiagram(src)`를 한 번 더 불러 오류의 line·column만 얻고(두 번째 호출이 `ok: true`면 접미사 없음) 안내 `<p data-mdedit-diagram-error="" style="font-size:0.875rem;color:#F59E0B;font-style:italic;margin:0.25rem 0">⚠ 이 다이어그램은 그릴 수 없었습니다 (L행 C열)</p>`를 닫는 태그 뒤에 넣는다.
 - 뒤에서 앞으로(오프셋이 큰 블록부터) 치환해 앞 블록 오프셋이 흔들리지 않게 한다.
 
 ### M4 — 글꼴 삽입 (Priority Medium, M1 결과에 따름)
 
-- (A)/(B)일 때: 렌더 성공 블록이 1개 이상이면 `@font-face` `<style data-mdedit-diagram-fonts="">`를 `</body>` 앞(없으면 끝)에 1번 넣는다. 굵기는 pele가 쓰는 400·600(→ 파일 500/700 중 M1에서 확인한 것)·mono 400으로 한정.
+- (A)/(B)일 때: 렌더 성공 블록이 1개 이상이면 `@font-face` `<style data-mdedit-diagram-fonts="">`를 가림 사본에서 어느 블록 안에도 있지 않은 마지막 `</body>` 앞(없으면 끝)에 1번 넣는다(블록 치환보다 먼저 위치를 계산하고, 치환은 뒤에서 앞으로 하므로 이 위치가 가장 뒤라면 먼저 넣는다). 단위 테스트가 끌 수 있도록 글꼴 조립은 별도 내부 함수로 둔다. 굵기는 pele가 쓰는 400·600(→ 파일 500/700 중 M1에서 확인한 것)·mono 400으로 한정.
 - (C)일 때: 이 마일스톤은 비고 §3 한계에 글꼴 대체를 추가하는 SPEC 개정 blocker를 올린다.
 
 ### M5 — 뷰어 연결·주석 (Priority Medium)

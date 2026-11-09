@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-021
 title: "HTML 미리보기 선명 모드에서 mermaid 블록을 pele로 미리 렌더"
-version: "0.1.0"
+version: "0.1.1"
 status: draft
 created: 2026-11-09
 updated: 2026-11-09
@@ -23,6 +23,7 @@ related_specs: [SPEC-PREVIEW-016, SPEC-PREVIEW-017, SPEC-PREVIEW-020, SPEC-SEC-0
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 백로그 카드 t2. 배경: 선명 모드(SPEC-PREVIEW-019, `srcdoc` + `sandbox="allow-scripts"`)는 셸 CSP를 상속해 페이지 자체 스크립트(mermaid CDN 포함)가 막히므로, HTML 파일 안의 mermaid 블록이 그림 대신 원문 글자로 보인다. 사용자 결정(2026-11-09, 코디네이터 경유): (1) 선명 모드에만 적용, 원본 보기는 그대로 (2) `<pre class="mermaid">`·`<div class="mermaid">`만 감지 (3) 색은 앱 팔레트(잉크 앤 허니), 페이지의 mermaid 테마·init 무시 (4) pele 실패 시 원문을 두고 짧은 안내를 붙인다. |
+| 0.1.1 | 2026-11-09 | jw | plan-audit 1차(FAIL 0.84, `.moai/reports/plan-audit/SPEC-PREVIEW-021-review-1.md`) 반영. D1: REQ-006 예외에 글꼴 `<style>`·`data-processed` 삽입 추가, 글꼴 삽입 위치를 "블록 밖 마지막 `</body>`"로 고정, AC-007 비교 방식 수정. D2: 감싸개 대체값을 앱 토큰 리터럴로 통일. D3·D14: M1에 Windows 측정·`document.fonts.load` 선행·굵기 대응 기록, Windows 미측정 시 정지 규칙. D4·D7: 원문 추출 주장 축소(한계 8), dedent 공백 정의. D5: AC-009에 UTF-8 폴백. D6: 한 번 훑는 가림 스캐너, 원문 텍스트 요소 목록 확장, 따옴표 안 `>` 처리, `<svg` 검사 대소문자 무관(한계 9). D8·D11: 문구·DoD 정정. D9: `result.svg.outerHTML`로 확정. D10: 두 번째 호출 성공 시 접미사 없음. D12: 성공 블록 시작 태그에 `data-processed="true"` 추가. D15: `readPeleThemeValues` 1회 호출을 REQ-004로 이동. |
 
 ## §1 Overview
 
@@ -48,32 +49,33 @@ related_specs: [SPEC-PREVIEW-016, SPEC-PREVIEW-017, SPEC-PREVIEW-020, SPEC-SEC-0
 #### REQ-PREVIEW021-002: 블록 감지 (Ubiquitous + Unwanted)
 
 - The 변환 shall 시작 태그 이름이 `pre` 또는 `div`(태그·속성 이름과 닫는 태그는 대소문자 무관)이고 `class` 속성 값을 공백으로 나눈 토큰 중 정확히 `mermaid`(대소문자 구분)가 있는 요소를 mermaid 블록으로 본다. 속성 값은 큰따옴표·작은따옴표·따옴표 없음 세 형식을 모두 인식한다.
-- The 변환 shall not 다음을 블록으로 본다: `<code class="language-mermaid">`, 스크립트로 `mermaid.render()`를 부르는 페이지의 결과물, `class="mermaid-x"`처럼 토큰이 다른 경우, HTML 주석·`<script>`·`<style>`·`<textarea>`·`<template>` 안의 같은 모양 문자열.
+- The 변환 shall not 다음을 블록으로 본다: `<code class="language-mermaid">`, 스크립트로 `mermaid.render()`를 부르는 페이지의 결과물, `class="mermaid-x"`처럼 토큰이 다른 경우, HTML 주석과 원문 텍스트 요소(`script`·`style`·`textarea`·`title`·`template`·`xmp`·`iframe`·`noembed`·`noframes`·`noscript`) 안의 같은 모양 문자열.
+- The 위치 탐색 shall 원본과 길이가 같은 가림 사본에서 한다. 가림 사본은 문서를 앞에서부터 **한 번** 훑으며 만든다: 주석 `<!--`를 만나면 다음 `-->`(없으면 끝)까지, 위 원문 텍스트 요소의 시작 태그를 만나면 그 안쪽을 짝이 되는 닫는 태그(대소문자 무관, 없으면 끝)까지 공백으로 바꾼다. 원문 텍스트 요소 안의 `<!--`는 주석으로 보지 않는다. 시작 태그 일치는 따옴표 안의 `>`를 태그 끝으로 보지 않는다.
 - `pre` 블록은 그 뒤 첫 `</pre>`로 닫힌다. `div` 블록은 그 안의 `<div …>`·`</div>` 깊이를 세어 짝이 맞는 `</div>`로 닫힌다. 닫는 태그를 찾지 못한 블록은 건드리지 않는다.
-- **When** 블록이 이미 그려진 상태(안쪽에 `<svg` 시작 태그가 있거나 시작 태그에 `data-processed` 속성이 있음)이면, the 변환 shall 그 블록을 건드리지 않는다.
+- **When** 블록이 이미 그려진 상태(가림 사본의 블록 안쪽에 `<svg` 시작 태그가 대소문자 무관하게 있거나, 시작 태그에 `data-processed` 속성이 있음)이면, the 변환 shall 그 블록을 건드리지 않는다.
 
 #### REQ-PREVIEW021-003: 블록 원문 추출 (Ubiquitous + Event-driven)
 
-- The 변환 shall 블록의 안쪽 HTML을 비활성 `<template>` 요소로 파싱하고(스크립트 실행·자원 요청 없음), `<br>` 요소를 글자 `<br/>`로 바꾼 뒤 `textContent`를 원문으로 쓴다. 이로써 `&amp;`·`&lt;`·`&gt;`·`&quot;`·숫자 문자 참조가 디코드되고 다른 태그는 버려진다(마크다운 펜스에 같은 소스를 쓴 경우와 pele 입력이 같아진다).
-- The 변환 shall 원문의 비어 있지 않은 모든 줄에 공통인 앞쪽 공백을 걷어 내고(dedent) 앞뒤 공백을 trim한다.
+- The 변환 shall 블록의 안쪽 HTML을 비활성 `<template>` 요소로 파싱하고(스크립트 실행·자원 요청 없음), `<br>` 요소를 글자 `<br/>`로 바꾼 뒤 `textContent`를 원문으로 쓴다. 이로써 `&amp;`·`&lt;`·`&gt;`·`&quot;`·숫자 문자 참조가 디코드되고 다른 태그는 버려진다. 엔티티 디코드 결과는 같은 소스를 마크다운 펜스에 쓴 경우의 pele 입력과 같지만, `<b>x</b>`처럼 블록 안에 실제 태그로 쓴 부분은 마크다운 펜스(글자 그대로 전달)와 달리 버려진다(§3 한계 8).
+- The 변환 shall 원문을 줄(`\n`, `\r\n`)로 나눠, 공백·탭이 아닌 글자가 있는 줄들의 앞쪽 공백·탭 접두사 중 가장 긴 공통 접두사를 모든 줄에서 걷어 내고(dedent, 공백·탭만 있는 줄은 계산에서 빼고 그 줄은 비운다), 마지막으로 `String.prototype.trim`으로 앞뒤 공백을 걷어 낸다. dedent의 공통 접두사에는 공백(U+0020)·탭만 넣고 디코드된 `&nbsp;`(U+00A0)는 넣지 않는다(trim은 U+00A0도 지운다).
 - **When** 원문이 비어 있으면, the 변환 shall 블록을 건드리지 않고 안내도 붙이지 않는다.
 
 #### REQ-PREVIEW021-004: 렌더와 삽입 (Event-driven + Ubiquitous)
 
-- **When** 원문이 비어 있지 않으면, the 변환 shall `renderExportDiagram(원문, readPeleThemeValues('light'))`로 렌더한다. 페이지 안의 mermaid 테마·`mermaid.initialize` 설정은 반영하지 않는다(pele 고정 옵션 `PELE_RENDER_OPTIONS` 불변). `'light'` 탐침은 다이어그램 팔레트가 테마와 무관하게 같은 값이라는 SPEC-PREVIEW-016 결정에 따른다.
-- **When** 렌더가 성공하면, the 변환 shall 블록의 시작·닫는 태그는 원문 그대로 두고 안쪽 내용만 다음으로 바꾼다: 인라인 style로 바탕 `--pele-bg`·테두리 1px solid `--pele-border`·반경 `--pele-radius`(모두 치환된 리터럴 값, 값이 없으면 pele 대체값)·가운데 정렬을 준 `<div data-mdedit-diagram="">` 안에 직렬화한 SVG 1개. 페이지 바탕색을 알 수 없으므로 테두리·반경은 라이트·다크와 무관하게 항상 넣는다(마크다운 미리보기의 다크 종이 카드 모양).
+- **When** 원문이 비어 있지 않으면, the 변환 shall `renderExportDiagram(원문, values)`로 렌더한다. `values`는 변환 1회 호출마다 `readPeleThemeValues('light')`를 정확히 한 번 불러 얻고 모든 블록이 같이 쓴다. 페이지 안의 mermaid 테마·`mermaid.initialize` 설정은 반영하지 않는다(pele 고정 옵션 `PELE_RENDER_OPTIONS` 불변). `'light'` 탐침은 다이어그램 팔레트가 테마와 무관하게 같은 값이라는 SPEC-PREVIEW-016 결정에 따른다.
+- **When** 렌더가 성공하면, the 변환 shall (a) 블록 안쪽 내용만 다음으로 바꾼다: 인라인 style로 바탕·테두리 1px solid·반경·가운데 정렬을 준 `<div data-mdedit-diagram="">` 안에 `result.svg.outerHTML`(HTML 직렬화) 1개. 감싸개 색 값은 `values['--pele-bg']`·`values['--pele-border']`·`values['--pele-radius']`이고, 값이 없으면 앱 토큰 리터럴 `#FAF9F6`·`#97A4B1`·`3px`(`mdedit-tokens.css` `:root`와 같은 값)를 쓴다. 페이지 바탕색을 알 수 없으므로 테두리·반경은 라이트·다크와 무관하게 항상 넣는다(마크다운 미리보기의 다크 종이 카드 모양). (b) 시작 태그의 `>`(또는 `/>`) 바로 앞에 ` data-processed="true"`를 넣는다 — mermaid 원본 라이브러리가 그린 뒤 붙이는 표시와 같아, 이 표시가 없을 때 블록을 숨기는 페이지 CSS에서도 그림이 보이고 변환을 다시 돌려도 같은 결과가 된다. 닫는 태그는 그대로 둔다.
 - The 삽입된 SVG shall `var(--pele-` 문자열을 0개 포함한다(앱 CSS가 없는 srcdoc에서도 같은 색).
 - The 변환 shall 블록마다 독립적으로 렌더해 한 블록의 실패가 다른 블록에 영향을 주지 않는다.
 
 #### REQ-PREVIEW021-005: 실패 안내 (Event-driven)
 
 - **When** 렌더가 실패하면(문법 오류·지원하지 않는 다이어그램 종류·정화 실패, 즉 `renderExportDiagram`이 `null`), the 변환 shall 블록(시작 태그~닫는 태그)을 바이트 그대로 두고 닫는 태그 바로 뒤에 `<p data-mdedit-diagram-error="">` 안내 1개를 넣는다.
-- The 안내 문구 shall `⚠ 이 다이어그램은 그릴 수 없었습니다`이고, pele 오류의 line·column이 모두 1 이상이면 ` (L행 C열)`을 붙인다. 문구는 고정 문자열과 정수로만 만들며 원문·오류 메시지 문자열을 넣지 않는다.
+- The 안내 문구 shall `⚠ 이 다이어그램은 그릴 수 없었습니다`이고, 실패 경로에서만 `renderDiagram(원문)`을 한 번 더 불러 얻은 오류의 line·column이 모두 1 이상이면 ` (L행 C열)`을 붙인다. 두 번째 호출이 오류를 주지 않으면(예: 정화 단계만 실패하던 경우가 성공으로 바뀜) 접미사 없이 쓴다. 문구는 고정 문자열과 정수로만 만들며 원문·오류 메시지 문자열을 넣지 않는다.
 - The 안내 shall 마크다운 미리보기 오류 표시(`text-sm text-amber-500 italic`)와 같은 인상의 인라인 style(작은 글자, 호박색 `#F59E0B`, 기울임)을 쓴다.
 
 #### REQ-PREVIEW021-006: 원문 보존 (Unwanted)
 
-- The 변환 shall not 블록 밖의 바이트를 바꾼다. 블록 안쪽 교체와 실패 안내 삽입을 제외하면 입력과 출력의 나머지 바이트가 같다. 블록이 하나도 없으면 출력은 입력과 같은 문자열이다.
+- The 변환 shall not 다음 네 가지 외의 바이트를 바꾼다: (1) 성공 블록 안쪽 교체 (2) 성공 블록 시작 태그의 ` data-processed="true"` 삽입(REQ-004 b) (3) 실패 블록 바로 뒤 안내 삽입(REQ-005) (4) REQ-008 경로 (A)/(B)를 고른 경우의 글꼴 `<style>` 1개 삽입. 이 넷을 빼면 입력과 출력의 나머지 바이트가 같다. 그려진 블록·실패 블록이 하나도 없으면 출력은 입력과 같은 문자열이다.
 - The 변환 shall not 페이지의 `<script>` 태그(mermaid CDN 포함)를 지우거나 고친다.
 
 #### REQ-PREVIEW021-007: 동기 실행과 조립 시점 (Ubiquitous + Unwanted)
@@ -83,7 +85,7 @@ related_specs: [SPEC-PREVIEW-016, SPEC-PREVIEW-017, SPEC-PREVIEW-020, SPEC-SEC-0
 
 #### REQ-PREVIEW021-008: 다이어그램 글꼴 (Ubiquitous, M1 관문 결과에 따름)
 
-- The 선명 모드 문서 shall pele가 글자 폭을 잰 글꼴(`DIAGRAM_FONT_FAMILY` = Barlow, `DIAGRAM_FONT_FAMILY_MONO` = IBM Plex Mono)로 다이어그램 글자를 그릴 수 있어야 한다. 수단은 plan.md M1 관문에서 실기기 측정으로 정하며 다음 순서로 고른다: (A) 블록이 1개 이상 렌더된 문서에만, 앱 번들 글꼴의 절대 주소를 쓰는 `@font-face` `<style>` 1개를 문서 끝(`</body>` 앞, 없으면 맨 끝)에 넣는다 → (A)가 막히고 셸 CSP `font-src`가 `data:`를 허용하면(SPEC-SEC-002 병합 뒤) (B) 같은 조건·위치에서 woff2를 `data:` 주소로 넣는다 → 둘 다 안 되면 (C) 시스템 글꼴 대체를 받아들이고 §3 한계로 적는다. (C)는 코디네이터를 거친 사용자 확인 없이 고르지 않는다.
+- The 선명 모드 문서 shall pele가 글자 폭을 잰 글꼴(`DIAGRAM_FONT_FAMILY` = Barlow, `DIAGRAM_FONT_FAMILY_MONO` = IBM Plex Mono)로 다이어그램 글자를 그릴 수 있어야 한다. 수단은 plan.md M1 관문에서 실기기 측정으로 정하며 다음 순서로 고른다: (A) 블록이 1개 이상 렌더된 문서에만, 앱 번들 글꼴의 절대 주소를 쓰는 `@font-face` `<style data-mdedit-diagram-fonts="">` 1개를 가림 사본에서 어느 블록 안에도 있지 않은 마지막 `</body>` 바로 앞(없으면 문자열 끝)에 넣는다 → (A)가 막히고 셸 CSP `font-src`가 `data:`를 허용하면(SPEC-SEC-002 병합 뒤) (B) 같은 조건·위치에서 woff2를 `data:` 주소로 넣는다 → 둘 다 안 되면 (C) 시스템 글꼴 대체를 받아들이고 §3 한계로 적는다. (C)는 코디네이터를 거친 사용자 확인 없이 고르지 않는다.
 - The 글꼴 처리 shall not 이 SPEC에서 셸 CSP를 바꾸거나, 렌더된 다이어그램이 없는 문서에 글꼴을 넣는다.
 
 #### REQ-PREVIEW021-009: 보안 경계 (Unwanted)
@@ -117,6 +119,8 @@ related_specs: [SPEC-PREVIEW-016, SPEC-PREVIEW-017, SPEC-PREVIEW-020, SPEC-SEC-0
 5. 페이지 CSS가 `.mermaid`·`pre`에 준 스타일(배경·여백·`white-space`)은 그대로 적용된다(블록 요소를 유지하므로 mermaid 원본 라이브러리와 같은 구조).
 6. 블록 수에 상한을 두지 않는다. 블록이 아주 많은 문서는 렌더하는 동안 미리보기가 잠깐 멈출 수 있다(마크다운 미리보기와 같은 동기 방식).
 7. 다이어그램 내부 id는 `pd<N>` 접두사다. 페이지가 같은 id를 쓰면 충돌할 수 있다(가능성 낮음).
+8. 블록 안에 실제 태그로 쓴 글자(`A[<b>x</b>]`처럼 이스케이프하지 않은 마크업)는 버려진다. `<br>`만 `<br/>` 글자로 살린다. mermaid 원본 라이브러리는 안쪽 HTML을 그대로 넘기므로 이런 라벨은 결과가 다를 수 있다.
+9. 가림 대상 원문 텍스트 요소 목록(REQ-002) 밖의 특수 문맥(예: `<plaintext>`, SVG·MathML 안의 `<pre>`)은 고려하지 않는다.
 
 ## §4 REQ-AC 대응
 
