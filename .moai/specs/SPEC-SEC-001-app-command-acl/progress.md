@@ -112,6 +112,8 @@ implementation_kickoff: 승인됨(2026-11-09, 사용자 → 코디네이터 경�
 | macOS M-2b | 0180434 (tauri dev) | 링크1 → nav-b, 링크2 → nav-c(안내 후 meta refresh) → nav-b | undefined (두 경로 모두 probe nav-b, referrer "") | 호출 불가 | 호출 불가 | 호출 불가 |
 | Windows M-2b | 251b3e0~ | probe-nav-a.html → nav-b / nav-c | (대기) | (대기) | (대기) | (대기) |
 
+- M-3 macOS (2026-11-09, 사용자 실기기, 0180434 `tauri dev`): 편집·저장·미리보기·AI 기능 등 전 기능 정상 동작, 권한 거부 없음 → PASS. 릴리스 빌드 스모크와 Windows M-1·M-2·M-2b·M-3은 미수행.
+
 ## §E.3 Run-phase Audit-Ready Signal
 
 run_status: 구현 완료 / 수동 검증 대기 (자동 AC 8개 중 AC-001~AC-008 PASS, 수동 M-1·M-2·M-3 pending)
