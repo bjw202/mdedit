@@ -90,4 +90,4 @@ D-1 결정: 배포 빌드 앱의 Web Inspector가 열리지 않으면 `vite prev
 - 백로그 카드 t1: PR 본문에서 해소로 표기. `moai todo` 변경은 코디네이터가 한다.
 - 대기 중인 수동 확인: **M-1 (macOS)** — 위 절차. 병합 전 수행 권장.
 - Gap: 이미지 등 다른 자산의 인라인 수 전·후 비교 없음(단위 테스트로만 확인). Windows 실기기 미확인.
-- sync-audit: (아래에 기록)
+- sync-audit: **PASS 0.87** (Tier S 기준 0.75; Functionality 0.85 / Security 0.92 / Craft 0.85 / Consistency 0.88). 차단 결함 0건. 보고서 `.moai/reports/sync-audit/SPEC-SEC-002.md`(로컬, git 미추적). 반영: D-1(CHANGELOG "4,096B 미만"), D-5(이 줄). 미반영: D-2·D-4·D-6(선택/범위 밖), D-3(M-1 수동 확인 대기).
