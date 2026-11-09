@@ -42,6 +42,7 @@
     </script></body>
     ```
     macOS에서는 경로를 `/etc/hosts`로 바꾼다. `write_file`·`delete_file`은 탐침에 넣지 않는다(파괴적).
+  - 이동 탐침(M-2b용): 탐침 세트에 프레임 이동 탐침이 더해졌다. `probe-nav-a.html`은 asset 경로 HTML로, 링크 클릭과 `<meta http-equiv="refresh">` 두 방식으로 `probe-nav-b.html`(CSP 없는 asset 경로 HTML)로 이동시키고, `probe-nav-b.html`은 위 본문과 같은 방식으로 `read_file`·`ai_policy_status`·`plugin:dialog|message` 호출 결과와 `internals` 값을 화면에 쓴다. 두 파일은 untracked 디렉터리 `.moai/state/verify/sec-001-probe/`에 오케스트레이터가 만들며 저장소에 커밋하지 않는다(이 문서는 설명만 한다). 기준선(M0)에서는 이동 후에도 호출이 ok인지 기록하고, 적용 후(M2)에는 acceptance.md M-2b로 판정한다.
   - 기록: OS·빌드 SHA·`internals` 값·각 호출의 ok/err. 기준선에서 `read_file`이 ok면 위험 확정, 모두 err이거나 `internals`가 `undefined`면 위험 평가를 낮추고 코디네이터에게 보고(REQ-007).
 - **M1 — 매니페스트·capability·테스트 (TDD)**
   1. RED: `app_acl.rs` 테스트와 Vitest 계약 테스트를 먼저 쓰고 실패를 확인한다(`APP_COMMANDS` 없음).

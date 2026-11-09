@@ -9,7 +9,7 @@
 | REQ-SEC001-001 | AC-001 |
 | REQ-SEC001-002 | AC-002 |
 | REQ-SEC001-003 | AC-003 |
-| REQ-SEC001-004 | AC-004, M-2 |
+| REQ-SEC001-004 | AC-004, M-2, M-2b |
 | REQ-SEC001-005 | AC-005, M-3 |
 | REQ-SEC001-006 | AC-002, AC-006 |
 | REQ-SEC001-007 | M-1, M-2 |
@@ -85,6 +85,12 @@
 - When 같은 탐침을 Windows와 macOS에서 다시 열면
 - Then `read_file`·`ai_policy_status`·`plugin:dialog|message` 호출이 모두 err(거부)이거나 `internals`가 `undefined`다. ok가 하나라도 있으면 FAIL이며 run을 멈추고 보고한다.
 - 추가: `srcdoc` + `sandbox="allow-scripts"` 불투명 출처 프레임에서도 같은 호출을 시험해 거부를 확인한다(PREVIEW-019 전제 증거). 시험용 임시 HTML이며 저장소에 커밋하지 않는다. 이 항목에서 호출이 거부되지 않으면 SPEC-SEC-001 자체의 FAIL이 아니라(asset 출처 거부는 위 판정이 증명) PREVIEW-019 전제 미충족이다: run을 멈추지 말고 결과를 코디네이터에 보고해 PREVIEW-019 설계 재검토를 요청한다(spec.md R-6).
+- 추가(M-2b): 프레임 이동 후 재시험 — 아래 M-2b를 따로 수행한다.
+
+### M-2b: 프레임 이동 후 탐침 (REQ-004)
+- Given 매니페스트가 적용된 빌드와 plan.md §C M0의 이동 탐침(`probe-nav-a.html` → `probe-nav-b.html`). 두 파일은 모두 asset 경로 HTML이고 `probe-nav-b.html`에는 CSP가 없다. 배경: SPEC-PREVIEW-019 감사가 지적했듯, 미리보기 iframe이 링크 클릭이나 `<meta http-equiv="refresh">`로 CSP 없는 다른 asset 경로 HTML로 이동하면 그 문서의 스크립트가 Tauri 웹뷰 프레임 안에서 실행된다. 앱 명령 ACL이 마지막 방어선이므로 이동 뒤에도 거부가 유지되는지 확인한다.
+- When 미리보기에서 `probe-nav-a.html`을 열고, (1) 링크 클릭, (2) `<meta http-equiv="refresh">`로 각각 `probe-nav-b.html`로 이동한 뒤, 두 번째 문서에서 `window.__TAURI_INTERNALS__.invoke('read_file', …)`, `ai_policy_status`, `plugin:dialog|message`를 호출하면
+- Then 세 호출이 모두 err(거부)이거나 `__TAURI_INTERNALS__`가 `undefined`다. 이동 경로 두 가지 모두에서 확인하고, macOS와 Windows 각각 따로 기록한다(Windows 기기가 없으면 Windows 판정은 미검증 갭, R-7). ok가 하나라도 있으면 FAIL이며 M-2와 같은 "ok → stop" 규칙을 적용해 run을 멈추고 보고한다. 이 항목의 실패는 PREVIEW-019 전제 문제만이 아니라 SPEC-SEC-001 자체의 FAIL(asset 출처 거부 실패)이다. 탐침 파일은 저장소에 커밋하지 않는다.
 
 ### M-3: 전 기능 스모크 (REQ-005)
 - Given 매니페스트가 적용된 `tauri dev` 빌드와 릴리스 빌드(macOS 필수, Windows는 가능한 한)
