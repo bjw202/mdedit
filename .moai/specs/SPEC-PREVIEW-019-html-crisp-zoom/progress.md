@@ -102,3 +102,20 @@
 - Residual-risk: WKWebView/WebView2의 CSP 상속 차이(R2), 프레임 이동 뒤 CSP 없는 문서의 스크립트 실행(보안 경계 아님, 방어는 SEC-001 + M-6), 원본 보기에서 100% 초과 흐림(§7-1), quirks 모드 차이(한계 10).
 - 편차: (1) 원본 분기의 `convertFileSrc` 정규화를 선명 분기와 공유하려고 `toAssetUrl` 헬퍼로 뺐다(동작 동일, `sandbox` 속성 줄은 그대로). (2) 위 e2e 임시 설정. (3) RED 증거 없는 마일스톤 2개(M2·M5).
 
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+- sync 단계 독립 재검증(오케스트레이터 직접 실행, 이 트리, HEAD edee991 + 문서 변경): `npm run lint` 종료 0, `npx tsc --noEmit` 종료 0, `npx vitest run` 종료 0(`Test Files 116 passed`, `Tests 1924 passed`), `cargo test --manifest-path src-tauri/Cargo.toml` 종료 0(lib 367 passed, `tests/app_acl.rs` 3 passed). 로그: `.moai/state/verify/sync-019/`(gitignore).
+
+- sync_complete_at: 2026-11-09
+- sync_commit_sha: pending-backfill (the sync commit cannot name its own SHA; the orchestrator backfills after commit)
+- sync_status: docs written, SPEC frontmatter `status: in-progress -> implemented` (spec.md only; plan.md and acceptance.md carry no frontmatter)
+- 문서 목록: `CHANGELOG.md` [Unreleased] ### Added 항목 1건 / `docs/USER_MANUAL.md` 새 소절 4-4(HTML 파일 보기와 '원본 보기') / `README.md` 지원 파일 형식 표 `.html` 행에 토글 한 구절.
+- B12 자기 점검: (1) `grep -c 'SPEC-PREVIEW-019' CHANGELOG.md` 작성 전 0 (2) acceptance.md 고유 AC 식별자 `grep -oE 'AC-([A-Z0-9]+-)*[0-9]+' ... | sort -u | wc -l` = 25(비영); CHANGELOG는 AC 개별 나열 없이 AC-001~011 PASS / AC-012~015 대기로 기술 (3) CHANGELOG에 적은 경로(`index.html`, `src/store/uiStore.ts` 등)는 `git diff origin/main...HEAD --stat` 출력에 존재.
+- 상태 전환과 사유: `implemented`로 두고 `completed`로 올리지 않았다. AC-012~015(수동, macOS·Windows)가 미종결이기 때문이다. SEC-001이 a97d63c에서 한 것처럼 수동 확인이 닫힌 뒤 `completed`로 올린다.
+- 대기 중 수동 항목(OS별):
+  - macOS: AC-012 원본 보기와 나란히 놓은 스크린샷 파일 경로 기록(선명함 자체는 사용자가 100/150/200%에서 눈으로 확인함); AC-012 M-1 스크롤 유지(재로드 없음), AC-013 M-3 해시 링크·M-4 한계 관찰; AC-014 M-6 앱 명령 호출 거부(프레임 이동 뒤 포함); AC-015 실기기 CSP(인라인 스크립트 차단 포함).
+  - Windows: AC-012~015 전부 미수행.
+- 알려진 한계(후속): HTML 안의 mermaid 다이어그램은 선명 모드에서 페이지 스크립트가 막혀 그려지지 않고 앱 pele 팔레트도 쓰지 않음 -> 백로그 카드 t2.
+- SPEC-PREVIEW-018의 대기 중 수동 M-1·M-2·M-4·M-5는 '원본 보기'로 바꾼 상태에서 수행해야 한다.
+- Gaps: lint·tsc·vitest·cargo는 위 재검증으로 sync 단계에서 직접 다시 실행했다. Playwright e2e는 다시 실행하지 않았고 §E.2의 4건 통과를 인용했다. USER_MANUAL/README 문구를 실제 화면에서 확인하지 않았다. 커버리지 도구가 설치돼 있지 않아 측정하지 못했다.
