@@ -34,7 +34,7 @@ tier: M
 
 ### 이 SPEC이 해결하는 것 / 하지 않는 것
 
-- 해결: 앱 ACL 매니페스트를 도입하고 `main` capability(로컬 `main` 창)에만 앱 명령 26개를 허용한다. 그러면 `asset://` iframe·`srcdoc` 불투명 출처·기타 원격 출처 프레임이 보내는 앱 명령은 모두 ACL 단계에서 거부된다.
+- 해결: 앱 ACL 매니페스트를 도입하고 `main` capability(로컬 `main` 창)에만 앱 명령 26개를 허용한다. 그러면 `asset://` iframe과 기타 원격 출처 프레임이 보내는 앱 명령은 ACL 단계에서 거부된다(소스 판독 근거). `srcdoc` 불투명 출처 프레임도 거부될 것으로 기대하나 이는 실기기 전까지 가설이다(R-6).
 - 해결하지 않음: 로컬 출처로 분류되는 프레임(예: 사용자 정의 스킴을 `Builder`에 등록한 경우)의 호출은 `main` capability가 그대로 적용되므로 막지 못한다. 명령 내부의 경로 정책(`validate_path` 강화)도 이 SPEC 범위가 아니다(§ Out of Scope).
 - 후속 SPEC-PREVIEW-019(srcdoc 기반 선명한 배율)는 이 SPEC에 **의존한다**: 불투명 출처 iframe이 앱 명령을 호출하지 못한다는 조건이 이 SPEC 완료로 충족되어야 한다.
 
