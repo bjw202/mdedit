@@ -89,3 +89,46 @@
 ### 사용자 수동 확인 대기
 
 - M-0(배포 빌드·Windows 글꼴), M-1(그림 표시·색·원본 보기 대조), M-2(라벨 넘침 없음·150%·200% 선명도) — macOS와 Windows 각각. 배포나 Windows에서 글꼴이 막히면 run을 멈추고 보고한다.
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+```yaml
+sync_status: audit-ready
+sync_complete_at: 2026-11-09
+sync_commit_sha: pending-backfill
+spec_status_transition: in-progress -> implemented   # completed로 올리지 않음 (수동 확인 M-0/M-1/M-2 대기)
+changelog_entry_position: "[Unreleased] > ### Added (SPEC-PREVIEW-021 1건)"
+```
+
+### origin/main 병합
+
+- origin/main 8e5f1b8(SPEC-SEC-002, 카드 t1)을 이 브랜치에 병합했고 충돌은 없었다. 병합 커밋이 HEAD 2af2c2b이다. (위 갭 목록의 "병합 확인 안 함" 항목은 이 병합으로 해소됐다.)
+
+### 병합 후 게이트 재실행 (HEAD 2af2c2b)
+
+| 명령 | 종료 코드 | 결과 |
+|------|-----------|------|
+| `npm run typecheck` | 0 | 오류 없음 |
+| `npm run lint` | 0 | 경고·오류 없음 |
+| `npx vitest run --dir src` | 0 | 118 파일 / 2039 테스트 통과 |
+| `npx playwright test e2e/html-file-viewer.spec.ts` | 0 | 5건 통과 |
+
+위 값은 오케스트레이터가 병합 후 재실행해 전달한 결과이며, 이 sync 단계에서 manager-docs가 직접 다시 실행한 것은 아니다.
+
+### 이번 sync에서 바꾼 문서
+
+- `CHANGELOG.md`: `[Unreleased]`에 `### Added` 항목 1건 추가. 추가 전 `grep -c 'SPEC-PREVIEW-021' CHANGELOG.md`는 0이었고, 항목에 적은 변경 파일 5개는 `ls`로 존재를 확인했다.
+- `docs/USER_MANUAL.md`: §4-4 '선명 모드의 한계' 첫 글머리와 '이럴 때 원본 보기를 쓰세요'의 mermaid 예시를 새 동작에 맞게 수정.
+- `spec.md`: frontmatter `status: in-progress -> implemented`만 변경(`updated`는 이미 2026-11-09). 본문·HISTORY 불변.
+- `README.md`, `docs/USER_GUIDE.md`: 모순이 없어 수정하지 않음(README는 HTML 보기 방식만 서술, USER_GUIDE의 mermaid 절은 마크다운 안 코드 블록 설명).
+
+### 수동 확인 대기 (사용자, 0.21.0 초안 빌드 통합 세션)
+
+- M-0: 배포 빌드(`tauri://localhost`)와 Windows에서 글꼴 로드.
+- M-1: 색(`#FAF9F6`, 판단 노드 톤)과 그림을 원본 보기와 대조.
+- M-2: 라벨 넘침 없음, 150%·200% 선명도.
+- 규칙: 배포 빌드나 Windows에서 글꼴 확인이 실패하면 중단하고 보고한다.
+- M1 글꼴 관문은 macOS 개발 빌드에서 사용자의 화면 관찰로만 통과했고 `document.fonts.check`·네트워크 값은 없다.
+- 따라서 AC-PREVIEW021-010과 AC-PREVIEW021-012는 수동 확인 전까지 PARTIAL로 남는다.
+
+sync-audit verdict: pending (orchestrator fills in)
