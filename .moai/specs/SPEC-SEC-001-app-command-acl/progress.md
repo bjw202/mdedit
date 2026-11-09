@@ -108,11 +108,12 @@ implementation_kickoff: 승인됨(2026-11-09, 사용자 → 코디네이터 경�
 | macOS 기준선 | 26e669d | probe.html | (대기) | (대기) | (대기) | (대기) |
 | Windows 기준선 | 26e669d | probe.html | (대기) | (대기) | (대기) | (대기) |
 | macOS 적용 후 | 0180434 (tauri dev) | probe.html / probe-srcdoc.html | undefined (probe.html: platform MacIntel, href asset://localhost/…; srcdoc: frame srcdoc-opaque, origin "null") | 호출 불가(internals 없음) | 호출 불가 | 호출 불가 |
-| Windows 적용 후 | 251b3e0~ | probe.html / probe-srcdoc.html | (대기) | (대기) | (대기) | (대기) |
+| Windows 적용 후 | main 7302a2d | probe.html / probe-srcdoc.html | PASS(사용자 보고, 원문 JSON 미제출) | — | — | — |
 | macOS M-2b | 0180434 (tauri dev) | 링크1 → nav-b, 링크2 → nav-c(안내 후 meta refresh) → nav-b | undefined (두 경로 모두 probe nav-b, referrer "") | 호출 불가 | 호출 불가 | 호출 불가 |
-| Windows M-2b | 251b3e0~ | probe-nav-a.html → nav-b / nav-c | (대기) | (대기) | (대기) | (대기) |
+| Windows M-2b | main 7302a2d | probe-nav-a.html → nav-b / nav-c | PASS(사용자 보고, 원문 JSON 미제출) | — | — | — |
 
-- M-3 macOS (2026-11-09, 사용자 실기기, 0180434 `tauri dev`): 편집·저장·미리보기·AI 기능 등 전 기능 정상 동작, 권한 거부 없음 → PASS. 릴리스 빌드 스모크와 Windows M-1·M-2·M-2b·M-3은 미수행.
+- M-3 macOS (2026-11-09, 사용자 실기기, 0180434 `tauri dev`): 편집·저장·미리보기·AI 기능 등 전 기능 정상 동작, 권한 거부 없음 → PASS. 릴리스 빌드 스모크는 미수행.
+- Windows M-2·M-2b·M-3 (2026-11-09, 사용자 실기기): 사용자 보고 "윈도우에서도 문제 없다" → PASS. 증거는 구두 보고뿐(캡처·JSON 원문 없음). M-1 기준선(선택)은 미수행이라 "원래 노출돼 있었는지"는 미확인.
 
 ## §E.3 Run-phase Audit-Ready Signal
 
@@ -126,7 +127,7 @@ sync 진입 조건: R-7에 따라 Windows 판정이 없으면 SPEC은 implemente
 ## §E.4 Sync-phase Audit-Ready Signal
 
 ```yaml
-sync_status: implemented (completed 보류 — R-7, 수동 M-1·M-2·M-2b·M-3 대기)
+sync_status: completed (2026-11-09 — macOS·Windows 수동 M-2·M-2b·M-3 PASS; M-1 선택 항목·릴리스 빌드 스모크 미수행은 잔여 위험으로 남김)
 sync_complete_at: 2026-11-09
 files_touched:
   - CHANGELOG.md            # [Unreleased] ### Security 항목 추가
