@@ -1,7 +1,7 @@
 ---
 id: SPEC-SEC-002
 title: "KaTeX 글꼴 CSP 거부 해소 — 글꼴 자산을 data URI로 넣지 않기"
-version: "0.1.1"
+version: "0.1.2"
 status: draft
 created: 2026-11-09
 updated: 2026-11-09
@@ -20,6 +20,7 @@ tier: S
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.1.2 | 2026-11-09 | jw | plan-audit 2차(`.moai/reports/plan-audit/SPEC-SEC-002-review-2.md`, FAIL 0.80) 반영: D-11 node 환경 테스트를 위해 `src/test/setup.ts`의 `window`·`navigator` 블록 가드를 AC-001 선행 조건으로 추가, D-12 woff2 확인 시점을 수식 렌더 뒤로, D-13 `.woff` 판정을 끝 일치로. REQ/AC 번호 변경 없음. |
 | 0.1.1 | 2026-11-09 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-SEC-002-review-1.md`, FAIL 0.67) D-1~D-10 반영: AC-004 eslint 대상에서 `vite.config.ts` 제외, AC-001을 `resolveConfig` 방식으로(정적 import 제거), Out of Scope H3 제목, REQ-003·AC-003 경로에 `tauri.conf.json`·`HtmlFileViewer.tsx` 추가, AC-002 참조 일치를 `diff`로, REQ-001 예외 명시, 배경에 `load-only` 거부 반영, M-1 로드 확인을 resource timing으로, srcdoc 문구 정정. REQ/AC 번호 변경 없음. |
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 근거: 백로그 카드 t1, `.moai/specs/SPEC-PREVIEW-015-pele-renderer/m1/checks.md` M1b 5번. 두 해결안(CSP `font-src` 추가 / Vite 인라인 기준 조정) 비교 후 후자 채택. REQ 4 / AC 4 + 수동 1. |
 
@@ -83,6 +84,8 @@ The files that determine the effective policy of the app shell and of the previe
 - Given `vite.config.ts`가 `build.assetsInlineLimit`에 함수를 넘긴다.
 - When 새 테스트 `src/test/viteFontInline.test.ts`(맨 위 `// @vitest-environment node`)가 `vite.config.ts`를 정적 import하지 **않고** `import { resolveConfig } from 'vite'`로 `await resolveConfig({ configFile: path.resolve(process.cwd(), 'vite.config.ts') }, 'build')`를 불러, 결과의 `config.build.assetsInlineLimit`를 꺼내면
 - Then 그 값은 함수다(`typeof === 'function'` — 설정에 실제로 연결됐다는 증거). 함수에 `(경로, Buffer.alloc(10))`을 넣으면 `…/KaTeX_Size3-Regular.woff2`, `a.woff`, `a.ttf`, `a.otf`, `a.eot`, `a.woff2?v=1`, 대문자 `A.WOFF2` → `false`. `a.png`, `a.svg`, `a.css` → `undefined`(Vite 기본 4,096B 기준 적용).
+- 선행 조건 — 공용 설정 파일 가드: `vite.config.ts`의 `test.setupFiles`가 node 환경 테스트에서도 `src/test/setup.ts`를 먼저 실행하는데, `setup.ts:6`(`window.matchMedia`)과 `setup.ts:20`(`navigator.clipboard`)이 가드 없이 `window`·`navigator`를 쓴다. 그래서 그대로 두면 node 환경 테스트는 `ReferenceError: window is not defined`로 시작도 못 한다(2차 감사 D-11, `--environment node`로 재현). run 단계는 이 두 블록을 `if (typeof window !== 'undefined') { … }`로 감싼다(L31의 `Element` 블록이 이미 쓰는 방식과 같다). jsdom 환경에서는 동작이 바뀌지 않으며, 이는 AC-003의 jsdom 테스트 실행과 기존 테스트로 확인된다.
+- node 환경을 고른 이유: esbuild(설정 파일 번들링)는 jsdom 환경에서 `Uint8Array` 판정 문제로 실패하는 일이 알려져 있어(미측정), 설정 로딩 테스트는 node 환경이 안전하다.
 - 정적 import를 쓰지 않는 이유: `vite.config.ts`는 composite 프로젝트 `tsconfig.node.json`에 속해, `src/` 테스트가 정적으로 import하면 `npm run typecheck`(`tsconfig.json`)가 TS6305 류 오류를 낼 수 있다(1차 감사 D-2, 미재현).
 - 명령: `npx vitest run src/test/viteFontInline.test.ts` → PASS = 종료 코드 0. RED 증거: 함수가 없는 상태에서 먼저 실행해 실패 출력을 progress.md에 붙인다.
 
@@ -95,7 +98,7 @@ The files that determine the effective policy of the app shell and of the previe
 
 ### AC-003: CSP 무변경 (REQ-003)
 - `git diff --exit-code "$(git merge-base origin/main HEAD)" -- index.html src-tauri/tauri.conf.json src/lib/preview/htmlSrcdoc.ts src/components/preview/HtmlFileViewer.tsx src/test/htmlSrcdocCsp.test.ts` → PASS = 종료 코드 0
-- `npx vitest run src/test/htmlSrcdocCsp.test.ts` → PASS = 종료 코드 0(기준 집합 무수정 상태에서 통과)
+- `npx vitest run src/test/htmlSrcdocCsp.test.ts` → PASS = 종료 코드 0(기준 집합 무수정 상태에서 통과). 이 테스트는 jsdom 환경에서 돈다. 그래서 `setup.ts` 가드(AC-001 선행 조건)가 jsdom 쪽 설정을 깨지 않았는지도 함께 확인한다.
 
 ### AC-004: 정적 검사 (전체)
 - `npx tsc -p tsconfig.node.json --noEmit` → 종료 코드 0(`vite.config.ts`는 `tsconfig.json`이 아니라 이 설정에 속한다 — plan 단계에서 수정 전 기준 종료 코드 0 확인함)
@@ -106,7 +109,7 @@ The files that determine the effective policy of the app shell and of the previe
 - 문서에 `$$\bigg( \frac{a}{b} \bigg)$$`(KaTeX는 `\bigg`에 Size3 글꼴을 쓴다)를 넣고 미리보기를 연다.
 - (a) 개발 모드 `npm run dev`, (b) 배포 빌드 앱(`npm run build` 산출물)에서 각각 Web Inspector 콘솔을 본다. 배포 빌드 앱의 Web Inspector는 Tauri `devtools` 기능 없이는 열리지 않을 수 있다. 그때는 (b)를 `npx vite preview`(같은 `dist/`, 같은 메타 CSP)를 Safari로 여는 것으로 대신하고 그렇게 했다고 적는다.
 - 콘솔은 두 시점에 기록한다: (i) 앱을 불러온 직후(수식 렌더 전 — M1b `load-only`에서도 거부가 있었다), (ii) 위 수식을 렌더한 뒤.
-- PASS = 수정 후 두 경우·두 시점 모두 `Refused to load the font` 류 CSP 메시지 0건, 그리고 Network 탭 또는 콘솔에서 `performance.getEntriesByType('resource').filter(e => e.name.includes('KaTeX_Size3')).map(e => e.name)`를 실행한 결과에 `.woff2`가 있고 `.woff` 대체 로드가 없음(`document.fonts`는 어느 파일이 로드됐는지 알려주지 않으므로 쓰지 않는다). 수정 전 같은 절차의 결과도 적는다(개발 모드는 전·후 모두 0건일 수 있음, R-3).
+- PASS = 수정 후 두 경우·두 시점(i·ii) 모두 `Refused to load the font` 류 CSP 메시지 0건. 그리고 **(ii) 수식 렌더 뒤에** Network 탭 또는 콘솔에서 `performance.getEntriesByType('resource').map(e => e.name).filter(n => n.includes('KaTeX_Size3'))`를 실행하면, `.woff2`로 끝나는 항목이 1개 이상이고 `.woff`로 끝나는 항목(`/\.woff$/`, `.woff2`는 해당 없음)은 0개다. 렌더 전에는 글꼴을 아직 받지 않았을 수 있으므로 이 확인은 렌더 뒤에만 한다. `document.fonts`는 어느 파일이 로드됐는지 알려주지 않으므로 쓰지 않는다. 수정 전 같은 절차의 결과도 적는다(개발 모드는 전·후 모두 0건일 수 있음, R-3).
 - Windows는 같은 빌드 산출물을 쓰므로 AC-002로 갈음한다(WebView2에서 별도 확인하지 않음 — 잔여 위험으로 기록).
 
 ## Exclusions (Out of Scope)
