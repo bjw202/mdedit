@@ -1,8 +1,8 @@
 ---
 id: SPEC-PREVIEW-020
 title: "HTML 미리보기 OS별 기본 렌더 모드 — Windows는 원본 보기, macOS는 선명 모드"
-version: "0.1.2"
-status: implemented
+version: "0.1.3"
+status: completed
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)
@@ -25,6 +25,7 @@ related_specs: [SPEC-PREVIEW-018, SPEC-PREVIEW-019]
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 계기: 사용자가 v0.20.0 Windows 릴리스 빌드에서 확인한 두 가지(2026-11-09). (1) 원본 보기(asset iframe + transform 배율)가 Windows(WebView2/Chromium)에서는 확대해도 충분히 선명하다. macOS(WKWebView)에서는 100% 초과 시 흐리다. (2) 선명 모드는 페이지 자체 스크립트를 막으므로 HTML 안의 Mermaid가 그림이 아니라 텍스트로 보인다. 사용자 결정(구속): OS별 기본값 — Windows는 `'original'`, macOS는 `'crisp'`. 토글은 유지한다. 사용자가 명시적으로 고른 값(영속)이 항상 이기고, OS 기본값은 고른 적이 없을 때만 적용한다. Linux는 `'crisp'`(가정). 이 SPEC은 SPEC-PREVIEW-019 REQ-PREVIEW019-001의 기본값 조항을 부분 개정한다(§5). Mermaid 사전 렌더(백로그 t2)와 스크립트 페이지 자동 원본 전환은 범위 밖이다. |
 | 0.1.1 | 2026-11-09 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-PREVIEW-020-review-1.md`, PASS 0.82) 결함 D1~D10 반영. 요구·수용 기준의 의미는 바꾸지 않았다. (D1) §5 "세 단위 테스트"를 구체 목록으로 바꾸고 `src/test/uiStore.test.ts`를 갱신 대상에 추가. (D2) §7-4의 열린 질문을 SPEC-SEC-001 증거로 대체하고 `depends_on: [SPEC-SEC-001]` 추가. (D3) e2e에는 v1 저장소 마이그레이션 사례가 없고 마이그레이션은 단위 테스트가 전담함을 명시. (D4) 사용자 기반 서술을 미측정 가정으로 고치고 조용한 선택 소실을 비용으로 명시. (D5) AC-001·002의 항진 문장 제거, 영속화 유발 방법을 명시. (D7) AC-007의 diff 범위에 import 줄 포함. (D8) REQ-001 첫 문장 재작성. |
 | 0.1.2 | 2026-11-09 | jw | 사용자 결정(구속, 2026-11-09): 열린 질문 3(토글 툴팁 불일치)을 이 SPEC에서 해결한다. REQ-PREVIEW020-008 신설 — 토글 `title`이 현재 OS의 기본 모드를 말하고, 100% 초과 흐림 경고는 기본이 선명 모드인 OS(macOS·Linux)에만 남기며 Windows에서는 뺀다. REQ-007에서 "토글 `title` 문구 불변" 조항을 걷어내고 툴팁을 의도한 유일한 문구 변경으로 바꿨다. AC-006에 툴팁 검증(정확한 부분 문자열, 순수 헬퍼 단위 표)을 합치고 AC-007의 Header.tsx diff 허용 범위를 토글 상태·핸들러·`title` 식으로 넓혔다. §6 "UI 문구" 제외 항목과 §7-3을 해소로 고쳤다. 소스 파일 수(4개)와 AC 수(8건)는 그대로다. 개정 범위는 이 한 가지이며 재감사는 하지 않았다. |
+| 0.1.3 | 2026-11-09 | jw | v0.21.0 초안 빌드(f14fa99) 수동 확인 후 사용자 결정으로 종결(status implemented → completed). 확인 결과와 갭은 progress.md 참조. |
 
 ## §1 Overview
 
