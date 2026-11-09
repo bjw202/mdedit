@@ -34,7 +34,10 @@ fn fixture_byte_layout_is_intact() {
         ("euckr-meta", EUCKR_META),
         ("euckr-no-meta", EUCKR_NO_META),
     ] {
-        assert!(std::str::from_utf8(body).is_err(), "{name}: UTF-8로 읽히면 안 됨");
+        assert!(
+            std::str::from_utf8(body).is_err(),
+            "{name}: UTF-8로 읽히면 안 됨"
+        );
     }
     assert!(UTF8_BOM.starts_with(&[0xEF, 0xBB, 0xBF]));
     assert!(UTF16LE_BOM.starts_with(&[0xFF, 0xFE]));
@@ -48,13 +51,20 @@ fn utf8_html_gets_charset() {
         ("utf8-bom", UTF8_BOM),
         ("empty", &b""[..]),
     ] {
-        assert_eq!(html_content_type("text/html", Some(body)), UTF8_HTML, "{name}");
+        assert_eq!(
+            html_content_type("text/html", Some(body)),
+            UTF8_HTML,
+            "{name}"
+        );
     }
 }
 
 #[test]
 fn mime_essence_match_is_case_insensitive() {
-    assert_eq!(html_content_type("TEXT/HTML", Some(UTF8_NO_META)), UTF8_HTML);
+    assert_eq!(
+        html_content_type("TEXT/HTML", Some(UTF8_NO_META)),
+        UTF8_HTML
+    );
 }
 
 #[test]
@@ -65,7 +75,11 @@ fn non_utf8_html_is_left_alone() {
         ("euckr-no-meta", EUCKR_NO_META),
         ("utf16le-bom", UTF16LE_BOM),
     ] {
-        assert_eq!(html_content_type("text/html", Some(body)), "text/html", "{name}");
+        assert_eq!(
+            html_content_type("text/html", Some(body)),
+            "text/html",
+            "{name}"
+        );
     }
 }
 
@@ -73,8 +87,14 @@ fn non_utf8_html_is_left_alone() {
 /// (호출 쪽이 파일 전체를 넘겨야 하는 근거)
 #[test]
 fn prefix_only_judgement_would_be_wrong() {
-    assert_eq!(html_content_type("text/html", Some(&EUCKR_TAIL[..8192])), UTF8_HTML);
-    assert_eq!(html_content_type("text/html", Some(EUCKR_TAIL)), "text/html");
+    assert_eq!(
+        html_content_type("text/html", Some(&EUCKR_TAIL[..8192])),
+        UTF8_HTML
+    );
+    assert_eq!(
+        html_content_type("text/html", Some(EUCKR_TAIL)),
+        "text/html"
+    );
 }
 
 #[test]
@@ -117,7 +137,9 @@ fn vendored_tauri_tracks_patched_baseline() {
          vendor 사본을 다시 맞추고 이 상수를 고칠 것"
     );
     assert!(
-        !block.lines().any(|l| l.trim_start().starts_with("source =")),
+        !block
+            .lines()
+            .any(|l| l.trim_start().starts_with("source =")),
         "tauri가 레지스트리에서 빌드됨(패치 미적용). src-tauri/Cargo.toml의 \
          [patch.crates-io]를 확인할 것. 절차: \
          .moai/specs/SPEC-PREVIEW-022-html-original-charset/research.md §6"
