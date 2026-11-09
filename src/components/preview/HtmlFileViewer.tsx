@@ -38,7 +38,7 @@ function toAssetUrl(htmlPath: string): string {
 /**
  * HTML 파일 미리보기. 렌더 모드(htmlRenderMode)에 따라 분기한다 (SPEC-PREVIEW-019).
  * - 'original': asset iframe + 감싸개 transform 배율 (SPEC-PREVIEW-004/018 동작 그대로)
- * - 'crisp'(기본): 파일을 읽어 srcdoc iframe으로 렌더, 배율은 문서 자체 zoom
+ * - 'crisp'(macOS·Linux 기본): 파일을 읽어 srcdoc iframe으로 렌더, 배율은 문서 자체 zoom
  */
 export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   const mode = useUIStore((state) => state.htmlRenderMode);

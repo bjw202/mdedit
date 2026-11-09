@@ -241,7 +241,7 @@ export function Header({
         <ImageModeToggle />
         <span className="md-vdiv" />
         {isHtmlView && (
-          // 선명 모드(기본)와 원본 보기 전환 (SPEC-PREVIEW-019). 선택은 전역 영속(htmlRenderMode).
+          // 선명 모드와 원본 보기 전환, 기본값은 OS별 (SPEC-PREVIEW-019·020). 선택은 전역 영속(htmlRenderMode).
           <>
             <div className="md-seg" role="group" aria-label="HTML 렌더 모드">
               <button

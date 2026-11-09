@@ -70,4 +70,7 @@ _<pending run-phase>_
 M-1 Windows 새 프로필(원본 열림·토글 눌림·Mermaid 그림 표시), M-2 macOS 새 프로필(선명 모드 기본), M-3 두 OS에서 명시 선택 영속(재시작), M-4 두 OS 업그레이드 경로(v1 저장소 심기).
 
 ### sync-auditor 판정
-_<기록 예정>_
+- 판정: **PASS-WITH-DEBT**, 종합 88.2 (Functionality 92 / Security 88 / Craft 86 / Consistency 82), 차단 결함 없음. 보고서: `.moai/reports/sync-audit/SPEC-PREVIEW-020.md`(추적 안 함).
+- 감사자 자체 관찰: 대상 테스트 7파일 189건 통과, 제외 없는 `npx vitest run` 117 파일·1991 테스트 통과, typecheck·lint exit 0, e2e 4건 통과, 12가지 주입 회귀를 기존 테스트가 모두 잡음.
+- 결함 처리: F1(매뉴얼이 Windows 선명도·해당 없음을 사실처럼 서술 — M-1 대기 중) 문구를 "사용자 관찰, 정식 확인 전"으로 수정. F2(옛 기본값 주석 4곳) 수정. F4(CHANGELOG의 stale 제외 문구) 삭제. F3(AC-007 문구)은 위 결정대로 유지. F5(기존 merge의 문자열 persisted 처리, 가설)·F6(타입 합집합 중복, 순환 import 회피 추정)은 범위 밖으로 두었다.
+- 잔여 위험: 실기기 렌더·플랫폼 문자열·롤백 경로 미관찰, Windows 기본이 원본 보기(`allow-scripts allow-same-origin`)가 되므로 SPEC-SEC-001의 Windows 증거(사용자 보고, 캡처 없음)에 의존.

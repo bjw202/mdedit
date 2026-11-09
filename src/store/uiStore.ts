@@ -43,7 +43,7 @@ interface UIState {
    * fontSize와 독립이다. 영속화 대상.
    */
   htmlZoom: number;
-  /** HTML 미리보기 렌더 모드 — 모든 HTML 파일에 공통, 영속 (SPEC-PREVIEW-019). */
+  /** HTML 미리보기 렌더 모드 — 모든 HTML 파일에 공통, 영속. null은 고르지 않음(OS 기본값 따름) (SPEC-PREVIEW-019·020). */
   htmlRenderMode: HtmlRenderMode | null;
   sidebarCollapsed: boolean;
   /** Current file save status */
@@ -116,7 +116,7 @@ interface UIState {
   stepHtmlZoom: (dir: 'in' | 'out') => void;
   /** HTML 배율을 100으로 되돌린다 (SPEC-PREVIEW-018). */
   resetHtmlZoom: () => void;
-  /** HTML 렌더 모드를 설정한다. 허용 밖 값은 'crisp' (SPEC-PREVIEW-019). */
+  /** HTML 렌더 모드를 설정한다. null(고르지 않음)과 허용 밖 값은 null이며 OS 기본값을 따른다 (SPEC-PREVIEW-020). */
   setHtmlRenderMode: (mode: HtmlRenderMode | null) => void;
 }
 
