@@ -142,3 +142,11 @@ test result: FAILED. 0 passed; 1 failed   exit=101
 ### vendor 유지 규칙 (계획안 X)
 
 - 출처: `research.md` §6 "상류 재동기화 규칙". tauri를 올릴 때 (0) 새 버전 `asset.rs`가 charset을 붙이는지 `grep -n charset`으로 먼저 확인하고, 붙이면 패치·`[patch.crates-io]`·vendor 디렉터리 제거를 먼저 검토한다. (1) 새 레지스트리 소스를 `src-tauri/vendor/tauri/`에 숨김 파일까지 `cp -R`로 다시 복사한다. (2) 패치(`asset.rs` 헤더 결정부, `asset/charset.rs`)를 다시 적용한다. (3) 바뀐 `asset.rs`가 REQ-004~006을 여전히 만족하는지 읽고 확인한다. (4) `src-tauri/tests/asset_charset.rs`의 기준 버전 상수를 고친다(REQ-010 가드가 그 전까지 실패한다). (5) `cargo build` 뒤 `diff -rq`가 AC-004 허용 목록과 같은지 확인한다. (6) 실기기 확인(AC-009·011)을 다시 한다.
+
+## 수동 확인 결과 (v0.21.0 초안 빌드)
+
+- 일시·빌드: 2026-11-09, v0.21.0 초안 빌드(f14fa99). 결과는 사용자 보고이며 캡처는 대화에만 있다.
+- M-1 재현은 위에 기록됨(macOS 0.19.0 깨짐, characterSet EUC-KR).
+- 수정 빌드: utf8-no-meta.html의 한글이 원본 보기에서 정상 표시(사용자 보고).
+- AC-011 보안 탐침, macOS 0.21.0: 3개 화면 모두 PASS(probe.html, link1→probe-nav-b, link2→probe-nav-c meta refresh→probe-nav-b). 각 화면 "PASS: no __TAURI_INTERNALS__", href는 asset://localhost/..., __TAURI_INTERNALS__ undefined.
+- 갭: Windows 탐침 미실행(사용자가 macOS 결과로 게시 결정). euckr-meta.html 수정 빌드 결과와 빌드 식별자 미기록.
