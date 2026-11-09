@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useUIStore } from '@/store/uiStore';
 import { readFile, readFileSize } from '@/lib/tauri/ipc';
+import { detectPlatform, resolveHtmlRenderMode } from '@/lib/preview/htmlZoom';
 import {
   FRAME_ZOOM_MESSAGE_TYPE,
   HTML_CRISP_MAX_BYTES,
@@ -37,11 +38,11 @@ function toAssetUrl(htmlPath: string): string {
 /**
  * HTML 파일 미리보기. 렌더 모드(htmlRenderMode)에 따라 분기한다 (SPEC-PREVIEW-019).
  * - 'original': asset iframe + 감싸개 transform 배율 (SPEC-PREVIEW-004/018 동작 그대로)
- * - 'crisp'(기본): 파일을 읽어 srcdoc iframe으로 렌더, 배율은 문서 자체 zoom
+ * - 'crisp'(macOS·Linux 기본): 파일을 읽어 srcdoc iframe으로 렌더, 배율은 문서 자체 zoom
  */
 export function HtmlFileViewer({ htmlPath }: HtmlFileViewerProps): JSX.Element {
   const mode = useUIStore((state) => state.htmlRenderMode);
-  return mode === 'original' ? (
+  return resolveHtmlRenderMode(mode, detectPlatform()) === 'original' ? (
     <OriginalHtmlView htmlPath={htmlPath} />
   ) : (
     <CrispHtmlView htmlPath={htmlPath} />

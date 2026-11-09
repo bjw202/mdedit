@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { HTML_ZOOM_DEFAULT, snapToStep, stepUp, stepDown } from '@/lib/preview/htmlZoom';
 
 // @MX:ANCHOR: [AUTO] useUIStore - persisted UI state store consumed by AppLayout, Header, ResizablePanels, Footer, useTheme, ViewModeToggle
-// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode, statusMessage, htmlZoom); fan_in >= 5; SPEC-UI-004 viewMode 추가, SPEC-UI-005 statusMessage 추가, SPEC-PREVIEW-018 htmlZoom 추가, SPEC-PREVIEW-019 htmlRenderMode 추가
+// @MX:REASON: [AUTO] Public API boundary for all UI state (theme, sidebar, panels, save status, viewMode, statusMessage, htmlZoom); fan_in >= 5; SPEC-UI-004 viewMode 추가, SPEC-UI-005 statusMessage 추가, SPEC-PREVIEW-018 htmlZoom 추가, SPEC-PREVIEW-019 htmlRenderMode 추가, SPEC-PREVIEW-020 htmlRenderMode null(미선택)·영속 버전 2
 // @MX:SPEC: SPEC-UI-004
 // @MX:NOTE: Theme type union for type-safe theme selection
 export type Theme = 'light' | 'dark' | 'system';
@@ -22,9 +22,9 @@ export type ViewMode = 'split' | 'editor' | 'preview';
 // HTML 미리보기 렌더 모드: 'crisp'(srcdoc, 선명한 확대) | 'original'(asset iframe, 018 동작) (SPEC-PREVIEW-019)
 export type HtmlRenderMode = 'crisp' | 'original';
 
-/** 허용 밖 값은 기본값 'crisp'으로 정규화한다. */
-function normalizeHtmlRenderMode(v: unknown): HtmlRenderMode {
-  return v === 'original' ? 'original' : 'crisp';
+/** 'crisp'·'original'만 통과시키고 나머지는 null(고르지 않음)로 정규화한다 (SPEC-PREVIEW-020). */
+function normalizeHtmlRenderMode(v: unknown): HtmlRenderMode | null {
+  return v === 'crisp' || v === 'original' ? v : null;
 }
 
 // @MX:NOTE: [AUTO] statusMessage auto-clear 타이머를 보관하는 module-level ref (SPEC-UI-005).
@@ -43,8 +43,8 @@ interface UIState {
    * fontSize와 독립이다. 영속화 대상.
    */
   htmlZoom: number;
-  /** HTML 미리보기 렌더 모드 — 모든 HTML 파일에 공통, 영속 (SPEC-PREVIEW-019). */
-  htmlRenderMode: HtmlRenderMode;
+  /** HTML 미리보기 렌더 모드 — 모든 HTML 파일에 공통, 영속. null은 고르지 않음(OS 기본값 따름) (SPEC-PREVIEW-019·020). */
+  htmlRenderMode: HtmlRenderMode | null;
   sidebarCollapsed: boolean;
   /** Current file save status */
   saveStatus: SaveStatus;
@@ -116,8 +116,8 @@ interface UIState {
   stepHtmlZoom: (dir: 'in' | 'out') => void;
   /** HTML 배율을 100으로 되돌린다 (SPEC-PREVIEW-018). */
   resetHtmlZoom: () => void;
-  /** HTML 렌더 모드를 설정한다. 허용 밖 값은 'crisp' (SPEC-PREVIEW-019). */
-  setHtmlRenderMode: (mode: HtmlRenderMode) => void;
+  /** HTML 렌더 모드를 설정한다. null(고르지 않음)과 허용 밖 값은 null이며 OS 기본값을 따른다 (SPEC-PREVIEW-020). */
+  setHtmlRenderMode: (mode: HtmlRenderMode | null) => void;
 }
 
 // @MX:NOTE: [AUTO] sidebarWidth clamped to [180, 600]px; previewWidth 는 퍼센트로 저장하되 방어적
@@ -134,7 +134,7 @@ export const useUIStore = create<UIState>()(
       theme: 'system',
       fontSize: 14,
       htmlZoom: HTML_ZOOM_DEFAULT,
-      htmlRenderMode: 'crisp',
+      htmlRenderMode: null,
       sidebarCollapsed: false,
       saveStatus: 'new',
       scrollSyncEnabled: true,
@@ -197,7 +197,7 @@ export const useUIStore = create<UIState>()(
           htmlZoom: dir === 'in' ? stepUp(state.htmlZoom) : stepDown(state.htmlZoom),
         })),
       resetHtmlZoom: () => set({ htmlZoom: HTML_ZOOM_DEFAULT }),
-      setHtmlRenderMode: (mode: HtmlRenderMode) =>
+      setHtmlRenderMode: (mode: HtmlRenderMode | null) =>
         set({ htmlRenderMode: normalizeHtmlRenderMode(mode) }),
     }),
     {
@@ -206,7 +206,7 @@ export const useUIStore = create<UIState>()(
       //   가드 판정은 editorStore.dirty만 읽는다(REQ-007). 영속화하면 앱 재시작 시 stale
       //   'unsaved'가 빈 버퍼에 복원되어 결함 B가 해소되지 않는다.
       //   statusMessage도 트랜지언트(SPEC-UI-005)이므로 함께 제외.
-      version: 1,
+      version: 2,
       partialize: (state) => {
         const { statusMessage, saveStatus, ...rest } = state;
         return rest;
@@ -220,19 +220,28 @@ export const useUIStore = create<UIState>()(
           ...currentState,
           ...persisted,
           htmlZoom: snapToStep(persisted.htmlZoom),
-          // SPEC-PREVIEW-019: 필드 없음·허용 밖 값은 'crisp'으로 정규화(version 범프 불필요).
+          // SPEC-PREVIEW-020: 필드 없음·null·허용 밖 값은 null(고르지 않음)로 둔다. 'crisp'으로 바꾸지 않는다.
           htmlRenderMode: normalizeHtmlRenderMode(persisted.htmlRenderMode),
         };
       },
       // V2(SPEC-FS-003): version 0→1 마이그레이션. 기존 사용자 localStorage에 잔류한 stale
       //   saveStatus를 제거한다(나머지 환경설정 보존). version 미지정(0) 상태에서 범프.
+      // @MX:NOTE: SPEC-PREVIEW-020 version 1→2 마이그레이션. v0.20.0 이하는 기본값 'crisp'까지 포함해
+      //   htmlRenderMode 전체를 저장했으므로 저장된 'crisp'은 "직접 골랐다"와 "기본값이 저장됐다"를
+      //   구별할 수 없다 → 버리고 null(OS 기본값 따름)로 되돌린다. 저장된 'original'은 기본값이
+      //   'crisp'이던 시절 토글로만 생길 수 있으므로 명시 선택으로 보고 보존한다.
       migrate: (persistedState, version) => {
-        if (version < 1 && persistedState && typeof persistedState === 'object') {
-          const { saveStatus: _drop, ...rest } = persistedState as Record<string, unknown>;
+        if (!persistedState || typeof persistedState !== 'object') return persistedState;
+        let state = persistedState as Record<string, unknown>;
+        if (version < 1) {
+          const { saveStatus: _drop, ...rest } = state;
           void _drop;
-          return rest;
+          state = rest;
         }
-        return persistedState;
+        if (version < 2) {
+          state = { ...state, htmlRenderMode: state.htmlRenderMode === 'original' ? 'original' : null };
+        }
+        return state;
       },
     }
   )

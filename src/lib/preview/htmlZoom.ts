@@ -39,6 +39,27 @@ export function isMacPlatform(platform: string): boolean {
   return /mac/i.test(platform);
 }
 
+/** OS별 기본 HTML 렌더 모드. Windows만 'original', 나머지는 'crisp' (SPEC-PREVIEW-020). */
+export function defaultHtmlRenderMode(platform: string): 'crisp' | 'original' {
+  // 앞 고정 필수: 고정하지 않은 /win/i는 "Darwin"에 맞아 macOS를 Windows로 오판한다.
+  return /^win/i.test(platform) ? 'original' : 'crisp';
+}
+
+/** 고른 값이 있으면 그 값, 없으면(null) OS 기본값. 순수 함수 — navigator를 읽지 않는다. */
+export function resolveHtmlRenderMode(
+  choice: 'crisp' | 'original' | null,
+  platform: string
+): 'crisp' | 'original' {
+  return choice ?? defaultHtmlRenderMode(platform);
+}
+
+/** 렌더 모드 토글 툴팁. 플랫폼 문자열만의 순수 함수 — 저장된 선택에 따라 달라지지 않는다 (REQ-008). */
+export function htmlRenderToggleTitle(platform: string): string {
+  return defaultHtmlRenderMode(platform) === 'original'
+    ? '원본 보기 — 이 기기의 기본은 원본 보기입니다. 선명 모드로 바꾸면 페이지 자체 스크립트와 외부 리소스(CDN 등)가 동작하지 않습니다.'
+    : '원본 보기 — 이 기기의 기본은 선명 모드입니다. 선명 모드에서는 페이지 자체 스크립트와 외부 리소스(CDN 등)가 동작하지 않습니다. 필요한 페이지는 원본 보기를 사용하세요. (원본 보기에서는 100% 초과 확대가 흐릿합니다.)';
+}
+
 /** 현재 실행 환경의 플랫폼 문자열(userAgentData 우선). */
 export function detectPlatform(): string {
   if (typeof navigator === 'undefined') return '';

@@ -1,5 +1,5 @@
 // htmlZoom 순수 함수 단위 테스트 — SPEC-PREVIEW-018 (AC-002, AC-004 일부, AC-006 일부)
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   HTML_ZOOM_STEPS,
   HTML_ZOOM_DEFAULT,
@@ -8,6 +8,9 @@ import {
   snapToStep,
   isMacPlatform,
   matchZoomShortcut,
+  defaultHtmlRenderMode,
+  resolveHtmlRenderMode,
+  htmlRenderToggleTitle,
 } from '@/lib/preview/htmlZoom';
 
 describe('htmlZoom 단계 목록', () => {
@@ -94,5 +97,89 @@ describe('matchZoomShortcut', () => {
 
   it('조합 입력 중이면 null이다', () => {
     expect(matchZoomShortcut(key({ key: '=', metaKey: true, isComposing: true }), true)).toBeNull();
+  });
+});
+
+// ---- SPEC-PREVIEW-020: OS별 기본 렌더 모드 (AC-001) ----
+
+const PLATFORM_TABLE: Array<[string, 'crisp' | 'original']> = [
+  ['Win32', 'original'],
+  ['Windows', 'original'],
+  ['win32', 'original'],
+  ['MacIntel', 'crisp'],
+  ['macOS', 'crisp'],
+  ['Darwin', 'crisp'], // 앞 고정 패턴 회귀 가드: 고정하지 않은 /win/i는 "Darwin"에 맞는다
+  ['Linux x86_64', 'crisp'],
+  ['Linux', 'crisp'],
+  ['', 'crisp'],
+  ['iPhone', 'crisp'],
+];
+
+describe('defaultHtmlRenderMode (SPEC-PREVIEW-020 REQ-002)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(PLATFORM_TABLE)('플랫폼 %j 의 기본값은 %s 이다', (platform, expected) => {
+    expect(defaultHtmlRenderMode(platform)).toBe(expected);
+  });
+
+  it('navigator를 읽지 않는다 — 인자만 결과를 정한다', () => {
+    const spy = vi.spyOn(navigator, 'platform', 'get');
+    for (const [platform] of PLATFORM_TABLE) defaultHtmlRenderMode(platform);
+    expect(spy).toHaveBeenCalledTimes(0);
+
+    spy.mockReturnValue('Win32');
+    expect(defaultHtmlRenderMode('MacIntel')).toBe('crisp');
+    spy.mockReturnValue('MacIntel');
+    expect(defaultHtmlRenderMode('Win32')).toBe('original');
+    expect(spy).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('resolveHtmlRenderMode (SPEC-PREVIEW-020 REQ-002)', () => {
+  it.each([
+    [null, 'Win32', 'original'],
+    [null, 'MacIntel', 'crisp'],
+    [null, '', 'crisp'],
+    ['crisp', 'Win32', 'crisp'],
+    ['original', 'MacIntel', 'original'],
+    ['original', 'Win32', 'original'],
+    ['crisp', 'MacIntel', 'crisp'],
+  ] as const)('(%j, %j) -> %s', (choice, platform, expected) => {
+    expect(resolveHtmlRenderMode(choice, platform)).toBe(expected);
+  });
+});
+
+// ---- SPEC-PREVIEW-020: 토글 툴팁 (AC-006, REQ-008) ----
+
+describe('htmlRenderToggleTitle (SPEC-PREVIEW-020 REQ-008)', () => {
+  const COMMON = ['스크립트', '외부', '원본 보기'];
+
+  it.each(['Win32', 'Windows', 'win32'])('Windows 계열 %j: 기본이 원본 보기임을 말하고 흐림 경고는 없다', (platform) => {
+    const t = htmlRenderToggleTitle(platform);
+    for (const part of [...COMMON, '이 기기의 기본은 원본 보기입니다']) expect(t).toContain(part);
+    expect(t).not.toContain('흐릿');
+    expect(t).not.toContain('선명 모드(기본)');
+  });
+
+  it.each(['MacIntel', 'macOS', 'Darwin', 'Linux x86_64', 'Linux', ''])(
+    '비Windows %j: 기본이 선명 모드임을 말하고 100% 초과 흐림 경고를 담는다',
+    (platform) => {
+      const t = htmlRenderToggleTitle(platform);
+      for (const part of [
+        ...COMMON,
+        '이 기기의 기본은 선명 모드입니다',
+        '원본 보기에서는 100% 초과 확대가 흐릿합니다',
+      ])
+        expect(t).toContain(part);
+      expect(t).not.toContain('이 기기의 기본은 원본 보기입니다');
+      expect(t).not.toContain('선명 모드(기본)');
+    }
+  );
+
+  it('navigator를 읽지 않는다', () => {
+    const spy = vi.spyOn(navigator, 'platform', 'get');
+    for (const [platform] of PLATFORM_TABLE) htmlRenderToggleTitle(platform);
+    expect(spy).toHaveBeenCalledTimes(0);
+    vi.restoreAllMocks();
   });
 });

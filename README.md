@@ -50,7 +50,7 @@ mdedit의 AI는 로컬에 설치된 **Claude Code CLI(`claude`)** 또는 **codex
 | 확장자 | 열리는 방식 |
 | --- | --- |
 | `.md`, `.markdown` | 마크다운 편집 + 실시간 미리보기 |
-| `.html` | 샌드박스 iframe 보기 전용 렌더링(기본 선명 모드, 헤더 '원본 보기' 토글로 전환) |
+| `.html` | 샌드박스 iframe 보기 전용 렌더링(기본값은 OS별: macOS·Linux는 선명 모드, Windows는 원본 보기. 헤더 '원본 보기' 토글로 전환) |
 | `.png` `.jpg` `.jpeg` `.gif` `.webp` `.bmp` `.ico` `.avif` | 이미지 뷰어(zoom/pan, 메타 표시) |
 | `.svg` | SVG 뷰어(렌더 ↔ 소스 토글, DOMPurify 정화) |
 | `.py` `.js` `.mjs` `.cjs` `.ts` `.json` `.jsonl` `.yaml` `.yml` `.toml` `.sh` `.bash` `.css` | 코드 뷰어(Shiki 구문 강조) |
