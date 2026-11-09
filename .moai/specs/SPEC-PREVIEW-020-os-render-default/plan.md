@@ -41,7 +41,8 @@
 
 ### M4 (Priority Medium) — 소비자 두 곳 (RED → GREEN)
 
-- RED: `HtmlFileViewer`·`Header` 테스트에 AC-005·006을 쓴다. 플랫폼은 `@/lib/preview/htmlZoom`을 부분 모의해 `detectPlatform`만 바꿔 넣는다(`vi.mock(..., async (orig) => ({ ...(await orig()), detectPlatform: vi.fn() }))`). `navigator.platform` 직접 조작은 쓰지 않는다. `detectPlatform`이 `userAgentData`를 먼저 보기 때문이다.
+- RED: `HtmlFileViewer`·`Header` 테스트에 AC-005·006을 쓴다. 플랫폼은 `@/lib/preview/htmlZoom`을 부분 모의해 `detectPlatform`만 바꿔 넣는다(`vi.mock(..., async (orig) => ({ ...(await orig()), detectPlatform: vi.fn().mockReturnValue('') }))`). 기본 반환을 빈 문자열로 주는 이유: 값을 정하지 않은 `vi.fn()`은 `undefined`를 돌려주고 `/^win/i.test(undefined)`는 문자열 `"undefined"`를 검사해 우연히 `'crisp'`이 되므로, 모의가 빠진 테스트를 숨긴다. 각 테스트는 `mocked(detectPlatform).mockReturnValue('Win32' | 'MacIntel')`로 플랫폼을 명시한다.
+  - `navigator.platform` 직접 조작도 가능하다. 기존 `Header.test.tsx`가 이미 `Object.defineProperty(window.navigator, 'platform', { value, configurable: true })`로 쓰고 있고(L88-89), jsdom에는 `userAgentData`가 없어 `detectPlatform()`이 `navigator.platform`으로 폴백하므로 통한다. 그래도 부분 모의를 고르는 이유는 `detectPlatform` 한 지점만 바꿔 소비자가 해소 함수를 거치는지를 직접 보기 때문이고, 실제 브라우저에서 `userAgentData`가 우선한다는 사실과는 무관하다. 정의한 `navigator.platform`은 `afterEach`에서 원복한다.
 - GREEN:
   - `HtmlFileViewer.tsx`: `const mode = useUIStore(...)` 뒤에 `resolveHtmlRenderMode(mode, detectPlatform())`로 분기한다. 두 뷰 컴포넌트 본문은 건드리지 않는다.
   - `Header.tsx`: `aria-pressed`·`is-active`·클릭 핸들러가 해소된 모드를 쓴다. `detectPlatform()`은 렌더마다 부르되 값이 문자열이라 비용이 없다. 키 리스너의 기존 `isMacPlatform(detectPlatform())` 호출 방식과 맞춘다.
@@ -53,13 +54,15 @@ spec §5의 부분 개정으로 019 테스트 일부가 바뀐다. 아래가 갱
 
 | 파일 | 갱신 내용 |
 |------|----------|
+| `src/test/uiStore.test.ts` (플랫폼 무관, 위치는 기준 `b64d2ca`의 줄 번호) | **세 케이스가 REQ-005 적용 시 실패한다.** (a) L441-444 `expect(opts.version).toBe(1)` → `toBe(2)`로 바꾸고 제목의 "1로 범프"를 "2로 범프"로 고친다. (b) L446-453 버전 0 `migrate`: `saveStatus` 제거와 `theme`·`fontSize` 보존 단언은 그대로 두고, 이제 두 번째 단계를 거치므로 결과에 `htmlRenderMode: null`이 추가됨을 단언한다. `htmlRenderMode: 'original'`이 있는 입력은 그대로 보존됨을 케이스로 더한다. (c) L455-460 "version>=1이면 그대로 반환" 케이스는 `migrate({theme:'light'}, 1)`이 `toEqual({theme:'light'})`로 통과하지 못하므로(필드가 `null`로 채워짐) 제목과 내용을 REQ-005·AC-004에 맞게 다시 쓴다: 버전 1 입력 `{htmlRenderMode:'crisp', theme:'light'}` → `htmlRenderMode: null`·`theme` 보존; `'original'` → 그대로; 필드 없음 → `null`; 허용 밖 값 → `null`. 버전 2 입력은 `migrate`가 건드리지 않는다(AC-004 마지막 행)는 케이스도 한 줄 더한다. **통과 확인만 하는 부분**: 같은 파일 018 `htmlZoom` describe의 `rehydrateWith`(L466-)는 `version: 1`을 심어 이제 `migrate` 경로를 지나지만, `htmlZoom`·`fontSize` 단언은 `htmlRenderMode`와 무관하다고 예상한다(run RED 단계에서 실제로 돌려 확인) |
 | `src/test/uiStoreRenderMode.test.ts` | `beforeEach`의 `setState({ htmlRenderMode: 'crisp' })` → `null`. "기본값 `'crisp'`" 단언 → `null`. 재수화 표에서 부재·`null`·허용 밖 값의 기대를 `'crisp'` → `null`(`'crisp'`·`'original'` 자체는 그대로). `setHtmlRenderMode` 허용 밖 값의 기대 `'crisp'` → `null`. `rehydrateWith`의 `version: 1` → 인자화(기본 2) |
 | `src/test/HeaderRenderMode.test.tsx` | `beforeEach`의 `'crisp'` 시드 → `null` + `detectPlatform` 모의(`"MacIntel"`). 기존 토글 두 번 왕복 단언은 macOS 모의 아래서 그대로 성립하므로 유지하고, Windows 기본·명시 선택 케이스를 더한다 |
 | `src/test/HtmlFileViewer.test.tsx` | `'original'` 명시 시드라 의미상 불변. 통과 확인만 한다(플랫폼과 무관) |
 | `src/test/HtmlFileViewerCrisp.test.tsx` | `'crisp'` 명시 시드라 의미상 불변. 폴백 뒤 저장 모드 불변 단언(`htmlRenderMode` toBe `'crisp'`)이 계속 통과하는지 확인한다. 플랫폼 모의는 `"Win32"`로 두어 "명시 선택이 OS 기본값을 이긴다"를 겸해 확인한다 |
 | `e2e/html-file-viewer.spec.ts` | 원본 보기 describe의 시드 `version: 1` → `2`(v1 시드는 마이그레이션을 거쳐도 `'original'`이 보존되어 통과는 하지만, 마이그레이션 경로 의존을 없앤다). **선명 모드 describe는 지금 아무것도 시드하지 않고 기본값 `'crisp'`에 기댄다. 기본값이 OS에 따라 달라지므로 `{ htmlRenderMode: 'crisp' }, version: 2` 시드를 더한다.** 이 describe는 `userAgent: WINDOWS_UA`를 쓰는데, UA 문자열을 바꿔도 `navigator.platform`이 같이 바뀌는지는 확인하지 않았다(바뀌지 않는다면 macOS 호스트에서 `"MacIntel"`이라 우연히 통과한다). 시드로 이 의존을 끊는다 |
 
-- 모든 테스트 파일은 `detectPlatform`을 모의하지 않으면 jsdom의 `navigator.platform`(기본 빈 문자열일 가능성이 높으나 run 첫 단계에서 확인)에 따라 `'crisp'`으로 해소된다. 암묵 의존을 피하려고 플랫폼에 민감한 테스트는 모의를 명시한다.
+- **e2e는 마이그레이션을 검증하지 않는다.** e2e 시드는 모두 버전 2이며 버전 1 저장소를 심어 마이그레이션 결과를 보는 e2e 사례는 만들지 않는다. 마이그레이션 검증은 단위 테스트(`uiStore.test.ts`·`uiStoreRenderMode.test.ts`, AC-004 표)가 전담하고, 실기기 업그레이드 경로는 수동 M-4가 본다. 단위 테스트가 이미 주는 보증을 e2e가 주는 것처럼 적지 않는다.
+- jsdom의 `navigator.platform`은 빈 문자열(`""`)이다(jsdom `NavigatorID-impl.js`의 `get platform() { return ""; }`를 직접 읽음). `userAgentData`도 없으므로 `detectPlatform()`은 `''`을 돌려주고, 모의가 없는 테스트는 `'crisp'`으로 해소된다. 이 암묵 의존을 피하려고 플랫폼에 민감한 테스트는 `detectPlatform` 모의(위 M4)를 명시한다.
 
 ### M6 (Priority Low) — 게이트와 정리
 
@@ -84,9 +87,9 @@ spec §5의 부분 개정으로 019 테스트 일부가 바뀐다. 아래가 갱
 | # | 위험 | 가능성/영향 | 대응·판단 |
 |---|------|-----------|----------|
 | R1 | **Windows 원본 보기가 선명하다는 전제가 우리 측정이 아니다.** 사용자 관찰 하나에 기본값 정책 전체가 걸려 있다. WebView2가 `transform: scale` iframe을 다시 래스터하는 것은 엔진 내부 동작이라 조건(GPU 합성 여부, 장치 배율)에 따라 달라질 수 있다 | 중간 / 높음 | M1 관문과 수동 M-1. 실패하면 SPEC 중단. 이 SPEC은 측정 없이 "Windows는 선명하다"를 주장하지 않는다 |
-| R2 | **업그레이드 때 Windows 사용자의 명시 `'crisp'` 선택이 한 번 사라진다.** 구별이 불가능하다는 결정의 직접 비용이다. 반론: 보존하는 안(저장된 `'crisp'` 유지)이면 사용자는 아무것도 잃지 않지만 기존 Windows 사용자 전원에게 수정이 효과가 없다 | 낮음 / 낮음 | 수용(spec §5). 사용자 기반이 작고 v0.20.0이 같은 날 나왔다. 사용자가 반대하면 D2를 되돌린다(마이그레이션이 `'crisp'`을 보존하면 REQ-005만 바뀐다) |
-| R3 | **Windows 기본이 원본 보기라 보안 자세가 019 이전 수준으로 돌아간다**(`allow-same-origin` + asset iframe). 반론: 019가 일부러 조인 것을 기본값에서 되돌린다 | 중간 / 중간 | 이 SPEC이 새로 넓히는 권한은 없다(004/018 자세 그대로, 사용자가 이미 v0.19 이하에서 쓰던 것). SEC-001(앱 ACL, 완료)이 이 자세에 충분한지는 재평가하지 않았다 → spec §7-4로 사용자에게 넘긴다. 이 위험을 낮다고 단정하지 않는다 |
-| R4 | **토글 `title`이 Windows 기본에서 사실과 다르다**(“선명 모드(기본)”, “원본 보기는 흐릿”). 결정 3이 문구 유지를 요구해 알려진 불일치를 일부러 남긴다 | 확실 / 낮음 | 범위 밖으로 기록(spec §6·§7-3). 후속 과제 후보 |
+| R2 | **업그레이드 때 Windows 사용자의 명시 `'crisp'` 선택이 한 번 사라진다. 소실은 조용하고(알림 없음) 한 번뿐이다.** 구별이 불가능하다는 결정의 직접 비용이다. 반론: 보존하는 안(저장된 `'crisp'` 유지)이면 사용자는 아무것도 잃지 않지만 기존 Windows 사용자 전원에게 수정이 효과가 없다 | 낮음(가정) / 낮음 | 수용(spec §5). 가능성을 "낮음"으로 둔 근거는 **미측정 가정**이다: v0.20.0은 같은 날 만든 빌드라 영향 사용자가 적다고 본다(설치 수·토글 사용은 측정하지 않았다). 사용자가 반대하면 결정 D2(이 문서 상단 표)를 되돌린다(마이그레이션이 `'crisp'`을 보존하면 REQ-005만 바뀐다) |
+| R3 | **Windows 기본이 원본 보기라 보안 자세가 019 이전 수준으로 돌아간다**(`allow-same-origin` + asset iframe). 반론: 019가 일부러 조인 것을 기본값에서 되돌린다 | 낮음~중간 / 중간 | 이 SPEC이 새로 넓히는 권한은 없다(004/018 자세 그대로). 앱 명령 방어는 SPEC-SEC-001(`completed`, `.moai/specs/SPEC-SEC-001-app-command-acl/spec.md`)이 맡는다: asset 출처 프레임의 앱 명령은 ACL 단계에서 거부된다. Windows 실기기 결과는 SEC-001 HISTORY 0.2.4의 M-2·M-2b·M-3 PASS이며 **사용자 보고이고 캡처가 없다**(우리 측정 아님). SEC-001의 M-1 기준선은 미수행이라 ACL 이전의 공격 성립은 재현된 적이 없다. 그래서 위험을 "없음"으로 단정하지 않고 "낮음~중간"으로 둔다. `depends_on: [SPEC-SEC-001]`. 근거 전문: spec §5 |
+| R4 | **토글 `title`이 Windows 기본에서 사실과 다르다**(“선명 모드(기본)”, “원본 보기는 흐릿”). 사용자 결정(spec HISTORY 0.1.0, spec §6)이 문구 유지를 요구해 알려진 불일치를 일부러 남긴다 | 확실 / 낮음 | 범위 밖으로 기록(spec §6·§7-3). 후속 과제 후보 |
 | R5 | `null` 상태가 새 분기를 만든다. `htmlRenderMode`를 읽는 다른 코드가 `=== 'crisp'` 식으로 가정했다면 `null`에서 깨진다 | 낮음 / 중간 | `grep`으로 소비자는 `HtmlFileViewer`·`Header` 두 곳뿐임을 확인했다(`src`, `e2e` 전체 검색에서 테스트 외 소스는 이 둘과 `uiStore`). 추가로 `tsc --noEmit`이 `\| null` 확대로 놓친 소비자를 잡는다 |
 | R6 | 롤백(v0.20.0으로 되돌림) 시 v2 저장소가 v1 코드에 읽힌다. `null`은 v1 `merge`가 `'crisp'`으로 정규화하므로 앱은 시작되지만, v1 코드가 저장 버전 2를 어떻게 다루는지(경고·폐기 여부)는 zustand `persist` 의미에 달려 있고 확인하지 않았다 | 낮음 / 낮음 | 미확인으로 남긴다. 확인하려면 v1 코드에 v2 저장소를 심어 보면 된다. 필요하면 run에서 한 번 시험 |
 | R7 | e2e 선명 모드 describe가 기본값에 암묵 의존 (M5) | 확실(수정 대상) / 낮음 | 시드 추가로 해결 |
@@ -94,5 +97,6 @@ spec §5의 부분 개정으로 019 테스트 일부가 바뀐다. 아래가 갱
 
 ## Tier S 확인
 
+- Tier S의 계획 산출물은 `spec.md` + `plan.md` 2개다(frontmatter 스키마 정의). `progress.md`는 생애주기 기록(bookkeeping)이지 계획 산출물이 아니다. 이미 만든 plan-phase 커밋 `b64d2ca`의 제목 "Tier S, 3 artifacts"는 progress.md를 센 것으로 이 기준과 다르며, 커밋은 고치지 않고 이 문단과 개정 커밋 본문에 바로잡는다.
 - 소스 4개(5개 미만), 소스 약 60~120 LOC(300 미만). REQ 7·AC 8로 Tier S 상한(각 8) 이내다. 이 정도를 넘기지 않도록 새 모듈·훅·UI를 만들지 않았다.
 - Tier M이 아닌 이유는 spec §1 참조. 단, 마이그레이션이 사용자 기기의 영구 상태를 바꾸므로 plan-auditor 점검 시 AC-004 표의 빠진 경로가 있는지 우선 봐 주기를 권한다.

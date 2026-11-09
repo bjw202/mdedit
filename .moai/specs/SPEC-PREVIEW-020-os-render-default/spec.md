@@ -1,7 +1,7 @@
 ---
 id: SPEC-PREVIEW-020
 title: "HTML 미리보기 OS별 기본 렌더 모드 — Windows는 원본 보기, macOS는 선명 모드"
-version: "0.1.0"
+version: "0.1.1"
 status: draft
 created: 2026-11-09
 updated: 2026-11-09
@@ -12,6 +12,7 @@ module: src/store
 lifecycle: spec-anchored
 tags: "preview, html, render-mode, platform, persist, migration, windows"
 tier: S
+depends_on: [SPEC-SEC-001]
 related_specs: [SPEC-PREVIEW-018, SPEC-PREVIEW-019]
 ---
 
@@ -22,6 +23,7 @@ related_specs: [SPEC-PREVIEW-018, SPEC-PREVIEW-019]
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-09 | jw | 최초 작성. 계기: 사용자가 v0.20.0 Windows 릴리스 빌드에서 확인한 두 가지(2026-11-09). (1) 원본 보기(asset iframe + transform 배율)가 Windows(WebView2/Chromium)에서는 확대해도 충분히 선명하다. macOS(WKWebView)에서는 100% 초과 시 흐리다. (2) 선명 모드는 페이지 자체 스크립트를 막으므로 HTML 안의 Mermaid가 그림이 아니라 텍스트로 보인다. 사용자 결정(구속): OS별 기본값 — Windows는 `'original'`, macOS는 `'crisp'`. 토글은 유지한다. 사용자가 명시적으로 고른 값(영속)이 항상 이기고, OS 기본값은 고른 적이 없을 때만 적용한다. Linux는 `'crisp'`(가정). 이 SPEC은 SPEC-PREVIEW-019 REQ-PREVIEW019-001의 기본값 조항을 부분 개정한다(§5). Mermaid 사전 렌더(백로그 t2)와 스크립트 페이지 자동 원본 전환은 범위 밖이다. |
+| 0.1.1 | 2026-11-09 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-PREVIEW-020-review-1.md`, PASS 0.82) 결함 D1~D10 반영. 요구·수용 기준의 의미는 바꾸지 않았다. (D1) §5 "세 단위 테스트"를 구체 목록으로 바꾸고 `src/test/uiStore.test.ts`를 갱신 대상에 추가. (D2) §7-4의 열린 질문을 SPEC-SEC-001 증거로 대체하고 `depends_on: [SPEC-SEC-001]` 추가. (D3) e2e에는 v1 저장소 마이그레이션 사례가 없고 마이그레이션은 단위 테스트가 전담함을 명시. (D4) 사용자 기반 서술을 미측정 가정으로 고치고 조용한 선택 소실을 비용으로 명시. (D5) AC-001·002의 항진 문장 제거, 영속화 유발 방법을 명시. (D7) AC-007의 diff 범위에 import 줄 포함. (D8) REQ-001 첫 문장 재작성. |
 
 ## §1 Overview
 
@@ -46,7 +48,7 @@ related_specs: [SPEC-PREVIEW-018, SPEC-PREVIEW-019]
 
 #### REQ-PREVIEW020-001: 선택 상태 — 고르지 않음을 표현한다 (Ubiquitous + Event-driven)
 
-- The `htmlRenderMode` shall `'crisp'`, `'original'`, `null` 중 하나이며, `null`은 사용자가 아직 고르지 않았음을 뜻한다. 새로 설치한 앱의 초기값은 `null`이다.
+- The `htmlRenderMode` 상태 shall 정확히 `'crisp'`, `'original'`, `null` 셋 중 하나를 가지며, 여기서 `null`은 사용자가 아직 고르지 않았음을 뜻한다. 새로 설치한 앱의 초기값은 `null`이다.
 - **When** `setHtmlRenderMode`가 `'crisp'`·`'original'`을 받으면, the 앱 shall 그 값을 저장한다. **When** 그 밖의 값(다른 문자열, 숫자, `null`, `undefined` 포함)을 받으면, the 앱 shall `null`로 정규화한다. 이는 SPEC-PREVIEW-019의 "허용 밖 값은 `'crisp'`" 정규화를 대체한다(§5).
 
 #### REQ-PREVIEW020-002: OS 기본값과 결정 해소 — 순수 함수 (Ubiquitous)
@@ -101,13 +103,13 @@ Tier S이므로 수용 기준을 이 절에 둔다(별도 `acceptance.md` 없음
 | `"iPhone"` | `'crisp'` |
 
 - **And** `resolveHtmlRenderMode`는 `(null, 'Win32')` → `'original'`, `(null, 'MacIntel')` → `'crisp'`, `(null, '')` → `'crisp'`, `('crisp', 'Win32')` → `'crisp'`, `('original', 'MacIntel')` → `'original'`, `('original', 'Win32')` → `'original'`, `('crisp', 'MacIntel')` → `'crisp'`을 돌려준다.
-- **And** 두 함수는 같은 입력에 항상 같은 값을 돌려주며 `navigator`를 읽지 않는다(모의 없이 호출 가능).
+- **And** 두 함수는 `navigator`를 읽지 않는다. 검증: `navigator.platform`을 getter 스파이로 바꿔 두고(`vi.spyOn(navigator, 'platform', 'get')`) 위 표 전체를 호출한 뒤 스파이 호출 횟수가 0이다. 또한 `navigator.platform`을 `"Win32"`로 정의한 채 `defaultHtmlRenderMode("MacIntel")`을 부르면 `'crisp'`이고, `"MacIntel"`로 정의한 채 `defaultHtmlRenderMode("Win32")`를 부르면 `'original'`이다(인자만 결과를 정한다).
 
 ### AC-PREVIEW020-002 — 저장소 상태·기본값 비저장 (unit, REQ-001·006)
 
 - **Given** 저장소를 비우고 새로 만든 상태에서, **Then** `htmlRenderMode`는 `null`이다.
-- **And** 토글이나 `setHtmlRenderMode` 호출 없이 저장소가 영속화된 뒤 `localStorage['mdedit-ui-store']`의 `state.htmlRenderMode`는 `null`이며 `'crisp'`·`'original'`이 아니다(OS 기본값이 쓰이지 않음).
-- **And** `setHtmlRenderMode('original')`·`setHtmlRenderMode('crisp')` 뒤 저장된 JSON에 그 값이 있다. 같은 값은 플랫폼을 `Win32`로 모의하든 `MacIntel`로 모의하든 `resolveHtmlRenderMode` 결과가 그 값이다(명시 선택이 양쪽 OS에서 기본값을 이긴다).
+- **And** (기본값 비저장, REQ-006) `detectPlatform`을 `"Win32"`로 모의하고 `htmlRenderMode`가 `null`인 채로 `HtmlFileViewer`를 렌더해 원본 보기가 해소되게 한 뒤, 다른 필드를 바꿔 persist가 쓰게 한다(예: `setFontSize`). 그 다음 `JSON.parse(localStorage['mdedit-ui-store']).state.htmlRenderMode`는 `null`이며 `'crisp'`·`'original'`이 아니다. 해소 결과(`'original'`)가 저장소에 새어 들어가면 이 단언이 실패한다. `"MacIntel"` 모의에서도 같은 단계를 반복해 `null`임을 확인한다.
+- **And** `setHtmlRenderMode('original')`·`setHtmlRenderMode('crisp')` 뒤 저장된 JSON의 `state.htmlRenderMode`가 각각 그 값이다. (명시 선택이 OS 기본값을 이기는 동작은 AC-001의 `resolveHtmlRenderMode` 표와 AC-005·006이 검증한다.)
 - **And** `setHtmlRenderMode`에 `'Crisp'`, `'srcdoc'`, `1`, `true`, `{}`, `null`, `undefined`를 주면 `htmlRenderMode`는 `null`이다.
 
 ### AC-PREVIEW020-003 — 재수화 (unit, REQ-004)
@@ -132,6 +134,7 @@ Tier S이므로 수용 기준을 이 절에 둔다(별도 `acceptance.md` 없음
 
 - **And** 저장된 상태가 객체가 아니거나(`null`, 문자열) 파싱할 수 없어도 예외를 던지지 않고 앱이 시작된다(초기값 `null`).
 - **And** 마이그레이션 뒤 저장소를 다시 영속화하면 저장 버전이 2다.
+- 검증 범위: 이 표는 vitest 단위 테스트가 전담한다. `e2e/html-file-viewer.spec.ts`에는 버전 1 저장소를 심는 마이그레이션 사례가 없고 이 SPEC도 더하지 않는다(e2e 시드는 모두 버전 2). 실기기 업그레이드 경로는 수동 M-4가 본다.
 
 ### AC-PREVIEW020-005 — 뷰어 (unit, REQ-003)
 
@@ -151,7 +154,7 @@ Tier S이므로 수용 기준을 이 절에 둔다(별도 `acceptance.md` 없음
 
 - **Given** 구현이 끝난 브랜치에서, **Then** `git diff --name-only <base>...HEAD`의 소스 파일은 `src/store/uiStore.ts`, `src/lib/preview/htmlZoom.ts`, `src/components/layout/Header.tsx`, `src/components/preview/HtmlFileViewer.tsx` 4개이며, `index.html`·`src-tauri/`는 diff에 없다.
 - **And** 토글 `title` 문구 줄은 019 병합본과 바이트 단위로 같다(`git diff -- src/components/layout/Header.tsx`에서 `title="원본 보기` 줄이 `+`/`-`로 나타나지 않는다).
-- **And** `HtmlFileViewer.tsx`에서 `OriginalHtmlView`·`CrispHtmlView` 본문, `sandbox` 속성 줄, `HTML_CRISP_MAX_BYTES` 폴백 로직은 diff에 없다(분기 한 줄과 해소 호출만 변경).
+- **And** `HtmlFileViewer.tsx`에서 `OriginalHtmlView`·`CrispHtmlView` 본문, `sandbox` 속성 줄, `HTML_CRISP_MAX_BYTES` 폴백 로직은 diff에 없다. 이 파일에서 바뀌는 것은 `@/lib/preview/htmlZoom`에서 `detectPlatform`·`resolveHtmlRenderMode`를 가져오는 import 줄, 분기 줄, 해소 호출뿐이다(그 밖의 줄은 diff에 없다).
 - **And** 019 폴백 테스트(`HtmlFileViewerCrisp.test.tsx`의 폴백 후 저장 모드 불변 단언)가 명시 `'crisp'` 시드로 계속 통과한다.
 - **And** `npm run typecheck`, `npm run lint`, `npx vitest run`이 exit 0이다.
 
@@ -182,7 +185,19 @@ Tier S이므로 수용 기준을 이 절에 둔다(별도 `acceptance.md` 없음
 
 - 이 SPEC은 SPEC-PREVIEW-019 REQ-PREVIEW019-001 중 다음을 대체한다: (a) "기본값은 `'crisp'`이다", (b) "저장된 상태에 값이 없거나 허용 밖이면 `'crisp'`을 쓴다", (c) "`setHtmlRenderMode`가 허용 밖 값을 받으면 `'crisp'`으로 정규화한다". 대체 후 규칙은 REQ-PREVIEW020-001·004다(미선택은 `null`, 기본값은 OS가 결정).
 - 019의 나머지 REQ(002~012)와 AC는 그대로 유효하다. 019 문서는 이 SPEC에서 수정하지 않는다. 019 AC-PREVIEW019-001은 이 SPEC 병합 후 위 세 항목에 한해 AC-PREVIEW020-002·003이 정본이다.
-- 019의 세 단위 테스트가 이 개정으로 바뀐다(plan.md에 갱신 목록).
+- 이 개정으로 바뀌는 기존 단위 테스트는 다음과 같다(정본 목록과 새 기대값은 plan.md M5):
+  - `src/test/uiStoreRenderMode.test.ts` — 기본값 단언, 재수화 표(부재·`null`·허용 밖 값의 기대), `setHtmlRenderMode` 허용 밖 값 정규화.
+  - `src/test/uiStore.test.ts` — 영속 버전 단언(`version === 1` → 2), 버전 0 `migrate` 케이스(이제 `htmlRenderMode: null` 단계도 거침), 버전 1 `migrate` "그대로 반환" 케이스(REQ-005·AC-004에 맞게 재작성).
+  - `src/test/HeaderRenderMode.test.tsx` — 시드와 플랫폼 모의.
+
+### Windows 기본 보안 자세 — SPEC-SEC-001 증거
+
+Windows 기본이 원본 보기(`sandbox="allow-scripts allow-same-origin"`, asset iframe)로 돌아간다. 이는 019 이전(004/018) 자세와 같고 이 SPEC이 권한을 새로 넓히지 않는다. 이 자세에 대한 앱 명령 방어는 SPEC-SEC-001(`.moai/specs/SPEC-SEC-001-app-command-acl/spec.md`, `status: completed`, version 0.2.4)이 맡으며, 그래서 `depends_on`에 둔다. 인용한 내용은 그 문서를 이 개정 때 다시 읽어 확인했다.
+
+- **방어 내용**: SEC-001은 앱 ACL 매니페스트를 도입하고 `main` capability에만 앱 명령 26개를 허용한다. asset 출처(`asset://` / `http://asset.localhost`) 프레임이 보내는 앱 명령은 ACL 단계에서 거부되며 명령 본문은 실행되지 않는다(SEC-001 REQ-SEC001-004, Overview). 거부는 프레임이 다른 asset 경로 문서로 이동한 뒤에도 유지되어야 한다(M-2b).
+- **Windows 실기기 결과**: SEC-001 HISTORY 0.2.4에 Windows M-2·M-2b·M-3 PASS가 기록되어 있다. 근거는 **사용자 보고("윈도우에서도 문제 없다")이며 캡처가 없다.** 우리가 관찰하거나 측정한 값이 아니다.
+- **이 증거가 말하지 않는 것**: (1) SEC-001의 M-1 기준선(적용 전 탐침)은 미수행이라, ACL 이전에 이 호출이 실제로 성공했는지는 실기기에서 재현된 적이 없다(SEC-001은 원래 소스 판독에 근거한 가설이었다). (2) 거부 판정은 SEC-001이 정한 탐침 범위에 한한다. 이 SPEC은 그 범위를 넓히거나 재평가하지 않는다.
+- **이 SPEC의 확인**: 별도 보안 점검을 더하지 않는다. 수동 M-1(Windows 원본 보기)을 수행하는 김에 앱 명령 호출이 거부된 채로 남는지를 SEC-001 탐침으로 한 번 더 보고 싶다면 사용자가 정한다(§7-4).
 
 ### 가정 (측정하지 않은 것)
 
@@ -192,7 +207,8 @@ Tier S이므로 수용 기준을 이 절에 둔다(별도 `acceptance.md` 없음
 
 ### 알려진 결과 (수용된 비용)
 
-- v0.20.0을 쓰던 Windows 사용자는 업그레이드 후 원본 보기로 열린다(의도한 결과). 그중 선명 모드를 일부러 골랐던 사용자는 그 선택을 한 번 잃고 토글을 다시 눌러야 한다. v0.20.0이 같은 날 릴리스되어 사용자 기반이 작고, 저장된 `'crisp'`을 보존하면 기존 Windows 사용자 전원에게 이 수정이 효과가 없기 때문에 수용한다.
+- v0.20.0을 쓰던 Windows 사용자는 업그레이드 후 원본 보기로 열린다(의도한 결과). 그중 선명 모드를 일부러 골랐던 사용자는 그 선택을 잃고 토글을 다시 눌러야 한다. 이 소실은 **조용하고(알림 없음) 한 번뿐**이다.
+- 수용 근거는 **측정하지 않은 가정**이다: v0.20.0은 이 SPEC과 같은 날(2026-11-09) 만든 빌드이고 게시 전·직후라 선명 모드를 일부러 골라 둔 사용자는 적다고 본다. 설치 수나 토글 사용 이력은 측정하지 않았다. 다른 근거는 저장된 `'crisp'`을 보존하면 기존 Windows 사용자 전원에게 이 수정이 효과가 없다는 점이다. 보존안(저장된 `'crisp'` 유지)은 plan.md R2에 대안으로 남아 있고, 사용자가 반대하면 REQ-005만 바뀐다.
 - macOS 사용자는 업그레이드 후 변화가 없다(저장된 `'crisp'`은 `null`이 되지만 해소 결과가 `'crisp'`). 일부러 `'original'`을 골랐던 사용자는 그대로 유지된다.
 - 한 번 토글을 누르면 그 선택이 영속되어 OS 기본값을 다시 따르는 길은 저장소를 직접 지우는 것뿐이다(UI는 범위 밖).
 
@@ -222,11 +238,12 @@ Tier S이므로 수용 기준을 이 절에 둔다(별도 `acceptance.md` 없음
 1. **macOS 기본값 재검토**: macOS에서 선명 모드가 스크립트 페이지(Mermaid)를 텍스트로 보이게 하는 문제는 그대로 남는다. 선명도 때문에 macOS는 `'crisp'`을 유지하지만, 스크립트 페이지 자동 원본 전환(범위 밖)이 생기면 기본값 정책을 다시 볼 수 있다.
 2. **Linux 미검증**: 기본값 `'crisp'`은 가정이다. Linux 빌드를 배포하게 되면 WebKitGTK에서 원본 보기의 100% 초과 선명도를 측정해야 한다.
 3. **툴팁 불일치**: 토글 `title`이 "선명 모드(기본)", "원본 보기에서는 100% 초과 확대가 흐릿합니다"라고 안내한다. Windows 기본에서는 틀린 안내다. 문구를 OS별로 나누는 후속 변경이 필요한지 사용자가 정한다.
-4. **Windows 기본 보안 자세**: Windows 기본이 원본 보기(`allow-scripts allow-same-origin`, asset iframe)로 돌아간다. 이는 019 이전(004/018) 자세와 같고 이 SPEC이 새로 넓히는 것은 없다. SPEC-SEC-001(앱 ACL)이 이 자세에 충분한지는 이 SPEC에서 재평가하지 않았다. 필요하면 별도로 검토한다.
+4. **Windows 기본 보안 자세 (증거로 정리됨)**: 열린 질문이 아니라 §5 "Windows 기본 보안 자세 — SPEC-SEC-001 증거"에 정리했다. 남은 선택 하나: 수동 M-1 때 SEC-001 탐침을 원본 보기에서 한 번 더 돌릴지는 사용자가 정한다. 돌리지 않아도 SEC-001의 Windows M-2 결과(사용자 보고, 캡처 없음)가 이미 있다.
 5. **019 문서 역참조**: 019의 HISTORY에 "REQ-001 기본값은 SPEC-PREVIEW-020이 개정"이라는 한 줄을 sync 단계에서 달지 여부.
 
 ## §8 References
 
 - 구현 계획·위험·기존 테스트 갱신 목록: `plan.md`. 진행 기록: `progress.md`.
+- 의존: `.moai/specs/SPEC-SEC-001-app-command-acl/`(completed, 앱 명령 ACL — Windows 기본 보안 자세의 근거, §5).
 - 선행: `.moai/specs/SPEC-PREVIEW-019-html-crisp-zoom/`(completed, REQ-001 부분 개정), `.moai/specs/SPEC-PREVIEW-018-html-preview-zoom/`(`detectPlatform`·`isMacPlatform`·배율).
 - 코드 앵커(main `ce18e23` 기준): `src/store/uiStore.ts`(`HtmlRenderMode`, `normalizeHtmlRenderMode`, persist `version: 1`, `merge`, `migrate`), `src/lib/preview/htmlZoom.ts`(`detectPlatform`, `isMacPlatform`), `src/components/layout/Header.tsx`(토글, `isMacPlatform(detectPlatform())`), `src/components/preview/HtmlFileViewer.tsx`(`useUIStore(state => state.htmlRenderMode)` 분기).
