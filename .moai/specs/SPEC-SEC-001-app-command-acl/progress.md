@@ -101,15 +101,15 @@ implementation_kickoff: 승인됨(2026-11-09, 사용자 → 코디네이터 경�
 3. 화면에 출력된 JSON 전체를 이 파일의 아래 "탐침 결과" 표에 원문으로 붙인다(OS, 빌드 SHA, `internals`, 호출별 ok/err).
 4. `251b3e0` 이후 빌드로 2~3을 반복한다.
 
-### 탐침 결과 (미입력)
+### 탐침 결과 (macOS 적용 후·M-2b 입력, 2026-11-09 사용자 실기기 측정)
 
 | OS | 빌드 SHA | 파일 | internals | read_file | ai_policy_status | dialog_message |
 |----|----------|------|-----------|-----------|------------------|----------------|
 | macOS 기준선 | 26e669d | probe.html | (대기) | (대기) | (대기) | (대기) |
 | Windows 기준선 | 26e669d | probe.html | (대기) | (대기) | (대기) | (대기) |
-| macOS 적용 후 | 251b3e0~ | probe.html / probe-srcdoc.html | (대기) | (대기) | (대기) | (대기) |
+| macOS 적용 후 | 0180434 (tauri dev) | probe.html / probe-srcdoc.html | undefined (probe.html: platform MacIntel, href asset://localhost/…; srcdoc: frame srcdoc-opaque, origin "null") | 호출 불가(internals 없음) | 호출 불가 | 호출 불가 |
 | Windows 적용 후 | 251b3e0~ | probe.html / probe-srcdoc.html | (대기) | (대기) | (대기) | (대기) |
-| macOS M-2b | 251b3e0~ | probe-nav-a.html → nav-b / nav-c | (대기) | (대기) | (대기) | (대기) |
+| macOS M-2b | 0180434 (tauri dev) | 링크1 → nav-b, 링크2 → nav-c(안내 후 meta refresh) → nav-b | undefined (두 경로 모두 probe nav-b, referrer "") | 호출 불가 | 호출 불가 | 호출 불가 |
 | Windows M-2b | 251b3e0~ | probe-nav-a.html → nav-b / nav-c | (대기) | (대기) | (대기) | (대기) |
 
 ## §E.3 Run-phase Audit-Ready Signal
