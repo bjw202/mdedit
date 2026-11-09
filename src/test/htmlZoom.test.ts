@@ -1,5 +1,5 @@
 // htmlZoom 순수 함수 단위 테스트 — SPEC-PREVIEW-018 (AC-002, AC-004 일부, AC-006 일부)
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   HTML_ZOOM_STEPS,
   HTML_ZOOM_DEFAULT,
@@ -8,6 +8,8 @@ import {
   snapToStep,
   isMacPlatform,
   matchZoomShortcut,
+  defaultHtmlRenderMode,
+  resolveHtmlRenderMode,
 } from '@/lib/preview/htmlZoom';
 
 describe('htmlZoom 단계 목록', () => {
@@ -94,5 +96,54 @@ describe('matchZoomShortcut', () => {
 
   it('조합 입력 중이면 null이다', () => {
     expect(matchZoomShortcut(key({ key: '=', metaKey: true, isComposing: true }), true)).toBeNull();
+  });
+});
+
+// ---- SPEC-PREVIEW-020: OS별 기본 렌더 모드 (AC-001) ----
+
+const PLATFORM_TABLE: Array<[string, 'crisp' | 'original']> = [
+  ['Win32', 'original'],
+  ['Windows', 'original'],
+  ['win32', 'original'],
+  ['MacIntel', 'crisp'],
+  ['macOS', 'crisp'],
+  ['Darwin', 'crisp'], // 앞 고정 패턴 회귀 가드: 고정하지 않은 /win/i는 "Darwin"에 맞는다
+  ['Linux x86_64', 'crisp'],
+  ['Linux', 'crisp'],
+  ['', 'crisp'],
+  ['iPhone', 'crisp'],
+];
+
+describe('defaultHtmlRenderMode (SPEC-PREVIEW-020 REQ-002)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(PLATFORM_TABLE)('플랫폼 %j 의 기본값은 %s 이다', (platform, expected) => {
+    expect(defaultHtmlRenderMode(platform)).toBe(expected);
+  });
+
+  it('navigator를 읽지 않는다 — 인자만 결과를 정한다', () => {
+    const spy = vi.spyOn(navigator, 'platform', 'get');
+    for (const [platform] of PLATFORM_TABLE) defaultHtmlRenderMode(platform);
+    expect(spy).toHaveBeenCalledTimes(0);
+
+    spy.mockReturnValue('Win32');
+    expect(defaultHtmlRenderMode('MacIntel')).toBe('crisp');
+    spy.mockReturnValue('MacIntel');
+    expect(defaultHtmlRenderMode('Win32')).toBe('original');
+    expect(spy).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('resolveHtmlRenderMode (SPEC-PREVIEW-020 REQ-002)', () => {
+  it.each([
+    [null, 'Win32', 'original'],
+    [null, 'MacIntel', 'crisp'],
+    [null, '', 'crisp'],
+    ['crisp', 'Win32', 'crisp'],
+    ['original', 'MacIntel', 'original'],
+    ['original', 'Win32', 'original'],
+    ['crisp', 'MacIntel', 'crisp'],
+  ] as const)('(%j, %j) -> %s', (choice, platform, expected) => {
+    expect(resolveHtmlRenderMode(choice, platform)).toBe(expected);
   });
 });
