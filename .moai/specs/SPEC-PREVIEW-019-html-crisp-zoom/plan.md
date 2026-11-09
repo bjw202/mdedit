@@ -32,7 +32,7 @@
 
 1. **R1 문서 `zoom`이 WKWebView에서 선명하지 않을 가능성 (High)**: iframe 요소의 `zoom`이 무효였다는 실측은 있으나 문서 `documentElement` `zoom`의 선명도는 미확인. 완화: M1 관문(프로토타입, macOS 실기기)에서 150·200%를 측정하고 실패하면 run 정지·차단 보고.
 2. **R2 엔진별 CSP 상속 차이 (Medium)**: 엔진이 상속하지 않으면 페이지 스크립트가 돈다(해시 토큰은 무해). 반대로 더 엄격하면 배율 스크립트도 막힐 수 있다(해시 불일치 시). 완화: AC-006 해시 일치 테스트 + M-5 실기기.
-3. **R3 Windows IPC 노출 (High, SEC-001 의존)**: advisor 처방 — Windows는 하위 프레임에도 IPC 초기화 스크립트가 주입되며(wry `lib.rs:1007`), 앱 ACL 매니페스트가 없으면 앱 명령이 출처와 무관하게 ACL을 건너뛴다. 선명 모드 CSP 상속은 페이지 스크립트를 차단하는 추가 방어선이지만(인라인·외부 스크립트 모두 `script-src 'self'`로 차단) 이를 안전 근거로 삼지 않는다. 완화: SEC-001 선행 + M-6.
+3. **R3 Windows IPC 노출 (High, SEC-001 의존)**: advisor 처방 — Windows는 하위 프레임에도 IPC 초기화 스크립트가 주입되며(wry `lib.rs:1007`), 앱 ACL 매니페스트가 없으면 앱 명령이 출처와 무관하게 ACL을 건너뛴다. 선명 모드의 CSP 상속은 `srcdoc` 문서 안에서만 페이지 스크립트를 막고, 프레임이 이동하면(링크 클릭, 클릭 없는 `<meta http-equiv="refresh">`, 중첩 `<iframe>`) 이동한 asset 문서는 CSP 없이 스크립트를 실행한다(audit review-1이 Playwright Chromium·WebKit에서 실측). 파일 내용만으로 우회되므로 **방어로 세지 않는다.** 완화: SEC-001 선행 + M-6.
 4. **R4 `fetch`/모듈/폰트/저장소 등 알려진 한계**: spec.md §3. 완화: 원본 보기 토글 + 툴팁 안내.
 5. **R5 해시-스크립트 드리프트 (Medium)**: 스크립트 한 글자라도 바뀌면 해시가 달라져 배율이 조용히 안 먹는다. 완화: AC-006 테스트가 상수 → 해시 → `index.html`을 대조(CI 실패로 드러남), 스크립트는 고정 상수 한 곳(`htmlSrcdoc.ts`).
 6. **R6 미래 Tauri CSP 설정과의 충돌**: `csp: null`이 바뀌면 Tauri가 자체 해시/nonce를 덧붙이므로 공존 재검증 필요(spec.md §3). SEC-001이 CSP를 건드리는지 run 착수 전 확인.
@@ -44,7 +44,8 @@
 
 1. `moai`/`spec-workflow.md` Depends_on Pre-flight: `.moai/specs/SPEC-SEC-001*/spec.md`의 `status: completed`가 아니면 run을 시작하지 않는다(AskUserQuestion: wait/override/abort).
 2. `git rev-parse --short HEAD`가 57b3231 또는 후손(SEC-001 병합 포함)인지, 작업 위치를 확인한다. §A 앵커 행 번호를 재확인하고 어긋나면 SPEC은 고치지 않고 재측정 값을 progress.md에 기록한다.
-3. SEC-001이 `index.html` CSP·`tauri.conf.json`·`capabilities/`를 바꿨는지 확인한다(R6). 바꿨으면 해시 토큰 위치·공존을 다시 확인한다.
+3. SEC-001이 `index.html` CSP·`tauri.conf.json`·`capabilities/`를 바꿨는지 확인한다(R6). 바꿨으면 해시 토큰 위치·공존을 다시 확인한다. AC-006의 기준 토큰 집합은 **이 시점의 `index.html` 메타 CSP에서 해시를 뺀 값으로 확정**해 테스트에 고정한다(git 이력 비교 금지: CI shallow checkout).
+3a. SPEC-PREVIEW-018 상태(`status`)를 확인한다. `implemented`(수동 M-1·M-2·M-4·M-5 미기록)면 018 수동 확인은 원본 보기에서 수행해야 함을 progress.md에 적는다(spec.md §3 "SPEC-PREVIEW-018과의 관계").
 4. 기준선: `npx vitest run src/test/HtmlFileViewer.test.tsx src/test/Header.test.tsx src/test/uiStore.test.ts`, `npx tsc --noEmit`, `npx eslint` 결과를 기록한다.
 
 ## §D Constraints
@@ -93,9 +94,9 @@
     e.preventDefault();
     var raw = h.slice(1), id;
     try { id = decodeURIComponent(raw); } catch (_) { return; }
-    if (id === '' || id === 'top') { window.scrollTo(0, 0); return; }
-    var t = document.getElementById(id) || document.getElementsByName(id)[0];
-    if (t) t.scrollIntoView();
+    var t = id === '' ? null : (document.getElementById(id) || document.getElementsByName(id)[0]);
+    if (t) { t.scrollIntoView(); return; }
+    if (id === '' || id === 'top') window.scrollTo(0, 0);
   }, true);
 })();
 ```
@@ -132,8 +133,8 @@
 
 - [NEW] `src/test/htmlSrcdoc.test.ts`(AC-003, 자식 처리기 AC-004/005는 자식 iframe 하네스), [NEW] `src/test/htmlSrcdocCsp.test.ts`(AC-006).
 - [MODIFY] `src/test/HtmlFileViewer.test.tsx`(AC-002·004·007·008, 기존 018 시나리오는 `original` 시드), `src/test/uiStore.test.ts`(AC-001), `src/test/Header.test.tsx`(AC-009·010).
-- [MODIFY] `e2e/html-file-viewer.spec.ts` — 기존 시나리오 `original` 시드(localStorage `mdedit-ui-store`에 `htmlRenderMode`). [NEW] 선명 모드 e2e(AC-015 Chromium 부분: 해시 스크립트 실행 + 인라인 페이지 스크립트 차단).
-- 자식 처리기 하네스: jsdom 문서의 자식 iframe `contentWindow`에 스크립트를 실행(`contentWindow.eval` 불가 시 `new JSDOM(..., { runScripts: 'dangerously' })`)하고 합성 `MessageEvent`를 `dispatchEvent`. 최상위 window에서 실행하지 않는다.
+- [MODIFY] `e2e/html-file-viewer.spec.ts` — 기존 시나리오 `original` 시드(localStorage `mdedit-ui-store`에 `htmlRenderMode`). [NEW] 선명 모드 e2e(AC-015 부분 증거: 해시 스크립트 실행 + 인라인 페이지 스크립트 차단). 프로젝트의 e2e는 `playwright.config.ts`의 `webkit` 프로젝트 하나뿐이고 CI(`frontend-gates.yml`)도 WebKit만 설치하므로 **설정·CI 변경 없이 그 프로젝트에서 돌린다**(Playwright WebKit = 부분 증거, WKWebView/WebView2 실기기 증거 아님).
+- 자식 처리기 하네스: vitest jsdom 환경(기본 `runScripts: 'dangerously'`)의 문서에 자식 iframe을 만들고 그 `contentWindow`에서 스크립트를 실행(`contentWindow.eval` 또는 자식 문서에 `<script>` 삽입)한 뒤 합성 `MessageEvent`를 `dispatchEvent`. 최상위 window에서 실행하지 않는다(`window.parent === window`가 되어 `source` 검사를 시험할 수 없다). 새 `JSDOM` 인스턴스를 만들어 쓰는 방식은 같은 문제를 다시 만들므로 쓰지 않는다.
 - progress.md에 수동 M-1~M-6 결과를 OS별로 기록.
 
 ## mx_plan

@@ -11,7 +11,8 @@
 
 ## Plan-audit History
 
-(감사 후 기록)
+- review-1(2026-11-09): **FAIL 0.74** (Tier M 기준 0.80) — `.moai/reports/plan-audit/SPEC-PREVIEW-019-review-1.md`. blocking D1~D6, minor D7~D14. 핵심 실측(Playwright Chromium·WebKit): 해시 1개로 주입 스크립트 실행·`postMessage` 배율 적용은 성립, 그러나 상속된 `style-src`가 asset 스타일시트를 막고(D1), 프레임 이동(링크·meta refresh)으로 CSP 없는 문서의 스크립트가 실행되며(D2), `srcdoc`은 항상 표준 모드다(D3).
+- v0.1.0 개정 1차(2026-11-09, plan 단계 작성자): D2~D14 반영(D2 보안 주장 정정·AC-014 이동 경로 시험, D3 quirks 한계 10 추가, D4 018 `implemented` 충돌 명시, D5 AC-006 토큰 집합·고정 기대값, D6 e2e를 기존 webkit 프로젝트로, D7~D14 경미). **D1은 사용자 결정 대기** — 코디네이터에게 질의 중(`style-src`에 asset 출처 추가 / 스타일시트 차단 수용 / 앱이 스타일시트를 인라인).
 
 ## §E.1 Plan-phase Audit-Ready Signal
 

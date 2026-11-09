@@ -44,17 +44,18 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 - The 앱 shall HTML 렌더 모드 `htmlRenderMode`를 `'crisp'`(선명 모드) 또는 `'original'`(원본 보기) 중 하나로 가지며 기본값은 `'crisp'`이다.
 - The `htmlRenderMode` shall 모든 HTML 파일에 공통인 하나의 값이고, 기존 UI 저장소(`mdedit-ui-store`)에 함께 저장되어 앱 재시작 후에도 유지된다.
 - **When** 저장된 상태에 `htmlRenderMode`가 없거나 `'crisp'`·`'original'` 외의 값(다른 문자열, 숫자, `null` 포함)이면, the 앱 shall `'crisp'`을 쓴다.
+- **When** `setHtmlRenderMode`가 `'crisp'`·`'original'` 외의 값을 받으면, the 앱 shall `'crisp'`으로 정규화한다.
 
 #### REQ-PREVIEW019-002: 선명 모드 렌더 (Event-driven + Ubiquitous)
 
-- **While** `htmlRenderMode`가 `'crisp'`이고 현재 파일의 보기 종류가 `html`일 때, **when** 미리보기가 파일을 열면, the HTML 미리보기 shall 파일 내용을 기존 `read_file` 명령(`readFile`)으로 UTF-8 텍스트로 읽어 REQ-003대로 조립한 문서를 `<iframe srcdoc>`으로 렌더한다.
+- **While** `htmlRenderMode`가 `'crisp'`이고 현재 파일의 보기 종류가 `html`일 때, **when** 미리보기가 파일을 열거나 `htmlRenderMode`가 `'crisp'`으로 바뀌면, the HTML 미리보기 shall 파일 내용을 기존 `read_file` 명령(`readFile`)으로 UTF-8 텍스트로 읽어 REQ-003대로 조립한 문서를 `<iframe srcdoc>`으로 렌더한다.
 - The 선명 모드 iframe shall `sandbox` 속성 값으로 정확히 `"allow-scripts"`만 가지며, `src` 속성을 갖지 않는다.
-- The 선명 모드 iframe shall 018의 감싸개 `transform`/크기 역보정 스타일을 쓰지 않는다(배율은 REQ-004의 문서 `zoom`이 맡는다).
+- The 선명 모드 iframe shall not 018의 감싸개 `transform`/크기 역보정 스타일을 쓴다(배율은 REQ-004의 문서 `zoom`이 맡는다).
 
 #### REQ-PREVIEW019-003: 주입 내용과 위치 (Ubiquitous)
 
 - The HTML 미리보기 shall 읽은 HTML 텍스트에 다음 세 가지를 이 순서로 한 번 주입한다. (a) `<base href="…">` — 해당 파일이 있는 폴더의 asset 주소(018의 `convertFileSrc` + `%2F`·`%5C` → `/` 정규화 결과에서 마지막 `/`까지 자른 값, 끝 `/` 포함) (b) 현재 배율을 `html { zoom: <z/100> }`로 담은 `<style>` — 생성 시점의 `htmlZoom` 한 번만 반영 (c) 고정 스크립트 `<script>`(REQ-004·005·006).
-- The 주입 위치 shall 첫 `<head …>` 시작 태그 바로 뒤로 한다. `<head>`가 없고 `<html …>`이 있으면 그 뒤에 `<head>…</head>`를 새로 만들어 넣고, 둘 다 없으면 문서 맨 앞(단, `<!doctype …>`이 있으면 그 바로 뒤)에 넣는다. HTML 주석(`<!-- … -->`) 안의 `<head>`·`<html>`은 일치로 보지 않는다. `<!doctype>`은 항상 문서의 첫 노드로 유지되어 렌더 모드(표준/quirks)를 바꾸지 않는다.
+- The 주입 위치 shall 첫 `<head …>` 시작 태그 바로 뒤로 한다. `<head>`가 없고 `<html …>`이 있으면 그 뒤에 `<head>…</head>`를 새로 만들어 넣고, 둘 다 없으면 문서 맨 앞(단, `<!doctype …>`이 있으면 그 바로 뒤)에 넣는다. HTML 주석(`<!-- … -->`) 안의 `<head>`·`<html>`은 일치로 보지 않는다. `<!doctype>`은 항상 문서의 첫 노드로 유지한다. 단 `srcdoc` 문서는 doctype 유무와 관계없이 표준 모드(`CSS1Compat`)로 렌더되므로 doctype이 없거나 quirks를 유발하는 문서는 원본 보기와 렌더 모드가 달라질 수 있다(§3 한계 10).
 - **When** 원본 문서에 이미 `<base href>`가 있으면, the HTML 미리보기 shall 주입한 `<base>`가 먼저 오므로 먼저 나온 쪽이 적용되어 원본 `<base>`는 무시된다(§3 한계로 명시).
 
 #### REQ-PREVIEW019-004: 배율 적용 — 재렌더 없는 문서 zoom (Event-driven + Unwanted)
@@ -63,11 +64,11 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 - The HTML 미리보기 shall `htmlZoom` 변경으로 `srcdoc` 값을 바꾸거나 iframe을 다시 만들지 않는다(문서 다시 로드·스크롤 위치 초기화 금지).
 - The 주입 스크립트 shall `event.source === window.parent`가 아닌 메시지, `data.type`이 위 값이 아닌 메시지, `data.zoom`이 유한한 `number`가 아니거나 `0.67` 미만·`2` 초과인 메시지를 무시한다.
 - The 부모 shall 메시지 대상 origin으로 `'*'`를 쓴다 — 선명 모드 프레임의 출처는 불투명이라 구체적인 origin을 지정할 수 없고, 보내는 값은 배율 숫자뿐이다.
-- The 부모 shall 이 프레임이 보내는 메시지를 받는 `message` 리스너를 두지 않는다(방향은 부모 → 자식 한 방향).
+- The 부모 shall not 이 프레임이 보내는 메시지를 받는 `message` 리스너를 둔다(방향은 부모 → 자식 한 방향).
 
 #### REQ-PREVIEW019-005: 해시 링크 가로채기 (Event-driven)
 
-- **When** 사용자가 선명 모드 프레임 안에서 `href`가 `#`으로 시작하는 `<a>`를 누르면, the 주입 스크립트 shall 기본 동작을 막고 문서 안에서 대상 요소(`id` 일치, 없으면 `name` 일치)로 `scrollIntoView`한다. `href`가 `#`이거나 `#top`이거나 대상이 없으면 `#top`·`#`은 문서 맨 위로, 대상 없는 나머지는 아무 일도 하지 않는다.
+- **When** 사용자가 선명 모드 프레임 안에서 `href`가 `#`으로 시작하는 `<a>`를 누르면, the 주입 스크립트 shall 기본 동작을 막고 문서 안에서 대상 요소(`id` 일치, 없으면 `name` 일치)로 `scrollIntoView`한다. `id` 또는 `name`이 `top`인 요소가 있으면 `#top`은 그 요소로 이동하고, 없으면 `#`과 `#top`은 문서 맨 위로 이동한다. 대상이 없는 그 밖의 `#…`는 기본 동작만 막고 아무 일도 하지 않는다. 퍼센트 인코딩이 잘못되어 해석할 수 없는 `href`도 기본 동작만 막고 아무 일도 하지 않는다.
 - The 주입 스크립트 shall `#`으로 시작하지 않는 링크는 가로채지 않는다(§3: 상대 파일·외부 링크 이동은 이 SPEC 범위 밖).
 - 사유: `<base>`가 있으면 `#anchor`가 base 기준 주소로 풀려 프레임이 `srcdoc`을 벗어나 asset 주소로 이동한다.
 
@@ -81,14 +82,15 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 #### REQ-PREVIEW019-007: 읽기 실패·비 UTF-8·대용량 폴백 (Event-driven)
 
 - **When** 선명 모드에서 `readFile`이 오류를 반환하거나(파일 없음, UTF-8이 아닌 내용 포함), 파일 크기(`read_file_size`)가 `HTML_CRISP_MAX_BYTES`(10 MiB)를 초과하면, the HTML 미리보기 shall 그 파일을 `'original'` 방식(REQ-008)으로 렌더하고 `role="status"` 안내 문구를 표시한다. 문구는 사유(UTF-8이 아님·읽기 실패·크기 초과)를 구분한다.
-- The 폴백 shall 저장된 `htmlRenderMode`를 바꾸지 않는다(그 파일 한정, 다른 파일을 열면 다시 선명 모드 시도).
-- The 폴백 shall 앱을 중단하거나 빈 화면을 남기지 않는다.
+- **When** 크기 조회(`readFileSize`)가 오류를 반환하면, the HTML 미리보기 shall 크기 검사를 건너뛰고 읽기를 시도한다. 크기가 정확히 `HTML_CRISP_MAX_BYTES`이면 폴백하지 않고 선명 모드로 렌더한다.
+- The 폴백 shall not 저장된 `htmlRenderMode`를 바꾼다(그 파일 한정, 다른 파일을 열면 다시 선명 모드 시도).
+- The 폴백 shall not 앱을 중단시키거나 빈 화면을 남긴다.
 - 사유: `srcdoc`은 파일 전체를 JS 문자열로 메모리에 올린다. 018까지 "asset 스트리밍이라 크기 임계가 없다"던 전제가 선명 모드에서는 성립하지 않는다.
 
 #### REQ-PREVIEW019-008: 원본 보기 모드 (State-driven)
 
 - **While** `htmlRenderMode`가 `'original'`이거나 REQ-007 폴백이 걸린 파일이면, the HTML 미리보기 shall SPEC-PREVIEW-018 동작과 같게 렌더한다: asset 주소 `src`, `sandbox="allow-scripts allow-same-origin"`, 감싸개 + 크기 역보정 + `transform: scale`.
-- The 원본 보기 분기 shall 018에서 병합된 `sandbox` 속성 줄·`src` 정규화·`onError` 처리를 바꾸지 않는다.
+- The 원본 보기 분기 shall not 018에서 병합된 `sandbox` 속성 줄·`src` 정규화·`onError` 처리를 바꾼다.
 - (열린 질문 §7-1) 원본 보기에서 배율은 018 그대로 동작하며 100% 초과 시 흐린 것도 그대로다.
 
 #### REQ-PREVIEW019-009: 헤더 모드 토글 (State-driven + Event-driven)
@@ -99,13 +101,13 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 
 #### REQ-PREVIEW019-010: 018 사용자 경험 불변 (Unwanted)
 
-- The 이 SPEC shall not 018의 배율 컨트롤(`[− N% +]`, 접근성 이름, 단계 목록 67~200, 경계 비활성), 키보드 단축키(Cmd/Ctrl+`=`·`+`·`-`·`0`, `isComposing`·모달 무시), 전역 영속화(`htmlZoom`, `mdedit-ui-store`), 다른 뷰어와의 분리(REQ-PREVIEW018-007)를 바꾸지 않는다.
-- The 이 SPEC shall not 앱 전체 웹뷰 배율 API를 쓰거나, 휠·핀치 입력을 더하지 않는다.
+- The 이 SPEC shall not 018의 배율 컨트롤(`[− N% +]`, 접근성 이름, 단계 목록 67~200, 경계 비활성), 키보드 단축키(Cmd/Ctrl+`=`·`+`·`-`·`0`, `isComposing`·모달 무시), 전역 영속화(`htmlZoom`, `mdedit-ui-store`), 다른 뷰어와의 분리(REQ-PREVIEW018-007)를 바꾼다.
+- The 이 SPEC shall not 앱 전체 웹뷰 배율 API를 쓰거나, 휠·핀치 입력을 더한다.
 
 #### REQ-PREVIEW019-011: 보안 경계 (Unwanted)
 
 - The 선명 모드 iframe shall not `allow-same-origin`, `allow-popups`, `allow-forms`, `allow-top-navigation`, `allow-modals` 등 `allow-scripts` 외 권한을 갖는다.
-- The 주입 스크립트 shall not `fetch`/`XMLHttpRequest`/`parent`로의 `postMessage`/`__TAURI*` 접근을 하지 않는다(받기 전용).
+- The 주입 스크립트 shall not `fetch`, `XMLHttpRequest`, 부모로의 `postMessage`, `__TAURI*` 접근, 저장소 접근을 쓴다(받기 전용).
 - The 선명 모드 프레임에서 앱 명령(`invoke`)을 호출하면, the 앱 shall 거부해야 한다 — 단 이 보장은 SPEC-SEC-001(앱 ACL 매니페스트) 병합이 전제이며, 실기기 확인 항목(M-6)으로 검증한다(§3).
 - The `@MX:WARN` 주석 shall 두 모드의 sandbox 값과 근거(불투명 출처 도입, 의도적 조임)를 설명하도록 갱신한다.
 
@@ -123,25 +125,30 @@ related_specs: [SPEC-PREVIEW-004, SPEC-PREVIEW-018, SPEC-SEC-001]
 ### CSP 상속 (plan 단계 실측)
 
 - `srcdoc` 문서는 임베더(앱 셸)의 CSP를 상속한다. Chromium(Playwright)에서 셸 메타 CSP 그대로 `sandbox="allow-scripts"` `srcdoc`에 인라인 스크립트를 넣었더니 `Executing inline script violates … script-src 'self' 'wasm-unsafe-eval'`로 차단됐고, CSP 없는 대조군에서는 실행됐다. WebKit·WebView2 동작은 실기기 확인(M-5)으로 남는다.
-- 그래서 REQ-006: 고정 스크립트 하나에만 해시 허용을 준다. **선명 모드에서 HTML 페이지 자체의 인라인·외부 `<script>`는 상속된 `script-src 'self'`로 계속 차단된다.** 이는 사용자가 수용한 제약이며 '원본 보기'가 우회 수단이다.
+- 그래서 REQ-006: 고정 스크립트 하나에만 해시 허용을 준다. **HTML 페이지 자체의 인라인·외부 `<script>`는 `srcdoc` 문서 안에서만 상속된 `script-src 'self'`로 차단된다.** 이는 사용자가 수용한 제약이며 '원본 보기'가 우회 수단이다.
+- **이 차단은 보안 경계가 아니다 (audit review-1 실측)**: CSP 상속은 `srcdoc` 문서에만 적용된다. 프레임이 asset 문서로 이동하면 — 링크 클릭, **클릭 없는 `<meta http-equiv="refresh">`**, (표준상 추론, 미실측) 중첩 `<iframe src>` — 이동한 문서에는 CSP가 없고 `sandbox="allow-scripts"` 아래에서 스크립트가 실행된다. Playwright Chromium·WebKit 모두 링크 클릭과 meta refresh 뒤 이동한 문서의 스크립트가 실행됨을 확인했다. 따라서 파일 내용만으로 우회되는 이 차단을 방어선으로 세지 않으며, 앱 명령 노출의 최종 방어는 SPEC-SEC-001이다.
+- 상속된 정책의 `'self'`는 셸 출처(`tauri://localhost`, Windows `http://tauri.localhost`)다. 따라서 HTML이 절대 주소로 앱 번들 스크립트를 부르면 프레임 안에서 실행될 수 있다(CSP 규칙에서 추론, 미실측).
 - 같은 이유로 `default-src 'self' tauri: asset:`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data: asset:`가 프레임에 적용된다 — 외부 http(s) 이미지·스타일시트·웹폰트(CDN)는 선명 모드에서 막힌다. 018의 asset iframe은 CSP가 없어 이들이 모두 동작했으므로 **퇴행**이다.
 - `tauri.conf.json`의 `csp`는 현재 `null`이다. 이후 SPEC이 Tauri가 CSP를 주입하는 설정(`csp` 값 지정)으로 바꾸면 Tauri가 자체 nonce/해시를 덧붙이므로 이 SPEC의 해시 토큰과의 공존을 그때 다시 검증해야 한다.
 
 ### 선명 모드 알려진 한계 (규범)
 
-1. **페이지 자체 스크립트 차단**(위). 인터랙티브 페이지는 동작하지 않는다.
+1. **페이지 자체 스크립트 차단**(`srcdoc` 문서 한정, 위). 인터랙티브 페이지는 동작하지 않는다. 셸 출처 스크립트는 `'self'`로 허용된다.
 2. **외부 리소스 차단**: CDN 스크립트/스타일시트/웹폰트, 외부 http(s) 이미지.
 3. **CORS 의존 코드**: `fetch`/`XMLHttpRequest`로 상대 파일 읽기, `<script type="module">`, `@font-face` 웹폰트, `crossorigin` 속성 자원은 asset 응답의 `Access-Control-Allow-Origin`이 앱 셸 출처로 고정되어 있어 실패한다(스크립트 자체가 막혀 있어 일부는 1번과 겹친다). `<img>`, `<link rel=stylesheet>`(동일 폴더 asset)은 동작한다.
 4. **저장소 접근**: 불투명 출처에서 `localStorage`/`sessionStorage`/쿠키 접근은 `SecurityError`.
 5. **미디어 쿼리**: 문서 `zoom`은 CSS 뷰포트 폭을 바꾸지 않으므로 `@media (max-width …)`는 **배율에 반응하지 않는다.** 018(원본 보기)은 반응했다. 이는 의도된 차이이며 사용자가 '브라우저처럼 반응'을 원하면 원본 보기를 쓴다.
 6. **`<base>` 충돌**: 원본 문서의 `<base href>`는 무시된다(REQ-003).
-7. **링크 이동**: `#` 해시 링크는 프레임 안에서 처리하지만, 상대 파일 링크·외부 링크는 가로채지 않는다. 상대 파일 링크는 프레임이 그 asset 주소로 이동하며(불투명 샌드박스는 유지, 배율·주입 사라짐), `target="_blank"` 등 새 창은 sandbox가 막는다. 이 동작은 향후 SPEC 후보다.
+7. **링크 이동**: `#` 해시 링크는 프레임 안에서 처리하지만, 상대 파일 링크·외부 링크는 가로채지 않는다. 상대 파일 링크는 프레임이 그 asset 주소로 이동하며(불투명 샌드박스는 유지, 배율·주입 사라짐, **이동한 문서는 CSP 없이 스크립트를 실행**), `<meta http-equiv="refresh">`는 클릭 없이도 같은 이동을 일으킨다. `target="_blank"` 등 새 창은 sandbox가 막는다. 이동 뒤에는 미리보기가 배율을 더 적용하지 못한다. 이 동작은 향후 SPEC 후보다.
 8. **파일 전체 메모리 적재**: 10 MiB 초과는 원본 방식 폴백(REQ-007). 파일이 UTF-8이 아니면 폴백.
 9. **저장 후 갱신**: 선명 모드는 `htmlPath` 변경 시 다시 읽는다. 같은 경로 파일이 바뀐 뒤 갱신하는 동작은 018의 asset iframe과 같은 수준(경로 변경 기준)으로 맞춘다 — run 단계에서 018 동작을 재측정해 progress.md에 기록한다.
 
+10. **quirks 모드 차이**: `srcdoc` 문서는 doctype이 없거나 오래된 doctype이어도 항상 표준 모드(`CSS1Compat`)다(Playwright Chromium·WebKit 실측). 같은 파일을 원본 보기(asset `src`)로 열면 표준상 quirks(`BackCompat`)이므로(이 대조는 미실측) 줄 높이·표 크기·박스 모델이 달라질 수 있다.
+
 ### 의도적 보안 변경 (SPEC-PREVIEW-004/018 대비)
 
-- 선명 모드 `sandbox="allow-scripts"`는 004/018의 `allow-scripts allow-same-origin`보다 **조인 것**이다(불투명 출처). 004 REQ-002/005와 018 REQ-003의 "sandbox 값 불변"은 asset 방식(원본 보기)에 계속 적용되며, 선명 모드는 새 분기이므로 위반이 아니다. 018 문서는 병합·완료 상태이므로 이 SPEC은 018 본문을 수정하지 않는다.
+- 선명 모드 `sandbox="allow-scripts"`는 004/018의 `allow-scripts allow-same-origin`보다 **조인 것**이다(불투명 출처). 004 REQ-002/005와 018 REQ-003의 "sandbox 값 불변"은 asset 방식(원본 보기)에 계속 적용되며, 선명 모드는 새 분기이므로 위반이 아니다.
+- **SPEC-PREVIEW-018과의 관계 (인정되는 충돌)**: 018은 병합됐지만 `status: implemented`이며 `completed`가 아니다(수동 M-1·M-2·M-4·M-5 미기록, 018 acceptance DoD). 이 SPEC의 run은 018의 다음 조건을 더는 참으로 만들 수 없다: (a) 018 AC-007의 `git diff -w 00c0edb -- HtmlFileViewer.tsx | grep sandbox` = 0 과 DoD "sandbox 속성 줄과 `@MX:WARN`이 바뀌지 않았다"(선명 분기 sandbox 줄 추가·`@MX:WARN` 갱신) — 원본 분기 보존은 이 SPEC의 AC-008 grep이 대신 지킨다. (b) 018 수동 M-1(미디어 쿼리가 배율에 반응)은 019 병합 뒤 기본값(선명 모드)에서 수행하면 한계 5로 실패해 보이므로 **원본 보기에서 수행해야 한다.** 이 SPEC은 018 본문을 수정하지 않는다.
 - 앱 셸 CSP는 해시 1개만 넓어진다. 이 해시가 허용하는 것은 앱이 만든 고정 스크립트 한 덩어리뿐이며, 앱 셸 문서 자체에 같은 바이트의 스크립트가 들어갈 때만 의미가 있다.
 
 ### 배율 방식 가정 (run 첫 관문)
