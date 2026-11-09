@@ -2,7 +2,7 @@
 id: SPEC-PREVIEW-021
 title: "HTML 미리보기 선명 모드에서 mermaid 블록을 pele로 미리 렌더"
 version: "0.1.2"
-status: draft
+status: in-progress
 created: 2026-11-09
 updated: 2026-11-09
 author: jw (bjw202)

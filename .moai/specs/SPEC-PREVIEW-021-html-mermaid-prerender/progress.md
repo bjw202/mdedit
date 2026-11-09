@@ -25,3 +25,67 @@
 - plan_complete_at: 2026-11-09
 - 구현 착수 승인(Implementation Kickoff Approval)은 받지 않았다. run은 (1) origin/main 병합(t1 SPEC-SEC-002·t3 SPEC-PREVIEW-022 반영) (2) SPEC-PREVIEW-019·015 `completed` 확인 (3) M1 글꼴 관문(macOS 필수, Windows 가능하면) 순서로 시작한다.
 - 열린 질문: spec.md §7 — SEC-002가 `font-src`에 `data:`를 넣는지, M1에서 (A)·(B) 모두 실패 시 (C) 수용 여부.
+
+## §E.2 Run-phase Evidence
+
+### 사전 점검 (§C)
+
+- origin/main 대비 HEAD: `0 5`(뒤처짐 없음). SPEC-PREVIEW-019·015 둘 다 `completed`. 셸 CSP(`index.html`)에 `font-src` 없음 → 경로 (B)(`data:`) 불가, (A) 또는 (C)만 남음. `HtmlFileViewer.tsx`에 t3 변경 아직 없음.
+
+### M1 글꼴 관문 결과 (AC-010)
+
+| OS·빌드 | 앱 출처 | 굵기 ↔ 파일 | 관찰 | 판정 |
+|---------|---------|-------------|------|------|
+| macOS 개발 빌드(WKWebView) | `http://localhost:1420` | 400 → `barlow-400.woff2`, 600 → `barlow-700.woff2`, mono 400 → `ibm-plex-mono-400.woff2` | 선명 모드·원본 보기, 100%·150% 모두 줄1(Barlow 시도)이 monospace 대체가 아닌 비례폭으로 그려지고 줄2(시스템 sans-serif)와 폭이 다름(100% 'Authentication Service' 상자 약 361px ↔ 347px) | (A) PASS — 사용자 화면 관찰(2026-11-09) |
+| macOS 배포 빌드 | `tauri://localhost` | 위와 같음 | **미측정** — 사용자가 마지막 수동 확인(M-1·M-2) 때 한꺼번에 측정하기로 함. 시안 `m1-font-gate-A-release.html`과 `.app`은 준비됨 | 수동 확인으로 이월 |
+| Windows(WebView2) | `http://tauri.localhost` | 위와 같음 | **Windows 미측정** | 수동 M-2로 이월 — 실패 시 run 정지·blocker |
+
+- 선택 경로: **(A) 앱 출처 `@font-face`**. 근거: 개발 빌드에서 로드 성공을 화면으로 확인, (B)는 셸 CSP 때문에 불가, (C)는 필요 없음.
+- 갭: 개발 빌드의 `document.fonts.check` 값과 네트워크·콘솔 오류는 받지 못했다(화면 관찰만). 배포·Windows 결과 없음. 배포에서 실패하면 그때 멈추고 코디네이터에 보고한다.
+- 측정용 시안 파일(`.moai/state/verify/m1-font-gate-A*.html`, 빌드 로그)은 추적하지 않는 파일이라 커밋하지 않았다.
+
+### 구현 요약
+
+- 신규 `src/lib/preview/htmlMermaid.ts`(`prerenderMermaidBlocks(html, { fonts? })`), `src/test/htmlMermaid.test.ts`(57 케이스). 수정: `HtmlFileViewer.tsx`(호출 1곳 + import + `@MX:NOTE`), `HtmlFileViewerCrisp.test.tsx`(+4 케이스), `e2e/html-file-viewer.spec.ts`(+1 describe).
+- 글꼴 `<style>`은 `location.origin` 기준 `/fonts/*.woff2`를 가리키며, 출처가 `scheme://host[:port]` 형식이 아니면 넣지 않는다.
+- TDD: `htmlMermaid.test.ts`를 먼저 작성해 모듈 부재로 실패(RED, `Failed to resolve import "@/lib/preview/htmlMermaid"`, `Test Files 1 failed, Tests no tests`)를 본 뒤 구현해 57/57 통과(GREEN).
+
+### 게이트 명령과 결과 (이 트리, HEAD a318b41 + 작업 트리 변경)
+
+| 명령 | 종료 코드 | 꼬리 출력 |
+|------|-----------|-----------|
+| `npm run typecheck` | 0 | `> tsc --noEmit` (오류 없음) |
+| `npm run lint` | 0 | `> eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0` (경고·오류 없음) |
+| `npx vitest run src/test/htmlMermaid.test.ts src/test/HtmlFileViewerCrisp.test.tsx src/test/HtmlFileViewer.test.tsx src/test/htmlSrcdoc.test.ts src/test/htmlSrcdocCsp.test.ts src/test/exportDiagram.test.ts` | 0 | `Test Files 6 passed (6)` / `Tests 167 passed (167)` |
+| `npx vitest run --dir src` (전체 1회) | 0 | `Test Files 117 passed (117)` / `Tests 2028 passed (2028)` |
+| `npx playwright test e2e/html-file-viewer.spec.ts` | 0 | `5 passed (5.9s)` (webkit, 새 케이스 포함) |
+| `git diff origin/main -- index.html src/lib/preview/htmlSrcdoc.ts src/lib/diagram src/lib/export src-tauri` | 0 | 출력 없음 |
+
+로그 원본: `.moai/state/verify/{typecheck,lint,vitest-full,e2e}.log`(추적 안 함).
+
+### AC 매트릭스
+
+| AC | 상태 | 근거 |
+|----|------|------|
+| 001 | PASS | `HtmlFileViewerCrisp.test.tsx` mermaid 케이스 1 — srcdoc에 `<svg` 1, `data-mdedit-diagram=""` 1, sandbox `allow-scripts`, `<base`·`<style>html{zoom:` 각 1 |
+| 002 | PASS | `htmlMermaid.test.ts` 감지 표 12행 + 중첩 div 뒤 `<p>after</p>` 보존 |
+| 003 | PASS | 감지 제외 표 17행, 모두 `P(x) === x` |
+| 004 | PASS | 원문 추출 8케이스(엔티티·dedent·`<br/>`·태그 제거·숫자 엔티티·탭·U+00A0·body 자식 수) |
+| 005 | PASS | 렌더 삽입(표시 속성, 감싸개 style, `/>`·공백 종료, `readPeleThemeValues` 1회, 모양 톤 `--_s:`, 블록 20개) |
+| 006 | PASS | 실패 안내(실제 pele `2행 14열`/위치 0, 오류 메시지 미포함, 두 번째 호출 ok 시 접미사 없음, 성공+실패 혼합) |
+| 007 | PASS | 블록 밖 바이트 보존(글꼴 끔·켬 두 경우, 스크립트 태그 보존), AC-003 표 전부 동일 |
+| 008 | PASS | 동기 `string`, 렌더 예외 시 입력 반환, 뷰어에서 배율 변경 후 `renderExportDiagram` 호출 수·srcdoc 불변 |
+| 009 | PASS | 원본 보기·크기/읽기/UTF-8 폴백에서 `renderExportDiagram` 미호출 |
+| 010 | PARTIAL | M1 표(macOS 개발 (A) PASS)와 글꼴 `<style>` 위치·수 단위 시험(블록 안 `</body>` 무시, 성공 0개면 없음) PASS. 배포·Windows 실측은 수동 이월 |
+| 011 | PASS | 불변 파일 diff 출력 없음, `sandbox="allow-scripts"` 유지, `innerHTML`은 `createElement('template')` 요소 1곳(`htmlMermaid.ts:133`), `@MX:WARN`+`@MX:REASON` 있음, `HtmlFileViewer.tsx` 주석에 `pre.mermaid`·`div.mermaid` 한계 서술 |
+| 012 | PARTIAL | e2e 부분 증거 PASS(`[data-mdedit-diagram] svg` 1, 안내 1, `code.language-mermaid` 원문 유지, 페이지 스크립트 미실행). 수동 M-1·M-2 대기 |
+
+### 갭·잔여 위험
+
+- 미검증: 배포 빌드(`tauri://localhost`)·Windows(`http://tauri.localhost`)에서 글꼴 로드, 라벨 넘침, 150%·200% 선명도, 실제 색(`#FAF9F6`·판단 노드 톤). jsdom은 구조만 본다.
+- 개발 빌드 M1은 화면 관찰만 있고 `document.fonts.check`·네트워크 탭 값은 없다.
+- 병행 카드 t1(SEC-002)·t3(PREVIEW-022) 병합 후 origin/main 병합과 충돌 확인은 이 worktree에서 아직 하지 않았다(`HtmlFileViewer.tsx` 변경은 호출 1곳·import·주석뿐).
+
+### 사용자 수동 확인 대기
+
+- M-0(배포 빌드·Windows 글꼴), M-1(그림 표시·색·원본 보기 대조), M-2(라벨 넘침 없음·150%·200% 선명도) — macOS와 Windows 각각. 배포나 Windows에서 글꼴이 막히면 run을 멈추고 보고한다.
