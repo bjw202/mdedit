@@ -23,7 +23,7 @@
 
 ### M1 실측
 
-시험 모양: 앱의 최종 인자와 같게 하되 모델 인자만 바꾸고 추론 설정은 뺐다. claude는 `-p --system-prompt-file <파일> [--model X] --output-format stream-json --include-partial-messages --verbose --setting-sources "" --tools ""`, 사용자 프롬프트 `Reply with exactly: OK`를 표준 입력으로 쓰고 EOF. `MAX_THINKING_TOKENS`는 해제. codex는 `exec -C <빈 디렉터리> --ignore-user-config --skip-git-repo-check --ephemeral --sandbox read-only [--model X] --json`, 결합 프롬프트를 표준 입력으로. 도구 버전 claude 2.1.322, codex-cli 0.167.0. 원본 캡처: `m1-raw-results.json`(요약), 스크립트와 모델별 원본은 코디네이터 scratchpad `m1/`.
+시험 모양: 앱의 최종 인자와 같게 하되 모델 인자만 바꾸고 추론 설정은 뺐다. claude는 `-p --system-prompt-file <파일> [--model X] --output-format stream-json --include-partial-messages --verbose --setting-sources "" --tools ""`, 사용자 프롬프트 `Reply with exactly: OK`를 표준 입력으로 쓰고 EOF. `MAX_THINKING_TOKENS`는 해제. codex는 `exec -C <빈 디렉터리> --ignore-user-config --skip-git-repo-check --ephemeral --sandbox read-only [--model X] --json`, 결합 프롬프트를 표준 입력으로. 도구 버전 claude 2.1.322, codex-cli 0.167.0. 원본 캡처: `m1-raw-results.json`(요약), 스크립트와 모델별 원본은 코디네이터 scratchpad `m1/`; gpt-5.5 실패 원문은 `m1-raw-codex-gpt-5.5.json`으로 이 디렉터리에 보존.
 
 | 도구 | 모델 | 종료 코드 | `OK` 포함 | 오류 요약 | 소요(초) |
 |------|------|-----------|-----------|-----------|----------|
@@ -84,13 +84,13 @@ AC-001~018, 020, 021 자동 PASS(AC-013~015는 CATALOG 적용). AC-019 수동 **
 
 - 드롭다운 접근성 이름은 "Claude 모델"/"Codex 모델"로 고정(기존 `providerDisplayName`의 "Claude Code"는 AC-005 이름과 달라 쓰지 않음).
 - 인자 원소 수는 `--model` 없음 11개/있음 13개(추론 `-c`와 값 2개 제거).
-- 한계: 새 SettingsModal·카드 테스트는 구현 뒤에 쓰여 RED 출력이 없다(uiStore·고스트 테스트와 Rust는 RED 확인). `ai_request` 전체 통합 테스트는 없고 AC-019 수동 확인이 맡는다. codex 조회가 손자 프로세스 때문에 kill 뒤에도 읽기 스레드가 잠시 남을 수 있다(`@MX:WARN` 기록).
+- 한계: 새 SettingsModal·카드 테스트는 구현 뒤에 쓰여 RED 출력이 없다(uiStore·고스트 테스트와 Rust는 RED를 거쳤다고 run 단계가 기록했으나 RED 출력 원문은 이 저장소에 보존되어 있지 않다). `ai_request` 전체 통합 테스트는 없고 AC-019 수동 확인이 맡는다. codex 조회가 손자 프로세스 때문에 kill 뒤에도 읽기 스레드가 잠시 남을 수 있다(`@MX:WARN` 기록).
 - 선행 SPEC-AI-012·013 프런트매터는 `implemented`(병합은 확인됨).
 
 ## §E.4 Sync-phase Audit-Ready Signal
 
 - sync_complete_at: 2026-11-13
-- sync_commit_sha: pending-backfill-sync
+- sync_commit_sha: e43d3fd (문서 보정은 이어지는 커밋)
 - sync_status: implemented (`completed` 아님 — AC-019 수동 확인 대기)
 - 동기화한 파일: `CHANGELOG.md`(`[Unreleased]` 맨 위 `### Changed` 항목 1건), `docs/USER_GUIDE.md`(§1.5 '고급 모델 사용' 항목을 모델 드롭다운 설명으로 교체, '⚡ 고급 모델로 다시 시도' 문장 제거), `.moai/specs/SPEC-AI-014-model-picker/spec.md` 프런트매터 `status: implemented`·`updated: 2026-11-13`만, 이 progress.md. `README.md`와 `docs/`의 다른 문서에는 바뀐 동작을 설명하는 언급이 없었음(grep 확인). `video/STORYBOARD.md`와 이전 SPEC 디렉터리는 건드리지 않음.
 - 게이트 증거: 이 sync에서는 테스트를 다시 돌리지 않았다. §E.2 '게이트 증거'(HEAD 8f44695 기준 typecheck 0, lint 0, vitest 2086 passed/122 files, cargo test 421 passed, Playwright 5개 파일 13 passed/1 skipped)를 인용한다.
@@ -98,4 +98,4 @@ AC-001~018, 020, 021 자동 PASS(AC-013~015는 CATALOG 적용). AC-019 수동 **
 - 수동 확인 대기(AC-019, macOS 개발 빌드): §E.2 '수동 확인 대기' 1~4번 그대로.
 - 미검증(Gaps): AC-019 전부, Windows 전부, 새 SettingsModal·카드 테스트의 RED 출력 없음, `ai_request` 전체 통합 테스트 없음, codex 조회 손자 프로세스 읽기 스레드 잔류 가능, 계정 등급상 실패하는 모델은 CLI 실행 뒤 `ai://error`로 실패하며 고스트 경로는 이유 미표시. 전체 `npm run test:e2e`는 실행하지 않음.
 - 잔여 위험: M1 실측은 한 ChatGPT 계정·codex-cli 0.167.0·claude 2.1.322 기준이라 다른 계정 등급에서는 조회 목록 모델이 실패할 수 있다.
-- sync-audit: pending
+- sync-audit: PASS-WITH-DEBT 0.89 (Functionality 0.92 / Security 0.90 / Craft 0.85 / Consistency 0.88), 보고서 `.moai/reports/sync-audit/SPEC-AI-014.md`. SHOULD-FIX D1(CHANGELOG 범위)·D2(USER_GUIDE 문장)·D4(gpt-5.5 원문 보존)는 보정 커밋에서 해결, D3(코드맵 3개의 옛 체계 서술)는 `/moai codemaps` 재생성 후속, MINOR D5~D11은 후속
