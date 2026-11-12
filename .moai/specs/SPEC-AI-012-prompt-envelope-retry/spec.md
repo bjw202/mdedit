@@ -2,7 +2,7 @@
 id: SPEC-AI-012
 title: "AI 프롬프트 데이터 봉투·지시 샌드위치·재요청 지시 분리"
 version: "1.0.0"
-status: draft
+status: in-progress
 created: 2026-11-13
 updated: 2026-11-13
 author: jw
