@@ -124,3 +124,34 @@ run_complete_commit: 8223f21 (진행 기록 커밋은 그 다음)
 - `AiFeature::task_text()` 를 공개 메서드로 추가해 `system_prompt()` 와 재확인 블록이 같은 작업 문장을 쓰게 했다. `system_prompt()` 반환값은 M1 리터럴 스냅샷으로 바이트 동일함을 확인했다.
 - `status: draft → in-progress` 전환은 M1 커밋(fafeacc)에 포함되지 못해(sed 가 적용되지 않음) 별도 chore 커밋(dd5873f)으로 했다. fafeacc 의 커밋 메시지에는 전환했다고 적혀 있으나 실제 전환은 dd5873f 다.
 - `DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT` 리터럴과 `inline_prompt_without_context_is_target_only` 의 기대 문자열은 새 스코프 절·재확인 블록 문구를 손으로 적은 리터럴이다(plan.md 4.4 의 의도적 갱신).
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+```
+sync_status: audit-ready
+sync_complete_at: 2026-11-13
+sync_commit_sha: pending-backfill (이 기록을 담은 sync 커밋은 자기 SHA를 알 수 없다)
+frontmatter_status_transitions: spec.md in-progress -> implemented (completed 아님; 수동 M-1~M-3 후 close)
+b12_self_test_a: grep -c 'SPEC-AI-012' CHANGELOG.md -> 0 (추가 전)
+b12_self_test_b: acceptance.md 고유 AC ID 16건 (grep -oE 'AC-AI12-[0-9]+' | sort -u | wc -l = 16), CHANGELOG 항목 AC-AI12-001~016(16건)과 일치
+b12_self_test_c: CHANGELOG에 적은 파일 경로 7건 ls/git diff --name-only로 존재 확인
+changelog_entry_position: ## [Unreleased] / ### Changed
+```
+
+### 동기화한 것
+
+- `CHANGELOG.md` `[Unreleased]` 에 `### Changed` 항목 1건 추가 (수치는 §E.2.2 기록만 인용).
+- `spec.md` frontmatter `status: implemented`, `updated: 2026-11-13` (본문 무변경). plan.md·acceptance.md 무변경.
+- README.md·docs 점검: README.md 33행(선택 툴바 ↻ 재요청 설명)과 docs/USER_GUIDE.md 243·252~253·335~337행(직접 입력 번역, ↻ 직접 지시/다시)을 확인했다. 사용자에게 보이는 동작 설명은 여전히 정확해 수정하지 않았다.
+
+### 증거
+
+- 이번 sync 단계에서 테스트·린트를 다시 실행하지 않았다. 테스트·린트 수치는 §E.2.2 의 run 단계 실행 기록(typecheck 0, lint 0, cargo test 0 / lib 391, vitest 0 / 2050)이다.
+- `git diff origin/main...HEAD --name-only` 로 구현 파일 7건(Rust 2, TS 2, 테스트 3)을 확인했다.
+
+### Gaps
+
+- 수동 확인 M-1, M-2, M-3 는 PENDING(사용자). 실제 CLI 응답 품질 미관찰.
+- CI 가 `cargo test` 를 실행하지 않으므로 Rust 테스트는 로컬 실행에만 근거한다.
+- MX 태그 검증과 sync-audit 은 이 단계에서 수행하지 않았다.
+- `completed` 전환은 M-1~M-3 확인 뒤 별도 close 에서 한다.
