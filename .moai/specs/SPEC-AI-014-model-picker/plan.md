@@ -77,14 +77,15 @@
 
 | 파일 | 이 SPEC이 고치는 곳 | 겹치는 선행 SPEC | 그 SPEC이 고칠 것으로 예상되는 곳(백로그 카드 기준) |
 |------|------------------|----------------|------------------------------------------|
-| `src-tauri/src/ai/claude_cli.rs` | `build_claude_args`, `claude_thinking_env`(삭제), `claude_advanced_model_label`(삭제), `spawn_claude`, `ClaudeProvider::detect`/`spawn`, 관련 테스트 | SPEC-AI-013 (t5) | 프롬프트를 인자 대신 표준 입력으로 전달 — `build_claude_args`, `spawn_claude`(stdin), `ClaudeProvider::spawn` |
-| `src-tauri/src/ai/codex_cli.rs` | `codex_model_arg`·`codex_reasoning_effort`·`codex_effort_display`·`codex_advanced_model_label`(삭제), `build_codex_args`, `CodexProvider::detect`/`spawn`, 관련 테스트 | SPEC-AI-013 (t5) | `combine_prompts`, `build_codex_args`(마지막 인자), `build_codex_command`(stdin), `spawn_codex`, `CodexProvider::spawn` |
+| `src-tauri/src/ai/claude_cli.rs` | `build_claude_args`(모델 인자를 `Option<&str>`로, `None`이면 `--model` 생략), `claude_thinking_env`(삭제), `claude_advanced_model_label`(삭제), `build_claude_command`(t5가 만듦 — 사고 예산 환경 변수 설정 줄과 `model` 매개변수 제거), `spawn_claude`, `ClaudeProvider::detect`/`spawn`, 관련 테스트(인자 스냅샷) | SPEC-AI-013 (t5, 먼저 병합) | 인자 조립부 전면 변경: `build_claude_args(model, system_prompt_path)`(사용자 텍스트 매개변수 제거, `-p`·`--system-prompt-file`), 새 `build_claude_command`(stdin piped, 사고 예산 env는 현행 유지), `spawn_stdin_writer`(공유 헬퍼), `ClaudeProvider::spawn`(시스템 프롬프트 파일 쓰기 + stdin 쓰기 스레드). t6는 `spawn_stdin_writer`와 파일 쓰기는 건드리지 않는다 |
+| `src-tauri/src/ai/codex_cli.rs` | `codex_model_arg`·`codex_reasoning_effort`·`codex_effort_display`·`codex_advanced_model_label`(삭제), `build_codex_args`(모델 `Option<&str>`, `-c model_reasoning_effort` 제거), `CodexProvider::detect`/`spawn`, 관련 테스트(인자 원소 수·순서 스냅샷) | SPEC-AI-013 (t5, 먼저 병합) | 인자 조립부 전면 변경: `build_codex_args(model, scratch_dir)`(위치 인자 프롬프트 제거), `build_codex_command`(stdin null → piped, 주석·`@MX:REASON` 갱신), `spawn_codex`(`spawn_stdin_writer`로 `combine_prompts` 결과를 씀), `CodexProvider::spawn`. t6는 stdin 처리와 `combine_prompts`는 건드리지 않는다 |
 | `src-tauri/src/ai/mod.rs` | `AiRequestArgs`(`model`→`models`), `ai_request` 4단계(모델 결정) 직후 검증, `ai_detect_providers` | SPEC-AI-013 (t5) | 응답 대기 한도(60초)를 입력 크기에 따라 조정 — `ai_request` 안 워치독 부분 |
 | `src/components/editor/extensions/ai-suggestion-card.ts` | `CardCallbacks.onReRequest` 시그니처, `RenderCardInput.model`, `renderDoneControls`, error/intruded 재시도 핸들러, retry-exhausted 분기(⚡ 버튼), `SuggestionCardModel.model`, 컨트롤러의 자동 재시도 2곳, `startSuggestionCard`의 `onReRequest` 배선 | SPEC-AI-012 (t4) | ↻ 재요청 때 원래 지시와 프리셋 추가 지시가 사라지는 버그 — `onReRequest`·`fireReRequest` 배선, `renderDoneControls` |
 | `src/components/editor/extensions/ai-selection-toolbar.ts` | `resolveModel`(삭제), `AiToolbarUiState`, `fire()`의 모델 줄, `createAiSelectionToolbar` 상태 조립 | SPEC-AI-015 (t7, 병행 가능) | 직접 입력 칸 textarea 교체·메뉴 폭 — 다른 함수지만 같은 파일 |
 | `src/styles/mdedit-components.css` | `.mdedit-ai-advanced` 선택자 | SPEC-AI-015 (t7) | 직접 입력 칸 스타일 — 다른 규칙 |
 
 - `prompt.rs`(t4 범위)는 이 SPEC이 건드리지 않는다.
+- 인자 조립부(`build_claude_args`·`build_claude_command`·`build_codex_args`)는 t5와 t6가 같은 줄을 고친다. t6 run은 t5 병합본 위에서 시작해 `model` 매개변수의 타입·`--model` 생략·추론 설정 제거만 바꾸고, t5가 정한 프롬프트 전달(표준 입력, `--system-prompt-file`, 위치 인자 없음)은 그대로 둔다. 인자 원소 수·순서를 고정하는 기존 스냅샷 테스트는 t5 병합본 기준으로 다시 쓴다.
 - t5가 `AiRequest`나 어댑터 시그니처를 바꾸면, run 시작 시 이 표의 함수 이름을 다시 확인하고 바뀐 시그니처 위에 모델 인자만 바꾼다. 시그니처 차이는 SPEC 개정 사유가 아니다(요구사항은 관찰 가능한 동작이므로).
 
 ## F. 범위·규모와 run 방식

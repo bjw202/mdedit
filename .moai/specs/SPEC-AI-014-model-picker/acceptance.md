@@ -72,7 +72,7 @@
 - **AC-010 (인자 모양과 격리 플래그)**: `cargo test claude_cli:: codex_cli::` —
   - `build_claude_args(None, …)`에 `--model`이 없고, `build_claude_args(Some("opus"), …)`에는 `--model` 바로 뒤에 `opus`가 한 번 있다.
   - `build_codex_args(None, …)`에 `--model`이 없고, `Some("m-a")`이면 `--model` 뒤에 `m-a`가 있다.
-  - 두 경우 모두 REQ-AI14-011의 격리 플래그가 전부 있다(기존 격리 테스트 유지).
+  - 두 경우 모두 REQ-AI14-011의 격리 플래그가 전부 있고, claude 인자에 `--system-prompt-file`이 있으며, 두 도구 모두 인자에 사용자 텍스트가 없다(SPEC-AI-013의 표준 입력 전달 테스트 유지). 함수 시그니처는 SPEC-AI-013 병합본 기준이다(예: `build_claude_args(None, <경로>)`, `build_codex_args(None, <스크래치>)`).
   PASS: 모두 성립.
 - **AC-011 (추론 설정 없음)**: `git grep -nE "MAX_THINKING_TOKENS|model_reasoning_effort" -- src-tauri/src` 출력이 비어 있다(종료 코드 1). 그리고 `cargo test`의 codex 인자 테스트가 `args.iter().all(|a| a != "-c")`(원소가 정확히 `-c`인 것이 없음, 대문자 `-C` 스크래치 플래그는 해당 없음)를 단언한다. PASS: 둘 다 성립.
 

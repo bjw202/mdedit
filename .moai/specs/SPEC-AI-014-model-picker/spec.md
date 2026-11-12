@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-014
 title: "AI 모델 선택 — 고급 모델 토글을 도구별 모델 목록 선택으로 교체"
-version: "0.1.3"
+version: "0.1.4"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -26,6 +26,7 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 | 0.1.1 | 2026-11-13 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-AI-014-review-1.md`, FAIL 0.78) 반영. (D1, BLOCKING) 고스트 텍스트·이어쓰기 경로는 invoke 거부 메시지를 어디에도 표시하지 않는다는 사실을 코드에서 확인했다(`ai-ghost-text.ts` 상태 구독은 `error`에서 고스트만 지움). REQ-AI14-018을 새로 두어 그 경로의 거부 메시지를 상태 표시줄에 띄우고 AC-020을 더했다. (D2·D3) codex 조회가 동기 명령 안에서 UI를 막을 수 있다: `ai_detect_providers`를 비동기 명령으로 바꾸고(REQ-AI14-015), `ai_request`가 조회하는 조건을 좁히고 남는 멈춤을 알려진 한계로 적었다(REQ-AI14-014). (D4) M1 판정이 기본 설계와 다를 때 구현자가 spec.md를 고치지 않는다. 결과는 progress.md에 적고 차단 보고를 돌려주며, 개정은 manager-spec이 한다(REQ-AI14-016). (D5·D6) REQ-AI14-007의 라우팅 선택과 REQ-AI14-015의 목록 채우기에 AC를 더했다(AC-021, AC-016 보강). (D7) M1에서 `sonnet`이 빠지면 이전 규칙의 대상을 `haiku`로 한다(REQ-AI14-005). (D18) 고스트 ↻ 재시도도 원래 선택을 이어받는다고 REQ-AI14-017에 적었다. 나머지(D8~D17, D19)는 plan.md·acceptance.md·research.md의 사실·명령 정정이다. |
 | 0.1.2 | 2026-11-13 | jw | plan-audit 2차(`.moai/reports/plan-audit/SPEC-AI-014-review-2.md`, PASS-WITH-DEBT 0.89) 반영. 캐시 잠금을 조회 대기 중에 잡지 않고 조회 중 표시로 중복 조회를 막으며, 조회가 필요 없는 검증은 잠금을 잡지 않는다(REQ-AI14-014). codex 미설치·미로그인이면 조회하지 않는다. 앱 시작 때 감지가 돌아 `CATALOG`이면 시작마다 조회한다는 사실과 멈춤 조건을 바로 적었다. 고스트 경로 네 명령 이름을 명시했다(REQ-AI14-018). §5에서 고스트 실행 오류는 표시되지 않음을 한계로, `models` 없는 요청이 CLI 기본값임을 의도로 적었다. AC-015·017·019·020·008, plan M0·A를 맞췄다. |
 | 0.1.3 | 2026-11-13 | jw | plan-audit 3차(`.moai/reports/plan-audit/SPEC-AI-014-review-3.md`, PASS 0.91)의 MINOR 3건 반영. 조회 생략 시 캐시를 비워 둔다는 점과 목록 미확정 상태의 거부 문구를 REQ-AI14-014에 더했고, 알려진 한계 문장의 조회 조건을 규칙(캐시 비어 있음·진행 중 조회 없음)과 맞췄다. AC-019의 `ps`를 `-axww`로 바꿨다. |
+| 0.1.4 | 2026-11-13 | jw | 코디네이터 지시(task_e6046de4fcf8): SPEC-AI-013(t5, 계획 커밋 9b6f82f)이 두 CLI의 프롬프트를 표준 입력으로 넘기기로 정했고 t5 run이 먼저 병합된다. REQ-AI14-011의 "codex는 stdin을 막는다" 서술을 t5 이후 상태(claude 사용자 프롬프트=stdin·`--system-prompt-file`, codex 결합 프롬프트=stdin·위치 인자 없음)로 고쳤다. design.md D-2 시험 요청 모양, plan.md §E 겹침 표, acceptance.md AC-010을 같이 맞췄다. 요구사항 수와 의미(모델·추론 설정)는 그대로다. |
 
 ## §1 Overview
 
@@ -121,7 +122,8 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 
 #### REQ-AI14-011: 격리 플래그는 그대로다 (Ubiquitous)
 
-- The claude 인자 shall `--setting-sources ""`, `--tools ""`, `--output-format stream-json`, `--include-partial-messages`, `--verbose`를 지금처럼 담는다. The codex 인자 shall `exec`, `-C <스크래치>`, `--ignore-user-config`, `--skip-git-repo-check`, `--ephemeral`, `--sandbox read-only`, `--json`을 지금처럼 담고 stdin을 막는다. SPEC-AI-013이 바꾼 프롬프트 전달 방식도 그대로 둔다.
+- The claude 인자 shall SPEC-AI-013 병합 후 상태 그대로 `-p`, `--system-prompt-file <app_data>/ai-prompt/system-prompt.txt`, `--setting-sources ""`, `--tools ""`, `--output-format stream-json`, `--include-partial-messages`, `--verbose`를 담는다. The codex 인자 shall `exec`, `-C <스크래치>`, `--ignore-user-config`, `--skip-git-repo-check`, `--ephemeral`, `--sandbox read-only`, `--json`을 담고 위치 인자(프롬프트)는 없다.
+- The 프롬프트 전달 shall SPEC-AI-013이 정한 대로 둔다: claude는 사용자 프롬프트를, codex는 결합 프롬프트를 표준 입력으로 쓰고(전용 스레드, 다 쓴 뒤 EOF) 사용자 텍스트는 인자에 넣지 않는다. 이 SPEC은 모델 인자(`--model`)와 추론 설정만 바꾼다.
 
 ### 목록 출처
 

@@ -14,7 +14,7 @@
 - **후보**:
   - claude: `haiku`, `sonnet`, `opus`, `fable`, 그리고 `--model` 없음.
   - codex: `codex debug models`(조회)와 `codex debug models --bundled`(내장)의 `visibility == "list"` 항목 합집합(계획 시점 9개, research.md §2), 그리고 `--model` 없음.
-- **요청 모양**: 앱이 실제로 보내는 인자와 같게 하되, 모델 인자만 바꾸고 추론 강도 인자는 뺀다(이 SPEC의 최종 모양). 빈 임시 디렉터리를 cwd로 쓰고 stdin을 막는다. 프롬프트는 "Reply with exactly: OK" 한 줄이다. SPEC-AI-013 병합 뒤라면 그 SPEC의 프롬프트 전달 방식(표준 입력)을 그대로 쓴다.
+- **요청 모양**: 앱이 실제로 보내는 인자와 같게 하되, 모델 인자만 바꾸고 추론 강도 인자는 뺀다(이 SPEC의 최종 모양). 빈 임시 디렉터리를 cwd로 쓴다. 프롬프트 전달은 SPEC-AI-013 병합 후 상태를 따른다: claude는 시스템 프롬프트를 `--system-prompt-file`의 파일로, 사용자 프롬프트("Reply with exactly: OK" 한 줄)를 표준 입력으로 넣고 EOF를 보낸다. codex는 결합 프롬프트를 표준 입력으로 넣고 위치 인자를 두지 않는다. run은 M0에서 SPEC-AI-013 병합을 확인한 뒤 시작하므로 이 모양이 실제 앱 동작과 같다.
 - **기록**(progress.md §E.2 "M1 실측"): 모델마다 종료 코드, 결과에 `OK`가 들어 있는지, 오류 메시지 앞 200자, 소요 시간. 실패한 모델은 한 번 더 시도해 일시 오류를 거른다(두 번 다 실패해야 실패).
 - **haiku 사고 예산 비교**: 고스트 텍스트와 같은 크기의 프롬프트로 `MAX_THINKING_TOKENS=0` 설정과 미설정을 각각 3회 보내 첫 출력까지 시간과 전체 시간의 중앙값을 적는다.
 - **판정 규칙**:
@@ -56,7 +56,7 @@
 
 ## D-7. codex 조회 실행 방식
 
-- **결정**: `crate::ai::detect::codex_binary()`가 돌려준 절대 경로로 `debug models`를 실행한다(`no_window`, stdin null, stdout piped, stderr null). 별도 스레드가 `wait_with_output`을 하고 호출 쪽은 채널 `recv_timeout(3초)`로 기다린다. 시간이 넘으면 자식 프로세스를 `kill`하고 고정 목록을 쓴다. 해석 함수 `parse_codex_catalog(&str) -> Option<Vec<ModelOption>>`는 순수 함수로 두고 M1에서 캡처한 실제 출력을 fixture로 테스트한다.
+- **결정**: `crate::ai::detect::codex_binary()`가 돌려준 절대 경로로 `debug models`를 실행한다(`no_window`, stdin null, stdout piped, stderr null — 프롬프트를 넘기지 않는 목록 조회라 SPEC-AI-013의 표준 입력 전달과 무관하다). 별도 스레드가 `wait_with_output`을 하고 호출 쪽은 채널 `recv_timeout(3초)`로 기다린다. 시간이 넘으면 자식 프로세스를 `kill`하고 고정 목록을 쓴다. 해석 함수 `parse_codex_catalog(&str) -> Option<Vec<ModelOption>>`는 순수 함수로 두고 M1에서 캡처한 실제 출력을 fixture로 테스트한다.
 - **캐시와 잠금**: `static CODEX_MODELS: Mutex<Option<(Vec<ModelOption>, Source)>>`와 조회 중 표시 `static CODEX_QUERY_IN_FLIGHT: AtomicBool`. 잠금은 캐시를 읽고 쓰는 순간에만 잡고, 하위 프로세스를 기다리는 동안에는 놓는다. 조회 중 표시를 `compare_exchange`로 얻은 쪽만 조회하고, 못 얻은 쪽은 기다리지 않고 지금 캐시(비었으면 고정 목록)를 쓴다. 비동기 `ai_detect_providers` 안의 3초 대기는 `tauri::async_runtime::spawn_blocking`으로 감싼다.
 - **조회 생략**: codex가 설치·로그인되지 않았으면 조회하지 않고 캐시도 비워 둔다(실패로 기록하지 않음). 조회가 필요 없는 검증(claude, `null`, 고정 목록 모델)은 캐시 잠금을 잡지 않는다. 조회 성공은 프로세스가 끝날 때까지 유지한다. 실패 결과(고정 목록)도 저장해 `ai_request` 검증에 재사용하고, `ai_detect_providers`는 저장된 결과가 실패 결과이면 다시 조회한다.
 - **언제 조회하나**: `ai_detect_providers`(비동기 명령으로 바꿈 — 동기 Tauri 명령은 메인 스레드에서 돌아 UI를 막는다)는 캐시가 비었거나 실패 결과일 때 조회한다. `ai_request`(동기 명령, 이 SPEC에서 바꾸지 않음 — SPEC-AI-013과 겹치는 함수라 시그니처 변경을 피한다)는 라우팅이 codex이고, 선택값이 `null`이 아니고, 고정 목록에 없고, 캐시가 비었을 때만 조회한다. 기본값(codex `null`)이나 고정 목록 모델을 쓰는 사용자는 요청 경로에서 조회를 겪지 않는다.
