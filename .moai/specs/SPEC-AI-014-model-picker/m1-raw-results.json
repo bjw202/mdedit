@@ -1,0 +1,196 @@
+{
+ "rows": [
+  {
+   "tool": "claude",
+   "model": "haiku",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 2.16,
+   "tries": 1
+  },
+  {
+   "tool": "claude",
+   "model": "sonnet",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 2.58,
+   "tries": 1
+  },
+  {
+   "tool": "claude",
+   "model": "opus",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 2.38,
+   "tries": 1
+  },
+  {
+   "tool": "claude",
+   "model": "fable",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 4.09,
+   "tries": 1
+  },
+  {
+   "tool": "claude",
+   "model": null,
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 2.14,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-6.1-sol",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 4.9,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-6-astra",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 3.85,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-6.1-terra",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 3.95,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-6-sol",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 3.43,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-6-luna",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 3.33,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-5.6-sol",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 3.12,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-5.6-terra",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 2.76,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-5.6-luna",
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 2.73,
+   "tries": 1
+  },
+  {
+   "tool": "codex",
+   "model": "gpt-5.5",
+   "code": 1,
+   "ok": false,
+   "err": "Reading prompt from stdin...\n",
+   "total": 2.31,
+   "tries": 2
+  },
+  {
+   "tool": "codex",
+   "model": null,
+   "code": 0,
+   "ok": true,
+   "err": "",
+   "total": 3.4,
+   "tries": 1
+  }
+ ],
+ "live": [
+  "gpt-6.1-sol",
+  "gpt-6-astra",
+  "gpt-6.1-terra",
+  "gpt-6-sol",
+  "gpt-6-luna",
+  "gpt-5.6-sol",
+  "gpt-5.6-terra",
+  "gpt-5.6-luna"
+ ],
+ "bundled": [
+  "gpt-6-astra",
+  "gpt-6.1-sol",
+  "gpt-6.1-terra",
+  "gpt-6-sol",
+  "gpt-6-luna",
+  "gpt-5.6-sol",
+  "gpt-5.6-terra",
+  "gpt-5.6-luna",
+  "gpt-5.5"
+ ],
+ "cmp": {
+  "0": [
+   {
+    "first": 0.22,
+    "total": 2.38,
+    "ok": true
+   },
+   {
+    "first": 0.23,
+    "total": 2.69,
+    "ok": true
+   },
+   {
+    "first": 0.25,
+    "total": 2.32,
+    "ok": true
+   }
+  ],
+  "unset": [
+   {
+    "first": 0.26,
+    "total": 2.38,
+    "ok": true
+   },
+   {
+    "first": 0.25,
+    "total": 2.44,
+    "ok": true
+   },
+   {
+    "first": 0.26,
+    "total": 2.39,
+    "ok": true
+   }
+  ]
+ }
+}

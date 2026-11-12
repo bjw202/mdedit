@@ -1,0 +1,492 @@
+{
+ "models": [
+  {
+   "slug": "gpt-6.1-terra",
+   "display_name": "GPT-6.1 Terra",
+   "description": "GPT-6.1 Terra Codex model.",
+   "default_reasoning_level": "low",
+   "supported_reasoning_levels": [
+    {
+     "effort": "low",
+     "description": "Fast responses with lighter reasoning"
+    },
+    {
+     "effort": "medium",
+     "description": "Balances speed and reasoning depth for everyday tasks"
+    },
+    {
+     "effort": "high",
+     "description": "Greater reasoning depth for complex problems"
+    },
+    {
+     "effort": "xhigh",
+     "description": "Extra high reasoning depth for complex problems"
+    },
+    {
+     "effort": "max",
+     "description": "Maximum reasoning depth for the hardest problems"
+    },
+    {
+     "effort": "ultra",
+     "description": "Maximum reasoning with automatic task delegation"
+    }
+   ],
+   "shell_type": "unified_exec",
+   "visibility": "list",
+   "supported_in_api": true,
+   "priority": 4,
+   "additional_speed_tiers": [
+    "fast"
+   ],
+   "service_tiers": [
+    {
+     "id": "priority",
+     "name": "Fast",
+     "description": "1.5x speed"
+    }
+   ],
+   "available_access_programs": {
+    "cyber": [
+     "standard"
+    ]
+   },
+   "availability_nux": null,
+   "upgrade": null,
+   "model_messages": {
+    "persistent_instructions": "## Overview\nYou are now in persistent mode for this session until explicitly dis",
+    "instructions_template": "You are Codex, an agent based on GPT-6. You and the user share one workspace, an",
+    "approvals": {
+     "on_request": null,
+     "on_request_auto_review": "\n`approvals_reviewer` is `auto_review`: Sandbox escalations with require_escalat",
+     "never": null,
+     "unless_trusted": null
+    },
+    "collaboration_modes": {
+     "default": "# Collaboration Mode: Default\n\nYou are now in Default mode. Any previous instruc",
+     "plan": null
+    },
+    "auto_review": {
+     "policy": null,
+     "policy_template": null,
+     "rejection_instructions": "Do not bypass this rejection through a workaround or indirect execution. Continu",
+     "timeout_instructions": null
+    },
+    "permissions": null,
+    "multi_agent": {
+     "role": {
+      "root": "You are `/root`, the primary agent in a team of agents collaborating to fulfill ",
+      "subagent": "You are an agent in a team of agents collaborating to complete a task.\n\nYou can "
+     },
+     "mode": null
+    },
+    "token_budget": {
+     "enabled": false,
+     "use_history_notes_extension": false,
+     "reminder_threshold_tokens": 6144,
+     "reminder_message_template": "<context_window_reminder>\nYour current context window is nearly exhausted; only ",
+     "guidance_message": "For tasks that may span context windows, use `notes` to maintain a concise check",
+     "auto_compact_fallback_prompt": "<context_window_reminder>\nThe current context window is exhausted. Do not contin",
+     "auto_compact_fallback_buffer_tokens": 16384
+    },
+    "guardian_v2": {
+     "classifier_instructions": "Predict whether the agent's computer and browser activity needs blocking securit"
+    },
+    "confirmation_policies": {
+     "browser_use": "# Computer/Browser Use Confirmation Policy\n\nThis policy defines when the model s",
+     "computer_use": "# Computer/Browser Use Confirmation Policy\n\nThis policy defines when the model s"
+    }
+   },
+   "include_skills_usage_instructions": false,
+   "include_plugin_usage_instructions": false,
+   "include_apps_usage_instructions": false,
+   "default_reasoning_summary": "none",
+   "support_verbosity": true,
+   "default_verbosity": "low",
+   "apply_patch_tool_type": "freeform",
+   "web_search_tool_type": "text_and_image",
+   "truncation_policy": {
+    "mode": "tokens",
+    "limit": 10000
+   },
+   "supports_image_detail_original": true,
+   "context_window": 500000,
+   "max_context_window": 872000,
+   "comp_hash": "3000",
+   "effective_context_window_percent": 95,
+   "experimental_supported_tools": [
+    "send_user_message_async",
+    "clock"
+   ],
+   "input_modalities": [
+    "text",
+    "image"
+   ],
+   "supports_search_tool": true,
+   "supports_experimental_context": false,
+   "use_responses_lite": true,
+   "supports_reasoning_effort_updates": true,
+   "node_repl_auto_review_required": true,
+   "node_repl_disabled": false,
+   "tool_mode": "code_mode_only",
+   "multi_agent_version": "v2",
+   "multi_agent_reasoning_effort": "xhigh",
+   "base_instructions": "You are Codex, an agent based on GPT-6. You and the user share one workspace, an"
+  },
+  {
+   "slug": "gpt-6-chat-thinking",
+   "display_name": "GPT-6 Chat Thinking",
+   "description": "GPT-6 Chat Thinking for the paid CCA experiment.",
+   "default_reasoning_level": "medium",
+   "supported_reasoning_levels": [
+    {
+     "effort": "low",
+     "description": "Fast responses with lighter reasoning"
+    },
+    {
+     "effort": "medium",
+     "description": "Balances speed and reasoning depth for everyday tasks"
+    },
+    {
+     "effort": "high",
+     "description": "Greater reasoning depth for complex problems"
+    },
+    {
+     "effort": "xhigh",
+     "description": "Extra high reasoning depth for complex problems"
+    },
+    {
+     "effort": "max",
+     "description": "Maximum reasoning depth for the hardest problems"
+    }
+   ],
+   "shell_type": "unified_exec",
+   "visibility": "hide",
+   "supported_in_api": false,
+   "priority": 3,
+   "additional_speed_tiers": [],
+   "service_tiers": [],
+   "available_access_programs": {
+    "cyber": [
+     "standard"
+    ]
+   },
+   "availability_nux": null,
+   "upgrade": null,
+   "model_messages": {
+    "instructions_template": "You are ChatGPT, an agent based on GPT-6. You and the user share one workspace, ",
+    "approvals": null,
+    "collaboration_modes": null,
+    "auto_review": null,
+    "permissions": null,
+    "multi_agent": null,
+    "token_budget": {
+     "enabled": false,
+     "use_history_notes_extension": false,
+     "reminder_threshold_tokens": 6144,
+     "reminder_message_template": "<context_window_reminder>\nYour current context window is nearly exhausted; only ",
+     "guidance_message": "For tasks that may span context windows, use `notes` to maintain a concise check",
+     "auto_compact_fallback_prompt": "<context_window_reminder>\nThe current context window is exhausted. Do not contin",
+     "auto_compact_fallback_buffer_tokens": 16384
+    }
+   },
+   "include_skills_usage_instructions": false,
+   "include_plugin_usage_instructions": true,
+   "include_apps_usage_instructions": true,
+   "supports_reasoning_summary_parameter": false,
+   "default_reasoning_summary": "none",
+   "support_verbosity": false,
+   "default_verbosity": "medium",
+   "apply_patch_tool_type": "freeform",
+   "web_search_tool_type": "text_and_image",
+   "truncation_policy": {
+    "mode": "tokens",
+    "limit": 10000
+   },
+   "supports_image_detail_original": true,
+   "context_window": 272000,
+   "max_context_window": 272000,
+   "comp_hash": "3000",
+   "effective_context_window_percent": 95,
+   "experimental_supported_tools": [],
+   "input_modalities": [
+    "text",
+    "image"
+   ],
+   "supports_search_tool": true,
+   "supports_experimental_context": false,
+   "use_responses_lite": true,
+   "supports_reasoning_effort_updates": false,
+   "node_repl_auto_review_required": false,
+   "node_repl_disabled": false,
+   "tool_mode": "code_mode_only",
+   "multi_agent_version": "v2",
+   "base_instructions": "You are ChatGPT, an agent based on GPT-6. You and the user share one workspace, "
+  },
+  {
+   "slug": "gpt-6.1-sol",
+   "display_name": "GPT-6.1-Sol",
+   "description": "Latest workhorse model for coding and everyday work.",
+   "default_reasoning_level": "low",
+   "supported_reasoning_levels": [
+    {
+     "effort": "low",
+     "description": "Fast responses with lighter reasoning"
+    },
+    {
+     "effort": "medium",
+     "description": "Balances speed and reasoning depth for everyday tasks"
+    },
+    {
+     "effort": "high",
+     "description": "Greater reasoning depth for complex problems"
+    },
+    {
+     "effort": "xhigh",
+     "description": "Extra high reasoning depth for complex problems"
+    },
+    {
+     "effort": "max",
+     "description": "Maximum reasoning depth for the hardest problems"
+    },
+    {
+     "effort": "ultra",
+     "description": "Maximum reasoning with automatic task delegation"
+    }
+   ],
+   "shell_type": "unified_exec",
+   "visibility": "list",
+   "supported_in_api": true,
+   "priority": 1,
+   "additional_speed_tiers": [
+    "fast"
+   ],
+   "service_tiers": [
+    {
+     "id": "priority",
+     "name": "Fast",
+     "description": "2x speed, increased usage"
+    }
+   ],
+   "available_access_programs": {
+    "cyber": [
+     "standard"
+    ]
+   },
+   "availability_nux": {
+    "message": "Maximize usage with GPT-6.1 Sol. Try it on complex work for near-Astra performan"
+   },
+   "upgrade": null,
+   "model_messages": {
+    "persistent_instructions": "## Overview\nYou are now in persistent mode for this session until explicitly dis",
+    "instructions_template": "You are Codex, an agent based on GPT-6. You and the user share one workspace, an",
+    "approvals": {
+     "on_request": null,
+     "on_request_auto_review": "\n`approvals_reviewer` is `auto_review`: Sandbox escalations with require_escalat",
+     "never": null,
+     "unless_trusted": null
+    },
+    "collaboration_modes": {
+     "default": "# Collaboration Mode: Default\n\nYou are now in Default mode. Any previous instruc",
+     "plan": null
+    },
+    "auto_review": {
+     "policy": null,
+     "policy_template": null,
+     "rejection_instructions": "Do not bypass this rejection through a workaround or indirect execution. Continu",
+     "timeout_instructions": null
+    },
+    "permissions": null,
+    "multi_agent": {
+     "role": {
+      "root": "You are `/root`, the primary agent in a team of agents collaborating to fulfill ",
+      "subagent": "You are an agent in a team of agents collaborating to complete a task.\n\nYou can "
+     },
+     "mode": null
+    },
+    "token_budget": {
+     "enabled": false,
+     "use_history_notes_extension": false,
+     "reminder_threshold_tokens": 6144,
+     "reminder_message_template": "<context_window_reminder>\nYour current context window is nearly exhausted; only ",
+     "guidance_message": "For tasks that may span context windows, use `notes` to maintain a concise check",
+     "auto_compact_fallback_prompt": "<context_window_reminder>\nThe current context window is exhausted. Do not contin",
+     "auto_compact_fallback_buffer_tokens": 16384
+    },
+    "guardian_v2": {
+     "classifier_instructions": "Predict whether the agent's computer and browser activity needs blocking securit"
+    },
+    "confirmation_policies": {
+     "browser_use": "# Computer/Browser Use Confirmation Policy\n\nThis policy defines when the model s",
+     "computer_use": "# Computer/Browser Use Confirmation Policy\n\nThis policy defines when the model s"
+    }
+   },
+   "include_skills_usage_instructions": false,
+   "include_plugin_usage_instructions": false,
+   "include_apps_usage_instructions": false,
+   "default_reasoning_summary": "none",
+   "support_verbosity": true,
+   "default_verbosity": "low",
+   "apply_patch_tool_type": "freeform",
+   "web_search_tool_type": "text_and_image",
+   "truncation_policy": {
+    "mode": "tokens",
+    "limit": 10000
+   },
+   "supports_image_detail_original": true,
+   "context_window": 500000,
+   "max_context_window": 872000,
+   "comp_hash": "3000",
+   "effective_context_window_percent": 95,
+   "experimental_supported_tools": [
+    "send_user_message_async",
+    "clock"
+   ],
+   "input_modalities": [
+    "text",
+    "image"
+   ],
+   "supports_search_tool": true,
+   "supports_experimental_context": false,
+   "use_responses_lite": true,
+   "supports_reasoning_effort_updates": true,
+   "node_repl_auto_review_required": true,
+   "node_repl_disabled": false,
+   "tool_mode": "code_mode_only",
+   "multi_agent_version": "v2",
+   "multi_agent_reasoning_effort": "xhigh",
+   "base_instructions": "You are Codex, an agent based on GPT-6. You and the user share one workspace, an"
+  },
+  {
+   "slug": "gpt-6-astra",
+   "display_name": "GPT-6-Astra",
+   "description": "Frontier intelligence for the most demanding work.",
+   "default_reasoning_level": "low",
+   "supported_reasoning_levels": [
+    {
+     "effort": "low",
+     "description": "Fast responses with lighter reasoning"
+    },
+    {
+     "effort": "medium",
+     "description": "Balances speed and reasoning depth for everyday tasks"
+    },
+    {
+     "effort": "high",
+     "description": "Greater reasoning depth for complex problems"
+    },
+    {
+     "effort": "xhigh",
+     "description": "Extra high reasoning depth for complex problems"
+    },
+    {
+     "effort": "max",
+     "description": "Maximum reasoning depth for the hardest problems"
+    },
+    {
+     "effort": "ultra",
+     "description": "Maximum reasoning with automatic task delegation"
+    }
+   ],
+   "shell_type": "unified_exec",
+   "visibility": "list",
+   "supported_in_api": true,
+   "priority": 2,
+   "additional_speed_tiers": [
+    "fast"
+   ],
+   "service_tiers": [
+    {
+     "id": "priority",
+     "name": "Fast",
+     "description": "2x speed, increased usage"
+    }
+   ],
+   "available_access_programs": {
+    "cyber": [
+     "standard"
+    ]
+   },
+   "availability_nux": null,
+   "upgrade": null,
+   "model_messages": {
+    "persistent_instructions": "## Overview\nYou are now in persistent mode for this session until explicitly dis",
+    "instructions_template": "You are Codex, an agent based on GPT-6. You and the user share one workspace, an",
+    "approvals": {
+     "on_request": null,
+     "on_request_auto_review": "\n`approvals_reviewer` is `auto_review`: Sandbox escalations with require_escalat",
+     "never": null,
+     "unless_trusted": null
+    },
+    "collaboration_modes": {
+     "default": "# Collaboration Mode: Default\n\nYou are now in Default mode. Any previous instruc",
+     "plan": null
+    },
+    "auto_review": {
+     "policy": null,
+     "policy_template": null,
+     "rejection_instructions": "Do not bypass this rejection through a workaround or indirect execution. Continu",
+     "timeout_instructions": null
+    },
+    "permissions": null,
+    "multi_agent": {
+     "role": {
+      "root": "You are `/root`, the primary agent in a team of agents collaborating to fulfill ",
+      "subagent": "You are an agent in a team of agents collaborating to complete a task.\n\nYou can "
+     },
+     "mode": null
+    },
+    "token_budget": {
+     "enabled": false,
+     "use_history_notes_extension": false,
+     "reminder_threshold_tokens": 6144,
+     "reminder_message_template": "<context_window_reminder>\nYour current context window is nearly exhausted; only ",
+     "guidance_message": "For tasks that may span context windows, use `notes` to maintain a concise check",
+     "auto_compact_fallback_prompt": "<context_window_reminder>\nThe current context window is exhausted. Do not contin",
+     "auto_compact_fallback_buffer_tokens": 16384
+    },
+    "guardian_v2": {
+     "classifier_instructions": "Predict whether the agent's computer and browser activity needs blocking securit"
+    },
+    "confirmation_policies": {
+     "browser_use": "# Computer/Browser Use Confirmation Policy\n\nThis policy defines when the model s",
+     "computer_use": "# Computer/Browser Use Confirmation Policy\n\nThis policy defines when the model s"
+    }
+   },
+   "include_skills_usage_instructions": false,
+   "include_plugin_usage_instructions": false,
+   "include_apps_usage_instructions": false,
+   "default_reasoning_summary": "none",
+   "support_verbosity": true,
+   "default_verbosity": "low",
+   "apply_patch_tool_type": "freeform",
+   "web_search_tool_type": "text_and_image",
+   "truncation_policy": {
+    "mode": "tokens",
+    "limit": 10000
+   },
+   "supports_image_detail_original": true,
+   "context_window": 272000,
+   "max_context_window": 872000,
+   "comp_hash": "3000",
+   "effective_context_window_percent": 95,
+   "experimental_supported_tools": [
+    "send_user_message_async",
+    "clock"
+   ],
+   "input_modalities": [
+    "text",
+    "image"
+   ],
+   "supports_search_tool": true,
+   "supports_experimental_context": false,
+   "use_responses_lite": true,
+   "supports_reasoning_effort_updates": true,
+   "node_repl_auto_review_required": true,
+   "node_repl_disabled": false,
+   "tool_mode": "code_mode_only",
+   "multi_agent_version": "v2",
+   "multi_agent_reasoning_effort": "xhigh",
+   "base_instructions": "You are Codex, an agent based on GPT-6. You and the user share one workspace, an"
+  }
+ ]
+}
