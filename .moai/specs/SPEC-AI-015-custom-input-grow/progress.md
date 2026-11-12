@@ -89,3 +89,9 @@ docs_sync: README.md and docs/USER_GUIDE.md mention only the direct-input preset
 
 - REQ-012 (IME guard: isComposing / keyCode 229) is verified only in jsdom, not in a real WKWebView.
 - Manual M-1 (Korean IME Enter), M-2 (IME Escape), M-3 (multi-line ceiling; dark-mode suggestion card unchanged) are PENDING for the user. The SPEC moves to completed after they pass.
+
+### E.4a Sync-audit 판정 (독립 sync-auditor)
+
+- 판정: PASS-WITH-DEBT, 종합 0.91 (기능 88 / 보안 95 / 품질 90 / 일관성 92). 차단 결함 없음.
+- 보고서: `.moai/reports/sync-audit/SPEC-AI-015.md`
+- 조치: F2(Escape keyCode 229 테스트 추가, vitest 108건 통과), F4(CHANGELOG에 AC-004 e2e 단언 부재 명시) 반영. F1(AC-004 줄 중간 폭 축소 e2e 단언 없음)·F3(상한에서 스크롤 점프, M-3에서 확인)·F5·F6은 부채/수동 확인으로 남김.

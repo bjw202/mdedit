@@ -1469,11 +1469,14 @@ describe('createPresetMenu: 직접 입력 textarea 배선 (SPEC-AI-015)', () => 
     menu.destroy();
   });
 
-  it('IME 조합 중 Escape 는 직접 입력 상태를 유지하고 닫지 않는다 (REQ-012)', async () => {
+  it.each([
+    ['isComposing: true', { key: 'Escape', isComposing: true }],
+    ['keyCode 229', { key: 'Escape', keyCode: 229 }],
+  ])('IME 조합 중 Escape(%s)는 직접 입력 상태를 유지하고 닫지 않는다 (REQ-012)', async (_n, init) => {
     const { menu, callbacks } = await buildMenu({ anchor: { left: 0, right: 24, top: 100, bottom: 124 } });
     enterCustom(menu);
     const ta = getTa(menu);
-    const ev = key({ key: 'Escape', isComposing: true });
+    const ev = key(init as KeyboardEventInit & { keyCode?: number });
     ta.dispatchEvent(ev);
     expect(menu.dom.querySelector('.mdedit-ai-custom-input')).toBeTruthy();
     expect(callbacks.onClose).not.toHaveBeenCalled();
