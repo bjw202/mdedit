@@ -10,10 +10,11 @@ import type { DecorationSet } from '@codemirror/view';
 import { StateField, StateEffect } from '@codemirror/state';
 import type { Extension, EditorState } from '@codemirror/state';
 import type { AiPresetKind } from './ai-length-guard';
+import { SAFE_REPLACE_LIMIT } from './ai-length-guard';
 import { aiRequest, aiCancel, ipcErrorMessage } from '@/lib/tauri/ipc';
 import type { AiModel, AiRequestArgs } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
-import type { AiErrorKind } from '@/store/aiStore';
+import type { AiErrorKind, Completion } from '@/store/aiStore';
 import { resolveProviderId } from '@/store/aiPolicy';
 import { buildFallbackDecision, validateMermaid } from '@/lib/ai/mermaidValidate';
 import { renderDiagram } from '@/lib/diagram/diagramRenderer';
@@ -23,7 +24,7 @@ import { subscribeAiEvents } from '@/lib/ai/aiEventRouter';
 import {
   WAIT_NOTICE_DELAY_MS,
   WAIT_NOTICE_TEXT,
-  FRONTEND_BACKSTOP_DELAY_MS,
+  frontendBackstopDelayMs,
   BACKSTOP_ERROR_TEXT,
 } from '@/lib/ai/waitNotice';
 
@@ -173,6 +174,42 @@ export function deriveCardActions(presetKind: AiPresetKind, insertOnly: boolean)
   };
 }
 
+// @MX:NOTE: [AUTO] SPEC-AI-013 D4/D9 — 응답 완결 신호로 「바꾸기」를 제거하는 순수 판정.
+// 「알 수 없음」을 「완결」로 취급하지 않는 것이 원문 손실 방지의 핵심이다. 선택이 SAFE_REPLACE_LIMIT
+// 이하이고 잘림이 확인되지 않았다면(unknown·필드 없음 포함) 입력을 그대로 돌려줘 현행과 같다.
+// @MX:SPEC: SPEC-AI-013 REQ-AI13-013 REQ-AI13-014
+export const COMPLETION_REASON_CUTOFF =
+  '응답이 중간에 끊겨서 원문이 지워지지 않도록 「아래에 삽입」만 할 수 있어요';
+export const COMPLETION_REASON_UNCONFIRMED =
+  '응답이 끝까지 왔는지 확인할 수 없어 원문이 지워지지 않도록 「아래에 삽입」만 할 수 있어요';
+
+export interface CompletionActionInput {
+  /** 요청이 `selection` 으로 보낸(모델이 받은) 텍스트의 UTF-16 길이. */
+  selectionLength: number;
+  completion: Completion;
+  /** 길이 가드가 이미 이 카드를 삽입 전용으로 정했는지(변환 계열 EDIT_LIMIT 초과). */
+  guardInsertOnly: boolean;
+}
+
+/**
+ * `completion` 으로 적용 버튼을 다시 판정한다. 「바꾸기」를 없앨 조건은 (a) 잘림 확인, 또는
+ * (b) 선택 길이 > SAFE_REPLACE_LIMIT 이면서 완결 미확인. 이유 한 줄은 길이 가드가 「바꾸기」를
+ * 허용했던 카드(guardInsertOnly=false)에서만 돌려준다 — 같은 이유를 두 번 말하지 않는다(D9).
+ */
+export function applyCompletionToActions(
+  actions: CardActions,
+  input: CompletionActionInput,
+): { actions: CardActions; reason?: string } {
+  const cutoff = input.completion === 'cutoff';
+  const unconfirmedLong =
+    input.selectionLength > SAFE_REPLACE_LIMIT && input.completion !== 'complete';
+  if (!cutoff && !unconfirmedLong) return { actions };
+
+  const insertOnly: CardActions = { modes: ['insert-below'], primary: 'insert-below' };
+  if (input.guardInsertOnly) return { actions: insertOnly };
+  return { actions: insertOnly, reason: cutoff ? COMPLETION_REASON_CUTOFF : COMPLETION_REASON_UNCONFIRMED };
+}
+
 // ============================================================
 // Diagram outcome (pure) — REQ-AI-023/024
 // ============================================================
@@ -241,6 +278,8 @@ export interface RenderCardInput {
   presetKind: AiPresetKind;
   /** 스트리밍 중 표시할 실시간 버퍼(aiStore.streamBuffer). */
   streamBuffer: string;
+  /** SPEC-AI-013 D9: 「바꾸기」가 빠진 이유 한 줄(없으면 표시 안 함). */
+  completionNotice?: string;
   /** SPEC-AI-006 REQ-AI6-007: 발행 후 대기 임계(기본 8초)를 넘겨도 첫 청크가 없으면 true. */
   waitingLong?: boolean;
   /** 현재 카드 모델(직접/블라인드 재요청에 승계). 기본 haiku. */
@@ -272,6 +311,15 @@ function appendDismissButton(card: HTMLElement, callbacks: CardCallbacks): void 
   const dismiss = makeButton('mdedit-ai-dismiss', '닫기');
   dismiss.addEventListener('click', () => callbacks.onDismiss?.());
   card.appendChild(dismiss);
+}
+
+/** 「바꾸기」가 빠진 이유 한 줄(SPEC-AI-013 D9). 이유가 없으면 아무것도 붙이지 않는다. */
+function appendCompletionNotice(parent: HTMLElement, input: RenderCardInput): void {
+  if (!input.completionNotice) return;
+  const notice = document.createElement('div');
+  notice.className = 'mdedit-ai-completion-notice';
+  notice.textContent = input.completionNotice;
+  parent.appendChild(notice);
 }
 
 /** 적용 버튼 행(actions.modes 순서대로). primary 에 .is-primary(accent 채움) 부여 — 포커스는 주지 않는다. */
@@ -328,6 +376,7 @@ function renderDoneControls(input: RenderCardInput): HTMLElement {
   btnRow.appendChild(cancel);
 
   wrap.appendChild(directRow);
+  appendCompletionNotice(wrap, input);
   wrap.appendChild(btnRow);
   return wrap;
 }
@@ -403,7 +452,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
       const retry = makeButton('mdedit-ai-retry', '다시 시도');
       // exempt — 오류 복구 동작이지 품질 반복이 아니다(REQ-AI10-026).
       retry.addEventListener('click', () =>
-        callbacks.onReRequest(buildRetryInstruction(), input.model ?? 'haiku', 'exempt'),
+        callbacks.onReRequest('', input.model ?? 'haiku', 'exempt'),
       );
       card.appendChild(retry);
     }
@@ -423,7 +472,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     const rerequest = makeButton('mdedit-ai-rerequest', '다시 요청');
     // exempt — 원문 편집으로 멈춘 제안의 복구 동작이다(REQ-AI10-026).
     rerequest.addEventListener('click', () =>
-      callbacks.onReRequest(buildRetryInstruction(), input.model ?? 'haiku', 'exempt'),
+      callbacks.onReRequest('', input.model ?? 'haiku', 'exempt'),
     );
     card.appendChild(msg);
     card.appendChild(ignore);
@@ -490,6 +539,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     // 카드 안 미니 렌더(strict SVG). 주입된 렌더러가 있으면 위임하고, 없으면 placeholder 유지
     // — jsdom 단위 테스트는 렌더러를 주입하지 않아 mermaid DOM 의존을 타지 않는다.
     input.renderMermaid?.(state.suggestion, preview);
+    appendCompletionNotice(card, input);
     card.appendChild(renderApplyButtons(input));
     const cancel = makeButton('mdedit-ai-cancel', '✕ 취소');
     cancel.addEventListener('click', () => callbacks.onCancel());
@@ -509,7 +559,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     // REQ-AI-025: 1회성 sonnet 재요청. exempt 여야 한다 — 이 버튼은 소진 상태에서만 눌리므로
     // 카운트되는 순간 상한을 다시 넘겨 자기 자신을 미발행 게이트에 걸리게 만든다(REQ-AI10-032).
     advanced.addEventListener('click', () =>
-      callbacks.onReRequest(buildRetryInstruction(), 'sonnet', 'exempt'),
+      callbacks.onReRequest('', 'sonnet', 'exempt'),
     );
     card.appendChild(msg);
     card.appendChild(advanced);
@@ -696,6 +746,11 @@ export interface SuggestionCardModel {
   originalText: string;
   insertOnly: boolean;
   model: AiModel;
+  /**
+   * 요청이 `selection` 으로 보낸 텍스트의 UTF-16 길이(SPEC-AI-013 D4/D5). 백스톱 지연과
+   * 「바꾸기」 제거 판정이 모두 이 값을 쓴다. 생략하면 originalText 길이로 갈음한다.
+   */
+  selectionLength?: number;
 }
 
 /** createAiSuggestionCard 설정. 활성 카드 목록 조회 훅(기본은 레지스트리). */
@@ -985,6 +1040,8 @@ export class AiSuggestionCardController {
   // 이벤트마저 이 카드에 닿지 않았을 때 스스로 error 로 종결시킨다. waitNoticeTimer 와 같은
   // 규율(무장/재무장/해제/소멸)을 따르되 임계와 만료 동작만 다르다.
   private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+  // SPEC-AI-013: 마지막 done 이 실어 온 응답 완결 신호. 재요청이 시작되면 'unknown' 으로 되돌린다.
+  private completion: Completion = 'unknown';
 
   constructor(
     public readonly model: SuggestionCardModel,
@@ -993,6 +1050,11 @@ export class AiSuggestionCardController {
   ) {
     this.armWaitNoticeTimer();
     this.armWatchdogTimer();
+  }
+
+  /** 이 카드 요청이 모델에 보낸 선택 길이(UTF-16). 백스톱·완결 판정의 공통 기준. */
+  private selectionLength(): number {
+    return this.model.selectionLength ?? this.model.originalText.length;
   }
 
   private armWaitNoticeTimer(): void {
@@ -1032,7 +1094,7 @@ export class AiSuggestionCardController {
       // 신규 errorKind 를 만들지 않고 기존 'other' 분기에 얹는다 → 재시도 + 닫기가 자동으로
       // 따라온다(REQ-AI10-011). 문서·다른 카드는 건드리지 않는다.
       this.commit({ type: 'fail', kind: 'other', message: BACKSTOP_ERROR_TEXT });
-    }, FRONTEND_BACKSTOP_DELAY_MS);
+    }, frontendBackstopDelayMs(this.selectionLength())); // 첫 요청·모든 재요청이 이 카드 요청의 선택 길이를 쓴다(REQ-AI13-005)
   }
 
   private clearWatchdogTimer(): void {
@@ -1094,8 +1156,9 @@ export class AiSuggestionCardController {
     this.commit({ type: 'stream' });
   }
 
-  onComplete(finalText: string, opts?: { truncated?: boolean }): void {
+  onComplete(finalText: string, opts?: { truncated?: boolean; completion?: Completion }): void {
     this.clearTimers();
+    this.completion = opts?.completion ?? 'unknown';
     // 다이어그램은 삽입 전 strict 사전 검증(REQ-AI-023) 후 valid/자동재요청/목록폴백으로 분기.
     // BUG-6: 목록 폴백이 활성화된 뒤에는(재요청 응답이 목록 텍스트) 더 이상 이 분기를 타지
     // 않는다 — mermaid 검증에 넣으면 항상 실패해 diagram-fallback 으로 되돌아가 무한 루프가 된다.
@@ -1223,6 +1286,7 @@ export class AiSuggestionCardController {
    */
   enterReRequest(): void {
     this.streamBuffer = '';
+    this.completion = 'unknown';
     this.rearmWaitNotice();
     this.armWatchdogTimer();
     this.commit({ type: 'stream' });
@@ -1246,9 +1310,17 @@ export class AiSuggestionCardController {
   }
 
   getRenderInput(): RenderCardInput {
+    const base = deriveCardActions(this.model.presetKind, this.model.insertOnly);
+    // 완결 신호는 done 계열 phase 에서만 의미가 있다(스트리밍 중에는 적용 버튼 자체가 없다).
+    const { actions, reason } = applyCompletionToActions(base, {
+      selectionLength: this.selectionLength(),
+      completion: this.completion,
+      guardInsertOnly: this.model.insertOnly,
+    });
     return {
       state: this.state,
-      actions: deriveCardActions(this.model.presetKind, this.model.insertOnly),
+      actions,
+      completionNotice: reason,
       presetKind: this.model.presetKind,
       streamBuffer: this.streamBuffer,
       waitingLong: this.waitingLong,
@@ -1345,12 +1417,13 @@ function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode
 
 // @MX:ANCHOR: [AUTO] fireReRequest - 카드 재요청(↻/직접지시/sonnet/목록폴백) 공통 발행 경로
 // @MX:REASON: [AUTO] BUG-2 재발 방지 — originalArgs 를 기준으로 스프레드해야 selection/
-//   contextBefore/contextAfter 가 재요청에도 실린다. overrides 로만 필드를 덮어써야 하며,
+//   contextBefore/contextAfter + 원래 customInstruction 이 재요청에도 실린다. overrides 로만
+//   필드를 덮어써야 하며(재요청 지시는 additionalInstruction 으로 분리, SPEC-AI-012),
 //   originalArgs 를 생략한 채 부분 필드만 조립하면 재요청 프롬프트가 컨텍스트 없이 비게 된다.
 /**
  * 재요청 발행 — 원본 요청(originalArgs)을 기준으로 selection/contextBefore/contextAfter 를
- * 그대로 승계하고, overrides 로 customInstruction/model(및 목록 폴백의 presetKind/feature)만
- * 덮어써 새 in-flight 요청을 스폰한다(BUG-2). 새로 발행한 requestId 를 반환해 호출자(카드
+ * 그대로 승계하고, overrides 로 additionalInstruction/model(및 목록 폴백의 presetKind/feature/
+ * customInstruction)만 덮어써 새 in-flight 요청을 스폰한다(BUG-2, SPEC-AI-012 D6). 새로 발행한 requestId 를 반환해 호출자(카드
  * 컨트롤러)가 구독 대상을 그 id 로 옮길 수 있게 한다(BUG-1).
  */
 function fireReRequest(originalArgs: AiRequestArgs, overrides: Partial<AiRequestArgs>): string {
@@ -1395,6 +1468,7 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
     originalText: request.originalText,
     insertOnly: request.insertOnly,
     model: request.args.model,
+    selectionLength: request.args.selection?.length ?? 0,
   };
 
   // BUG-1: 재요청(↻/직접지시/sonnet/목록폴백)마다 새 requestId 가 발행되므로, 구독이 어느
@@ -1435,7 +1509,13 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       // 옛 제안(done)으로 보이지 않는다.
       controller.enterReRequest();
       // BUG-2: 원본 args(selection/contextBefore/contextAfter)를 그대로 승계하고 지시/모델만 덮어쓴다.
-      boundRequestId = fireReRequest(request.args, { customInstruction: instruction, model: useModel });
+      // SPEC-AI-012 D6/D9: 재요청 지시는 customInstruction 을 덮어쓰지 않고 additionalInstruction 으로
+      // 분리해 싣는다(원래 직접 입력 지시 승계 + 프리셋도 추가 지시 수신). 빈 지시(복구용 재요청
+      // 3곳)는 필드를 싣지 않는다 — undefined 는 JSON 직렬화에서 빠진다.
+      boundRequestId = fireReRequest(request.args, {
+        additionalInstruction: instruction.trim() ? instruction : undefined,
+        model: useModel,
+      });
       lastHandledTerminal = null;
     },
     onListFallback: () => {
@@ -1474,7 +1554,8 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       const key = `${s.requestId}:done`;
       if (lastHandledTerminal === key) return;
       lastHandledTerminal = key;
-      controller.onComplete(s.streamBuffer);
+      // SPEC-AI-013: 정상 경로에서도 completion 을 넘긴다(라우터 경로와 반드시 짝).
+      controller.onComplete(s.streamBuffer, { completion: s.completion });
     } else if (s.requestState === 'error' && s.errorInfo) {
       const key = `${s.requestId}:error`;
       if (lastHandledTerminal === key) return;
@@ -1496,13 +1577,13 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       // 라우터는 원시 델타를 준다(스토어의 appendChunk 누적이 없다) — 컨트롤러가 직접 잇는다.
       controller.appendStreamDelta(text);
     },
-    onDone: (result, truncated) => {
+    onDone: (result, truncated, completion) => {
       if (isStoreSlot()) return;
       const key = `${boundRequestId}:done`;
       if (lastHandledTerminal === key) return;
       lastHandledTerminal = key;
       // result 는 권위 값 — 누적 버퍼를 덮어쓴다(reduceCompleteRequest 와 동일 의미론).
-      controller.onComplete(result, { truncated });
+      controller.onComplete(result, { truncated, completion });
     },
     onError: (kind, message) => {
       if (isStoreSlot()) return;

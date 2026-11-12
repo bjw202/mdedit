@@ -8,14 +8,14 @@
 //   바꾸지 않으며, 고스트/툴바/설정이 의존하는 단일 슬롯 의미론은 그대로 보존된다.
 // @MX:SPEC: SPEC-AI-010 REQ-AI10-012
 
-import type { AiErrorKind } from '@/store/aiStore';
+import type { AiErrorKind, Completion } from '@/store/aiStore';
 
-/** 구독자가 받는 이벤트 핸들러. payload 는 기존 3종 계약 그대로이며 새 필드를 만들지 않는다. */
+/** 구독자가 받는 이벤트 핸들러. payload 는 기존 3종 계약 그대로이며, done 에만 SPEC-AI-013 의 `completion` 이 더해졌다. */
 export interface AiEventHandlers {
   /** `ai://chunk` — **원시 델타**다(스토어처럼 누적된 버퍼가 아니다). 구독자가 직접 누적한다. */
   onChunk?: (text: string) => void;
   /** `ai://done` — `result` 는 권위 값이므로 누적 버퍼를 덮어써야 한다. */
-  onDone?: (result: string, truncated: boolean) => void;
+  onDone?: (result: string, truncated: boolean, completion: Completion) => void;
   /** `ai://error` — 분류된 kind/message. raw 노출 금지 계약은 상위에서 유지한다. */
   onError?: (kind: AiErrorKind, message: string) => void;
 }
@@ -56,8 +56,13 @@ export function dispatchAiChunk(requestId: string, text: string): void {
   fanout(requestId, (h) => h.onChunk?.(text));
 }
 
-export function dispatchAiDone(requestId: string, result: string, truncated: boolean): void {
-  fanout(requestId, (h) => h.onDone?.(result, truncated));
+export function dispatchAiDone(
+  requestId: string,
+  result: string,
+  truncated: boolean,
+  completion: Completion = 'unknown',
+): void {
+  fanout(requestId, (h) => h.onDone?.(result, truncated, completion));
 }
 
 export function dispatchAiError(requestId: string, kind: AiErrorKind, message: string): void {

@@ -11,7 +11,7 @@ pub mod stream;
 use crate::state::app_state::{AppState, InFlightRequest};
 use claude_cli::{claim_terminal, ErrorPayload};
 use prompt::{
-    build_continue_prompt_with_length, build_inline_prompt_with_diagram_type, build_section_prompt,
+    build_continue_prompt_with_length, build_inline_prompt_ex, build_section_prompt,
     AiFeature, ContinueLength,
 };
 use provider::{AiModel, AiRequest, ProviderStatus};
@@ -23,13 +23,22 @@ use tauri::{AppHandle, Emitter, Manager};
 
 pub const AI_MODULE_NAME: &str = "ai";
 
-// @MX:NOTE: [AUTO] WATCHDOG_TIMEOUT_SECS - 요청 하드 타임아웃 상수(SPEC-AI-006 REQ-AI6-004).
+// @MX:NOTE: [AUTO] watchdog_timeout_secs - 요청별 하드 타임아웃 공식(SPEC-AI-006 REQ-AI6-004 → SPEC-AI-013 REQ-AI13-004).
 // 실측 typical_latency ~2.7초(claude_cli.rs Capabilities) 대비 p99 훨씬 상회로 잡아, 정당한
-// 지연(사내 프록시 콜드스타트 등)은 죽이지 않으면서 무한 행(hang)만 차단한다. 대기 안내(항목 5,
-// 프론트 8초 상수)는 이 값의 소프트 절반 짝이다.
-// @MX:SPEC: SPEC-AI-006
-/// 요청당 워치독 하드 타임아웃(초). 기본 60초.
-pub const WATCHDOG_TIMEOUT_SECS: u64 = 60;
+// 지연(사내 프록시 콜드스타트 등)은 죽이지 않으면서 무한 행(hang)만 차단한다. 선택이 2,000자를
+// 넘으면 1,000자마다 12초씩 늘리고 180초에서 멈춘다(D6 조정: 8초/150초 → 12초/180초). 프런트 `waitNotice.ts` 가 같은 공식을 미러하며
+// 두 쪽은 공유 표 `tests/fixtures/ai-timeout-table.json` 으로 검증한다. 대기 안내(프론트 8초 상수)는
+// 이 값의 소프트 짝이다.
+// @MX:SPEC: SPEC-AI-013
+/// 요청별 워치독 하드 타임아웃(초) = `min(60 + 12 × ceil(max(0, n − 2000) / 1000), 180)` (순수).
+///
+/// `n` 은 요청 인자 `selection` 의 **UTF-16 길이**(JS `String.length` 와 같은 단위)다. 선택이
+/// 없으면 0 이고 60초다.
+pub fn watchdog_timeout_secs(n: usize) -> u64 {
+    let over = n.saturating_sub(2000);
+    let steps = over.div_ceil(1000) as u64;
+    (60 + 12 * steps).min(180)
+}
 
 /// 조직 정책 파일 이름(앱 설정 디렉토리 하위). 존재하면 AI 강제 비활성(REQ-AI-017).
 pub const POLICY_FILE_NAME: &str = "ai-policy-disabled";
@@ -114,6 +123,12 @@ pub struct AiRequestArgs {
     // @MX:SPEC: SPEC-AI-008
     #[serde(default)]
     pub diagram_type: Option<String>,
+    // @MX:NOTE: [AUTO] SPEC-AI-012 REQ-AI12-007/011: ↻ 재요청 지시(원래 직접 입력 지시와 분리). 인라인
+    // 분기에서만 반영되며 섹션 채우기·이어쓰기 분기는 무시한다(두 프롬프트는 바이트 불변).
+    // `#[serde(default)]` 로 필드 생략 시 None(하위호환).
+    // @MX:SPEC: SPEC-AI-012
+    #[serde(default)]
+    pub additional_instruction: Option<String>,
 }
 
 /// AI 요청을 시작한다 — 정책 확인 → 프롬프트 조립 → in-flight 교체 → 스폰 → 릴레이(REQ-AI-002/004/006).
@@ -155,13 +170,16 @@ pub fn ai_request(
             build_continue_prompt_with_length(outline, before, after, length)
         }
         // SPEC-AI-008: 공유 인라인 조립 경로에 diagram_type 을 전달한다. 조각 부착은
-        // build_inline_prompt_with_diagram_type 내부에서 feature 가 Diagram 일 때만 일어난다.
-        _ => build_inline_prompt_with_diagram_type(
+        // build_inline_prompt_ex 내부에서 feature 가 Diagram 일 때만 일어난다.
+        // SPEC-AI-012: 재요청 추가 지시와 태그 충돌 시드(요청 ID)도 이 분기에서만 넘긴다.
+        _ => build_inline_prompt_ex(
             &feature,
             selection,
             before,
             after,
             args.diagram_type.as_deref(),
+            args.additional_instruction.as_deref(),
+            &args.request_id,
         ),
     };
     let truncated = assembled.truncated;
@@ -279,8 +297,10 @@ pub fn ai_request(
     {
         let watchdog_app_handle = app_handle.clone();
         let watchdog_request_id = args.request_id;
+        // 대기 한도는 모델이 받은 선택 텍스트의 UTF-16 길이로 정한다(REQ-AI13-004).
+        let watchdog_secs = watchdog_timeout_secs(selection.encode_utf16().count());
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_secs(WATCHDOG_TIMEOUT_SECS));
+            std::thread::sleep(Duration::from_secs(watchdog_secs));
             if !claim_terminal(&finished) {
                 return;
             }
@@ -477,6 +497,22 @@ mod tests {
         assert!(args.diagram_type.is_none());
     }
 
+    // --- SPEC-AI-012: 재요청 추가 지시(additionalInstruction) IPC 필드 (REQ-AI12-007, AC-AI12-014) ---
+
+    #[test]
+    fn request_args_deserialize_additional_instruction_camel_case() {
+        let json = r#"{"requestId":"r1","feature":"inline-edit","presetKind":"shorten","selection":"x","additionalInstruction":"더 짧게"}"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(args.additional_instruction.as_deref(), Some("더 짧게"));
+    }
+
+    #[test]
+    fn request_args_additional_instruction_absent_defaults_to_none() {
+        let json = r#"{"requestId":"r1","feature":"inline-edit","presetKind":"shorten","selection":"x"}"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert!(args.additional_instruction.is_none());
+    }
+
     #[test]
     fn request_args_deserialize_full_contract() {
         // 계약 전체 필드(camelCase) 파싱 확인.
@@ -579,5 +615,56 @@ mod tests {
         })
         .unwrap();
         assert!(!json.contains("source"));
+    }
+
+    // --- SPEC-AI-013 REQ-AI13-004/006: 대기 한도 공유 표 (AC-AI13-004) ---
+
+    #[derive(Deserialize)]
+    struct TimeoutRow {
+        label: String,
+        unit: String,
+        count: usize,
+        suffix: String,
+        #[serde(rename = "expectedSecs")]
+        expected_secs: u64,
+    }
+
+    #[derive(Deserialize)]
+    struct TimeoutTable {
+        rows: Vec<TimeoutRow>,
+    }
+
+    fn timeout_table() -> TimeoutTable {
+        serde_json::from_str(include_str!("../../tests/fixtures/ai-timeout-table.json"))
+            .expect("공유 표를 읽을 수 있어야 한다")
+    }
+
+    #[test]
+    fn watchdog_timeout_matches_shared_table_by_utf16_length() {
+        for row in timeout_table().rows {
+            let input = format!("{}{}", row.unit.repeat(row.count), row.suffix);
+            let n = input.encode_utf16().count();
+            assert_eq!(
+                watchdog_timeout_secs(n),
+                row.expected_secs,
+                "행 '{}' (UTF-16 길이 {})",
+                row.label,
+                n
+            );
+        }
+    }
+
+    #[test]
+    fn watchdog_timeout_emoji_row_depends_on_utf16_unit() {
+        let row = timeout_table()
+            .rows
+            .into_iter()
+            .find(|r| r.unit == "😀")
+            .expect("이모지 행이 있어야 한다");
+        let input = format!("{}{}", row.unit.repeat(row.count), row.suffix);
+        assert_eq!(input.encode_utf16().count(), 2001);
+        // 문자 수로 재면 60초가 나온다 — 단위가 실제로 갈리는 행임을 스스로 확인한다.
+        assert_eq!(watchdog_timeout_secs(input.chars().count()), 60);
+        assert_eq!(row.expected_secs, 72);
     }
 }

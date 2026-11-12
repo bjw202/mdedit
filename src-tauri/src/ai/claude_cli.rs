@@ -10,18 +10,28 @@
 use crate::ai::provider::{
     AiModel, AiProvider, AiRequest, Capabilities, ProviderRegistry, ProviderStatus,
 };
-use crate::ai::stream::{classify_stderr, parse_final_result, parse_text_delta};
+use crate::ai::stream::{
+    classify_stderr, parse_final_result, parse_text_delta, Completion, CompletionTracker,
+};
 use crate::process_util::no_window;
 use serde::Serialize;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::thread::JoinHandle;
 use tauri::{AppHandle, Emitter};
 
 /// 스폰 cwd로 쓸 앱 전용 빈 스크래치 디렉토리 이름(문서·프로젝트 폴더 격리, 부록 A).
 pub const SCRATCH_DIR_NAME: &str = "ai-scratch";
+
+/// 시스템 프롬프트 파일을 두는 디렉토리 이름. 작업 폴더(`ai-scratch`)의 **형제**다 —
+/// 작업 폴더는 비어 있어야 하는 격리 계약이 있어서 그 안에는 쓰지 않는다(SPEC-AI-013 D1).
+pub const SYSTEM_PROMPT_DIR_NAME: &str = "ai-prompt";
+
+/// 시스템 프롬프트 파일 이름. 요청마다 덮어쓴다(동시 요청 1개, 새 요청은 옛 프로세스 kill 후 스폰).
+pub const SYSTEM_PROMPT_FILE_NAME: &str = "system-prompt.txt";
 
 /// `ai://chunk` payload — 델타 텍스트. IPC 계약: `{ requestId, text }`.
 #[derive(Debug, Clone, Serialize)]
@@ -31,7 +41,8 @@ pub struct ChunkPayload {
     pub text: String,
 }
 
-/// `ai://done` payload — 최종 결과 전문. IPC 계약: `{ requestId, result, truncated? }`.
+/// `ai://done` payload — 최종 결과 전문. IPC 계약: `{ requestId, result, truncated?, completion }`.
+/// `completion` 은 `"complete" | "cutoff" | "unknown"` 이며 항상 직렬화된다(SPEC-AI-013 REQ-AI13-010).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DonePayload {
@@ -39,6 +50,7 @@ pub struct DonePayload {
     pub result: String,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub truncated: bool,
+    pub completion: Completion,
 }
 
 /// `ai://error` payload — 분류된 원인 + 사용자 안전 메시지(raw stderr 미노출, REQ-AI-040).
@@ -64,7 +76,10 @@ pub enum RelayOutcome {
     Silent,
 }
 
-/// 모델·시스템·사용자 프롬프트로 claude 실행 인자를 조립한다(순수).
+/// 모델·시스템 프롬프트 파일 경로로 claude 실행 인자를 조립한다(순수).
+///
+/// 사용자 프롬프트는 표준 입력으로, 시스템 프롬프트는 파일(`--system-prompt-file`)로 전달하므로
+/// 인자에는 어떤 프롬프트 본문도 줄바꿈도 없다(Windows 명령줄 한도 회피, SPEC-AI-013 REQ-AI13-001).
 ///
 /// 격리 플래그: `--output-format stream-json --include-partial-messages --verbose
 /// --setting-sources "" --tools ""`.
@@ -79,12 +94,11 @@ pub enum RelayOutcome {
 //   `--tools ""` 를 주면 차단된다. 따라서 cwd 를 바꾸는 기능(금고 조회 등)이 나중에 추가되면
 //   이 한 줄이 유일한 방어선이 된다. 도구가 필요한 기능을 만들 때도 여기를 비우지 말고
 //   필요한 도구만 명시적으로 나열할 것.
-pub fn build_claude_args(model: AiModel, system_prompt: &str, user_prompt: &str) -> Vec<String> {
+pub fn build_claude_args(model: AiModel, system_prompt_path: &Path) -> Vec<String> {
     vec![
         "-p".to_string(),
-        user_prompt.to_string(),
-        "--system-prompt".to_string(),
-        system_prompt.to_string(),
+        "--system-prompt-file".to_string(),
+        system_prompt_path.to_string_lossy().into_owned(),
         "--model".to_string(),
         model.as_arg().to_string(),
         "--output-format".to_string(),
@@ -127,6 +141,44 @@ pub fn ensure_scratch_dir(app_data_dir: &Path) -> Result<PathBuf, String> {
     std::fs::create_dir_all(&dir)
         .map_err(|e| format!("AI 작업 폴더를 준비하지 못했어요: {}", e))?;
     Ok(dir)
+}
+
+/// 시스템 프롬프트를 파일로 써서 `--system-prompt-file` 에 넘길 절대 경로를 돌려준다.
+///
+/// 파일은 작업 폴더(`scratch_dir`)의 **형제** 디렉토리 `<app_data>/ai-prompt/` 에 둔다 — 작업
+/// 폴더는 비어 있어야 하고(codex 도 같은 폴더를 쓴다), 거기에 두면 다음 요청이 직접 입력 지시문이
+/// 든 파일을 읽을 수 있다(SPEC-AI-013 D1). 요청마다 덮어쓴다.
+// @MX:NOTE: [AUTO] 시스템 프롬프트 파일은 ai-scratch 밖(형제 ai-prompt)에만 쓴다 - 격리 계약
+// @MX:SPEC: SPEC-AI-013
+pub fn prepare_system_prompt_file(
+    scratch_dir: &Path,
+    system_prompt: &str,
+) -> Result<PathBuf, String> {
+    let app_data_dir = scratch_dir
+        .parent()
+        .ok_or_else(|| "AI 작업 폴더의 위치를 알 수 없어요.".to_string())?;
+    let dir = app_data_dir.join(SYSTEM_PROMPT_DIR_NAME);
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("AI 프롬프트 폴더를 준비하지 못했어요: {}", e))?;
+    let path = dir.join(SYSTEM_PROMPT_FILE_NAME);
+    std::fs::write(&path, system_prompt.as_bytes())
+        .map_err(|e| format!("AI 프롬프트 파일을 쓰지 못했어요: {}", e))?;
+    Ok(path)
+}
+
+/// 자식의 표준 입력에 `bytes` 를 전용 스레드에서 쓰고 핸들을 닫는다(EOF 전달, SPEC-AI-013 D2).
+///
+/// 파이프 버퍼보다 큰 입력을 호출 스레드에서 쓰면 교착할 수 있어 스레드로 분리한다. 쓰기 실패
+/// (자식이 먼저 죽어 파이프가 닫힘 등)는 무시한다 — 결과 판정은 기존 릴레이·워치독이 맡는다.
+/// `AppHandle` 을 받지 않으므로 어떤 이벤트도 발행하지 않는다.
+// @MX:NOTE: [AUTO] 표준 입력 쓰기 헬퍼 - claude/codex 공용, 실패 무시(단일 발행은 claim_terminal 몫)
+// @MX:SPEC: SPEC-AI-013
+pub fn spawn_stdin_writer<W: Write + Send + 'static>(mut writer: W, bytes: Vec<u8>) -> JoinHandle<()> {
+    std::thread::spawn(move || {
+        let _ = writer.write_all(&bytes);
+        let _ = writer.flush();
+        // writer 가 여기서 drop 되며 핸들이 닫혀 자식이 EOF 를 받는다.
+    })
 }
 
 /// error kind 문자열에 대응하는 사용자 안전 메시지(raw stderr·JSON 미노출, §9).
@@ -183,29 +235,45 @@ pub fn decide_outcome(
     RelayOutcome::Error(kind, friendly_error_message(kind))
 }
 
-/// claude 프로세스를 스폰한다. stdout/stderr piped, stdin null, 빈 cwd.
+/// claude 명령어의 Command 구성을 조립한다(순수 — 스폰하지 않음, `build_codex_command` 와 형제).
 ///
 /// 사고 예산 env(`MAX_THINKING_TOKENS`)는 `claude_thinking_env(model)` 이 `Some((k, v))` 를
 /// 반환할 때만 설정한다 — 기본 티어는 `0`(추론 비활성), 고급 티어는 미설정(CLI 기본값 위임,
-/// SPEC-AI-009 REQ-AI9-046). 그 외 Command 설정(`no_window`/`current_dir`/`stdin`/`stdout`/
-/// `stderr`)은 무변경이다.
+/// SPEC-AI-009 REQ-AI9-046). stdin/stdout/stderr 는 모두 piped — 사용자 프롬프트는 표준 입력으로
+/// 전달한다(SPEC-AI-013 REQ-AI13-001).
 // @MX:WARN: [AUTO] 외부 바이너리(claude)를 실행한다 - 임의 경로 실행 보안 표면
 // @MX:REASON: [AUTO] cwd를 빈 스크래치로 고정하고 --setting-sources ""로 사용자/프로젝트 설정·훅을 차단해 부작용을 최소화한다(부록 A)
-pub fn spawn_claude(args: &[String], cwd: &Path, model: AiModel) -> Result<Child, String> {
-    // bare "claude"가 아니라 detect와 동일하게 해석된 절대경로로 스폰한다(GUI 최소 PATH 우회).
-    let binary = crate::ai::detect::claude_binary()
-        .ok_or_else(|| "claude 실행 파일을 찾지 못했어요.".to_string())?;
-    let mut cmd = Command::new(&binary);
+pub fn build_claude_command(binary: &Path, args: &[String], cwd: &Path, model: AiModel) -> Command {
+    let mut cmd = Command::new(binary);
     // Windows에서 콘솔 창이 깜빡이며 뜨는 것을 막는다(GUI 앱 전면 탈취 방지).
     no_window(&mut cmd).args(args).current_dir(cwd);
     if let Some((key, value)) = claude_thinking_env(model) {
         cmd.env(key, value);
     }
-    cmd.stdin(Stdio::null())
+    cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    cmd
+}
+
+/// claude 프로세스를 스폰하고 사용자 프롬프트를 표준 입력으로 쓴다(전용 스레드, EOF 로 마감).
+pub fn spawn_claude(
+    args: &[String],
+    cwd: &Path,
+    model: AiModel,
+    user_prompt: &str,
+) -> Result<Child, String> {
+    // bare "claude"가 아니라 detect와 동일하게 해석된 절대경로로 스폰한다(GUI 최소 PATH 우회).
+    let binary = crate::ai::detect::claude_binary()
+        .ok_or_else(|| "claude 실행 파일을 찾지 못했어요.".to_string())?;
+    let mut child = build_claude_command(&binary, args, cwd, model)
         .spawn()
-        .map_err(|e| format!("claude 실행에 실패했어요: {}", e))
+        .map_err(|e| format!("claude 실행에 실패했어요: {}", e))?;
+    if let Some(stdin) = child.stdin.take() {
+        // 조인하지 않는다 — 자식이 죽으면 쓰기가 실패해 스레드가 스스로 끝난다.
+        let _ = spawn_stdin_writer(stdin, user_prompt.as_bytes().to_vec());
+    }
+    Ok(child)
 }
 
 /// stdout/stderr를 별도 스레드에서 읽어 `ai://chunk|done|error`로 릴레이한다.
@@ -226,6 +294,8 @@ pub fn relay_process(
         let reader = BufReader::new(stdout);
         let mut final_result: Option<String> = None;
         let mut saw_stream_output = false;
+        // 정지 사유를 끈적하게 모은다(SPEC-AI-013 REQ-AI13-011).
+        let mut completion = CompletionTracker::default();
 
         for line in reader.lines() {
             let line = match line {
@@ -233,6 +303,7 @@ pub fn relay_process(
                 Err(_) => break,
             };
             saw_stream_output = true;
+            completion.observe(&line);
             if let Some(text) = parse_text_delta(&line) {
                 let _ = app_handle.emit(
                     "ai://chunk",
@@ -263,6 +334,7 @@ pub fn relay_process(
                             request_id,
                             result,
                             truncated,
+                            completion: completion.completion(),
                         },
                     );
                 }
@@ -316,8 +388,10 @@ impl AiProvider for ClaudeProvider {
     }
 
     fn spawn(&self, request: &AiRequest, cwd: &Path) -> Result<Child, String> {
-        let args = build_claude_args(request.model, &request.system_prompt, &request.user_prompt);
-        spawn_claude(&args, cwd, request.model)
+        // cwd 는 작업 폴더(ai-scratch) — 시스템 프롬프트 파일은 그 형제 폴더에 쓴다(D1).
+        let prompt_path = prepare_system_prompt_file(cwd, &request.system_prompt)?;
+        let args = build_claude_args(request.model, &prompt_path);
+        spawn_claude(&args, cwd, request.model, &request.user_prompt)
     }
 
     fn capabilities(&self) -> Capabilities {
@@ -347,32 +421,70 @@ pub fn default_registry() -> ProviderRegistry {
 mod tests {
     use super::*;
 
-    // --- build_claude_args ---
+    // --- SPEC-AI-013 테스트 공용 ---
+
+    const SYS_MARK: &str = "SYS-표지-91c2\n둘째 줄";
+    const USER_MARK: &str = "선택-표지-7f3a";
+
+    fn temp_app_data(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("mdedit_ai13_{}_{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    // --- build_claude_args (AC-AI13-001) ---
 
     #[test]
-    fn args_include_isolation_flags() {
-        let args = build_claude_args(AiModel::Haiku, "sys", "user");
-        let joined = args.join("\u{1}");
+    fn args_have_no_prompt_text_and_no_newlines_and_file_is_outside_scratch() {
+        let base = temp_app_data("ac001");
+        let scratch = ensure_scratch_dir(&base).unwrap();
+        let path = prepare_system_prompt_file(&scratch, SYS_MARK).unwrap();
+        let args = build_claude_args(AiModel::Haiku, &path);
+
+        for a in &args {
+            assert!(!a.contains("SYS-표지-91c2"), "시스템 프롬프트가 인자에 있다: {a}");
+            assert!(!a.contains(USER_MARK), "사용자 프롬프트가 인자에 있다: {a}");
+            assert!(!a.contains('\n'), "인자에 줄바꿈이 있다: {a:?}");
+        }
         assert!(args.contains(&"-p".to_string()));
-        assert!(args.contains(&"user".to_string()));
-        assert!(args.contains(&"--system-prompt".to_string()));
-        assert!(args.contains(&"sys".to_string()));
-        assert!(args.contains(&"--output-format".to_string()));
-        assert!(args.contains(&"stream-json".to_string()));
-        assert!(args.contains(&"--include-partial-messages".to_string()));
-        assert!(args.contains(&"--verbose".to_string()));
-        assert!(args.contains(&"--setting-sources".to_string()));
-        // --setting-sources 뒤에 빈 문자열이 온다.
-        let idx = args.iter().position(|a| a == "--setting-sources").unwrap();
-        assert_eq!(args[idx + 1], "");
-        let _ = joined;
+        let fidx = args.iter().position(|a| a == "--system-prompt-file").unwrap();
+        assert_eq!(args[fidx + 1], path.to_string_lossy());
+        assert!(!args.iter().any(|a| a == "--system-prompt"));
+        let midx = args.iter().position(|a| a == "--model").unwrap();
+        assert_eq!(args[midx + 1], "haiku");
+        let oidx = args.iter().position(|a| a == "--output-format").unwrap();
+        assert_eq!(args[oidx + 1], "stream-json");
+        for flag in ["--include-partial-messages", "--verbose"] {
+            assert!(args.iter().any(|a| a == flag), "{flag} 누락");
+        }
+        let sidx = args.iter().position(|a| a == "--setting-sources").unwrap();
+        assert_eq!(args[sidx + 1], "");
+        let tidx = args.iter().position(|a| a == "--tools").unwrap();
+        assert_eq!(args[tidx + 1], "");
+
+        // 파일 내용은 시스템 프롬프트와 바이트 단위로 같다.
+        assert_eq!(std::fs::read(&path).unwrap(), SYS_MARK.as_bytes());
+        // 파일은 작업 폴더 밖이고, 작업 폴더는 비어 있다(격리 계약).
+        assert!(!path.starts_with(&scratch));
+        assert_eq!(std::fs::read_dir(&scratch).unwrap().count(), 0);
+
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn prepare_system_prompt_file_overwrites_previous_content() {
+        let base = temp_app_data("overwrite");
+        let scratch = ensure_scratch_dir(&base).unwrap();
+        prepare_system_prompt_file(&scratch, "첫 번째로 긴 내용입니다").unwrap();
+        let path = prepare_system_prompt_file(&scratch, "둘째").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), "둘째".as_bytes());
+        std::fs::remove_dir_all(&base).ok();
     }
 
     #[test]
     fn args_disable_all_builtin_tools() {
-        // 도구 전면 비활성화(`--tools ""`)는 격리 계약의 일부다. 이 단언이 깨지면 CLI 기본
-        // 도구 집합이 되살아나고, 격리가 "빈 cwd" 정황에만 의존하게 된다.
-        let args = build_claude_args(AiModel::Haiku, "sys", "user");
+        // 도구 전면 비활성화(`--tools ""`)는 격리 계약의 일부다.
+        let args = build_claude_args(AiModel::Haiku, Path::new("/p/system-prompt.txt"));
         let idx = args
             .iter()
             .position(|a| a == "--tools")
@@ -382,26 +494,23 @@ mod tests {
 
     #[test]
     fn args_toggle_model_haiku_vs_sonnet() {
-        let haiku = build_claude_args(AiModel::Haiku, "s", "u");
-        let sonnet = build_claude_args(AiModel::Sonnet, "s", "u");
+        let p = Path::new("/p/system-prompt.txt");
+        let haiku = build_claude_args(AiModel::Haiku, p);
+        let sonnet = build_claude_args(AiModel::Sonnet, p);
         let hidx = haiku.iter().position(|a| a == "--model").unwrap();
         let sidx = sonnet.iter().position(|a| a == "--model").unwrap();
         assert_eq!(haiku[hidx + 1], "haiku");
         assert_eq!(sonnet[sidx + 1], "sonnet");
     }
 
-    // --- SPEC-AI-009 M1.1 / REQ-AI9-022 / AC-AI9-013 회귀 가드 ---
-    // codex 통합 코드가 claude 인자 시퀀스를 의도치 않게 건드리는 즉시 포착하기 위한
-    // 바이트 동등 스냅샷. 프로덕션 build_claude_args 는 무변경이어야 한다(단일 소스 원칙).
-    // 어서션 전체 Vec 를 하드코딩해 순서·개수·값 전부 고정한다.
     #[test]
     fn build_claude_args_haiku_snapshot_byte_equal() {
-        let args = build_claude_args(AiModel::Haiku, "SYS", "USER");
+        // 전체 Vec 를 하드코딩해 순서·개수·값을 고정한다(SPEC-AI-013: 본문 인자 제거로 13개).
+        let args = build_claude_args(AiModel::Haiku, Path::new("/p/system-prompt.txt"));
         let expected = vec![
             "-p".to_string(),
-            "USER".to_string(),
-            "--system-prompt".to_string(),
-            "SYS".to_string(),
+            "--system-prompt-file".to_string(),
+            "/p/system-prompt.txt".to_string(),
             "--model".to_string(),
             "haiku".to_string(),
             "--output-format".to_string(),
@@ -414,39 +523,14 @@ mod tests {
             String::new(),
         ];
         assert_eq!(args, expected);
-        assert_eq!(args.len(), 14, "claude 인자는 정확히 14개여야 한다");
-    }
-
-    #[test]
-    fn build_claude_args_sonnet_korean_prompt_snapshot_byte_equal() {
-        // 한글·Sonnet 조합으로 두 번째 기준선 확보 — 모델 토글 + 비-ASCII 입력 모두 고정.
-        let args = build_claude_args(AiModel::Sonnet, "다른 시스템", "다른 사용자");
-        let expected = vec![
-            "-p".to_string(),
-            "다른 사용자".to_string(),
-            "--system-prompt".to_string(),
-            "다른 시스템".to_string(),
-            "--model".to_string(),
-            "sonnet".to_string(),
-            "--output-format".to_string(),
-            "stream-json".to_string(),
-            "--include-partial-messages".to_string(),
-            "--verbose".to_string(),
-            "--setting-sources".to_string(),
-            String::new(),
-            "--tools".to_string(),
-            String::new(),
-        ];
-        assert_eq!(args, expected);
+        assert_eq!(args.len(), 13, "claude 인자는 정확히 13개여야 한다");
     }
 
     #[test]
     fn build_claude_args_isolation_flags_never_drop() {
-        // 개별 격리 플래그 존재 여부 — codex 통합 중 build_claude_args 가 무결하더라도
-        // 호출부 수정 회귀를 포착하기 위한 방어 어서션.
-        let args = build_claude_args(AiModel::Haiku, "sys", "user");
+        let args = build_claude_args(AiModel::Haiku, Path::new("/p/system-prompt.txt"));
         for flag in [
-            "--system-prompt",
+            "--system-prompt-file",
             "--model",
             "--output-format",
             "--include-partial-messages",
@@ -460,8 +544,85 @@ mod tests {
                 flag
             );
         }
-        // 산출 순서 고정: -p 가 첫 원소, system-prompt 값이 그 뒤.
         assert_eq!(args.first().map(|s| s.as_str()), Some("-p"));
+    }
+
+    // --- 표준 입력 쓰기 (AC-AI13-003) ---
+
+    /// 진짜 자식(`/bin/cat`)에 헬퍼로 한글 6,000자를 쓰고, stdout 을 끝까지 읽은 뒤 join 한다.
+    #[cfg(unix)]
+    fn cat_roundtrip(mut cmd: Command) {
+        let text = "가".repeat(6000);
+        let mut child = cmd.spawn().expect("cat 스폰");
+        let stdin = child.stdin.take().expect("stdin 은 piped 여야 한다");
+        let writer = spawn_stdin_writer(stdin, text.clone().into_bytes());
+        let mut out = Vec::new();
+        child
+            .stdout
+            .take()
+            .unwrap()
+            .read_to_end(&mut out)
+            .expect("stdout 읽기");
+        writer.join().expect("헬퍼 스레드가 패닉하면 안 된다");
+        let status = child.wait().unwrap();
+        assert!(status.success(), "헬퍼가 핸들을 닫아 EOF 가 전달되어야 한다");
+        assert_eq!(out, text.as_bytes());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn claude_command_pipes_stdin_to_child() {
+        let cmd =
+            build_claude_command(Path::new("/bin/cat"), &[], Path::new("/tmp"), AiModel::Haiku);
+        cat_roundtrip(cmd);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn codex_command_pipes_stdin_to_child() {
+        let cmd = crate::ai::codex_cli::build_codex_command(
+            Path::new("/bin/cat"),
+            &[],
+            Path::new("/tmp"),
+        );
+        cat_roundtrip(cmd);
+    }
+
+    #[test]
+    fn stdin_writer_swallows_broken_pipe_without_panic() {
+        struct Broken;
+        impl std::io::Write for Broken {
+            fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::ErrorKind::BrokenPipe.into())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        assert!(spawn_stdin_writer(Broken, vec![1, 2, 3]).join().is_ok());
+    }
+
+    // --- DonePayload completion (AC-AI13-008) ---
+
+    #[test]
+    fn done_payload_always_serializes_completion() {
+        for (c, s) in [
+            (Completion::Complete, "complete"),
+            (Completion::Cutoff, "cutoff"),
+            (Completion::Unknown, "unknown"),
+        ] {
+            let json = serde_json::to_string(&DonePayload {
+                request_id: "r1".to_string(),
+                result: "결과".to_string(),
+                truncated: false,
+                completion: c,
+            })
+            .unwrap();
+            assert!(json.contains(&format!("\"completion\":\"{s}\"")), "{json}");
+            assert!(json.contains("\"requestId\":\"r1\""));
+            assert!(json.contains("\"result\":\"결과\""));
+            assert!(!json.contains("truncated"));
+        }
     }
 
     // --- scratch dir ---
@@ -647,6 +808,7 @@ mod tests {
             request_id: "r1".to_string(),
             result: "결과".to_string(),
             truncated: true,
+            completion: Completion::Unknown,
         })
         .unwrap();
         assert!(json.contains("\"requestId\":\"r1\""));
@@ -659,6 +821,7 @@ mod tests {
             request_id: "r1".to_string(),
             result: "x".to_string(),
             truncated: false,
+            completion: Completion::Unknown,
         })
         .unwrap();
         assert!(!json.contains("truncated"));

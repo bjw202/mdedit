@@ -243,7 +243,7 @@ export interface PresetMenuNotice {
 }
 
 /**
- * 삽입 전용 구간(2,001~4,000자) 안내 문구 — 가드는 이 구간에서 reason 을 반환하지 않으므로
+ * 삽입 전용 구간(6,001~12,000자) 안내 문구 — 가드는 이 구간에서 reason 을 반환하지 않으므로
  * 툴바가 소유(D2). 차단 구간과 마찬가지로 현재 글자 수와 한도를 함께 보여준다.
  */
 function buildMenuNoticePartial(selectionLength: number): string {
@@ -255,7 +255,7 @@ function buildMenuNoticePartial(selectionLength: number): string {
 
 /**
  * @MX:NOTE: 선택 길이 가드(ai-length-guard.ts)에서 안내 구간을 파생하는 단일 소스 헬퍼(REQ-AI7-004).
- * 2,000/4,000 임계를 여기 복제하지 않고, 편집 대표(polish)·변환 대표(outline) 두 프리셋에 대한
+ * 6,000/12,000 임계를 여기 복제하지 않고, 편집 대표(polish)·변환 대표(outline) 두 프리셋에 대한
  * evaluateSelectionGuard 결과 조합으로만 구간을 판정한다. too-long 문구는 가드 reason 을 그대로
  * 재사용해 문자열 드리프트를 차단한다(D1).
  */

@@ -1,7 +1,7 @@
 // @MX:SPEC: SPEC-AI-001 REQ-AI-019 REQ-AI-020 REQ-AI-015 REQ-AI-026 REQ-AI-027
 // TDD RED phase — written before ai-selection-toolbar.ts exists.
 // Covers: paragraph-context extraction, request-args building (feature mapping /
-// insertOnly / model), guard-driven preset disable states (1999/2001/4001), the
+// insertOnly / model), guard-driven preset disable states (5999/6001/12001), the
 // ✨ widget appearance on selection, the preset popover morph/Esc 복귀, and the
 // "연결 필요" (not-logged-in) gate.
 
@@ -156,11 +156,11 @@ describe('buildSelectionRequest: AiRequestArgs assembly + insertOnly metadata', 
     expect(req.args.feature).toBe('diagram');
   });
 
-  it('marks insertOnly=true for a transform preset in the 2K-4K band', async () => {
+  it('marks insertOnly=true for a transform preset in the 6K-12K band', async () => {
     const { buildSelectionRequest } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
-    const longSel = 'x'.repeat(3000);
+    const longSel = 'x'.repeat(7000);
     const req = buildSelectionRequest({
       ...base,
       selection: longSel,
@@ -168,7 +168,7 @@ describe('buildSelectionRequest: AiRequestArgs assembly + insertOnly metadata', 
     });
     expect(req.insertOnly).toBe(true);
     expect(req.args.selection).toBe(longSel); // never truncated (REQ-AI-027)
-    expect(req.args.selection).toHaveLength(3000);
+    expect(req.args.selection).toHaveLength(7000);
   });
 
   it('carries sonnet through when the advanced model is chosen', async () => {
@@ -213,22 +213,22 @@ describe('buildPresetMenuItems: guard-driven disable states by selection length'
     expect(items[5].label).toContain('직접 입력');
   });
 
-  it('len=1999: every preset enabled, none insertOnly', async () => {
+  it('len=5999: every preset enabled, none insertOnly', async () => {
     const { buildPresetMenuItems } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
-    const items = buildPresetMenuItems(1999);
+    const items = buildPresetMenuItems(5999);
     for (const item of items) {
       expect(item.disabled).toBe(false);
       expect(item.insertOnly).toBe(false);
     }
   });
 
-  it('len=2001: edit presets (polish/custom) disabled, transforms enabled + insertOnly', async () => {
+  it('len=6001: edit presets (polish/custom) disabled, transforms enabled + insertOnly', async () => {
     const { buildPresetMenuItems } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
-    const items = buildPresetMenuItems(2001);
+    const items = buildPresetMenuItems(6001);
     const byKind = Object.fromEntries(items.map((i) => [i.kind, i]));
     expect(byKind.polish.disabled).toBe(true);
     expect(byKind.polish.reason).toBeTruthy();
@@ -239,11 +239,11 @@ describe('buildPresetMenuItems: guard-driven disable states by selection length'
     }
   });
 
-  it('len=4001: all presets disabled with a reason', async () => {
+  it('len=12001: all presets disabled with a reason', async () => {
     const { buildPresetMenuItems } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
-    const items = buildPresetMenuItems(4001);
+    const items = buildPresetMenuItems(12001);
     for (const item of items) {
       expect(item.disabled).toBe(true);
       expect(item.reason).toBeTruthy();
@@ -252,47 +252,47 @@ describe('buildPresetMenuItems: guard-driven disable states by selection length'
 });
 
 describe('evaluateMenuNotice: guard-derived preset-menu notice bands (SPEC-AI-007)', () => {
-  it('len=2000 (boundary, no guard impact): returns null', async () => {
+  it('len=6000 (boundary, no guard impact): returns null', async () => {
     const { evaluateMenuNotice } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
-    expect(evaluateMenuNotice(2000)).toBeNull();
+    expect(evaluateMenuNotice(6000)).toBeNull();
   });
 
-  it('len=2001 (edit disabled, transform insertOnly): returns partial tone with the mixed-effect copy', async () => {
+  it('len=6001 (edit disabled, transform insertOnly): returns partial tone with the mixed-effect copy', async () => {
     const { evaluateMenuNotice } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
-    const notice = evaluateMenuNotice(2001);
+    const notice = evaluateMenuNotice(6001);
     expect(notice?.tone).toBe('partial');
     // 현재 글자 수와 편집 한도가 숫자로 보여야 한다(사용자가 얼마나 줄여야 할지 알 수 있게).
-    expect(notice?.text).toContain('2,001자');
-    expect(notice?.text).toContain('2,000자');
+    expect(notice?.text).toContain('6,001자');
+    expect(notice?.text).toContain('6,000자');
     expect(notice?.text).toContain('아래에 삽입');
   });
 
-  it('len=4000 (boundary, still insertOnly): returns partial tone', async () => {
+  it('len=12000 (boundary, still insertOnly): returns partial tone', async () => {
     const { evaluateMenuNotice } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
-    const notice = evaluateMenuNotice(4000);
+    const notice = evaluateMenuNotice(12000);
     expect(notice?.tone).toBe('partial');
   });
 
-  it('len=4001 (all presets disabled): returns block tone reusing the guard reason verbatim', async () => {
+  it('len=12001 (all presets disabled): returns block tone reusing the guard reason verbatim', async () => {
     const { evaluateMenuNotice } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
     const { evaluateSelectionGuard } = await import(
       '@/components/editor/extensions/ai-length-guard'
     );
-    const guardReason = evaluateSelectionGuard(4001, 'outline').reason;
-    const notice = evaluateMenuNotice(4001);
+    const guardReason = evaluateSelectionGuard(12001, 'outline').reason;
+    const notice = evaluateMenuNotice(12001);
     expect(notice).toEqual({ tone: 'block', text: guardReason });
-    // 변환 계열이 걸린 것이므로 한도는 4,000자로 안내되어야 한다(편집 한도 2,000자가 아니라).
-    expect(notice?.text).toContain('4,001자');
-    expect(notice?.text).toContain('4,000자');
-    expect(notice?.text).not.toContain('2,000자');
+    // 변환 계열이 걸린 것이므로 한도는 12,000자로 안내되어야 한다(편집 한도 6,000자가 아니라).
+    expect(notice?.text).toContain('12,001자');
+    expect(notice?.text).toContain('12,000자');
+    expect(notice?.text).not.toContain('6,000자');
   });
 
   it('len=100 (well within edit limit): returns null', async () => {
@@ -352,7 +352,7 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
   });
 
   it('disables over-limit presets with a reason title and ignores their clicks', async () => {
-    const { menu, callbacks } = await build(2001);
+    const { menu, callbacks } = await build(6001);
     const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
     expect(polish.disabled).toBe(true);
     expect(polish.title).toBeTruthy();
@@ -361,25 +361,25 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
     menu.destroy();
   });
 
-  it('len=4001: shows the always-visible too-long notice line and still keeps per-item title/disabled (REQ-AI7-001, 005)', async () => {
-    const { menu } = await build(4001);
+  it('len=12001: shows the always-visible too-long notice line and still keeps per-item title/disabled (REQ-AI7-001, 005)', async () => {
+    const { menu } = await build(12001);
     const notice = menu.dom.querySelector('.mdedit-ai-preset-notice');
     expect(notice).toBeTruthy();
-    expect(notice?.textContent).toContain('4,001자');
-    expect(notice?.textContent).toContain('4,000자까지');
+    expect(notice?.textContent).toContain('12,001자');
+    expect(notice?.textContent).toContain('12,000자까지');
     const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
     expect(polish.disabled).toBe(true);
-    // 비활성 항목의 툴팁은 그 계열의 한도(편집 2,000자)를 안내해야 한다 — 메뉴 안내줄과 다른 숫자다.
-    expect(polish.title).toContain('2,000자까지');
+    // 비활성 항목의 툴팁은 그 계열의 한도(편집 6,000자)를 안내해야 한다 — 메뉴 안내줄과 다른 숫자다.
+    expect(polish.title).toContain('6,000자까지');
     expect(polish.getAttribute('aria-disabled')).toBe('true');
     menu.destroy();
   });
 
-  it('len=3000: shows the partial (mixed-effect) notice line while transforms stay insertOnly (REQ-AI7-002)', async () => {
-    const { menu } = await build(3000);
+  it('len=7000: shows the partial (mixed-effect) notice line while transforms stay insertOnly (REQ-AI7-002)', async () => {
+    const { menu } = await build(7000);
     const notice = menu.dom.querySelector('.mdedit-ai-preset-notice');
     expect(notice).toBeTruthy();
-    expect(notice?.textContent).toContain('3,000자');
+    expect(notice?.textContent).toContain('7,000자');
     expect(notice?.textContent).toContain('아래에 삽입');
     const polish = menu.dom.querySelector<HTMLButtonElement>('[data-preset="polish"]')!;
     expect(polish.disabled).toBe(true);
@@ -1051,7 +1051,7 @@ describe('createPresetMenu: diagram type flyout submenu (SPEC-AI-008)', () => {
   });
 
   it('disabled trigger ignores hover/click — no submenu is ever created (AC-010, REQ-014)', async () => {
-    const { trigger, menu } = await build(4001);
+    const { trigger, menu } = await build(12001);
     trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
     trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(menu.dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();

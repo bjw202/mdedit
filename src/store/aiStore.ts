@@ -7,6 +7,18 @@ import { create } from 'zustand';
 /** 요청 진행 상태 (설계 §3 aiStore 상태 머신). */
 export type AiRequestState = 'idle' | 'streaming' | 'done' | 'error';
 
+/**
+ * 응답 완결 신호(SPEC-AI-013 D7): 백엔드가 `ai://done` 에 싣는다.
+ * complete = 정상 종료 확인, cutoff = 출력 한도로 잘림 확인, unknown = 확인 불가(codex 포함).
+ * 「알 수 없음」을 「완결」로 취급하지 않는 것이 원문 손실 방지의 핵심이다.
+ */
+export type Completion = 'complete' | 'cutoff' | 'unknown';
+
+/** 필드가 없거나 알 수 없는 값이면 'unknown' 으로 읽는다(REQ-AI13-010). */
+export function normalizeCompletion(value: unknown): Completion {
+  return value === 'complete' || value === 'cutoff' ? value : 'unknown';
+}
+
 /** stderr 분류 결과(설계 §9). raw JSON 이 아니라 분류된 종류만 UI 로 전달한다(REQ-AI-040). */
 export type AiErrorKind = 'login' | 'network' | 'parse' | 'other';
 
@@ -27,13 +39,15 @@ export interface AiTransientSlice {
   errorInfo: AiErrorInfo | null;
   /** 백엔드가 컨텍스트 상한으로 원문을 절단했는지(ai://done truncated). 카드/배너 고지에 사용(설계 §7). */
   truncated: boolean;
+  /** 응답 완결 신호(ai://done completion). 카드가 「바꾸기」 제공 여부를 정하는 데만 쓴다(SPEC-AI-013). */
+  completion: Completion;
 }
 
 export interface AiState extends AiTransientSlice {
   sessionRequestCount: number;
   startRequest: (requestId: string, feature: AiFeature) => void;
   appendChunk: (delta: string) => void;
-  completeRequest: (finalText: string, truncated?: boolean) => void;
+  completeRequest: (finalText: string, truncated?: boolean, completion?: Completion) => void;
   failRequest: (errorInfo: AiErrorInfo) => void;
   cancelRequest: () => void;
   incrementCount: () => void;
@@ -47,13 +61,14 @@ export const idleSlice: AiTransientSlice = {
   feature: null,
   errorInfo: null,
   truncated: false,
+  completion: 'unknown',
 };
 
 // 순수 전이 함수: 스토어 밖에서 단위 테스트 가능하도록 분리한다(insertTable 순수 헬퍼 관례).
 
 /** 새 요청 시작 — streaming 진입, 버퍼·오류·절단 플래그 초기화, 요청 id·기능 설정. */
 export function reduceStartRequest(requestId: string, feature: AiFeature): AiTransientSlice {
-  return { requestState: 'streaming', streamBuffer: '', requestId, feature, errorInfo: null, truncated: false };
+  return { requestState: 'streaming', streamBuffer: '', requestId, feature, errorInfo: null, truncated: false, completion: 'unknown' };
 }
 
 /** 델타 누적 — 스트림 조각을 도착 순서대로 이어 붙인다. */
@@ -66,8 +81,9 @@ export function reduceCompleteRequest(
   prev: AiTransientSlice,
   finalText: string,
   truncated = false,
+  completion: Completion = 'unknown',
 ): AiTransientSlice {
-  return { ...prev, requestState: 'done', streamBuffer: finalText, truncated };
+  return { ...prev, requestState: 'done', streamBuffer: finalText, truncated, completion };
 }
 
 /** 실패 — 분류된 오류만 담는다. raw JSON 노출 금지(REQ-AI-040). */
@@ -85,7 +101,8 @@ export const useAiStore = create<AiState>()((set) => ({
   sessionRequestCount: 0,
   startRequest: (requestId, feature) => set(reduceStartRequest(requestId, feature)),
   appendChunk: (delta) => set((s) => reduceAppendChunk(s, delta)),
-  completeRequest: (finalText, truncated) => set((s) => reduceCompleteRequest(s, finalText, truncated)),
+  completeRequest: (finalText, truncated, completion) =>
+    set((s) => reduceCompleteRequest(s, finalText, truncated, completion)),
   failRequest: (errorInfo) => set((s) => reduceFailRequest(s, errorInfo)),
   cancelRequest: () => set(reduceCancel()),
   incrementCount: () => set((s) => ({ sessionRequestCount: s.sessionRequestCount + 1 })),

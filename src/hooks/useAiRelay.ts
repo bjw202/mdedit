@@ -5,8 +5,8 @@
 
 import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { useAiStore } from '@/store/aiStore';
-import type { AiErrorKind } from '@/store/aiStore';
+import { useAiStore, normalizeCompletion } from '@/store/aiStore';
+import type { AiErrorKind, Completion } from '@/store/aiStore';
 import { dispatchAiChunk, dispatchAiDone, dispatchAiError } from '@/lib/ai/aiEventRouter';
 
 /** `ai://chunk` payload — 스트림 델타 조각(REQ-AI-004). */
@@ -20,6 +20,8 @@ export interface AiDoneEvent {
   requestId: string;
   result: string;
   truncated?: boolean;
+  /** SPEC-AI-013: 응답 완결 신호. 백엔드는 항상 싣지만 없으면 'unknown' 으로 읽는다. */
+  completion?: Completion;
 }
 
 /** `ai://error` payload — 분류된 원인 + 취소 주체(REQ-AI-040, §9 분류표). */
@@ -62,9 +64,11 @@ export function useAiRelay(): void {
         }),
         listen<AiDoneEvent>('ai://done', (event) => {
           const { requestId, result, truncated } = event.payload;
-          dispatchAiDone(requestId, result, truncated ?? false);
+          // SPEC-AI-013 REQ-AI13-010: completion 은 카드에 닿는 두 경로(라우터·스토어) 모두로 전달한다.
+          const completion = normalizeCompletion(event.payload.completion);
+          dispatchAiDone(requestId, result, truncated ?? false, completion);
           if (!isCurrent(requestId)) return;
-          useAiStore.getState().completeRequest(result, truncated ?? false);
+          useAiStore.getState().completeRequest(result, truncated ?? false, completion);
         }),
         listen<AiErrorEvent>('ai://error', (event) => {
           const { requestId, kind, message } = event.payload;
