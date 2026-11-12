@@ -54,3 +54,35 @@ haiku-thinking: 0 설정 중앙값 2.38s vs 미설정 중앙값 2.39s (차이 �
 ```
 
 판정(design.md D-2): R1 통과(별칭 4개 전부 성공), R2 `CATALOG`(조회 목록 8개 전부 성공), R4 해당 없음(codex `--model` 없음 성공). 기본 설계와 같으므로 SPEC 개정 없이 M2로 간다. `gpt-5.5`는 내장 목록에만 있고 이 계정에서 실패한다(기존 앱이 박아 둔 모델이 실제로 깨져 있었다는 증거). 고정 목록 순서는 조회 `priority` 오름차순이다. 테스트 fixture: `src-tauri/tests/fixtures/codex-models-sample.json`(실제 조회 출력에서 모델 3개 + `hide` 1개를 뽑고 긴 문자열만 80자로 자름, 순서는 정렬 시험용으로 섞음).
+
+### 게이트 증거 (HEAD 8f44695 기준, 이 트리에서 직접 실행)
+
+| 명령 | 종료 코드 | 결과 |
+|------|-----------|------|
+| `npm run typecheck` | 0 | 오류 없음 |
+| `npm run lint` | 0 | 경고·오류 0 |
+| `npx vitest run --dir src` | 0 | `Test Files 122 passed (122)`, `Tests 2086 passed (2086)` |
+| `~/.cargo/bin/cargo test --manifest-path src-tauri/Cargo.toml` | 0 | `test result: ok. 421 passed; 0 failed` (+ 통합 3, 8개 통과) |
+| `npx playwright test e2e/spec-img-load-001 spec-img-load-002 spec-img-mode-003 spec-img-widget-002 unsaved-changes-guard` (버전 1 저장 상태 fixture 5개 파일) | 0 | `13 passed, 1 skipped` |
+| `git grep -nE "AiModel\|MAX_THINKING_TOKENS\|model_reasoning_effort" -- src-tauri/src` | 1 | 출력 없음 |
+| `git grep -n "mdedit-ai-advanced" -- src` / `git grep -n "resolveModel" -- src` | 1 / 1 | 출력 없음 |
+| AC-003 모델 이름 문자열 grep(`src/test` 제외) | - | 3건 모두 `src/store/uiStore.ts`(주석·기본값·이전 규칙) |
+| AC-017 순서: 판정 줄 커밋 `5fb70ff` ≤ 첫 실행 코드 커밋 `4bdde44` | 0 | `git merge-base --is-ancestor` 종료 코드 0 |
+
+### AC 상태
+
+AC-001~018, 020, 021 자동 PASS(AC-013~015는 CATALOG 적용). AC-019 수동 **대기**(사용자 실기기). 전체 `npm run test:e2e`는 돌리지 않고 저장 상태 fixture를 담은 5개 파일만 실행했다.
+
+### 수동 확인 대기 (AC-019, macOS 개발 빌드)
+
+1. 설정에서 claude 모델을 `opus`로 고르고 ✨ 툴바 요청 → 카드에 결과.
+2. codex 선택 후 목록 모델로 요청 → 결과.
+3. `localStorage` `mdedit-ui-store`의 `aiModels.claude`를 `no-such-model`로 바꾸고 새로고침: (a) ✨ 요청 → 카드에 모델명+설정 안내 오류, (b) 고스트 이어쓰기 → 상태 표시줄 같은 메시지. `ps -axww | grep -c '[c]laude -p.*--setting-sources'` 값이 늘지 않을 것.
+4. 이전 버전에서 "고급 모델 사용"을 켠 저장 상태가 새 빌드에서 claude `Sonnet`으로 표시.
+
+### 결정·한계
+
+- 드롭다운 접근성 이름은 "Claude 모델"/"Codex 모델"로 고정(기존 `providerDisplayName`의 "Claude Code"는 AC-005 이름과 달라 쓰지 않음).
+- 인자 원소 수는 `--model` 없음 11개/있음 13개(추론 `-c`와 값 2개 제거).
+- 한계: 새 SettingsModal·카드 테스트는 구현 뒤에 쓰여 RED 출력이 없다(uiStore·고스트 테스트와 Rust는 RED 확인). `ai_request` 전체 통합 테스트는 없고 AC-019 수동 확인이 맡는다. codex 조회가 손자 프로세스 때문에 kill 뒤에도 읽기 스레드가 잠시 남을 수 있다(`@MX:WARN` 기록).
+- 선행 SPEC-AI-012·013 프런트매터는 `implemented`(병합은 확인됨).
