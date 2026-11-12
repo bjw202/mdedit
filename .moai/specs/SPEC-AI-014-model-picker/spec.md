@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-014
 title: "AI 모델 선택 — 고급 모델 토글을 도구별 모델 목록 선택으로 교체"
-version: "0.1.0"
+version: "0.1.1"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -23,6 +23,7 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-13 | jw | 최초 작성. 계기: 백로그 카드 t6(사용자 결정 2026-11-13). 계획 단계에서 코드와 두 CLI의 모델 목록을 직접 확인했다(research.md). 사용자가 잠든 동안 자율 진행 권한을 받아, 열려 있던 설계 선택은 기본값을 정해 design.md에 결정으로 기록했다. |
+| 0.1.1 | 2026-11-13 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-AI-014-review-1.md`, FAIL 0.78) 반영. (D1, BLOCKING) 고스트 텍스트·이어쓰기 경로는 invoke 거부 메시지를 어디에도 표시하지 않는다는 사실을 코드에서 확인했다(`ai-ghost-text.ts` 상태 구독은 `error`에서 고스트만 지움). REQ-AI14-018을 새로 두어 그 경로의 거부 메시지를 상태 표시줄에 띄우고 AC-020을 더했다. (D2·D3) codex 조회가 동기 명령 안에서 UI를 막을 수 있다: `ai_detect_providers`를 비동기 명령으로 바꾸고(REQ-AI14-015), `ai_request`가 조회하는 조건을 좁히고 남는 멈춤을 알려진 한계로 적었다(REQ-AI14-014). (D4) M1 판정이 기본 설계와 다를 때 구현자가 spec.md를 고치지 않는다. 결과는 progress.md에 적고 차단 보고를 돌려주며, 개정은 manager-spec이 한다(REQ-AI14-016). (D5·D6) REQ-AI14-007의 라우팅 선택과 REQ-AI14-015의 목록 채우기에 AC를 더했다(AC-021, AC-016 보강). (D7) M1에서 `sonnet`이 빠지면 이전 규칙의 대상을 `haiku`로 한다(REQ-AI14-005). (D18) 고스트 ↻ 재시도도 원래 선택을 이어받는다고 REQ-AI14-017에 적었다. 나머지(D8~D17, D19)는 plan.md·acceptance.md·research.md의 사실·명령 정정이다. |
 
 ## §1 Overview
 
@@ -87,7 +88,7 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 #### REQ-AI14-005: 저장과 이전 (Event-driven)
 
 - The 선택 shall `uiStore`에 도구별 값(`aiModels`)으로 영속된다. "CLI 기본값"은 `null`로 저장한다.
-- **When** 저장 상태의 버전이 3 미만이면, the 저장소 shall `aiAdvancedModel`을 지우고 `aiModels`를 만든다. `aiAdvancedModel === true`이면 claude는 `sonnet`, 그 밖(거짓·없음)이면 `haiku`다. codex는 `null`이다. 다른 설정은 그대로 둔다.
+- **When** 저장 상태의 버전이 3 미만이면, the 저장소 shall `aiAdvancedModel`을 지우고 `aiModels`를 만든다. `aiAdvancedModel === true`이면 claude는 `sonnet`, 그 밖(거짓·없음)이면 `haiku`다. 단, M1에서 `sonnet`이 claude 목록에서 빠지면 `true`도 `haiku`로 옮긴다(모든 요청이 거부되는 상태를 만들지 않기 위해). codex는 `null`이다. 다른 설정은 그대로 둔다.
 - **When** 저장된 `aiModels`의 모양이 틀리면(객체가 아님, 값이 문자열도 `null`도 아님), the 저장소 shall 그 항목만 기본값으로 되돌린다.
 
 #### REQ-AI14-006: 목록에 없는 저장값을 숨기지 않는다 (Unwanted)
@@ -104,7 +105,7 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 #### REQ-AI14-008: 모르는 모델은 거부한다 (Unwanted + Event-driven)
 
 - The 백엔드 shall not 라우팅된 도구의 허용 목록에 없는 모델로 CLI를 실행하거나, 그 모델을 다른 모델로 바꿔 실행한다.
-- **When** 요청의 모델이 허용 목록에 없으면, the `ai_request` shall CLI를 실행하지 않고 오류를 돌려준다. 메시지는 모델 이름과 도구 표시명을 담고 설정에서 다시 고르라고 안내한다(예: "Codex에서 `gpt-5.5` 모델을 쓸 수 없어요. 설정 > AI에서 모델을 다시 골라 주세요."). 이 오류는 기존 invoke 거부 경로로 카드에 표시된다.
+- **When** 요청의 모델이 허용 목록에 없으면, the `ai_request` shall CLI를 실행하지 않고 오류를 돌려준다. 메시지는 모델 이름과 도구 표시명을 담고 설정에서 다시 고르라고 안내한다(예: "Codex에서 `gpt-5.5` 모델을 쓸 수 없어요. 설정 > AI에서 모델을 다시 골라 주세요."). 이 오류는 ✨ 툴바와 제안 카드 경로에서는 기존 invoke 거부 경로로 카드에 표시되고, 고스트 텍스트·이어쓰기 경로에서는 REQ-AI14-018대로 표시된다.
 - 허용 목록 = claude는 고정 목록, codex는 (캐시된 조회 목록 ∪ 고정 목록). "CLI 기본값"(`null`)은 항상 허용된다.
 
 #### REQ-AI14-009: CLI 기본값이면 `--model`을 넘기지 않는다 (State-driven)
@@ -137,11 +138,13 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 - **Where** M1 판정이 `CATALOG`이면:
   - The 성공한 조회 목록 shall 앱 프로세스가 끝날 때까지 메모리에 캐시되고 다시 조회하지 않는다.
   - **While** 마지막 결과가 고정 목록(조회 실패)인 동안, `ai_request`의 검증은 그 결과를 다시 쓰고(요청마다 조회하지 않는다), `ai_detect_providers`는 조회를 다시 시도한다.
-  - The `ai_request` 하나 shall 조회를 많아야 한 번만 실행한다(캐시가 비었을 때).
+  - **When** `ai_request`가 검증할 때, the 백엔드 shall 다음이 모두 참일 때만 조회한다: 라우팅된 도구가 codex이고, 선택값이 `null`이 아니며, 그 값이 고정 목록에 없고, 캐시가 비어 있다. 그 밖에는 조회하지 않는다. 한 요청에서 조회는 많아야 한 번이다.
+  - 알려진 한계: `ai_request`는 동기 명령이라 위 조건에서 조회가 돌면 최대 3초 동안 앱이 멈출 수 있다. 앱 실행 후 설정을 한 번도 열지 않았고, 고정 목록에 없는 codex 모델을 저장해 둔 경우에만 생기며 세션당 많아야 한 번이다(성공 결과는 캐시되고 실패 결과도 요청 검증에 재사용되므로).
 
 #### REQ-AI14-015: 목록은 감지 결과로 전달한다 (Ubiquitous)
 
 - The `ai_detect_providers` 결과 shall 도구마다 `models: [{ id, label }]`을 담고, `advancedModelLabel` 필드는 없어진다.
+- The `ai_detect_providers` shall 비동기 명령(`async fn`)으로 바뀌어, 감지와 목록 조회가 UI 스레드를 막지 않는다. 사유: 동기 Tauri 명령은 메인 스레드에서 돈다(감사 1차 D2).
 - The 트레이트 `AiProvider::detect()` shall 목록을 조회하지 않는다. 사유: 자동 모드에서 요청마다 `detect()`가 불리므로(`provider.rs` `first_available`), 거기서 조회하면 요청마다 프로세스가 하나 더 뜬다. 목록은 명령 계층에서 붙인다.
 
 ### 실측
@@ -149,18 +152,29 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 #### REQ-AI14-016: 실제 요청 시험을 먼저 한다 (Event-driven, run 첫 마일스톤)
 
 - **When** run 단계가 시작되면, the 구현자 shall 실행 코드를 바꾸기 전에 후보 모델마다 작은 요청을 한 번 보내 결과를 기록한다(plan.md M1, 절차와 판정 규칙은 design.md D-2). 후보는 claude 별칭 4개와 `--model` 없음, codex는 조회 목록과 내장(`--bundled`) 목록의 `list` 항목 합집합과 `--model` 없음이다.
-- 기록은 `research.md` §M1 표(모델, 종료 코드, 오류 요약, 소요 시간)와 판정 줄 `codex-list-verdict: CATALOG|FIXED-ONLY`, `claude-aliases: <통과한 별칭>`이다.
-- **When** 판정이 기본 설계(`CATALOG`, 별칭 4개 전부 통과)와 다르면, the 구현자 shall M2 전에 spec.md HISTORY에 개정 행을 더하고 해당 REQ·AC를 판정에 맞춘다.
+- 기록은 표(모델, 종료 코드, `OK` 포함 여부, 오류 요약, 소요 시간)와 판정 줄 다섯 개다(`codex-list-verdict: CATALOG|FIXED-ONLY`, `claude-aliases`, `codex-fixed-list`, `codex-default`, `haiku-thinking`). 양식은 research.md §M1에 있다.
+- The 기록 위치 shall `progress.md` §E.2의 "M1 실측" 절이다(구현자는 spec.md·plan.md·acceptance.md 본문을 고치지 않는다).
+- **When** 판정이 기본 설계(`CATALOG`, 별칭 4개 전부 통과, codex `--model` 없음 성공)와 다르면, the 구현자 shall M2를 시작하지 않고 차단 보고를 돌려준다. 코디네이터가 manager-spec에 개정(HISTORY 행, 해당 REQ·AC 조정)을 맡기고, plan-auditor 재감사를 통과한 뒤 M2를 시작한다.
+- **When** 판정이 기본 설계와 같으면, the 구현자 shall 개정 없이 M2로 간다. 고정 목록 값은 progress.md 기록을 그대로 `models.rs`에 옮긴다.
 
 ### 재요청
 
 #### REQ-AI14-017: 재요청은 원래 요청의 선택을 이어받는다 (Ubiquitous)
 
 - The 제안 카드의 모든 재요청(↻ 방향 지시, ↻ 다시, 다시 시도, 다시 요청, 표·다이어그램 검증 실패 자동 재시도, 목록 폴백) shall 원래 요청의 `models`를 그대로 싣는다. 카드에는 모델을 바꾸는 경로가 없다.
+- The 고스트 텍스트 ↻ 재시도(`lastGhostTrigger` 재발행) shall 원래 요청의 `models`를 그대로 싣는다. 재시도 사이에 설정을 바꿔도 새 고스트 요청부터 반영된다.
+
+### 오류 표시
+
+#### REQ-AI14-018: 고스트 경로의 요청 거부를 숨기지 않는다 (Event-driven)
+
+- **When** 고스트 텍스트·이어쓰기·자유 위치 이어쓰기·고스트 ↻ 재시도의 `ai_request` 호출이 거부되면(`aiRequest(...)` 프라미스 거부, 모델 검증 오류 포함), the 앱 shall 거부 메시지(`ipcErrorMessage(e)`)를 상태 표시줄(`uiStore.setStatusMessage`)에 띄운다. 지금처럼 `failRequest`도 부른다.
+- 사유: 지금 이 경로는 거부되면 고스트만 지우고 이유를 보여 주지 않는다(`ai-ghost-text.ts` 상태 구독의 `error` 분기). 조용한 대체를 없앤 뒤에 거부 이유까지 숨으면 사용자는 아무 일도 안 일어난 것으로 본다.
+- 범위: invoke 거부만 다룬다. 실행 뒤 `ai://error`로 오는 오류(로그인·네트워크 등)의 고스트 표시는 바꾸지 않는다. 상태 표시줄 메시지는 기존 규칙대로 2초 뒤 사라진다(알려진 한계).
 
 ## §3 Acceptance Criteria
 
-acceptance.md에 있다(AC-001~AC-019). 요약: Rust `cargo test`, vitest, grep 검사로 된 자동 항목 17개, M1 실측 기록 확인 1개, macOS 실기기 수동 확인 1개. codex 목록 출처에 관한 AC-013~015는 M1 판정에 따라 적용 범위가 갈린다.
+acceptance.md에 있다(AC-001~AC-021). 요약: Rust `cargo test`, vitest, grep 검사로 된 자동 항목 19개, M1 실측 기록 확인 1개(AC-017), macOS 실기기 수동 확인 1개(AC-019). codex 목록 출처에 관한 AC-013~015는 M1 판정에 따라 적용 범위가 갈린다.
 
 ## §4 REQ → AC 대응
 
@@ -170,6 +184,7 @@ acceptance.md § 추적표를 따른다.
 
 ### 선행 SPEC과 순서
 
+- run 시작 전에 SPEC-AI-012와 SPEC-AI-013이 `main`에 병합되었는지 확인한다(이 계획의 기준 커밋에는 두 SPEC 디렉터리가 아직 없다). 확인 방법과 겹침 재확인은 plan.md §C M0다.
 - SPEC-AI-013(t5)은 `claude_cli.rs`·`codex_cli.rs`의 프롬프트 전달 방식과 `ai/mod.rs`를 바꾸고, SPEC-AI-012(t4)는 `prompt.rs`와 `ai-suggestion-card.ts`를 바꾼다. 이 SPEC은 두 SPEC이 `main`에 병합된 뒤 그 위에서 run을 시작한다. 겹치는 함수 목록은 plan.md §E다.
 - SPEC-AI-015(t7)는 `ai-selection-toolbar.ts`의 직접 입력 UI를 바꾼다. 이 SPEC이 고치는 함수(`resolveModel`, `AiToolbarUiState`, `fire()`의 모델 줄, `createAiSelectionToolbar` 상태 조립)와는 다르지만 같은 파일이다.
 

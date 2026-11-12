@@ -8,11 +8,13 @@
 - codex 조회 목록에는 `gpt-5.5`가 없고 내장 목록에는 있다. 조회는 이 기기에서 0.57초(research.md §2).
 - 새 앱 명령을 만들지 않으므로 SPEC-SEC-001 앱 ACL(`app_commands.rs`, `capabilities/main.json`)은 바뀌지 않는다(design.md D-4).
 - invoke 거부는 이미 카드 오류로 표시된다. 검증 오류에 새 UI 경로가 필요 없다(research.md §3).
-- e2e 저장 상태 fixture 4개는 버전 1의 `aiAdvancedModel`을 담고 있어 이전 규칙의 실제 입력이 된다. 손대지 않는다.
+- e2e 저장 상태 fixture(5개 파일 6곳)는 버전 1의 `aiAdvancedModel`을 담고 있어 이전 규칙의 실제 입력이 된다. 손대지 않는다.
+- 고스트 경로는 invoke 거부 메시지를 화면에 보여 주지 않는다(research.md §3). REQ-AI14-018이 이를 고친다.
+- `ai_request`·`ai_detect_providers`는 동기 명령이다(`mod.rs:122`, `:349`). 동기 Tauri 명령은 메인 스레드에서 돈다.
 
 ## B. 접근 방식
 
-1. **실측 먼저(M1)**: 실행 코드를 바꾸기 전에 후보 모델마다 작은 요청을 보내 목록과 기본값을 확정한다(design.md D-2). 결과가 기본 설계와 다르면 M2 전에 spec.md를 개정하고 plan-auditor를 다시 돌린다.
+1. **실측 먼저(M1)**: 실행 코드를 바꾸기 전에 후보 모델마다 작은 요청을 보내 목록과 기본값을 확정한다(design.md D-2). 결과가 기본 설계와 다르면 구현자는 차단 보고를 돌려주고, manager-spec이 SPEC을 개정하고 plan-auditor가 재감사한 뒤 M2를 시작한다.
 2. **백엔드가 목록과 검증의 단일 출처**: `src-tauri/src/ai/models.rs`(새 파일)가 고정 목록, codex 조회·해석·캐시, 허용 목록, 검증을 모두 가진다. 어댑터는 `Option<&str>` 모델을 받아 인자만 만든다.
 3. **요청 계약 교체**: `models: { claude, codex }`(design.md D-1).
 4. **프런트엔드는 선택과 저장만**: 목록은 감지 결과에서 받고, 선택은 `uiStore.aiModels` 하나에 둔다. 읽기 함수는 `currentAiModels()` 하나다.
@@ -20,20 +22,27 @@
 
 ## C. 마일스톤 (순서)
 
+### M0 — 선행 SPEC 확인 (코드 변경 없음)
+
+- `git fetch origin` 뒤 `git ls-tree --name-only origin/main .moai/specs/`에서 `SPEC-AI-012`·`SPEC-AI-013`으로 시작하는 디렉터리를 찾고, `git show origin/main:<그 디렉터리>/spec.md`의 프런트매터 `status`가 `implemented` 또는 `completed`인지 확인한다. 아니면 시작하지 않고 코디네이터에게 알린다.
+- run worktree는 그 `origin/main`에서 새로 만든다. §E 표의 함수 이름을 그 커밋에서 다시 grep해, 바뀐 시그니처를 progress.md에 적는다.
+- 기준 품질 게이트 결과(`npm run typecheck`, `npm run lint`, `npm test`, `cargo test`)를 기록해 이미 실패하던 항목을 구분한다.
+
 ### M1 — 실제 요청 시험 (실행 코드 변경 없음)
 
-- 산출물: 시험 스크립트(커밋하지 않음, scratchpad), 결과를 `research.md` §M1 표와 판정 줄에 기록, 조회 출력 원본에서 테스트 fixture로 쓸 축약본 `src-tauri/tests/fixtures/codex-models-sample.json`(모델 3개 + `hide` 1개, 지시문 필드는 짧게 줄임).
+- 산출물: 시험 스크립트(커밋하지 않음, scratchpad), 결과를 `progress.md` §E.2 "M1 실측"에 표와 판정 줄로 기록(양식은 research.md §M1), 조회 출력 원본에서 테스트 fixture로 쓸 축약본 `src-tauri/tests/fixtures/codex-models-sample.json`(모델 3개 + `hide` 1개, 지시문 필드는 짧게 줄임).
 - 판정 규칙: design.md D-2 R1~R4.
-- 멈춤 조건: claude `haiku` 실패(R1) → 코디네이터에게 묻는다. 판정이 기본 설계와 다르면 spec.md 개정(HISTORY 행) 후 plan-auditor 재감사를 거쳐 M2로 간다.
+- 멈춤 조건: claude `haiku` 실패(R1) → 코디네이터에게 묻는다. 판정이 기본 설계와 다르면(R3, 별칭 누락, R4) 차단 보고 → manager-spec 개정 → plan-auditor 재감사 → M2. 구현자는 spec.md·plan.md·acceptance.md 본문을 고치지 않는다.
+- M1 기록은 별도 커밋으로 남기고, 실행 코드를 바꾸는 첫 커밋보다 앞에 둔다(AC-017).
 - 결과 보고: haiku 사고 예산 비교 수치를 코디네이터 보고에 적는다(spec.md §7 Q1).
 
 ### M2 — 백엔드: 모델 모듈과 검증
 
 - `models.rs`(새 파일): `ModelOption`, `ModelSelection`(serde), 고정 목록 상수(M1 결과), `parse_codex_catalog`, 시간 한도 조회(`query_with(runner, timeout)` + 실제 실행기), 캐시, `list_for`, `allowed`, `validate`.
-- `provider.rs`: `AiModel` 삭제, `AiRequest.model: Option<String>`, `ProviderStatus.models` 추가·`advanced_model_label` 삭제.
+- `provider.rs`: `AiModel` 삭제, `AiRequest.model: Option<String>`, `ProviderStatus.models` 추가·`advanced_model_label` 삭제(테스트 목 프로바이더 4곳 포함).
 - `claude_cli.rs`: `build_claude_args(model: Option<&str>, …)` — `None`이면 `--model` 없음. `claude_thinking_env`, `claude_advanced_model_label` 삭제. `spawn_claude`에서 모델 인자·환경 변수 제거.
 - `codex_cli.rs`: `build_codex_args(model: Option<&str>, …)` — `-c model_reasoning_effort` 제거, `None`이면 `--model` 없음. 매핑 함수 4개 삭제.
-- `mod.rs`: `AiRequestArgs.models: ModelSelection`(`model` 삭제), 라우팅 직후 `models::validate` 호출, 실패 시 `Err`. `ai_detect_providers`가 `models::list_for`로 `models`를 채움. `pub mod models;`.
+- `mod.rs`: `AiRequestArgs.models: ModelSelection`(`model` 삭제), 라우팅 직후 검증 단계(`fn resolve_request_model(selection, provider_id) -> Result<Option<String>, String>` 같은 순수 함수, 스폰보다 앞)를 부르고 실패 시 `Err`. `ai_detect_providers`를 `async fn`으로 바꾸고, 감지 결과에 목록을 붙이는 순수 함수(`attach_models(statuses, lister)`)로 `models`를 채움. `pub mod models;`.
 - `detect.rs`: `advanced_model_label: None` 두 곳을 `models: Vec::new()`로.
 - 기존 Rust 테스트 중 삭제 함수에 묶인 것은 새 계약 테스트로 바꾼다(스냅샷 테스트는 `--model` 유무 두 경우로).
 - 검증: `~/.cargo/bin/cargo test --manifest-path src-tauri/Cargo.toml ai::` 와 `cargo build`.
@@ -46,8 +55,8 @@
 
 ### M4 — 프런트엔드: 사용처
 
-- `ai-ghost-text.ts`: `resolveModel` import 제거, 3곳을 `models: currentAiModels()`로.
-- `ai-selection-toolbar.ts`: `resolveModel` 삭제, `AiToolbarUiState.models`, `fire()`가 그 값을 실음. `markdown-extensions.ts` 상태 조립도 같게.
+- `ai-ghost-text.ts`: `resolveModel` import 제거, 3곳을 `models: currentAiModels()`로. `aiRequest(...).catch` 네 곳에서 `setStatusMessage(ipcErrorMessage(e))`도 부름(REQ-AI14-018).
+- `ai-selection-toolbar.ts`: `resolveModel` 삭제, `AiToolbarUiState.models`, `BuildSelectionRequestInput.models`, `fire()`가 그 값을 실음. `markdown-extensions.ts` 상태 조립도 같게.
 - `ai-suggestion-card.ts`: 모델 필드·인자 삭제, ⚡ 버튼 삭제. `mdedit-components.css`에서 `.mdedit-ai-advanced` 선택자만 지움(목록 폴백 버튼 규칙은 유지).
 - `SettingsModal.tsx`: `resolveModel`, `AdvancedModelToggle`, `deriveAdvancedModelLabel`, `findEffectiveAdvancedProvider` 삭제, 도구별 `<select>` 추가(design.md D-8).
 - `aiPolicy.ts`: 근거가 사라진 순환 import 주석 수정.
@@ -55,7 +64,7 @@
 
 ### M5 — 검증
 
-- 자동: `npx tsc --noEmit`, `npm run lint`, `npx vitest run`, `~/.cargo/bin/cargo test --manifest-path src-tauri/Cargo.toml`, acceptance.md의 grep AC.
+- 자동: `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e`, `~/.cargo/bin/cargo test --manifest-path src-tauri/Cargo.toml`, acceptance.md의 grep AC.
 - 수동(macOS 실기기, 개발 빌드): AC-019.
 
 ## D. 범위 밖으로 남긴 결정
@@ -88,7 +97,8 @@
 | 위험 | 대응 |
 |------|------|
 | 조회 목록에 계정에서 안 되는 모델이 섞임 | M1 판정 R3이면 조회를 쓰지 않는다. 런타임에는 검증 오류가 카드에 드러난다 |
-| codex 조회가 느리거나 멈춤 | 3초 한도 + 자식 종료 + 고정 목록. 요청당 많아야 1회(REQ-AI14-014) |
+| codex 조회가 느리거나 멈춤 | 3초 한도 + 자식 종료 + 고정 목록. `ai_detect_providers`는 비동기. `ai_request`는 좁은 조건에서만 조회(REQ-AI14-014) |
+| 거부 이유가 고스트 경로에서 숨음 | REQ-AI14-018 상태 표시줄 메시지 |
 | haiku 사고 예산 제거로 고스트 텍스트가 느려짐 | M1 수치 기록·보고. 사용자 결정을 따른다 |
 | 저장 상태 이전 실패로 설정 손실 | 이전은 `aiAdvancedModel`만 다루고 나머지는 그대로 둔다. 4경우 테스트 |
 | 선행 SPEC과의 병합 충돌 | §E 표대로 t4·t5 병합 뒤 그 `main`에서 시작 |

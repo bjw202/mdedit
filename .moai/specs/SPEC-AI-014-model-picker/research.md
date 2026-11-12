@@ -43,6 +43,7 @@
 | `mod.rs` | 169-170행 | `AiModel::from_opt(args.model.as_deref())` |
 | `mod.rs` | 349-352행 | `ai_detect_providers` |
 | `detect.rs` | 297, 419행 | `advanced_model_label: None` 두 곳 |
+| `provider.rs` | 174, 206, 295, 310행 부근 | 테스트용 목 프로바이더의 `advanced_model_label` 필드 4곳 |
 
 새 앱 명령을 만들면 `src-tauri/app_commands.rs` 머리 주석대로 세 곳(`lib.rs` 핸들러, `APP_COMMANDS`, `capabilities/main.json`)을 함께 고쳐야 한다. 이 SPEC은 새 명령을 만들지 않는다(design.md D-4).
 
@@ -59,29 +60,30 @@
 | `components/settings/SettingsModal.tsx` | 195행 | `<AdvancedModelToggle …>` |
 | `components/settings/SettingsModal.tsx` | 268-347행 | `findEffectiveAdvancedProvider`, `deriveAdvancedModelLabel`, `AdvancedModelToggle` |
 | `components/settings/SettingsModal.tsx` | 424-486행 | `ProviderRow` |
-| `components/editor/extensions/ai-selection-toolbar.ts` | 77, 168-178, 777, 857-864행 | `AiToolbarUiState`, `resolveModel(uiState)`(@MX:WARN 이름 충돌), `fire()`, 상태 조립 |
+| `components/editor/extensions/ai-selection-toolbar.ts` | 30-38, 77, 168-178, 777, 857-864행 | `AiToolbarUiState.advancedModel`, `BuildSelectionRequestInput.model`, `resolveModel(uiState)`(@MX:WARN 이름 충돌), `fire()`, 상태 조립 |
 | `components/editor/extensions/markdown-extensions.ts` | 139-144행 | `advancedModel: useUIStore.getState().aiAdvancedModel === true` |
 | `components/editor/extensions/ai-ghost-text.ts` | 21, 569, 603, 641행 | `SettingsModal`의 `resolveModel` import·사용 3곳 |
+| `components/editor/extensions/ai-ghost-text.ts` | 509, 578, 616, 655행; 919-924행 | `aiRequest(...).catch` → `failRequest`만 부름; 상태 구독은 `error`에서 고스트만 지운다(거부 메시지가 화면에 안 나옴, 감사 1차 D1) |
 | `components/editor/extensions/ai-suggestion-card.ts` | 218-225, 247, 293, 406, 426, 508-513, 698, 1136, 1153, 1255, 1397, 1425-1438행 | `onReRequest(instruction, model, kind)`, `model ?? 'haiku'`, ⚡ 버튼(`'sonnet'`), 카드 모델 |
 | `styles/mdedit-components.css` | 497, 507, 511행 | `.mdedit-ai-advanced` 규칙(목록 폴백 버튼과 묶임) |
 | `store/aiPolicy.ts` | 3-4행 | `resolveModel` 순환 import를 근거로 든 주석 |
 
-- invoke 거부는 세 경로 모두 `useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) })`로 카드에 표시된다(`ai-selection-toolbar.ts:882`, `ai-suggestion-card.ts:1365`, `ai-ghost-text.ts:509·578·616·655`).
+- invoke 거부는 세 경로 모두 `useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) })`를 부른다(`ai-selection-toolbar.ts:882`, `ai-suggestion-card.ts:1365`, `ai-ghost-text.ts:509·578·616·655`). 카드는 자기 `requestId`의 오류만 구독해 표시한다(`ai-suggestion-card.ts:1470` 부근). 고스트 경로는 표시하지 않는다(위 표). `uiStore.setStatusMessage`는 상태 표시줄(`Footer.tsx`)에 2초 동안 메시지를 띄운다(`uiStore.ts:175-187`).
 - 카드 재요청은 `fireReRequest`가 `{ ...originalArgs, ...overrides, requestId, providerId }`로 합친다(`ai-suggestion-card.ts:1361`).
 
 ### 테스트
 
 - 모델 토글을 참조하는 vitest 파일: `src/test/` 아래 `SettingsModal.test.tsx`, `aiSuggestionCard.test.ts`, `aiCardRetryLimit.test.ts`, `aiCardRerequestProgress.test.ts`, `aiSelectionToolbar.test.ts`, `aiGhostConfirm.test.ts`, `aiFreeContinue.test.ts`, `aiHint.test.ts`, `aiToggle.test.ts` (grep 결과 9개). 저장소 테스트: `uiStore.test.ts`, `uiStoreRenderMode.test.ts`.
-- e2e: `e2e/spec-img-load-001.spec.ts`, `spec-img-load-002.spec.ts`, `spec-img-mode-003.spec.ts`, `unsaved-changes-guard.spec.ts`가 버전 1 저장 상태에 `aiAdvancedModel: false`를 넣는다. 이전 규칙이 처리하므로 바꾸지 않는다.
+- e2e: `e2e/spec-img-load-001.spec.ts`(35·125행), `spec-img-load-002.spec.ts`, `spec-img-mode-003.spec.ts`, `spec-img-widget-002.spec.ts`(41행), `unsaved-changes-guard.spec.ts`가 버전 1 저장 상태에 `aiAdvancedModel: false`를 넣는다(5개 파일 6곳). 이전 규칙이 처리하므로 바꾸지 않는다.
 - Rust 테스트는 CI에서 돌지 않는다. 로컬 명령: `~/.cargo/bin/cargo test --manifest-path src-tauri/Cargo.toml <필터>`.
 
 ## §4 관찰만 하는 것 (범위 밖)
 
 - 자동 모드(`providerId` 없음)에서는 요청마다 `first_available()`이 등록 도구 전부에 `detect()`를 부르고, 각 `detect()`가 CLI `--version`을 실행한다(`provider.rs:128-136`, `detect.rs` `detect_claude`·`detect_codex`). 이 SPEC은 고치지 않는다. 다만 목록 조회를 `detect()`에 넣지 않는 근거다(design.md D-4).
 
-## §M1 실제 요청 시험 결과
+## §M1 실제 요청 시험 기록 양식
 
-run 단계 첫 마일스톤에서 채운다(spec.md REQ-AI14-016, design.md D-2).
+아래는 양식이다. run 단계 첫 마일스톤에서 구현자가 **progress.md §E.2 "M1 실측"**에 채운다(spec.md REQ-AI14-016, design.md D-2). 이 파일은 고치지 않는다.
 
 | 도구 | 모델 | 종료 코드 | `OK` 포함 | 오류 요약 | 소요(초) |
 |------|------|-----------|-----------|-----------|----------|
