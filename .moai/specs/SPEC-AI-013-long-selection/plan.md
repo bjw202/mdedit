@@ -30,7 +30,7 @@ author: jw
 
 모델을 실제로 호출하는 확인이므로 짧은 입력과 기본 티어로 최소한만 한다. 모든 명령과 출력 원문(긴 출력은 파일 경로 + 끝부분)을 `progress.md` §E.2 에 남긴다.
 
-1. `--system-prompt-file` 확인: "답의 첫 줄에 반드시 ZQX-표지를 써라" 같은 시스템 프롬프트를 스크래치 파일에 써서 `claude -p --system-prompt-file <파일> --output-format stream-json --include-partial-messages --verbose --setting-sources "" --tools "" --model haiku` 에 짧은 표준 입력으로 넣고, 표지가 응답에 나오는지 본다. 나오지 않거나 플래그가 거부되면 **차단 보고**로 코디네이터에 넘긴다(대안: 시스템 프롬프트를 인자로 유지하되 Windows 위험을 받아들이거나, 시스템 프롬프트를 표준 입력 앞에 붙이는 방식 — 사용자 결정 필요).
+1. `--system-prompt-file` 확인: "답의 첫 줄에 반드시 ZQX-표지를 써라" 같은 시스템 프롬프트를 작업 폴더 밖의 임시 파일에 써서 `claude -p --system-prompt-file <파일> --output-format stream-json --include-partial-messages --verbose --setting-sources "" --tools "" --model haiku` 에 짧은 표준 입력으로 넣고, 표지가 응답에 나오는지 본다. 나오지 않거나 플래그가 거부되면 **차단 보고**로 코디네이터에 넘긴다(대안: 시스템 프롬프트를 인자로 유지하되 Windows 위험을 받아들이거나, 시스템 프롬프트를 표준 입력 앞에 붙이는 방식 — 사용자 결정 필요).
 2. 한글 약 6,000자 프롬프트를 같은 명령에 표준 입력으로 넣어 정상 응답을 확인하고 출력 전체를 파일로 저장한다.
 3. 그 출력에서 정지 사유가 나오는 줄(`stream_event`/`message_delta`, `assistant` 메시지, `result` 줄 후보)과 **한 실행당 등장 횟수**를 기록한다. 찾은 줄을 `src-tauri/tests/fixtures/` 에 캡처 fixture 로 저장한다. 잘림(`max_tokens`) 사례는 출력 토큰 상한을 아주 작게 주는 방법(예: `CLAUDE_CODE_MAX_OUTPUT_TOKENS` 환경변수 — 동작 여부도 기록)으로 캡처를 시도한다. 잘림 사례를 캡처하지 못하면 정상 사례에서 확인한 같은 필드에 값만 바꾼 줄을 쓰고, 그 사실을 fixture 옆 주석과 `progress.md` 에 적는다.
 4. 같은 프롬프트를 `codex exec ... --json` 에 위치 인자 없이 표준 입력으로 넣어 정상 응답을 확인하고, JSONL 전체를 저장해 정지 사유에 해당하는 필드가 있는지 본다(없으면 D7대로 `unknown`).
