@@ -2,7 +2,7 @@
 id: SPEC-AI-014
 title: "AI 모델 선택 — 고급 모델 토글을 도구별 모델 목록 선택으로 교체"
 version: "0.1.4"
-status: draft
+status: implemented
 created: 2026-11-13
 updated: 2026-11-13
 author: jw (bjw202)

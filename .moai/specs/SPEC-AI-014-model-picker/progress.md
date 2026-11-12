@@ -86,3 +86,16 @@ AC-001~018, 020, 021 자동 PASS(AC-013~015는 CATALOG 적용). AC-019 수동 **
 - 인자 원소 수는 `--model` 없음 11개/있음 13개(추론 `-c`와 값 2개 제거).
 - 한계: 새 SettingsModal·카드 테스트는 구현 뒤에 쓰여 RED 출력이 없다(uiStore·고스트 테스트와 Rust는 RED 확인). `ai_request` 전체 통합 테스트는 없고 AC-019 수동 확인이 맡는다. codex 조회가 손자 프로세스 때문에 kill 뒤에도 읽기 스레드가 잠시 남을 수 있다(`@MX:WARN` 기록).
 - 선행 SPEC-AI-012·013 프런트매터는 `implemented`(병합은 확인됨).
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+- sync_complete_at: 2026-11-13
+- sync_commit_sha: pending-backfill-sync
+- sync_status: implemented (`completed` 아님 — AC-019 수동 확인 대기)
+- 동기화한 파일: `CHANGELOG.md`(`[Unreleased]` 맨 위 `### Changed` 항목 1건), `docs/USER_GUIDE.md`(§1.5 '고급 모델 사용' 항목을 모델 드롭다운 설명으로 교체, '⚡ 고급 모델로 다시 시도' 문장 제거), `.moai/specs/SPEC-AI-014-model-picker/spec.md` 프런트매터 `status: implemented`·`updated: 2026-11-13`만, 이 progress.md. `README.md`와 `docs/`의 다른 문서에는 바뀐 동작을 설명하는 언급이 없었음(grep 확인). `video/STORYBOARD.md`와 이전 SPEC 디렉터리는 건드리지 않음.
+- 게이트 증거: 이 sync에서는 테스트를 다시 돌리지 않았다. §E.2 '게이트 증거'(HEAD 8f44695 기준 typecheck 0, lint 0, vitest 2086 passed/122 files, cargo test 421 passed, Playwright 5개 파일 13 passed/1 skipped)를 인용한다.
+- B12 자체 점검: 항목 추가 전 `grep -c 'SPEC-AI-014' CHANGELOG.md` = 0; `acceptance.md`의 AC 식별자 고유 개수 = 21(CHANGELOG의 "21개 중 20개"와 일치); CHANGELOG에 적은 변경 파일 경로는 `ls`로 존재 확인.
+- 수동 확인 대기(AC-019, macOS 개발 빌드): §E.2 '수동 확인 대기' 1~4번 그대로.
+- 미검증(Gaps): AC-019 전부, Windows 전부, 새 SettingsModal·카드 테스트의 RED 출력 없음, `ai_request` 전체 통합 테스트 없음, codex 조회 손자 프로세스 읽기 스레드 잔류 가능, 계정 등급상 실패하는 모델은 CLI 실행 뒤 `ai://error`로 실패하며 고스트 경로는 이유 미표시. 전체 `npm run test:e2e`는 실행하지 않음.
+- 잔여 위험: M1 실측은 한 ChatGPT 계정·codex-cli 0.167.0·claude 2.1.322 기준이라 다른 계정 등급에서는 조회 목록 모델이 실패할 수 있다.
+- sync-audit: pending
