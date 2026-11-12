@@ -421,21 +421,35 @@
 .mdedit-ai-preset-item:disabled, .mdedit-ai-preset-item.is-disabled { opacity: 0.4; cursor: not-allowed; }
 .mdedit-ai-preset-item:focus-visible { outline: 2px solid var(--md-accent); outline-offset: -2px; }
 .mdedit-ai-preset-sep { height: 1px; margin: var(--md-space-1) 0; border: 0; background: var(--md-border); }
-.mdedit-ai-custom-row, .mdedit-ai-direct-row { display: flex; align-items: center; gap: var(--md-space-2); padding: var(--md-space-1); }
+.mdedit-ai-direct-row { display: flex; align-items: center; gap: var(--md-space-2); padding: var(--md-space-1); }
 .mdedit-ai-back {
   display: inline-flex; align-items: center; justify-content: center;
   width: 26px; height: 28px; padding: 0; font: inherit; color: var(--md-text-muted);
   background: transparent; border: 0; border-radius: var(--md-radius-sm); cursor: pointer;
 }
 .mdedit-ai-back:hover { background: color-mix(in srgb, var(--md-text-primary) 8%, transparent); color: var(--md-text-primary); }
-.mdedit-ai-custom-input, .mdedit-ai-direct-input {
+.mdedit-ai-direct-input {
   flex: 1; height: 28px; padding: 0 var(--md-space-2);
   font: inherit; font-size: var(--md-fs-titlebar); color: var(--md-text-primary);
   background: var(--md-surface-raised); caret-color: var(--md-accent);
   border: 1px solid var(--md-border); border-radius: var(--md-radius-sm);
 }
-.mdedit-ai-custom-input::placeholder, .mdedit-ai-direct-input::placeholder { color: var(--md-text-faint); }
-.mdedit-ai-custom-input:focus-visible, .mdedit-ai-direct-input:focus-visible {
+.mdedit-ai-direct-input::placeholder { color: var(--md-text-faint); }
+.mdedit-ai-direct-input:focus-visible {
+  outline: none; border-color: var(--md-accent); box-shadow: 0 0 0 3px var(--md-accent-soft);
+}
+/* SPEC-AI-015: 직접 입력 상태 — 폭 확대 + 자동 높이 증가 textarea. 제안 카드 .mdedit-ai-direct-* 와 분리. */
+.mdedit-ai-preset-menu--custom { width: 340px; }
+.mdedit-ai-custom-row { display: flex; align-items: flex-start; gap: var(--md-space-2); padding: var(--md-space-1); }
+.mdedit-ai-custom-input {
+  flex: 1; display: block; box-sizing: border-box; min-height: 28px; padding: 5px var(--md-space-2);
+  font: inherit; font-size: var(--md-fs-titlebar); line-height: 1.4; color: var(--md-text-primary);
+  background: var(--md-surface-raised); caret-color: var(--md-accent);
+  border: 1px solid var(--md-border); border-radius: var(--md-radius-sm);
+  resize: none; overflow-y: hidden;
+}
+.mdedit-ai-custom-input::placeholder { color: var(--md-text-faint); }
+.mdedit-ai-custom-input:focus-visible {
   outline: none; border-color: var(--md-accent); box-shadow: 0 0 0 3px var(--md-accent-soft);
 }
 
