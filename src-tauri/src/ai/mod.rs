@@ -11,7 +11,7 @@ pub mod stream;
 use crate::state::app_state::{AppState, InFlightRequest};
 use claude_cli::{claim_terminal, ErrorPayload};
 use prompt::{
-    build_continue_prompt_with_length, build_inline_prompt_with_diagram_type, build_section_prompt,
+    build_continue_prompt_with_length, build_inline_prompt_ex, build_section_prompt,
     AiFeature, ContinueLength,
 };
 use provider::{AiModel, AiRequest, ProviderStatus};
@@ -114,6 +114,12 @@ pub struct AiRequestArgs {
     // @MX:SPEC: SPEC-AI-008
     #[serde(default)]
     pub diagram_type: Option<String>,
+    // @MX:NOTE: [AUTO] SPEC-AI-012 REQ-AI12-007/011: ↻ 재요청 지시(원래 직접 입력 지시와 분리). 인라인
+    // 분기에서만 반영되며 섹션 채우기·이어쓰기 분기는 무시한다(두 프롬프트는 바이트 불변).
+    // `#[serde(default)]` 로 필드 생략 시 None(하위호환).
+    // @MX:SPEC: SPEC-AI-012
+    #[serde(default)]
+    pub additional_instruction: Option<String>,
 }
 
 /// AI 요청을 시작한다 — 정책 확인 → 프롬프트 조립 → in-flight 교체 → 스폰 → 릴레이(REQ-AI-002/004/006).
@@ -155,13 +161,16 @@ pub fn ai_request(
             build_continue_prompt_with_length(outline, before, after, length)
         }
         // SPEC-AI-008: 공유 인라인 조립 경로에 diagram_type 을 전달한다. 조각 부착은
-        // build_inline_prompt_with_diagram_type 내부에서 feature 가 Diagram 일 때만 일어난다.
-        _ => build_inline_prompt_with_diagram_type(
+        // build_inline_prompt_ex 내부에서 feature 가 Diagram 일 때만 일어난다.
+        // SPEC-AI-012: 재요청 추가 지시와 태그 충돌 시드(요청 ID)도 이 분기에서만 넘긴다.
+        _ => build_inline_prompt_ex(
             &feature,
             selection,
             before,
             after,
             args.diagram_type.as_deref(),
+            args.additional_instruction.as_deref(),
+            &args.request_id,
         ),
     };
     let truncated = assembled.truncated;
@@ -475,6 +484,22 @@ mod tests {
         let json = r#"{"requestId":"r1","feature":"polish","selection":"안녕"}"#;
         let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
         assert!(args.diagram_type.is_none());
+    }
+
+    // --- SPEC-AI-012: 재요청 추가 지시(additionalInstruction) IPC 필드 (REQ-AI12-007, AC-AI12-014) ---
+
+    #[test]
+    fn request_args_deserialize_additional_instruction_camel_case() {
+        let json = r#"{"requestId":"r1","feature":"inline-edit","presetKind":"shorten","selection":"x","additionalInstruction":"더 짧게"}"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(args.additional_instruction.as_deref(), Some("더 짧게"));
+    }
+
+    #[test]
+    fn request_args_additional_instruction_absent_defaults_to_none() {
+        let json = r#"{"requestId":"r1","feature":"inline-edit","presetKind":"shorten","selection":"x"}"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        assert!(args.additional_instruction.is_none());
     }
 
     #[test]

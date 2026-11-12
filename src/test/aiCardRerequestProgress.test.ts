@@ -116,7 +116,7 @@ describe('SPEC-AI-010 모듈 1: 사용자 개시 재요청의 진행 표시', ()
 
     expectStreamingReset(controller);
     expect(aiRequestMock).toHaveBeenCalledTimes(1);
-    expect((aiRequestMock.mock.calls[0][0] as { customInstruction: string }).customInstruction).toBe(
+    expect((aiRequestMock.mock.calls[0][0] as { additionalInstruction: string }).additionalInstruction).toBe(
       '더 짧게',
     );
   });

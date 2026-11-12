@@ -270,6 +270,12 @@ export interface AiRequestArgs {
   outline?: string;
   customInstruction?: string;
   /**
+   * SPEC-AI-012 REQ-AI12-007/008: ↻ 재요청의 추가 지시(원래 customInstruction 과 분리). 인라인
+   * 6기능 재요청에서만 실리며 Rust `additional_instruction`(`#[serde(default)]`)로 매핑된다.
+   * 생략하면 프롬프트에 `추가 지시(재요청)` 가 나타나지 않는다.
+   */
+  additionalInstruction?: string;
+  /**
    * SPEC-AI-006 REQ-AI6-012/013/014: 이어쓰기(continue) 길이 옵션('short'|'normal').
    * continue 발행 2곳(startContinueWritingCommand/startFreeContinueWritingCommand)에서만
    * 실어 보낸다 — 섹션 채우기·인라인 변환에는 영향을 주지 않는다.
