@@ -1,6 +1,6 @@
 ---
 id: SPEC-AI-013
-version: "0.2.0"
+version: "0.2.1"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -16,10 +16,11 @@ author: jw
 ### AC-AI13-001 — claude 인자에 프롬프트 본문이 없다 (REQ-AI13-001)
 
 - **Given** 시스템 프롬프트 `"SYS-표지-91c2\n둘째 줄"` 과 고유 표지 `"선택-표지-7f3a"` 를 담은 사용자 프롬프트가 있다
-- **When** claude 인자 목록을 조립하고 시스템 프롬프트 파일을 쓴다(스크래치 폴더는 테스트 임시 폴더)
+- **When** 테스트 임시 폴더를 앱 데이터 폴더로 삼아, 작업 폴더(`ai-scratch`)를 준비하고 claude 인자 목록 조립 + 시스템 프롬프트 파일 쓰기를 수행한다
 - **Then** 어떤 인자도 `"선택-표지-7f3a"` 나 `"SYS-표지-91c2"` 를 포함하지 않고, 어떤 인자에도 줄바꿈이 없다
 - **And** `-p`, `--system-prompt-file` 바로 뒤의 파일 경로, `--model`, `--output-format stream-json`, `--include-partial-messages`, `--verbose`, `--setting-sources ""`, `--tools ""` 가 있고 `--system-prompt`(파일 아님)는 없다
 - **And** 그 경로의 파일 내용(UTF-8)이 시스템 프롬프트와 바이트 단위로 같다
+- **And** 그 경로는 작업 폴더 안에 있지 않으며(`!path.starts_with(scratch_dir)`), 작업 폴더의 항목 수는 0 이다
 
 ### AC-AI13-002 — codex 인자에 결합 프롬프트가 없다 (REQ-AI13-002)
 
@@ -33,7 +34,7 @@ author: jw
 Rust `Command` 는 stdin 설정을 읽는 getter 가 없으므로, 구성 함수가 만든 Command 로 **실제 자식을 띄워** 확인한다(`#[cfg(unix)]`, 바이너리 자리에 `/bin/cat`, 인자 없음). 닫힌 파이프 재현에 `std::io::pipe`(Rust 1.87+)를 쓰지 않는다 — `Cargo.toml` 의 `rust-version = "1.77.2"` 를 올리지 않기 위해서다.
 
 - **Given** `build_codex_command(Path::new("/bin/cat"), &[], tmp)` 와 `build_claude_command(Path::new("/bin/cat"), &[], tmp, model)` 로 만든 Command 각각
-- **When** 스폰한 뒤 `child.stdin.take()` 를 표준 입력 쓰기 헬퍼에 넘겨 한글 6,000자 문자열을 쓰고, 헬퍼 스레드가 끝나기를 기다린 뒤 stdout 을 끝까지 읽는다
+- **When** 스폰한 뒤 `child.stdin.take()` 를 표준 입력 쓰기 헬퍼에 넘겨 한글 6,000자 문자열을 쓰게 하고, **먼저 stdout 을 끝까지 읽은 다음** 헬퍼 스레드를 `join()` 한다(반대 순서는 큰 입력에서 파이프가 차 멈출 수 있다 — 실제 릴레이도 읽기와 쓰기가 동시에 돈다)
 - **Then** `child.stdin` 이 `Some` 이었고, 읽은 stdout 이 쓴 문자열과 바이트 단위로 같으며, 자식이 정상 종료한다(헬퍼가 핸들을 닫아 EOF 가 전달됨)
 - **And** 항상 `Err(BrokenPipe)` 를 반환하는 테스트용 writer 를 헬퍼에 넘기면 헬퍼 스레드가 패닉 없이 끝나고(`join()` 이 `Ok`), 어떤 이벤트도 발행하지 않는다(헬퍼는 `AppHandle` 을 받지 않는다)
 
@@ -107,6 +108,10 @@ Rust `Command` 는 stdin 설정을 읽는 getter 가 없으므로, 구성 함수
 - **Given** 7,000자 선택 개요 카드(가드가 이미 `insertOnly: true`)
 - **When** `completion: "unknown"` done 을 받는다
 - **Then** 「아래에 삽입」만 보이고 D9 이유 문구는 **없다**
+- **Given** `SAFE_REPLACE_LIMIT` 경계의 다듬기 카드 두 개 — 선택 2,000자, 선택 2,001자
+- **When** 두 카드 모두 `completion: "unknown"` done 을 받는다
+- **Then** 2,000자 카드는 현행과 같다(「바꾸기」 강조 + 「아래에 삽입」, 이유 문구 없음)
+- **And** 2,001자 카드는 「아래에 삽입」만 보이고 "응답이 끝까지 왔는지 확인할 수 없어 원문이 지워지지 않도록 「아래에 삽입」만 할 수 있어요" 문구가 보인다
 - **And** 6,000자 선택으로 조립한 요청의 `args.selection` 은 입력 선택 문자열과 길이·내용이 같다
 
 ## 수동 확인

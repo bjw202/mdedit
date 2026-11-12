@@ -1,6 +1,6 @@
 ---
 id: SPEC-AI-013
-version: "0.2.0"
+version: "0.2.1"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -45,7 +45,7 @@ author: jw
 - GREEN:
   - `build_claude_args(model, system_prompt_path)` — `-p`, `--system-prompt-file <경로>`, 나머지 기존 플래그.
   - `build_claude_command(binary, args, cwd, model)` — `no_window`, args, `current_dir`, 사고 예산 env(현행 그대로), stdin/stdout/stderr piped. `spawn_claude` 는 이를 스폰만 하는 얇은 래퍼.
-  - 시스템 프롬프트 파일: 스크래치 폴더의 고정 이름(예: `system-prompt.txt`)에 스폰 직전 덮어쓴다(A2).
+  - 시스템 프롬프트 파일: 작업 폴더(`ai-scratch`)가 아니라 그 형제 폴더 `<app_data>/ai-prompt/system-prompt.txt` 에 스폰 직전 덮어쓴다(A2). `AiProvider::spawn` 은 작업 폴더 경로(`cwd`)만 받으므로 `cwd.parent()` 기준으로 형제 폴더를 구하거나 `ensure_scratch_dir` 와 같은 모양의 준비 함수를 하나 둔다. 작업 폴더에는 아무것도 쓰지 않는다(격리 계약).
   - 표준 입력 쓰기 헬퍼: `fn spawn_stdin_writer<W: Write + Send + 'static>(w: W, bytes: Vec<u8>) -> JoinHandle<()>` — 전체 쓰기 후 drop, 오류는 무시. 두 프로바이더가 공유.
   - `build_codex_args(model, scratch_dir)`, `build_codex_command` stdin piped, `spawn_codex` 에서 헬퍼로 `combine_prompts` 결과를 쓴다.
 - 주석·`@MX` 갱신: codex 의 "stdin null 이 부작용 차단" 설명을 새 동작으로 바꾼다. `@MX:ANCHOR` 는 유지하고 REASON 만 갱신. `--tools ""` 계약 주석은 그대로 둔다.
@@ -73,7 +73,7 @@ author: jw
 
 | 파일 | 마일스톤 | 겹침 |
 |------|----------|------|
-| `src-tauri/src/ai/claude_cli.rs` | M2, M4 | — |
+| `src-tauri/src/ai/claude_cli.rs` | M2, M4 | SPEC-AI-014(t6)가 `AiModel`·`claude_thinking_env` 를 없앤다 — 새 `build_claude_command` 의 `model` 인자와 사고 예산 env 처리는 먼저 병합된 쪽에 맞춘다 |
 | `src-tauri/src/ai/codex_cli.rs` | M2, M4 | SPEC-AI-014(t6)가 codex 인자·stdin 서술을 다룬다 — 아래 위험 표 참고 |
 | `src-tauri/src/ai/stream.rs` | M4 | — |
 | `src-tauri/src/ai/mod.rs` | M3 | SPEC-AI-012(t4)도 수정 — t4 병합 후 시작 |
@@ -94,6 +94,7 @@ author: jw
 | 위험 | 대응 |
 |------|------|
 | `--system-prompt-file` 이 기대대로 동작하지 않는다 | M1-1 에서 먼저 확인하고, 안 되면 run 을 멈추고 차단 보고(사용자 결정 사항). |
+| 이후 claude 버전이 플래그 목록에 없는 `--system-prompt-file` 을 없앤다 | 그러면 모든 claude 요청이 인자 오류로 실패한다. 기존 stderr 분류로 오류 카드가 뜨므로 조용히 망가지지는 않는다. 플래그 존재 확인을 `detect.rs` 버전 검사에 넣는 일은 이 SPEC 범위 밖으로 두고, 발생 시 후속 작업으로 처리한다. |
 | claude 출력에 정지 사유가 없다 | D8 폴백: claude 도 `unknown` → 2,000자 초과는 두 CLI 모두 삽입 전용. 기능은 동작하고 안전 쪽으로 기운다. |
 | 한 실행에 정지 사유가 여러 번 나온다 | D7 끈적이는 `cutoff` 로 잘림을 놓치지 않는다. M1 에서 횟수를 기록한다. |
 | Windows `.cmd` 셈 동작 미확인 | 인자에 사용자 텍스트·여러 줄 문자열이 없도록 설계했으나, 실기기 확인 전까지는 미검증이다. AC-AI13-014 수동 확인, 실패 시 후속 작업. |

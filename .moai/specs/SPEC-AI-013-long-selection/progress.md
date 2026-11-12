@@ -5,5 +5,5 @@
 - plan_status: in-review
 - backlog_card: t5
 - worktree: .claude/worktrees/t5 (branch WT-long-selection, base origin/main 5c617ae)
-- tier: M (REQ 20, AC 14)
+- tier: M (REQ 15, AC 14)
 - plan-audit: (감사 후 기록)

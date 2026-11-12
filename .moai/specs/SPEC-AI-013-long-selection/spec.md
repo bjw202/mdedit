@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-013
 title: "긴 선택 허용 — 표준 입력 전달·크기 비례 대기 한도·원문 손실 방지"
-version: "0.2.0"
+version: "0.2.1"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -24,6 +24,7 @@ issue_number: null
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-13 | jw | 최초 작성 — 백로그 카드 t5(긴 선택 허용). 사용자는 자리를 비운 상태에서 자율 진행을 허락했고, 계획 워커가 사용자 대신 내린 결정은 「사용자 대신 내린 결정」 절에 남긴다. |
+| 0.2.1 | 2026-11-13 | jw | plan-auditor 2차(FAIL 0.87, 막힘 2건) 반영. (1) 시스템 프롬프트 파일을 작업 폴더(`ai-scratch`, 비어 있어야 하는 격리 폴더) 밖 `<app_data>/ai-prompt/` 로 옮기고 AC-AI13-001 에 작업 폴더가 비어 있음을 확인하는 단언 추가. (2) 2,000/2,001자 경계 AC 추가(AC-AI13-012). 부수: `--system-prompt-file` 제거 위험, AC-003 읽기 순서, 겹침 표, 지시문 길이 미반영 근거 보강. |
 | 0.2.0 | 2026-11-13 | jw | plan-auditor 1차(FAIL 0.77) 반영. (1) 정상 경로에서 `done` 은 라우터가 아니라 `aiStore` 구독으로 카드에 닿으므로 `completion` 을 스토어까지 실어 나르도록 범위에 `src/store/aiStore.ts` 추가. (2) REQ 20건 → 15건으로 병합(Tier M 상한 16). (3) claude 시스템 프롬프트도 `--system-prompt-file` 로 옮김 — 직접 입력 프리셋은 사용자가 친 지시문을 시스템 프롬프트에 넣으므로(`prompt.rs:111`) 인자로 남기면 Windows 한도·여러 줄 이스케이프 문제가 그대로 남는다. (4) 한 번이라도 `max_tokens` 를 보면 `cutoff` 로 고정. (5) 「바꾸기」 판정 길이·이유 문구 표시 조건·이모지 표 행 조건 명확화. (6) 위험 표에 Rust 테스트 CI 미실행·Windows 미확인 추가. 줄 번호 정정. |
 
 ## Summary
@@ -49,11 +50,11 @@ issue_number: null
 
 | ID | 결정 | 근거 |
 |----|------|------|
-| D1 | **사용자 텍스트는 어떤 경우에도 명령줄 인자에 싣지 않는다.** claude: 사용자 프롬프트는 표준 입력, 시스템 프롬프트는 스크래치 폴더의 파일에 써서 `--system-prompt-file <경로>` 로 넘긴다. codex: 시스템·사용자 결합 프롬프트를 표준 입력으로 넘긴다(위치 인자 없음). | 두 CLI 모두 프롬프트 인자를 빼면 표준 입력에서 읽는다(「실측 기록」). 직접 입력 프리셋은 사용자가 친 지시문을 시스템 프롬프트에 넣고(`prompt.rs:111` `format!("{}\n\n지시: {}", COMMON_INSTRUCTION, instruction.trim())`) 그 입력칸에는 길이 제한이 없으며, 모든 claude 시스템 프롬프트는 여러 줄이다. 따라서 시스템 프롬프트를 인자로 남기면 이 SPEC의 목적이 절반만 달성된다. `--system-prompt-file` 은 `claude --help` 본문에 `--system-prompt[-file]` 로 언급되어 있으나 플래그 목록에는 단독 항목이 없으므로, M1 에서 동작을 실측으로 확인한다. |
+| D1 | **사용자 텍스트는 어떤 경우에도 명령줄 인자에 싣지 않는다.** claude: 사용자 프롬프트는 표준 입력, 시스템 프롬프트는 **작업 폴더(`ai-scratch`) 바깥의 형제 폴더** `<app_data>/ai-prompt/system-prompt.txt` 에 써서 `--system-prompt-file <절대 경로>` 로 넘긴다. 작업 폴더는 지금처럼 비어 있어야 한다(격리 계약, `claude_cli.rs:23`·`:77`, `mod.rs:180-185`) — 두 CLI가 같은 작업 폴더를 쓰므로 거기에 파일을 두면 codex 가 다음 요청에서 그 파일(직접 입력 지시문 포함)을 읽을 수 있다. codex: 시스템·사용자 결합 프롬프트를 표준 입력으로 넘긴다(위치 인자 없음). | 두 CLI 모두 프롬프트 인자를 빼면 표준 입력에서 읽는다(「실측 기록」). 직접 입력 프리셋은 사용자가 친 지시문을 시스템 프롬프트에 넣고(`prompt.rs:111` `format!("{}\n\n지시: {}", COMMON_INSTRUCTION, instruction.trim())`) 그 입력칸에는 길이 제한이 없으며, 모든 claude 시스템 프롬프트는 여러 줄이다. 따라서 시스템 프롬프트를 인자로 남기면 이 SPEC의 목적이 절반만 달성된다. `--system-prompt-file` 은 `claude --help` 본문에 `--system-prompt[-file]` 로 언급되어 있으나 플래그 목록에는 단독 항목이 없으므로, M1 에서 동작을 실측으로 확인한다. |
 | D2 | 표준 입력 쓰기는 **스폰 직후 전용 스레드**에서 하고, 다 쓰면 핸들을 닫아(EOF) 끝을 알린다. 쓰기 실패(자식이 먼저 죽어 파이프가 닫힘)는 무시하고 결과 분류는 기존 릴레이·워치독에 맡긴다. | 파이프 버퍼보다 큰 입력을 호출 스레드에서 쓰면 교착 위험이 있다. 결과 판정 경로를 하나로 유지한다. |
 | D3 | 편집 계열(다듬기·직접 입력) 한도 `EDIT_LIMIT` **2,000 → 6,000자**, 변환 계열 한도 `TRANSFORM_LIMIT` **4,000 → 12,000자**. 판정 구조(편집 계열은 한도 초과 시 비활성, 변환 계열은 `EDIT_LIMIT` 초과~`TRANSFORM_LIMIT` 구간에서 삽입 전용)는 그대로 둔다. | U2(긴 작업 비기대)와 대기 상한(D5)이 맞물리는 값. 구조를 유지하면 메뉴 안내·툴바 코드는 상수만 따라온다. |
 | D4 | **안전 교체 한도 `SAFE_REPLACE_LIMIT = 2,000자`**(기존 편집 한도와 같은 값)를 새로 둔다. 비교 대상 길이는 **요청이 `selection` 으로 보낸 텍스트의 UTF-16 길이**(모델이 처리하라고 받은 대상)다. 이 값 이하면 지금과 같이 「바꾸기」를 허용하고(잘림이 확인되면 막는다), 넘으면 응답이 끝까지 왔다고 확인된 경우에만 허용한다. | 2,000자 이하는 지금까지 문제 없이 써 온 범위다. 원문 손실 위험은 "모델이 받은 대상 전체를 출력했는가"에 달려 있으므로 모델이 받은 텍스트 길이로 판정한다. 「바꾸기」가 문장 경계로 넓힌 범위(`expandToSentenceBoundary`)를 지우는 동작은 기존 그대로다. |
-| D5 | 대기 한도 공식: `timeout_secs(n) = min(60 + 8 × ceil(max(0, n − 2000) / 1000), 150)`, `n` = 선택 텍스트의 **UTF-16 길이**(JS `String.length` 와 같은 단위). 프런트 백스톱 = `timeout_secs(n) × 1000 + 5000` ms. 8초 대기 안내는 바꾸지 않는다. | 2,000자 이하는 60초 그대로(회귀 없음), 6,000자 92초, 12,000자 140초. UI 최대 선택(12,000자)으로는 상한 150초에 닿지 않으며(처음 닿는 길이는 13,001), 상한은 가드가 바뀌어도 대기가 무한정 늘지 않게 하는 안전판이다. 단위를 UTF-16 으로 고정해야 이모지 등에서 Rust `chars().count()` 와 JS `length` 가 어긋나지 않는다. |
+| D5 | 대기 한도 공식: `timeout_secs(n) = min(60 + 8 × ceil(max(0, n − 2000) / 1000), 150)`, `n` = 선택 텍스트의 **UTF-16 길이**(JS `String.length` 와 같은 단위). 프런트 백스톱 = `timeout_secs(n) × 1000 + 5000` ms. 8초 대기 안내는 바꾸지 않는다. | 2,000자 이하는 60초 그대로(회귀 없음), 6,000자 92초, 12,000자 140초. UI 최대 선택(12,000자)으로는 상한 150초에 닿지 않으며(처음 닿는 길이는 13,001), 상한은 가드가 바뀌어도 대기가 무한정 늘지 않게 하는 안전판이다. 직접 입력 지시문 길이는 `n` 에 넣지 않는다 — 지시문은 보통 한두 문장이고, 출력 분량을 정하는 것은 처리 대상인 선택 텍스트다. 단위를 UTF-16 으로 고정해야 이모지 등에서 Rust `chars().count()` 와 JS `length` 가 어긋나지 않는다. |
 | D6 | 계수(60·8·1000·2000·150)는 M1 지연 실측 결과로 **한 번** 조정할 수 있다. 조정 시 공식의 모양은 유지하고, 상한은 180초를 넘기지 않는다. 조정하면 Rust 상수·TS 상수·공유 표 세 곳을 함께 고치고 이 표에 기록한다. | 두 CLI의 실제 처리 속도는 모델 호출 없이 잴 수 없다. |
 | D7 | 응답 완결 신호는 `ai://done` 에 `completion: "complete" \| "cutoff" \| "unknown"` 필드로 싣는다. claude: 한 실행 안에서 정지 사유 `max_tokens` 를 **한 번이라도** 보면 `cutoff`(이후 다른 정지 사유로 덮지 않음), 그렇지 않고 `end_turn`·`stop_sequence` 를 봤으면 `complete`, 정지 사유를 하나도 못 봤으면 `unknown`. codex: 항상 `unknown`(현재 파서·실측 fixture `stream.rs:338` 기준 `turn.completed` 는 `usage` 만 가진다). | 「알 수 없음」을 「완결」로 취급하지 않는 것이 원문 손실 방지의 핵심이다. 한 실행에 assistant 메시지가 여러 개일 가능성을 배제할 수 없으므로 잘림을 끈적하게 유지한다. |
 | D8 | claude 정지 사유를 어느 줄에서 읽는지(`stream_event` 의 `message_delta.delta.stop_reason`, `assistant` 메시지, `result` 줄 등)는 **M1 실측 캡처로 확정**하고, M1 에서 한 실행당 정지 사유가 몇 번 나오는지도 센다. 실측에서 정지 사유가 없으면 claude 도 `unknown` 을 보내며, 그 경우 2,000자 초과 선택은 두 CLI 모두 삽입 전용이 된다(안전 쪽 폴백). | 외부 CLI 출력 파서의 fixture 는 문서상 가정이 아니라 실측 캡처여야 한다(과거 SPEC-AI-009 사례). |
@@ -87,7 +88,7 @@ issue_number: null
 ## Environment & Assumptions
 
 - A1. 선행 카드 t4(SPEC-AI-012, 프롬프트 구조 보강)가 `prompt.rs`·`ai-suggestion-card.ts`·`mod.rs` 를 먼저 바꾸고 병합된 뒤 이 SPEC의 run 을 시작한다. 이 SPEC은 `prompt.rs` 를 바꾸지 않는다(조립 결과 `AssembledPrompt` 를 그대로 쓴다). 위 줄 번호는 t4 병합 전 기준이며 run 시작 시 다시 확인한다.
-- A2. 동시 요청은 1개(`in_flight` 슬롯)라는 기존 전제는 그대로다. 시스템 프롬프트 파일은 스폰 직전에 덮어쓰며, 새 요청은 옛 프로세스를 kill 한 뒤에 스폰하므로(`mod.rs` 7단계) 한 파일을 써도 경합하지 않는다.
+- A2. 동시 요청은 1개(`in_flight` 슬롯)라는 기존 전제는 그대로다. 시스템 프롬프트 파일(`<app_data>/ai-prompt/system-prompt.txt`)은 스폰 직전에 덮어쓰며, 새 요청은 옛 프로세스를 kill 한 뒤에 스폰하므로(`mod.rs` 7단계) 한 파일을 써도 경합하지 않는다. 파일은 요청 사이에 남지만 작업 폴더 밖이고 앱 데이터 폴더 안이다(사용자 문서와 같은 보호 수준).
 - A3. 표준 입력과 시스템 프롬프트 파일은 UTF-8 로 쓴다. 두 CLI가 이를 UTF-8 로 읽는다고 가정하며, M1 에서 한글로 확인한다.
 - A4. 선택이 없는 기능(이어쓰기·섹션 채우기)은 `n = 0` 으로 60초를 쓴다.
 - A5. Rust 테스트(`cargo test`)는 현재 CI 어디에서도 돌지 않는다(`.github/workflows/release.yml:11` 주석). 따라서 Rust 쪽 AC 는 run 단계에서 로컬 실행 결과를 `progress.md` 에 남겨 증명한다. 공유 표의 TS 쪽 검사는 CI(프런트 게이트)에서 돈다.
@@ -96,7 +97,7 @@ issue_number: null
 
 ### 모듈 1 — 명령줄 밖으로 프롬프트 전달
 
-- **REQ-AI13-001** (Ubiquitous) **[MODIFY]**: The system **shall** claude 를 스폰할 때 사용자 프롬프트는 자식 프로세스의 표준 입력으로, 시스템 프롬프트는 스크래치 폴더의 파일 경로를 `--system-prompt-file` 로 전달하며, 인자 목록에는 `-p`, `--system-prompt-file <경로>`, `--model`, 기존 격리 플래그(`--output-format stream-json --include-partial-messages --verbose --setting-sources "" --tools ""`)만 남긴다. 어떤 인자도 사용자 선택 텍스트나 직접 입력 지시문을 담지 않는다.
+- **REQ-AI13-001** (Ubiquitous) **[MODIFY]**: The system **shall** claude 를 스폰할 때 사용자 프롬프트는 자식 프로세스의 표준 입력으로, 시스템 프롬프트는 작업 폴더 바깥(`<app_data>/ai-prompt/`)에 쓴 파일의 절대 경로를 `--system-prompt-file` 로 전달하며(작업 폴더는 비어 있는 상태를 유지한다), 인자 목록에는 `-p`, `--system-prompt-file <경로>`, `--model`, 기존 격리 플래그(`--output-format stream-json --include-partial-messages --verbose --setting-sources "" --tools ""`)만 남긴다. 어떤 인자도 사용자 선택 텍스트나 직접 입력 지시문을 담지 않는다.
 - **REQ-AI13-002** (Ubiquitous) **[MODIFY]**: The system **shall** codex 를 스폰할 때 시스템·사용자 결합 프롬프트를 위치 인자 없이 표준 입력으로 전달하고, 기존 격리 인자(`exec -C <scratch> --ignore-user-config --skip-git-repo-check --ephemeral --sandbox read-only --model ... -c model_reasoning_effort=... --json`)는 그대로 유지한다.
 - **REQ-AI13-003** (Ubiquitous): The system **shall** 표준 입력 쓰기를 호출 스레드가 아닌 전용 스레드에서 수행하고 프롬프트 전체를 쓴 뒤 핸들을 닫아 입력 끝(EOF)을 알리며, 쓰기가 실패해도(자식이 먼저 종료해 파이프가 닫힌 경우 등) 패닉하거나 별도 이벤트를 발행하지 않고 결과 판정을 기존 릴레이·워치독 경로(단일 발행 `claim_terminal`)에 맡긴다.
 
@@ -137,7 +138,7 @@ issue_number: null
 
 | 종류 | 파일 | 변경 |
 |------|------|------|
-| [MODIFY] | `src-tauri/src/ai/claude_cli.rs` | `build_claude_args` 에서 사용자·시스템 프롬프트 매개변수 제거 → `--system-prompt-file <경로>` (REQ-AI13-001). codex 와 같은 모양의 `build_claude_command(binary, args, cwd, model)` 추출, stdin piped, 시스템 프롬프트 파일 쓰기, 표준 입력 쓰기 스레드(REQ-AI13-003). 릴레이에서 정지 사유 → `completion` 결정(REQ-AI13-011). `DonePayload` 에 `completion` 추가(REQ-AI13-010). |
+| [MODIFY] | `src-tauri/src/ai/claude_cli.rs` | `build_claude_args` 에서 사용자·시스템 프롬프트 매개변수 제거 → `--system-prompt-file <경로>` (REQ-AI13-001). codex 와 같은 모양의 `build_claude_command(binary, args, cwd, model)` 추출, stdin piped, 시스템 프롬프트 파일 쓰기(`<app_data>/ai-prompt/`, `ensure_scratch_dir` 옆에 같은 모양의 준비 함수), 표준 입력 쓰기 스레드(REQ-AI13-003). 릴레이에서 정지 사유 → `completion` 결정(REQ-AI13-011). `DonePayload` 에 `completion` 추가(REQ-AI13-010). |
 | [MODIFY] | `src-tauri/src/ai/codex_cli.rs` | `build_codex_args` 에서 결합 프롬프트 매개변수 제거(REQ-AI13-002), `build_codex_command` stdin piped, 표준 입력 쓰기 스레드, done payload `completion: "unknown"`(REQ-AI13-012). stdin null 이유 주석·`@MX` 갱신. |
 | [MODIFY] | `src-tauri/src/ai/stream.rs` | claude 정지 사유 파서(M1 캡처 fixture 기반, REQ-AI13-011). |
 | [MODIFY] | `src-tauri/src/ai/mod.rs` | `WATCHDOG_TIMEOUT_SECS` 고정 상수를 `watchdog_timeout_secs(n)` 순수 함수로 대체(REQ-AI13-004), `ai_request` 가 `selection` 의 `encode_utf16().count()` 로 계산해 워치독 스레드에 넘김. 표준 입력 쓰기 헬퍼를 두 프로바이더가 공유한다면 이 모듈 또는 `claude_cli.rs` 에 둔다. |
@@ -158,7 +159,7 @@ issue_number: null
 
 | AC | REQ | 내용 |
 |----|-----|------|
-| AC-AI13-001 | 001 | claude 인자 목록에 사용자 프롬프트·시스템 프롬프트 본문이 없고 `--system-prompt-file` 과 격리 플래그가 있다; 파일 내용이 시스템 프롬프트와 같다. |
+| AC-AI13-001 | 001 | claude 인자 목록에 사용자 프롬프트·시스템 프롬프트 본문이 없고 `--system-prompt-file` 과 격리 플래그가 있다; 파일 내용이 시스템 프롬프트와 같고, 파일은 작업 폴더 밖에 있으며 작업 폴더는 비어 있다. |
 | AC-AI13-002 | 002 | codex 인자 목록 마지막이 `--json` 이고 결합 프롬프트가 없다. |
 | AC-AI13-003 | 001, 002, 003 | 두 Command 구성으로 실제 자식(`cat`)을 띄우면 stdin 이 열려 있고, 쓰기 헬퍼로 쓴 한글이 그대로 돌아온다; 실패하는 writer 에 쓰면 패닉 없이 끝난다. |
 | AC-AI13-004 | 004, 006 | Rust 대기 한도 함수가 공유 표의 모든 행과 일치한다. |
@@ -169,6 +170,6 @@ issue_number: null
 | AC-AI13-009 | 012 | codex done payload 는 `completion: "unknown"`. |
 | AC-AI13-010 | 010, 013 | **정상 경로**(`useAiRelay` → `aiStore` → 카드 구독)로 3,000자 선택 + `unknown` → 삽입만 + 이유 문구; `complete` → 「바꾸기」 제공. |
 | AC-AI13-011 | 010, 013 | **라우터 경로**(슬롯을 잃은 카드)로 500자 선택 + `cutoff` → 삽입만 + 잘림 문구. |
-| AC-AI13-012 | 013, 014, 015 | 500자 + `unknown`/필드 없음 → 현행과 같은 버튼·강조; 변환 계열 7,000자 카드에는 이유 문구가 붙지 않음; 6,000자 요청의 `selection` 은 원문과 같다. |
+| AC-AI13-012 | 013, 014, 015 | 500자 + `unknown`/필드 없음 → 현행과 같은 버튼·강조; 2,000자는 현행 그대로, 2,001자는 삽입만 + 이유 문구(경계); 변환 계열 7,000자 카드에는 이유 문구가 붙지 않음; 6,000자 요청의 `selection` 은 원문과 같다. |
 | AC-AI13-013 | 001~003 | 실기기(macOS): 6,000자 한글 선택 다듬기가 두 CLI 모두 정상 완료. |
 | AC-AI13-014 | 001~003 | 실기기(Windows, `.cmd` 셈): 6,000자 한글 선택 다듬기·직접 입력이 스폰 오류 없이 완료. |
