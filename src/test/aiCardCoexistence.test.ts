@@ -11,7 +11,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { FRONTEND_BACKSTOP_DELAY_MS } from '@/lib/ai/waitNotice';
+import { frontendBackstopDelayMs } from '@/lib/ai/waitNotice';
+
+// 이 테스트의 선택은 모두 2,000자 이하라 대기 한도가 60초 + 유예 5초로 같다(SPEC-AI-013).
+const FRONTEND_BACKSTOP_DELAY_MS = frontendBackstopDelayMs(0);
 
 const aiRequestMock = vi.fn().mockResolvedValue(undefined);
 const aiCancelMock = vi.fn().mockResolvedValue(undefined);

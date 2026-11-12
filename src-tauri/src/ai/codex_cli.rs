@@ -1,6 +1,7 @@
 // @MX:ANCHOR: [AUTO] codex CLI 어댑터 - 인자 조립·스폰·Provider (claude_cli.rs 와 형제)
 // @MX:REASON: [AUTO] SPEC-AI-009 두 번째 프로바이더 진입점. fan_in >= 2 (default_registry 등록 +
-//   mod.rs ai_request 경유 spawn). 인자 시퀀스·stdin null·모델 매핑 계약이 codex 통합의 핵심 불변.
+//   mod.rs ai_request 경유 spawn). 인자 시퀀스·표준 입력 전달(프롬프트 인자 없음)·모델 매핑 계약이
+//   codex 통합의 핵심 불변.
 // @MX:SPEC: SPEC-AI-009
 
 //! OpenAI 계열 `codex` CLI(codex-cli 0.144.1 검증) 어댑터.
@@ -8,16 +9,17 @@
 //! claude_cli.rs 와 동일한 분할 패턴을 따른다 — 순수 함수(인자 조립·프롬프트 결합·모델 매핑)는
 //! 단위 테스트하고, 프로세스 스폰은 얇은 계층으로 감싼다. 핵심 차이:
 //! - codex는 `--json`(JSONL)을 내보내며 agent_message 완성본을 1회에 보낸다(스트리밍 아님).
-//! - system+user 프롬프트를 "\n\n" 로 결합해 positional 인자 1개로 전달(codex 는 --system-prompt 미지원).
+//! - system+user 프롬프트를 "\n\n" 로 결합해 표준 입력으로 전달(codex 는 --system-prompt 미지원,
+//!   위치 인자를 빼면 표준 입력에서 읽는다 — SPEC-AI-013 으로 인자 한도·여러 줄 이스케이프 문제 제거).
 //! - 빈 스크래치 cwd + --ignore-user-config + --sandbox read-only + --ephemeral 로 격리.
-//! - stdin 을 반드시 Stdio::null() 로 차단(안 하면 "Reading additional input from stdin..." 부작용).
 //! - CODEX_HOME 환경변수를 사용하지 않는다(auth 가 풀림, REQ-AI9-008).
 
 use crate::ai::claude_cli::{
-    claim_terminal, decide_outcome, ChunkPayload, DonePayload, ErrorPayload, RelayOutcome,
+    claim_terminal, decide_outcome, spawn_stdin_writer, ChunkPayload, DonePayload, ErrorPayload,
+    RelayOutcome,
 };
 use crate::ai::provider::{AiModel, AiProvider, AiRequest, Capabilities, ProviderStatus};
-use crate::ai::stream::{parse_codex_agent_message, parse_codex_turn_completed};
+use crate::ai::stream::{parse_codex_agent_message, parse_codex_turn_completed, Completion};
 use crate::process_util::{login_shell_path, no_window};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -80,21 +82,22 @@ pub fn codex_advanced_model_label() -> String {
     )
 }
 
-/// model·combined_prompt·scratch_dir 로 codex 실행 인자를 조립한다(순수, REQ-AI9-004).
+/// model·scratch_dir 로 codex 실행 인자를 조립한다(순수, REQ-AI9-004).
 ///
-/// 산출 인자는 정확히 다음 순서의 14개 원소다(codex-cli 0.144.1 실측 기준):
+/// 산출 인자는 정확히 다음 순서의 13개 원소다(codex-cli 0.144.1 실측 기준):
 /// ```text
 /// ["exec", "-C", <scratch>, "--ignore-user-config", "--skip-git-repo-check",
 ///  "--ephemeral", "--sandbox", "read-only", "--model", <model_arg>,
-///  "-c", "model_reasoning_effort=\"<effort>\"", "--json", <combined_prompt>]
+///  "-c", "model_reasoning_effort=\"<effort>\"", "--json"]
 /// ```
 /// `<effort>` 는 `codex_reasoning_effort` 결과(기본 티어 `medium` / 고급 티어 `high`, REQ-AI9-045)다.
-/// `<scratch>` 는 빈 스크래치 디렉토리 절대경로, `<model_arg>` 는 `codex_model_arg` 결과,
-/// `<combined_prompt>` 는 `combine_prompts` 결과다.
+/// `<scratch>` 는 빈 스크래치 디렉토리 절대경로, `<model_arg>` 는 `codex_model_arg` 결과다.
+/// 결합 프롬프트(`combine_prompts`)는 위치 인자가 아니라 표준 입력으로 전달한다 — 위치 인자를
+/// 빼면 codex 가 표준 입력에서 읽는다(SPEC-AI-013 REQ-AI13-002, 실측).
 // @MX:ANCHOR: [AUTO] codex 격리 플래그 시퀀스 - --ignore-user-config/--sandbox read-only/--ephemeral
 // @MX:REASON: [AUTO] 사용자 홈 컨텍스트 오염(~/.codex/AGENTS.md 자동 로딩 → 32K 토큰 폭발 사례)을
 //   막는 1차 방어선. 플래그 하나라도 누락되면 격리가 빈 cwd 정황에만 의존해 회귀(REQ-AI9-004/008).
-pub fn build_codex_args(model: AiModel, combined_prompt: &str, scratch_dir: &Path) -> Vec<String> {
+pub fn build_codex_args(model: AiModel, scratch_dir: &Path) -> Vec<String> {
     let scratch = scratch_dir.to_string_lossy().into_owned();
     vec![
         "exec".to_string(),
@@ -113,7 +116,6 @@ pub fn build_codex_args(model: AiModel, combined_prompt: &str, scratch_dir: &Pat
             codex_reasoning_effort(model)
         ),
         "--json".to_string(),
-        combined_prompt.to_string(),
     ]
 }
 
@@ -121,7 +123,8 @@ pub fn build_codex_args(model: AiModel, combined_prompt: &str, scratch_dir: &Pat
 ///
 /// `spawn_codex` 는 이 함수를 호출해 `.spawn()` 만 실행하는 얇은 래퍼가 된다.
 /// 본 함수가 담당하는 계약(REQ-AI9-006/007/008):
-/// - `.stdin(Stdio::null())` — codex 가 stdin 을 읽으려 시도하는 부작용 차단(실측).
+/// - `.stdin(Stdio::piped())` — 결합 프롬프트를 표준 입력으로 전달한다(SPEC-AI-013 REQ-AI13-002).
+///   위치 인자가 없으면 codex 는 표준 입력에서 지시문을 읽는다(실측). 쓰기 후 핸들을 닫아 EOF 를 알린다.
 /// - `.stdout(Stdio::piped())` / `.stderr(Stdio::piped())` — JSONL·stderr 릴레이 수신.
 /// - `no_window` 호출 — Windows 콘솔 깜빡임 차단.
 /// - `.current_dir(cwd)` — 빈 스크래치 cwd 고정(문서·프로젝트 폴더 격리).
@@ -129,14 +132,15 @@ pub fn build_codex_args(model: AiModel, combined_prompt: &str, scratch_dir: &Pat
 ///
 /// 본 함수는 CODEX_HOME 환경변수를 설정하지 않는다(REQ-AI9-008 — auth 가 풀림, 실측).
 // @MX:WARN: [AUTO] 외부 바이너리(codex)를 실행한다 - 임의 경로 실행 보안 표면
-// @MX:REASON: [AUTO] 빈 스크래치 cwd + --ignore-user-config + --sandbox read-only + stdin null 로
-//   부작용을 최소화한다. CODEX_HOME 은 설정하지 않는다(auth 풀림 방지, REQ-AI9-008).
+// @MX:REASON: [AUTO] 빈 스크래치 cwd + --ignore-user-config + --sandbox read-only 로
+//   부작용을 최소화한다(프롬프트는 표준 입력이라 인자에 사용자 텍스트가 없다). CODEX_HOME 은
+//   설정하지 않는다(auth 풀림 방지, REQ-AI9-008).
 pub fn build_codex_command(binary: &Path, args: &[String], cwd: &Path) -> Command {
     let mut cmd = Command::new(binary);
     no_window(&mut cmd)
         .args(args)
         .current_dir(cwd)
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     // macOS GUI 환경(PATH 최소)에서 codex(node 스크립트)가 node를 찾도록 로그인 셸 PATH 주입.
@@ -152,13 +156,31 @@ pub fn build_codex_command(binary: &Path, args: &[String], cwd: &Path) -> Comman
 ///
 /// `detect::codex_binary()` 절대경로로 스폰하며, `build_codex_command` 로 Command 를 구성해
 /// `.spawn()` 한다. 미설치(`codex_binary()` → None)면 `Err("codex 실행 파일을 찾지 못했어요.")`
-/// (claude_cli.rs:172-173 과 대칭).
-pub fn spawn_codex(args: &[String], cwd: &Path) -> Result<Child, String> {
+/// (claude_cli.rs:172-173 과 대칭). 결합 프롬프트는 전용 스레드로 표준 입력에 쓰고 EOF 로 마감한다.
+pub fn spawn_codex(args: &[String], cwd: &Path, combined_prompt: &str) -> Result<Child, String> {
     let binary = crate::ai::detect::codex_binary()
         .ok_or_else(|| "codex 실행 파일을 찾지 못했어요.".to_string())?;
     let mut cmd = build_codex_command(&binary, args, cwd);
-    cmd.spawn()
-        .map_err(|e| format!("codex 실행에 실패했어요: {}", e))
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("codex 실행에 실패했어요: {}", e))?;
+    if let Some(stdin) = child.stdin.take() {
+        let _ = spawn_stdin_writer(stdin, combined_prompt.as_bytes().to_vec());
+    }
+    Ok(child)
+}
+
+/// codex 완료 `ai://done` payload 를 조립한다(순수, SPEC-AI-013 REQ-AI13-012).
+///
+/// 정상 `turn.completed` 경로와 chunk 후 EOF 폴백 경로가 모두 이 함수를 쓴다. 현재 파서·실측 기준
+/// `turn.completed` 는 `usage` 만 가져 완결 신호가 없으므로 `completion` 은 항상 `Unknown` 이다.
+pub fn codex_done_payload(request_id: String, result: String, truncated: bool) -> DonePayload {
+    DonePayload {
+        request_id,
+        result,
+        truncated,
+        completion: Completion::Unknown,
+    }
 }
 
 /// codex stdout/stderr 를 별도 스레드에서 읽어 `ai://chunk|done|error` 로 릴레이한다(REQ-AI9-011~014).
@@ -207,11 +229,7 @@ pub fn relay_codex_process(
                     let result = last_message.clone().unwrap_or_default();
                     let _ = app_handle.emit(
                         "ai://done",
-                        DonePayload {
-                            request_id: request_id.clone(),
-                            result,
-                            truncated,
-                        },
+                        codex_done_payload(request_id.clone(), result, truncated),
                     );
                 }
                 // turn.completed 이후 추가 라인은 무시의미 — done 발행으로 종료.
@@ -235,11 +253,7 @@ pub fn relay_codex_process(
                 if claim_terminal(&finished) {
                     let _ = app_handle.emit(
                         "ai://done",
-                        DonePayload {
-                            request_id,
-                            result,
-                            truncated,
-                        },
+                        codex_done_payload(request_id, result, truncated),
                     );
                 }
                 return;
@@ -301,10 +315,11 @@ impl AiProvider for CodexProvider {
     fn spawn(&self, request: &AiRequest, cwd: &Path) -> Result<Child, String> {
         // REQ-AI9-007a: 정확히 (1) combine_prompts → (2) build_codex_args → (3) spawn_codex 순서.
         // 순서 변경·단계 누락은 회귀(combine_prompts 누락 시 codex 가 빈 프롬프트를 받거나
-        // system/user 가 분리되어 전달되는 버그 방지).
+        // system/user 가 분리되어 전달되는 버그 방지). 결합 프롬프트는 인자가 아니라 표준 입력으로
+        // 전달된다(SPEC-AI-013 REQ-AI13-002).
         let combined = combine_prompts(&request.system_prompt, &request.user_prompt);
-        let args = build_codex_args(request.model, &combined, cwd);
-        spawn_codex(&args, cwd)
+        let args = build_codex_args(request.model, cwd);
+        spawn_codex(&args, cwd, &combined)
     }
 
     fn capabilities(&self) -> Capabilities {
@@ -375,8 +390,7 @@ mod tests {
     fn build_codex_args_haiku_snapshot_exact_14_elements() {
         // AC-AI9-003: 정확한 순서·개수·값의 스냅샷. <scratch> 자리에는 실제 경로를 넣는다.
         let scratch = Path::new("/tmp/scratch");
-        let combined = "system\n\nuser";
-        let args = build_codex_args(AiModel::Haiku, combined, scratch);
+        let args = build_codex_args(AiModel::Haiku, scratch);
 
         let expected = vec![
             "exec".to_string(),
@@ -392,13 +406,12 @@ mod tests {
             "-c".to_string(),
             "model_reasoning_effort=\"medium\"".to_string(),
             "--json".to_string(),
-            "system\n\nuser".to_string(),
         ];
         assert_eq!(args, expected);
         assert_eq!(
             args.len(),
-            14,
-            "codex 인자는 정확히 14개여야 한다(REQ-AI9-004)"
+            13,
+            "codex 인자는 정확히 13개여야 한다(SPEC-AI-013: 프롬프트는 표준 입력으로)"
         );
     }
 
@@ -406,7 +419,7 @@ mod tests {
     fn build_codex_args_sonnet_also_maps_to_gpt55() {
         // v1 매핑: Sonnet 도 gpt-5.5. Haiku 와 동일 인자(+ combined 만 다름).
         let scratch = Path::new("/tmp/scratch");
-        let args = build_codex_args(AiModel::Sonnet, "p", scratch);
+        let args = build_codex_args(AiModel::Sonnet, scratch);
         let model_idx = args
             .iter()
             .position(|a| a == "--model")
@@ -424,12 +437,11 @@ mod tests {
         // RED 확보 계약: 현행 구현은 effort 를 하드코딩하므로 두 벡터가 완전히 동일해
         // "상이한 인덱스 0개"로 이 단언이 실패해야 한다.
         let scratch = Path::new("/tmp/scratch");
-        let combined = "SYS\n\nUSER";
-        let haiku_args = build_codex_args(AiModel::Haiku, combined, scratch);
-        let sonnet_args = build_codex_args(AiModel::Sonnet, combined, scratch);
+        let haiku_args = build_codex_args(AiModel::Haiku, scratch);
+        let sonnet_args = build_codex_args(AiModel::Sonnet, scratch);
 
-        assert_eq!(haiku_args.len(), 14);
-        assert_eq!(sonnet_args.len(), 14);
+        assert_eq!(haiku_args.len(), 13);
+        assert_eq!(sonnet_args.len(), 13);
 
         let diffs: Vec<usize> = haiku_args
             .iter()
@@ -457,7 +469,7 @@ mod tests {
         // 사전 합의 §2: --model 값은 두 티어 모두 여전히 "gpt-5.5"(REQ-AI9-045 무변경 부분).
         let scratch = Path::new("/tmp/scratch");
         for model in [AiModel::Haiku, AiModel::Sonnet] {
-            let args = build_codex_args(model, "p", scratch);
+            let args = build_codex_args(model, scratch);
             let model_idx = args.iter().position(|a| a == "--model").unwrap();
             assert_eq!(args[model_idx + 1], "gpt-5.5");
         }
@@ -468,7 +480,7 @@ mod tests {
         // AC-AI9-028: 격리 플래그 단언을 두 티어로 범위만 확장(완화 금지).
         let scratch = Path::new("/tmp/scratch");
         for model in [AiModel::Haiku, AiModel::Sonnet] {
-            let args = build_codex_args(model, "p", scratch);
+            let args = build_codex_args(model, scratch);
             for flag in [
                 "--ignore-user-config",
                 "--skip-git-repo-check",
@@ -533,19 +545,36 @@ mod tests {
     }
 
     #[test]
-    fn build_codex_args_last_element_is_combined_prompt_byte_equal() {
-        // AC-AI9-004: 결합 문자열이 마지막 원소와 바이트 동등(positional 1개 전달 계약).
+    fn build_codex_args_has_no_prompt_and_last_element_is_json() {
+        // AC-AI13-002: 결합 프롬프트는 인자에 없고(표준 입력으로 전달), 마지막 인자는 `--json` 이다.
         let scratch = Path::new("/tmp/scratch");
-        let combined = "SYS\n\nUSER";
-        let args = build_codex_args(AiModel::Haiku, combined, scratch);
-        assert_eq!(args.last().map(|s| s.as_str()), Some(combined));
+        let args = build_codex_args(AiModel::Haiku, scratch);
+        assert_eq!(args.last().map(|s| s.as_str()), Some("--json"));
+        let combined = combine_prompts("SYS-표지-91c2\n둘째 줄", "선택-표지-7f3a");
+        assert!(args
+            .iter()
+            .all(|a| !a.contains("SYS-표지-91c2") && !a.contains("선택-표지-7f3a")));
+        assert!(!args.contains(&combined));
+    }
+
+    #[test]
+    fn codex_done_payload_completion_is_always_unknown() {
+        // AC-AI13-009: 정상(turn.completed)·EOF 폴백 두 경로가 쓰는 조립 함수의 completion.
+        let p = codex_done_payload("r1".to_string(), "본문".to_string(), false);
+        assert_eq!(p.completion, crate::ai::stream::Completion::Unknown);
+        let json = serde_json::to_string(&p).unwrap();
+        assert!(json.contains("\"completion\":\"unknown\""));
+        assert!(json.contains("\"requestId\":\"r1\""));
+        assert!(!json.contains("truncated"));
+        let t = codex_done_payload("r2".to_string(), "x".to_string(), true);
+        assert!(serde_json::to_string(&t).unwrap().contains("\"truncated\":true"));
     }
 
     #[test]
     fn build_codex_args_scratch_dir_embedded_at_index_2() {
         // -C 다음 원소가 scratch 경로와 일치(절대경로 주입 검증).
         let scratch = Path::new("/var/empty/scratch");
-        let args = build_codex_args(AiModel::Haiku, "p", scratch);
+        let args = build_codex_args(AiModel::Haiku, scratch);
         let c_idx = args
             .iter()
             .position(|a| a == "-C")
@@ -557,7 +586,7 @@ mod tests {
     fn build_codex_args_isolation_flags_never_missing() {
         // AC-AI9-003: 격리 플래그 전부 존재. 하나라도 누락되면 사용자 홈 컨텍스트 오염 회귀.
         let scratch = Path::new("/tmp/scratch");
-        let args = build_codex_args(AiModel::Haiku, "p", scratch);
+        let args = build_codex_args(AiModel::Haiku, scratch);
         for flag in [
             "--ignore-user-config",
             "--skip-git-repo-check",
@@ -586,7 +615,7 @@ mod tests {
     fn build_codex_command_returns_command_without_panic() {
         // Command 빌더 자체가 panic 없이 동작하는지 검증. stdin/stdout/stderr 설정은 코드 구조로 강제.
         let binary = Path::new("/usr/local/bin/codex");
-        let args = build_codex_args(AiModel::Haiku, "p", Path::new("/tmp/scratch"));
+        let args = build_codex_args(AiModel::Haiku, Path::new("/tmp/scratch"));
         let cwd = Path::new("/tmp/scratch");
         let _cmd = build_codex_command(binary, &args, cwd);
     }
@@ -621,7 +650,7 @@ mod tests {
         if crate::ai::detect::codex_binary().is_none() {
             let args = vec!["exec".to_string()];
             let cwd = PathBuf::from("/tmp");
-            let result = spawn_codex(&args, &cwd);
+            let result = spawn_codex(&args, &cwd, "p");
             assert!(result.is_err());
             let err = result.unwrap_err();
             assert!(err.contains("codex"), "에러 메시지에 codex 언급: {}", err);
