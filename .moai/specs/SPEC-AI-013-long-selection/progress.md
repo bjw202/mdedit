@@ -58,7 +58,7 @@ Playwright: plan.md 가 지정한 spec 이 없어 실행하지 않았다(UI 외�
 | AC-AI13-003 | PASS | `/bin/cat` 실제 파이프 왕복(claude·codex Command) + BrokenPipe writer (Rust, unix) |
 | AC-AI13-004 | PASS | 공유 표 9행 + 이모지 chars 대조 (Rust) |
 | AC-AI13-005 | PASS | 공유 표 9행 + 순서 불변식 (TS) |
-| AC-AI13-006 | PASS | 6,000자 카드 65s streaming / 97s 백스톱, 재요청 동일 (TS) |
+| AC-AI13-006 | PASS | 6,000자 카드 65s streaming / 113s 백스톱(D6 계수 조정 후), 재요청 동일 (TS) |
 | AC-AI13-007 | PASS | 6000/6001/12000/12001 경계 + 안내 문구 (TS) |
 | AC-AI13-008 | PASS | 실측 fixture 로 complete/cutoff/unknown/끈적임 + DonePayload 직렬화 (Rust) |
 | AC-AI13-009 | PASS | `codex_done_payload` 두 경로 (Rust) |
@@ -112,5 +112,5 @@ gaps:
   - "codex 6,000자 다듬기 여유 43% (75.5s / 108s) — 느린 계정에서 시간 초과 가능"
   - "parse_final_result 가 is_error:true result 를 정상으로 읽음 (범위 밖)"
   - "§E.2 의 'completion-notice CSS 없음' 기록은 sync 에서 CSS 가 추가되어 현재는 해당 없음"
-sync-audit: (pending)
+sync-audit: PASS 0.87 (F/S/C/Co 0.90/0.88/0.80/0.85) — `.moai/reports/sync-audit/SPEC-AI-013.md`. 반영: F1·F3·F4·F10(문서·주석). 미반영(후속): F2 SPEC 버전 표기·acceptance/plan status, F5 rustfmt, F6 CompletionTracker 연결 테스트, F7 시스템 프롬프트 파일 잔존·0644, F9 codex 12,000자 변환 실측 없음.
 ```
