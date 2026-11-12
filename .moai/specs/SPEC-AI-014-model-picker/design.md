@@ -58,9 +58,9 @@
 
 - **결정**: `crate::ai::detect::codex_binary()`가 돌려준 절대 경로로 `debug models`를 실행한다(`no_window`, stdin null, stdout piped, stderr null). 별도 스레드가 `wait_with_output`을 하고 호출 쪽은 채널 `recv_timeout(3초)`로 기다린다. 시간이 넘으면 자식 프로세스를 `kill`하고 고정 목록을 쓴다. 해석 함수 `parse_codex_catalog(&str) -> Option<Vec<ModelOption>>`는 순수 함수로 두고 M1에서 캡처한 실제 출력을 fixture로 테스트한다.
 - **캐시와 잠금**: `static CODEX_MODELS: Mutex<Option<(Vec<ModelOption>, Source)>>`와 조회 중 표시 `static CODEX_QUERY_IN_FLIGHT: AtomicBool`. 잠금은 캐시를 읽고 쓰는 순간에만 잡고, 하위 프로세스를 기다리는 동안에는 놓는다. 조회 중 표시를 `compare_exchange`로 얻은 쪽만 조회하고, 못 얻은 쪽은 기다리지 않고 지금 캐시(비었으면 고정 목록)를 쓴다. 비동기 `ai_detect_providers` 안의 3초 대기는 `tauri::async_runtime::spawn_blocking`으로 감싼다.
-- **조회 생략**: codex가 설치·로그인되지 않았으면 조회하지 않는다. 조회가 필요 없는 검증(claude, `null`, 고정 목록 모델)은 캐시 잠금을 잡지 않는다. 조회 성공은 프로세스가 끝날 때까지 유지한다. 실패 결과(고정 목록)도 저장해 `ai_request` 검증에 재사용하고, `ai_detect_providers`는 저장된 결과가 실패 결과이면 다시 조회한다.
+- **조회 생략**: codex가 설치·로그인되지 않았으면 조회하지 않고 캐시도 비워 둔다(실패로 기록하지 않음). 조회가 필요 없는 검증(claude, `null`, 고정 목록 모델)은 캐시 잠금을 잡지 않는다. 조회 성공은 프로세스가 끝날 때까지 유지한다. 실패 결과(고정 목록)도 저장해 `ai_request` 검증에 재사용하고, `ai_detect_providers`는 저장된 결과가 실패 결과이면 다시 조회한다.
 - **언제 조회하나**: `ai_detect_providers`(비동기 명령으로 바꿈 — 동기 Tauri 명령은 메인 스레드에서 돌아 UI를 막는다)는 캐시가 비었거나 실패 결과일 때 조회한다. `ai_request`(동기 명령, 이 SPEC에서 바꾸지 않음 — SPEC-AI-013과 겹치는 함수라 시그니처 변경을 피한다)는 라우팅이 codex이고, 선택값이 `null`이 아니고, 고정 목록에 없고, 캐시가 비었을 때만 조회한다. 기본값(codex `null`)이나 고정 목록 모델을 쓰는 사용자는 요청 경로에서 조회를 겪지 않는다.
-- **알려진 한계**: 앱 시작 때 `AppLayout.tsx:65`가 `ai_detect_providers`를 부르므로 `CATALOG`이면 시작마다 백그라운드 조회가 한 번 돈다. `ai_request`의 동기 조회는 시작 조회가 실패했거나 아직 안 끝났을 때만 생기고 최대 3초 멈출 수 있다(spec.md REQ-AI14-014). 테스트를 위해 조회 함수는 실행기(클로저)와 시간 한도를 인자로 받는 내부 함수와, 실제 실행기를 넣는 얇은 공개 함수로 나눈다.
+- **알려진 한계**: 앱 시작 때 `AppLayout.tsx:65`가 `ai_detect_providers`를 부르므로 `CATALOG`이면 시작마다 백그라운드 조회가 한 번 돈다. `ai_request`의 동기 조회는 캐시가 비어 있고 진행 중인 조회가 없을 때만 생기며(시작 감지 전 요청, 시작 때 codex 미로그인 뒤 로그인) 최대 3초 멈출 수 있다. 조회가 진행 중인 짧은 동안 고정 목록 밖 모델은 목록 미확정 문구로 거부될 수 있다(spec.md REQ-AI14-014). 테스트를 위해 조회 함수는 실행기(클로저)와 시간 한도를 인자로 받는 내부 함수와, 실제 실행기를 넣는 얇은 공개 함수로 나눈다.
 - **이유**: 표준 라이브러리만으로 시간 한도를 걸 수 있다(새 의존성 없음). 3초는 이 기기 측정값 0.57초의 약 5배다.
 
 ## D-8. 프런트엔드 구조

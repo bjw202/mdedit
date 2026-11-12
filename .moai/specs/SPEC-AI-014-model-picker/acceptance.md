@@ -89,7 +89,8 @@
   - 실패 뒤 요청 검증 경로를 두 번 부르면 실행기 호출이 1회이고, 새로 고침 경로(`ai_detect_providers`가 쓰는 함수)를 부르면 1회 더 호출된다.
   - 캐시가 빈 상태에서 요청 검증 경로를 다음 입력으로 부르면 실행기 호출이 0회다: (a) 도구 claude, (b) codex + `None`, (c) codex + 고정 목록에 있는 모델. 고정 목록에 없는 codex 모델이면 1회다.
   - 실행기가 막혀 있는(조회 진행 중) 동안 다른 스레드에서 요청 검증 경로를 부르면, 실행기가 풀리기를 기다리지 않고 100ms 안에 돌아오며 실행기 호출 수가 늘지 않는다.
-  - codex 상태가 미설치 또는 미로그인이면 목록 함수가 실행기를 부르지 않고 고정 목록을 돌려준다.
+  - codex 상태가 미설치 또는 미로그인이면 목록 함수가 실행기를 부르지 않고 고정 목록을 돌려주며, 캐시는 빈 채로 남는다(이어서 설치·로그인 상태로 부르면 실행기가 1회 불린다).
+  - 목록 미확정 상태(조회 진행 중 또는 마지막 조회 실패)에서 고정 목록 밖 모델을 검증하면 `Err` 메시지에 `아직 확인하지 못했어요`가 들어 있고, 목록 확정 상태의 거부 메시지에는 들어 있지 않다.
   `FIXED-ONLY`이면 N/A로 기록한다. PASS: 성립 또는 N/A 기록.
 - **AC-016 (감지 결과에 목록)**: `cargo test` —
   - `ProviderStatus` 직렬화 JSON에 `advancedModelLabel` 키가 없고, 목록이 있으면 `models: [{ "id": …, "label": … }]`이 있다.
@@ -120,7 +121,7 @@
 - **AC-019 (실기기, macOS 개발 빌드)**: 다음을 사람이 확인하고 `progress.md`에 결과를 적는다.
   1. 설정에서 claude 모델을 `opus`(또는 통과한 다른 비기본 별칭)로 고르고 ✨ 툴바 요청을 보내면 카드에 결과가 나온다.
   2. codex를 선택하고 목록의 모델 하나로 요청하면 결과가 나온다(codex가 설치·로그인된 경우).
-  3. 개발자 도구로 `localStorage`의 `mdedit-ui-store`에서 `aiModels.claude`를 `no-such-model`로 바꾸고 다시 불러온 뒤, (a) ✨ 툴바 요청을 보내면 카드에 `no-such-model`과 설정 안내가 담긴 오류가 나오고, (b) 고스트 이어쓰기를 시작하면 상태 표시줄에 같은 메시지가 나온다. 두 경우 모두 요청 전후에 `ps -ax | grep -c '[c]laude -p.*--setting-sources'`(앱이 띄우는 claude 프로세스만 셈)를 재서 값이 늘지 않는다(CLI가 실행되지 않음).
+  3. 개발자 도구로 `localStorage`의 `mdedit-ui-store`에서 `aiModels.claude`를 `no-such-model`로 바꾸고 다시 불러온 뒤, (a) ✨ 툴바 요청을 보내면 카드에 `no-such-model`과 설정 안내가 담긴 오류가 나오고, (b) 고스트 이어쓰기를 시작하면 상태 표시줄에 같은 메시지가 나온다. 두 경우 모두 요청 전후에 `ps -axww | grep -c '[c]laude -p.*--setting-sources'`(앱이 띄우는 claude 프로세스만 셈)를 재서 값이 늘지 않는다(CLI가 실행되지 않음).
   4. 이전 버전 앱에서 "고급 모델 사용"을 켠 상태로 쓰던 저장 상태가 새 빌드에서 claude `Sonnet`으로 표시된다.
   PASS: 네 항목 확인 기록. codex 미설치면 2는 "미확인(사유)"로 적는다.
 - **품질 게이트**: `npm run typecheck`, `npm run lint`, `npm test`, `~/.cargo/bin/cargo test --manifest-path src-tauri/Cargo.toml`, `npm run test:e2e`가 모두 종료 코드 0. 기준 커밋에서 이미 실패하던 테스트가 있으면 run 시작 때 기준 결과를 기록하고 새 실패만 판정한다.
