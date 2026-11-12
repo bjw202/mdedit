@@ -64,3 +64,28 @@ Manual M-1, M-2, M-3 (real WKWebView IME / long multi-line): PENDING for the use
 
 run_status: audit-ready
 run_complete_commit: 0f4cefb (M1 10b7c5f, M2 115021a, M3 0f4cefb; progress evidence in the following commit)
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+sync_status: implemented (not completed; manual checks M-1, M-2, M-3 pending)
+sync_complete_at: 2026-11-13
+sync_commit_sha: pending-backfill (a commit cannot name its own SHA)
+verified_tree: merge commit 3bed440 (origin/main merged into WT-custom-input-grow)
+changelog_entry_position: CHANGELOG.md [Unreleased] / Changed, first entry
+frontmatter_status_transitions: spec.md draft -> implemented, updated 2026-11-13 (only spec.md carries frontmatter)
+docs_sync: README.md and docs/USER_GUIDE.md mention only the direct-input preset and Enter, which stays accurate; left untouched
+
+### Verification (post-merge of origin/main, run in this worktree)
+
+| Check | Result |
+|-------|--------|
+| tsc --noEmit | exit 0 |
+| vitest targeted (aiSelectionToolbar + aiSuggestionCard) | 166 passed |
+| vitest full | 2131 passed (121 files) |
+| eslint --max-warnings 0 | exit 0 |
+| Playwright webkit e2e/ai-custom-input-grow.spec.ts | 7 passed |
+
+### Gaps
+
+- REQ-012 (IME guard: isComposing / keyCode 229) is verified only in jsdom, not in a real WKWebView.
+- Manual M-1 (Korean IME Enter), M-2 (IME Escape), M-3 (multi-line ceiling; dark-mode suggestion card unchanged) are PENDING for the user. The SPEC moves to completed after they pass.

@@ -2,7 +2,7 @@
 id: SPEC-AI-015
 title: "AI 직접 입력 칸 — 폭 확대·자동 높이 증가 textarea"
 version: "1.0.0"
-status: draft
+status: implemented
 created: 2026-11-13
 updated: 2026-11-13
 author: jw
