@@ -29,7 +29,7 @@ fn envelope_tags(texts: &[&str], seed: &str) -> EnvelopeTags
   4. texts 는 유한하므로 반드시 끝난다.
 ```
 
-- `texts` 는 **실제로 봉투에 들어갈 문자열**(절단 후 앞 문맥, 선택 원문, 절단 후 뒤 문맥)이다.
+- `texts` 는 **프롬프트에 사용자 쪽에서 들어가는 모든 자유 텍스트**다: 절단 후 앞 문맥, 선택 원문, 절단 후 뒤 문맥, 직접 입력 지시(Custom 일 때), 추가 지시(있을 때). 지시 문자열까지 넣는 이유는 직접 입력 지시나 다이어그램 오류 문구(R2·R6)에 태그 문자열이 섞여도 codex 결합 문자열에서 닫는 태그가 두 번 나오지 않게 하기 위해서다.
 - `seed` 는 `mod.rs` 에서 `args.request_id` 를 넘긴다. 기존 래퍼(`build_inline_prompt`, `build_inline_prompt_with_diagram_type`)는 빈 문자열을 넘긴다.
 
 ### 2.2 인라인 조립 진입점
@@ -80,7 +80,7 @@ user_prompt =
 | M3 | 재확인 블록(샌드위치) + 작업 핵심 문장 분리. | 004 | High |
 | M4 | `additional_instruction` 반영(Rust 조립 + `mod.rs` 필드·분기·역직렬화 테스트). | 007, 010, 011 | High |
 | M5 | 프런트 배선 교체 + `ipc.ts` 타입 + 프런트 테스트 갱신·추가. | 008, 012 | High |
-| M6 | 정리: `@MX` 주석 갱신(INLINE_SCOPE 관련 NOTE 3건, fireReRequest ANCHOR), 변경 파일 범위 확인(REQ-AI12-013), 대상 테스트 실행. | 013 | Medium |
+| M6 | 정리: `@MX` 주석 갱신(INLINE_SCOPE 관련 `@MX:NOTE` 2건, fireReRequest ANCHOR), 변경 파일 범위 확인(REQ-AI12-013), 대상 테스트 실행. | 013 | Medium |
 
 ## 4. 테스트 계획
 
@@ -151,7 +151,7 @@ user_prompt =
 | `src-tauri/src/ai/prompt.rs` | 수정 | 핵심 |
 | `src-tauri/src/ai/mod.rs` | 수정(필드 1개, 인라인 분기 호출 1곳, 테스트) | 카드 t5·t6 도 `AiRequestArgs` 를 건드릴 가능성 있음 — 병합 시 필드 추가끼리라 충돌은 작음 |
 | `src/lib/tauri/ipc.ts` | 수정(타입 필드 1개) | 같은 이유로 겹칠 수 있음 |
-| `src/components/editor/extensions/ai-suggestion-card.ts` | 수정(재요청 배선 1줄 + 주석) | |
+| `src/components/editor/extensions/ai-suggestion-card.ts` | 수정(재요청 배선 1곳 + 복구용 재요청 3곳(D9) + 주석) | |
 | `src/test/aiCardRetryLimit.test.ts` | 수정 | |
 | `src/test/aiCardRerequestProgress.test.ts` | 수정 | |
 | `src/test/aiSuggestionCardRerequest.test.ts` | 테스트 추가 | 새 파일로 분리해도 됨 |
@@ -167,7 +167,7 @@ user_prompt =
 
 ## 7. 위험과 대응
 
-spec.md "Risks & Regression Watchlist" R1~R5 참고. 추가로:
+spec.md "Risks & Regression Watchlist" R1~R6 참고. 추가로:
 
 - `system_prompt()` 반환값을 바꾸지 않고 작업 문장만 분리해야 한다 — 잘못 분리하면 이어쓰기 바이트 보존이 깨진다. M1 스냅샷이 이를 잡는다.
 - 접미사 생성에 새 크레이트를 쓰지 않는다(시드는 요청 ID).
