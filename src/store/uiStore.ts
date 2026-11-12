@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { AiModelSelection } from '@/lib/tauri/ipc';
 import { HTML_ZOOM_DEFAULT, snapToStep, stepUp, stepDown } from '@/lib/preview/htmlZoom';
 
 // @MX:ANCHOR: [AUTO] useUIStore - persisted UI state store consumed by AppLayout, Header, ResizablePanels, Footer, useTheme, ViewModeToggle
@@ -25,6 +26,22 @@ export type HtmlRenderMode = 'crisp' | 'original';
 /** 'crisp'·'original'만 통과시키고 나머지는 null(고르지 않음)로 정규화한다 (SPEC-PREVIEW-020). */
 function normalizeHtmlRenderMode(v: unknown): HtmlRenderMode | null {
   return v === 'crisp' || v === 'original' ? v : null;
+}
+
+// @MX:NOTE: SPEC-AI-014 REQ-AI14-002 — 프런트엔드에서 모델 이름 문자열('haiku'/'sonnet')이 나오는 유일한 곳
+//   (기본값과 v2→v3 이전 규칙). 모델 목록의 정본은 백엔드(models.rs)이고, 이 파일 밖은 문자열을 쓰지 않는다.
+// @MX:SPEC: SPEC-AI-014
+const DEFAULT_AI_MODELS: AiModelSelection = { claude: 'haiku', codex: null };
+
+/** 항목별로 문자열·null 만 통과시키고, 모양이 틀린 항목만 기본값으로 되돌린다 (SPEC-AI-014 REQ-AI14-005). */
+function normalizeAiModels(v: unknown): AiModelSelection {
+  const o = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+  const pick = (x: unknown, fallback: string | null) =>
+    typeof x === 'string' || x === null ? x : fallback;
+  return {
+    claude: pick(o.claude, DEFAULT_AI_MODELS.claude),
+    codex: pick(o.codex, DEFAULT_AI_MODELS.codex),
+  };
 }
 
 // @MX:NOTE: [AUTO] statusMessage auto-clear 타이머를 보관하는 module-level ref (SPEC-UI-005).
@@ -63,8 +80,8 @@ interface UIState {
   statusMessage: string | null;
   /** AI 데이터 전송 고지 배너를 한 번 확인했는지 (SPEC-AI-001 REQ-AI-013). 영속화 대상. */
   aiNoticeAcknowledged: boolean;
-  /** AI "고급 모델" 토글 — true 면 sonnet, false 면 haiku (SPEC-AI-001 REQ-AI-016). 영속화 대상. */
-  aiAdvancedModel: boolean;
+  /** 도구별 AI 모델 선택 — null 은 CLI 기본값 (SPEC-AI-014 REQ-AI14-004/005). 영속화 대상. */
+  aiModels: AiModelSelection;
   /**
    * 이어쓰기(continue) 길이 옵션 — 'short'(한두 문장) | 'normal'(기본, 기존 분량 유지)
    * (SPEC-AI-006 REQ-AI6-012). 최초값(미설정 사용자)은 'normal'. 영속화 대상.
@@ -102,8 +119,8 @@ interface UIState {
   setStatusMessage: (message: string | null) => void;
   /** AI 고지 배너 확인 여부를 설정한다 (SPEC-AI-001 REQ-AI-013). */
   setAiNoticeAcknowledged: (acknowledged: boolean) => void;
-  /** AI 고급 모델(sonnet) 사용 여부를 설정한다 (SPEC-AI-001 REQ-AI-016). */
-  setAiAdvancedModel: (enabled: boolean) => void;
+  /** 도구별 AI 모델을 설정한다. null 은 CLI 기본값 (SPEC-AI-014 REQ-AI14-003). */
+  setAiModel: (provider: 'claude' | 'codex', model: string | null) => void;
   /** 이어쓰기 길이 옵션을 설정한다 (SPEC-AI-006 REQ-AI6-012). */
   setAiContinueLength: (length: 'short' | 'normal') => void;
   /** AI 기능 사용자 켜기/끄기 토글을 설정한다 (SPEC-AI-005 REQ-AI5-001/006). */
@@ -143,7 +160,7 @@ export const useUIStore = create<UIState>()(
       viewMode: 'split',
       statusMessage: null,
       aiNoticeAcknowledged: false,
-      aiAdvancedModel: false,
+      aiModels: DEFAULT_AI_MODELS,
       aiContinueLength: 'normal',
       aiEnabled: true,
       aiSelectedProvider: 'auto',
@@ -186,7 +203,8 @@ export const useUIStore = create<UIState>()(
         }
       },
       setAiNoticeAcknowledged: (acknowledged: boolean) => set({ aiNoticeAcknowledged: acknowledged }),
-      setAiAdvancedModel: (enabled: boolean) => set({ aiAdvancedModel: enabled }),
+      setAiModel: (provider, model) =>
+        set((state) => ({ aiModels: { ...state.aiModels, [provider]: model } })),
       setAiContinueLength: (length: 'short' | 'normal') => set({ aiContinueLength: length }),
       setAiEnabled: (enabled: boolean) => set({ aiEnabled: enabled }),
       setAiSelectedProvider: (provider: 'auto' | 'claude' | 'codex') =>
@@ -206,7 +224,7 @@ export const useUIStore = create<UIState>()(
       //   가드 판정은 editorStore.dirty만 읽는다(REQ-007). 영속화하면 앱 재시작 시 stale
       //   'unsaved'가 빈 버퍼에 복원되어 결함 B가 해소되지 않는다.
       //   statusMessage도 트랜지언트(SPEC-UI-005)이므로 함께 제외.
-      version: 2,
+      version: 3,
       partialize: (state) => {
         const { statusMessage, saveStatus, ...rest } = state;
         return rest;
@@ -222,6 +240,8 @@ export const useUIStore = create<UIState>()(
           htmlZoom: snapToStep(persisted.htmlZoom),
           // SPEC-PREVIEW-020: 필드 없음·null·허용 밖 값은 null(고르지 않음)로 둔다. 'crisp'으로 바꾸지 않는다.
           htmlRenderMode: normalizeHtmlRenderMode(persisted.htmlRenderMode),
+          // SPEC-AI-014 REQ-AI14-005: 모양이 틀린 항목만 기본값으로 되돌린다.
+          aiModels: normalizeAiModels(persisted.aiModels),
         };
       },
       // V2(SPEC-FS-003): version 0→1 마이그레이션. 기존 사용자 localStorage에 잔류한 stale
@@ -241,8 +261,22 @@ export const useUIStore = create<UIState>()(
         if (version < 2) {
           state = { ...state, htmlRenderMode: state.htmlRenderMode === 'original' ? 'original' : null };
         }
+        // @MX:NOTE: SPEC-AI-014 version 2→3 — "고급 모델" 토글(aiAdvancedModel)을 도구별 aiModels 로 옮긴다.
+        //   true 였던 사용자는 claude sonnet 을 유지하고, 그 밖은 기본 haiku. 다른 설정은 건드리지 않는다.
+        if (version < 3) {
+          const { aiAdvancedModel, ...rest } = state;
+          state = {
+            ...rest,
+            aiModels: { claude: aiAdvancedModel === true ? 'sonnet' : 'haiku', codex: null },
+          };
+        }
         return state;
       },
     }
   )
 );
+
+/** 현재 도구별 모델 선택 — 고스트 텍스트·툴바·카드가 요청을 만들 때 이 함수만 쓴다 (SPEC-AI-014 REQ-AI14-002). */
+export function currentAiModels(): AiModelSelection {
+  return useUIStore.getState().aiModels;
+}
