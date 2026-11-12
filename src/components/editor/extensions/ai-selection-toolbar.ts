@@ -400,11 +400,88 @@ export function decideMenuHorizontalDirection({
   return spaceLeft > spaceRight ? 'end' : 'start';
 }
 
+// ── SPEC-AI-015: 직접 입력 칸 — 폭·높이 계산(순수) ─────────────────────────────
+
+/** 직접 입력 칸 선호 높이(px) — 세로 방향 판정에서 메뉴 높이의 하한으로 쓴다(D4). */
+export const CUSTOM_INPUT_PREFERRED_HEIGHT = 200;
+/** 직접 입력 상태 메뉴 기본 폭(px) — CSS `.mdedit-ai-preset-menu--custom` 과 같은 값(D1). */
+export const CUSTOM_MENU_WIDTH = 340;
+/** 직접 입력 상태 메뉴 최소 폭(px) — 프리셋 메뉴 min-width 와 같다. */
+export const CUSTOM_MENU_MIN_WIDTH = 190;
+/** textarea 최소 높이(px) — 1줄 높이이며 상한 계산의 하한이다(REQ-014). */
+export const CUSTOM_INPUT_MIN_HEIGHT = 28;
+/** 경계와 메뉴 사이 여백(px) — 세로 상한·가로 폭 공용. */
+export const CUSTOM_INPUT_MARGIN = 8;
+
+export interface CustomMenuWidthInput {
+  /** 앵커 left 부터 클리핑 경계 오른쪽까지의 공간(px) — 가로 flip 과 같은 값. */
+  spaceRight: number;
+  /** 클리핑 경계 왼쪽부터 앵커 right 까지의 공간(px) — 가로 flip 과 같은 값. */
+  spaceLeft: number;
+}
+
+/**
+ * 직접 입력 메뉴 폭(순수, D1). 좌·우 중 넓은 쪽 공간에서 여백을 뺀 값이 340 이상이면 CSS 기본 폭을
+ * 그대로 쓰도록 null, 아니면 190 이상으로 줄인 px 값을 돌려준다.
+ */
+export function computeCustomMenuWidth({ spaceRight, spaceLeft }: CustomMenuWidthInput): number | null {
+  const w = Math.max(spaceRight, spaceLeft) - CUSTOM_INPUT_MARGIN;
+  return w >= CUSTOM_MENU_WIDTH ? null : Math.max(CUSTOM_MENU_MIN_WIDTH, w);
+}
+
+export interface CustomInputMaxHeightInput {
+  direction: MenuFlipDirection;
+  anchorTop: number;
+  anchorBottom: number;
+  /** 실효 세로 경계(뷰포트 ∩ 클리핑 조상) 위쪽 좌표. */
+  boundaryTop: number;
+  /** 실효 세로 경계 아래쪽 좌표. */
+  boundaryBottom: number;
+  /** 메뉴 외곽 높이(= 메뉴 높이 − textarea 높이). */
+  chromeHeight: number;
+}
+
+/** textarea 높이 상한(순수, D3·REQ-014): 선택된 방향의 가용 거리 − 외곽 − 여백, 최소 28px. */
+export function computeCustomInputMaxHeight({
+  direction,
+  anchorTop,
+  anchorBottom,
+  boundaryTop,
+  boundaryBottom,
+  chromeHeight,
+}: CustomInputMaxHeightInput): number {
+  const available = direction === 'below' ? boundaryBottom - anchorBottom : anchorTop - boundaryTop;
+  return Math.max(CUSTOM_INPUT_MIN_HEIGHT, available - chromeHeight - CUSTOM_INPUT_MARGIN);
+}
+
+export interface CustomInputHeightInput {
+  /** textarea.scrollHeight — 위아래 테두리는 빠져 있다. */
+  scrollHeight: number;
+  /** 위아래 테두리 합(offsetHeight − clientHeight). */
+  borderY: number;
+  /** 높이 상한(px). 아직 계산 전이면 null — 상한 없이 필요 높이를 따른다. */
+  maxHeight: number | null;
+}
+
+/** textarea 높이·세로 스크롤 판정(순수, D9·REQ-008). */
+export function computeCustomInputHeight({
+  scrollHeight,
+  borderY,
+  maxHeight,
+}: CustomInputHeightInput): { height: number; overflowY: 'hidden' | 'auto' } {
+  const need = scrollHeight + borderY;
+  const height = Math.max(CUSTOM_INPUT_MIN_HEIGHT, maxHeight === null ? need : Math.min(need, maxHeight));
+  return { height, overflowY: maxHeight !== null && need > maxHeight ? 'auto' : 'hidden' };
+}
+
 /** flip 판정에 쓰이는 CSS 클래스 — 아래 열림(기본)과 대칭 배치를 담당(mdedit-components.css). */
 const MENU_ABOVE_CLASS = 'mdedit-ai-preset-menu--above';
 
 /** 가로 flip 클래스 — 좌측 정렬(기본)과 대칭으로 우측 정렬시킨다. */
 const MENU_END_CLASS = 'mdedit-ai-preset-menu--end';
+
+/** 직접 입력 상태 전용 폭 확대 수식 클래스(SPEC-AI-015 D8) — mdedit-components.css. */
+const CUSTOM_MENU_CLASS = 'mdedit-ai-preset-menu--custom';
 
 const CLIPPING_OVERFLOW = new Set(['auto', 'scroll', 'hidden', 'clip']);
 
@@ -426,6 +503,14 @@ function findClippingAncestor(el: HTMLElement): HTMLElement | null {
   return null;
 }
 
+/** 직접 입력 상태 측정에 필요한 호출자 훅(SPEC-AI-015 D5) — 실행 시점의 상태를 getter 로 읽는다. */
+interface CustomMeasureHooks {
+  /** 현재 직접 입력 상태이고 textarea 가 문서에 붙어 있으면 그 textarea, 아니면 null. */
+  getCustomInput(): HTMLTextAreaElement | null;
+  /** 계산된 높이 상한(px)을 전달한다 — 호출자가 보관하고 높이를 한 번 갱신한다. */
+  onMaxHeight(maxHeight: number): void;
+}
+
 /**
  * anchorEl 기준으로 메뉴가 열릴 방향을 세로·가로 모두 측정해 flip 클래스를 토글한다(BUG-9, BUG-2).
  * 레이아웃이 커밋된 다음 프레임에 측정해야 정확한 rect 를 얻을 수 있어 requestAnimationFrame 으로
@@ -434,28 +519,78 @@ function findClippingAncestor(el: HTMLElement): HTMLElement | null {
  * 경계 선택이 방향마다 다르다: 세로는 뷰포트(window.innerHeight)로 충분하지만, 가로는 메뉴를 실제로
  * 자르는 것이 뷰포트가 아니라 에디터 패널이므로 클리핑 조상의 rect 를 써야 한다(BUG-2). 조상이
  * 없으면 뷰포트로 폴백한다.
+ *
+ * @MX:NOTE: [AUTO] SPEC-AI-015: 직접 입력 상태에서는 "폭 적용 → 메뉴 rect 재측정 → 세로·가로 판정 →
+ * 높이 상한 계산" 순서를 지켜야 한다 — 폭이 바뀌면 가로 flip 결과가 바뀌기 때문이다. 방향은 모드 진입
+ * (이 함수 호출) 때만 판정하며 타이핑(input) 중에는 다시 판정하지 않는다(위/아래 깜빡임 방지, REQ-011).
+ * 콜백은 예약 시점이 아니라 실행 시점의 상태를 getCustomInput() 으로 읽는다(빠른 모드 왕복 대응).
+ * @MX:SPEC: SPEC-AI-015
  */
-function scheduleMenuFlipMeasurement(dom: HTMLElement, anchorEl: HTMLElement): void {
+function scheduleMenuFlipMeasurement(
+  dom: HTMLElement,
+  anchorEl: HTMLElement,
+  custom?: CustomMeasureHooks,
+): void {
   requestAnimationFrame(() => {
+    // 메뉴가 이미 파기됐으면 분리된 DOM 을 측정하지 않는다(R3).
+    if (!dom.isConnected) return;
+
     const anchorRect = anchorEl.getBoundingClientRect();
-    const menuRect = dom.getBoundingClientRect();
-
-    const direction = decideMenuFlipDirection({
-      spaceBelow: window.innerHeight - anchorRect.bottom,
-      spaceAbove: anchorRect.top,
-      menuHeight: menuRect.height,
-    });
-    dom.classList.toggle(MENU_ABOVE_CLASS, direction === 'above');
-
     // 메뉴는 래퍼(.mdedit-ai-toolbar, position:relative)에 left:0 으로 붙으므로 왼쪽 모서리는
     // 앵커 left 와, 뒤집힌 뒤(right:0) 오른쪽 모서리는 앵커 right 와 사실상 일치한다.
     const clipRect = findClippingAncestor(dom)?.getBoundingClientRect();
+    const spaceRight = (clipRect ? clipRect.right : window.innerWidth) - anchorRect.left;
+    const spaceLeft = anchorRect.right - (clipRect ? clipRect.left : 0);
+
+    const ta = custom?.getCustomInput() ?? null;
+    if (ta) {
+      // 폭을 먼저 적용해야 아래 rect 재측정이 새 폭 기준이 된다(D1·D5).
+      const width = computeCustomMenuWidth({ spaceRight, spaceLeft });
+      dom.style.width = width === null ? '' : `${width}px`;
+    } else {
+      dom.style.width = '';
+    }
+
+    const menuRect = dom.getBoundingClientRect();
+
+    // 직접 입력 상태의 세로 판정·상한은 실효 경계(뷰포트 ∩ 클리핑 조상)를 쓴다(D3·D4).
+    // 프리셋 상태는 기존대로 뷰포트 기준(REQ-003).
+    const boundaryTop = Math.max(0, clipRect?.top ?? 0);
+    const boundaryBottom = Math.min(window.innerHeight, clipRect?.bottom ?? Infinity);
+    const direction = decideMenuFlipDirection(
+      ta
+        ? {
+            spaceBelow: boundaryBottom - anchorRect.bottom,
+            spaceAbove: anchorRect.top - boundaryTop,
+            menuHeight: Math.max(menuRect.height, CUSTOM_INPUT_PREFERRED_HEIGHT),
+          }
+        : {
+            spaceBelow: window.innerHeight - anchorRect.bottom,
+            spaceAbove: anchorRect.top,
+            menuHeight: menuRect.height,
+          },
+    );
+    dom.classList.toggle(MENU_ABOVE_CLASS, direction === 'above');
+
     const horizontal = decideMenuHorizontalDirection({
-      spaceRight: (clipRect ? clipRect.right : window.innerWidth) - anchorRect.left,
-      spaceLeft: anchorRect.right - (clipRect ? clipRect.left : 0),
+      spaceRight,
+      spaceLeft,
       menuWidth: menuRect.width,
     });
     dom.classList.toggle(MENU_END_CLASS, horizontal === 'end');
+
+    if (ta && custom) {
+      custom.onMaxHeight(
+        computeCustomInputMaxHeight({
+          direction,
+          anchorTop: anchorRect.top,
+          anchorBottom: anchorRect.bottom,
+          boundaryTop,
+          boundaryBottom,
+          chromeHeight: menuRect.height - ta.offsetHeight,
+        }),
+      );
+    }
   });
 }
 
@@ -623,8 +758,33 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     dom.appendChild(list);
   };
 
+  // SPEC-AI-015: 직접 입력 textarea 상태. 높이 상한은 rAF 측정(모드 진입 때)이 채운다.
+  let customInput: HTMLTextAreaElement | null = null;
+  let customMaxHeight: number | null = null;
+
+  /** textarea 높이를 내용에 맞춘다(D2·D9). 상한이 없으면(null) 상한 없이 필요 높이를 따른다. */
+  const applyCustomHeight = (ta: HTMLTextAreaElement): void => {
+    ta.style.height = 'auto';
+    const { height, overflowY } = computeCustomInputHeight({
+      scrollHeight: ta.scrollHeight,
+      borderY: ta.offsetHeight - ta.clientHeight,
+      maxHeight: customMaxHeight,
+    });
+    ta.style.height = `${height}px`;
+    ta.style.overflowY = overflowY;
+  };
+
+  const customHooks: CustomMeasureHooks = {
+    getCustomInput: () => (mode === 'custom-input' && customInput?.isConnected ? customInput : null),
+    onMaxHeight: (maxHeight) => {
+      customMaxHeight = maxHeight;
+      if (customInput) applyCustomHeight(customInput);
+    },
+  };
+
   const renderCustomInput = (): void => {
     dom.replaceChildren();
+    customMaxHeight = null;
     const row = document.createElement('div');
     row.className = 'mdedit-ai-custom-row';
 
@@ -635,12 +795,21 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     back.textContent = '←';
     back.addEventListener('click', () => setMode('presets'));
 
-    const input = document.createElement('input');
-    input.type = 'text';
+    const input = document.createElement('textarea');
+    input.rows = 1;
     input.className = 'mdedit-ai-custom-input';
     input.placeholder = CUSTOM_PLACEHOLDER;
+    input.addEventListener('input', () => applyCustomHeight(input));
     input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
+      // @MX:WARN: [AUTO] isComposing 만으로 거르지 말 것 — keyCode === 229 검사를 지우면 안 된다.
+      // @MX:REASON: [AUTO] WebKit 은 compositionend 를 조합 확정 keydown 보다 먼저 보낼 수 있어,
+      //   확정용 Enter 의 keydown 에서 isComposing 이 false 일 수 있다. 이때 keyCode 229 가 조합 중
+      //   keydown 을 식별하는 보조 신호다(SPEC-AI-015 D6). 가드가 새면 한글 입력 중 Enter 가 전송된다.
+      // @MX:SPEC: SPEC-AI-015
+      if (event.isComposing || event.keyCode === 229) return;
+      if (event.key === 'Enter' && !event.shiftKey) {
+        // 빈 값이어도 줄바꿈을 넣지 않는다(D7) — Shift+Enter 만 줄바꿈이다.
+        event.preventDefault();
         const value = input.value.trim();
         if (value) callbacks.onSubmitCustom(value);
       }
@@ -649,16 +818,31 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
     row.appendChild(back);
     row.appendChild(input);
     dom.appendChild(row);
+    customInput = input;
     input.focus();
   };
 
   const setMode = (next: 'presets' | 'custom-input'): void => {
     mode = next;
-    if (next === 'presets') renderPresets();
-    else renderCustomInput();
+    // 직접 입력 상태에서만 폭 확대 수식 클래스를 붙인다(D8). 목록으로 돌아가면 인라인 폭도 지운다.
+    dom.classList.toggle(CUSTOM_MENU_CLASS, next === 'custom-input');
+    if (next === 'presets') {
+      customInput = null;
+      dom.style.width = '';
+      renderPresets();
+    } else {
+      renderCustomInput();
+    }
+    // 크기가 바뀌었으므로 위치(세로·가로·폭·상한)를 다음 프레임에 다시 계산한다(D5).
+    if (anchorEl) scheduleMenuFlipMeasurement(dom, anchorEl, customHooks);
   };
 
   const handleKeyDown = (event: KeyboardEvent): void => {
+    // @MX:WARN: [AUTO] IME 조합 중 Escape/Enter 는 아무 것도 하지 않는다 — textarea keydown 과 같은 가드.
+    // @MX:REASON: [AUTO] Escape 는 textarea 에서 이 루트로 버블링되므로 루트에도 가드가 필요하다.
+    //   조합 취소용 Escape 가 직접 입력 상태를 닫으면 한글 입력이 끊긴다(SPEC-AI-015 D6).
+    // @MX:SPEC: SPEC-AI-015
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key !== 'Escape') return;
     // SPEC-AI-008: 서브메뉴가 열려 있으면 서브메뉴만 닫고 목록으로 복귀(툴바 유지, REQ-011).
     if (diagramSubmenu) {
@@ -680,7 +864,7 @@ export function createPresetMenu(options: PresetMenuOptions): PresetMenuHandle {
 
   // BUG-9: 앵커가 뷰포트 아래쪽에 있어 아래로 열 공간이 부족하면 위로 뒤집는다. 호출자가
   // dom 을 문서에 붙인 뒤 레이아웃이 커밋될 다음 프레임에 측정한다.
-  if (anchorEl) scheduleMenuFlipMeasurement(dom, anchorEl);
+  if (anchorEl) scheduleMenuFlipMeasurement(dom, anchorEl, customHooks);
 
   return {
     dom,
