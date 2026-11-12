@@ -17,8 +17,7 @@ import { syntaxTree } from '@codemirror/language';
 import { aiRequest, aiCancel, ipcErrorMessage } from '@/lib/tauri/ipc';
 import type { AiRequestArgs } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
-import { useUIStore } from '@/store/uiStore';
-import { resolveModel } from '@/components/settings/SettingsModal';
+import { useUIStore, currentAiModels } from '@/store/uiStore';
 import { getEffectiveAiEnabled, resolveProviderId } from '@/store/aiPolicy';
 import { WAIT_NOTICE_DELAY_MS, WAIT_NOTICE_TEXT } from '@/lib/ai/waitNotice';
 import { isEmptyOrIdentical } from '@/components/editor/extensions/ai-suggestion-card';
@@ -487,6 +486,16 @@ function armGhostWaitNotice(view: EditorView): void {
 let lastGhostTrigger: Omit<AiRequestArgs, 'requestId'> | null = null;
 
 /**
+ * invoke 거부(예: 허용 목록 밖 모델)를 처리한다. 고스트 경로는 상태 구독이 error 에서 고스트만 지우므로
+ * 이유를 상태 표시줄에도 띄운다(SPEC-AI-014 REQ-AI14-018).
+ */
+function reportGhostRequestFailure(e: unknown): void {
+  const message = ipcErrorMessage(e);
+  useAiStore.getState().failRequest({ kind: 'other', message });
+  useUIStore.getState().setStatusMessage(message);
+}
+
+/**
  * 완료(done) 상태의 고스트에서 ↻를 실행 — 마지막 트리거 인자를 재사용해 새 requestId 로
  * 동일 종류의 요청을 다시 발행한다(D5, 카드 fireReRequest 와 동일 의미론). streaming 중이거나
  * 보관된 인자가 없으면 false.
@@ -506,9 +515,7 @@ export function reRequestGhost(view: EditorView): boolean {
   });
   armGhostWaitNotice(view);
 
-  void aiRequest({ requestId, ...lastGhostTrigger, providerId: resolveProviderId() }).catch((e) =>
-    useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
-  );
+  void aiRequest({ requestId, ...lastGhostTrigger, providerId: resolveProviderId() }).catch(reportGhostRequestFailure);
   return true;
 }
 
@@ -566,18 +573,15 @@ export const startSectionFillCommand: Command = (view) => {
   // 1.5K자 상한 절단은 백엔드가 수행하므로 프론트는 커서 앞 원문을 그대로 넘긴다(설계 §7). presetKind·selection 없음.
   // 섹션 채우기는 continue 가 아니므로 length 를 싣지 않는다(REQ-AI6-014).
   // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
-  const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
-    model,
+    models: currentAiModels(),
     outline: ctx.outline.join('\n'),
     contextBefore: view.state.sliceDoc(0, head),
     providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
-  void aiRequest({ requestId, ...requestArgs }).catch((e) =>
-    useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
-  );
+  void aiRequest({ requestId, ...requestArgs }).catch(reportGhostRequestFailure);
   return true;
 };
 
@@ -600,22 +604,19 @@ export const startContinueWritingCommand: Command = (view) => {
   });
   armGhostWaitNotice(view);
 
-  const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   // SPEC-AI-006 REQ-AI6-013: 이어쓰기(continue) 발행부 — 지속 설정 길이를 실어 보낸다.
   // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     presetKind: 'continue',
-    model,
+    models: currentAiModels(),
     outline: ctx.outline.join('\n'),
     contextBefore: ctx.contextBefore,
     length: useUIStore.getState().aiContinueLength,
     providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
-  void aiRequest({ requestId, ...requestArgs }).catch((e) =>
-    useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
-  );
+  void aiRequest({ requestId, ...requestArgs }).catch(reportGhostRequestFailure);
   return true;
 };
 
@@ -638,13 +639,12 @@ export const startFreeContinueWritingCommand: Command = (view) => {
   });
   armGhostWaitNotice(view);
 
-  const model = resolveModel(useUIStore.getState().aiAdvancedModel);
   // SPEC-AI-006 REQ-AI6-013: 이어쓰기(continue) 발행부 — 지속 설정 길이를 실어 보낸다.
   // SPEC-AI-009 REQ-AI9-003: 현재 선택된 provider(auto/claude/codex)를 실어 라우팅한다.
   const requestArgs: Omit<AiRequestArgs, 'requestId'> = {
     feature: 'section-fill',
     presetKind: 'continue',
-    model,
+    models: currentAiModels(),
     outline: ctx.outline.join('\n'),
     contextBefore: ctx.contextBefore,
     contextAfter: ctx.contextAfter,
@@ -652,9 +652,7 @@ export const startFreeContinueWritingCommand: Command = (view) => {
     providerId: resolveProviderId(),
   };
   lastGhostTrigger = requestArgs;
-  void aiRequest({ requestId, ...requestArgs }).catch((e) =>
-    useAiStore.getState().failRequest({ kind: 'other', message: ipcErrorMessage(e) }),
-  );
+  void aiRequest({ requestId, ...requestArgs }).catch(reportGhostRequestFailure);
   return true;
 };
 

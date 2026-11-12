@@ -142,7 +142,7 @@ function makeRequest(
       requestId,
       feature: 'inline-edit',
       presetKind,
-      model: 'haiku',
+      models: { claude: 'haiku', codex: null },
       selection,
       contextBefore: '',
       contextAfter: '',
@@ -206,7 +206,7 @@ describe('SPEC-AI-013 카드 통합', () => {
       expect(c.getState().errorMessage).toBe(BACKSTOP_ERROR_TEXT);
 
       // 오류 카드의 [다시 시도](exempt 재요청) → 같은 규칙으로 재무장
-      c.getRenderInput().callbacks.onReRequest('', 'haiku', 'exempt');
+      c.getRenderInput().callbacks.onReRequest('', 'exempt');
       expect(c.getState().phase).toBe('streaming');
       vi.advanceTimersByTime(112_999);
       expect(c.getState().phase).toBe('streaming');
@@ -322,7 +322,7 @@ describe('SPEC-AI-013 카드 통합', () => {
         selection: sel,
         contextBefore: '',
         contextAfter: '',
-        model: 'haiku',
+        models: { claude: 'haiku', codex: null },
         presetKind: 'polish',
       });
       expect(req.args.selection).toBe(sel);

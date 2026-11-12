@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { aiDetectProviders, aiPolicyStatus } from '@/lib/tauri/ipc';
-import type { AiProviderStatus, AiPolicyStatus, AiModel } from '@/lib/tauri/ipc';
+import type { AiProviderStatus, AiPolicyStatus } from '@/lib/tauri/ipc';
 import { useUIStore } from '@/store/uiStore';
 
 /** AI 도구 연결 상태(설계 §8.2 상태별 동작). */
@@ -40,12 +40,6 @@ export function detectOs(ua: string = navigator.userAgent): 'windows' | 'macos' 
   if (s.includes('win')) return 'windows';
   if (s.includes('mac')) return 'macos';
   return 'linux';
-}
-
-// @MX:NOTE: 기본 haiku, "고급 모델" 토글 시 sonnet(설계 §8.2, REQ-AI-016). ↻ 3회 단발 폴백과 독립.
-/** 고급 모델 토글 값을 실제 모델 id 로 환원한다. */
-export function resolveModel(advanced: boolean): AiModel {
-  return advanced ? 'sonnet' : 'haiku';
 }
 
 interface SettingsModalProps {
@@ -191,8 +185,12 @@ function AiSection({ state, providers, onStartOnboarding }: AiSectionProps): JSX
           />
         ))}
       </div>
+      <div role="group" aria-label="AI 모델" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--md-space-2)' }}>
+        {providers.filter((p) => isKnownProviderId(p.id)).map((p) => (
+          <ModelSelect key={p.id} provider={p} policyLocked={policyLocked} />
+        ))}
+      </div>
       <AiEnabledToggle disabled={policyLocked} />
-      <AdvancedModelToggle disabled={policyLocked} providers={providers} />
       <ContinueLengthToggle disabled={policyLocked} />
     </div>
   );
@@ -233,7 +231,7 @@ function NoticeBanner(): JSX.Element | null {
 }
 
 // @MX:SPEC: SPEC-AI-005 REQ-AI5-004 REQ-AI5-005 REQ-AI5-006
-// @MX:NOTE: AI 기능 전체 켜기/끄기 토글(SPEC-AI-005) — AdvancedModelToggle 과 동일한 disabled+🔒
+// @MX:NOTE: AI 기능 전체 켜기/끄기 토글(SPEC-AI-005) — 다른 AI 토글과 동일한 disabled+🔒
 // 정책 잠금 관례를 따른다. onChange 는 setAiEnabled 로만 반영하고, ON→OFF 전이의 취소·정리
 // 부수효과는 aiOffEffects.ts 의 store subscribe 가 별도로 담당한다(관심사 분리, D3).
 /** AI 기능 사용자 켜기/끄기 토글. 정책 잠금 시 disabled + 자물쇠 표기(REQ-AI5-005). */
@@ -265,61 +263,26 @@ function AiEnabledToggle({ disabled }: { disabled: boolean }): JSX.Element {
   );
 }
 
-// @MX:SPEC: SPEC-AI-009 REQ-AI9-048 REQ-AI9-049 REQ-AI9-053
-// @MX:NOTE: [AUTO] 고급 티어 표시는 백엔드가 내려준 advancedModelLabel 을 그대로 감싸 렌더한다
-//   (REQ-AI9-048). 프론트에 provider id → 모델명 리터럴 테이블을 두지 않으며, 필드가 부재·빈
-//   값이면 기존 providerDisplayName 기반 폴백으로만 강등한다(REQ-AI9-053).
-/** 'auto' 를 감지 배열에서 selectable 인 첫 provider 로 해석하고, 그 외는 id 로 직접 조회한다. */
-function findEffectiveAdvancedProvider(
-  providers: AiProviderStatus[],
-  selected: 'auto' | 'claude' | 'codex',
-): AiProviderStatus | undefined {
-  if (selected === 'auto') {
-    return providers.find((p) => deriveProviderRowState(p).selectable);
-  }
-  return providers.find((p) => p.id === selected);
-}
-
-/**
- * 고급 모델 토글의 라벨/aria-label 텍스트를 파생한다(순수, AC-AI9-030).
- * 우선순위: 유효 provider 의 advancedModelLabel(비어있지 않음) → providerDisplayName 기반
- * 폴백({표시명} 고급 티어) → 유효 provider 자체가 없으면 중립 문구.
- */
-export function deriveAdvancedModelLabel(
-  providers: AiProviderStatus[],
-  selected: 'auto' | 'claude' | 'codex',
-): { text: string; ariaLabel: string } {
-  const effective = findEffectiveAdvancedProvider(providers, selected);
-  let content = '';
-  if (effective) {
-    const raw = effective.advancedModelLabel;
-    content = raw && raw.trim() !== '' ? raw : `${providerDisplayName(effective.id)} 고급 티어`;
-  }
-  if (content) {
-    return {
-      text: `고급 모델 사용 (${content} — 더 정확, 더 느림)`,
-      ariaLabel: `고급 모델 사용 (${content})`,
-    };
-  }
-  return {
-    text: '고급 모델 사용 (더 정확, 더 느림)',
-    ariaLabel: '고급 모델 사용',
-  };
-}
-
-/** 고급 모델 사용 토글. 라벨은 백엔드 공급 advancedModelLabel 을 그대로 렌더한다(REQ-AI9-048). */
-function AdvancedModelToggle({
-  disabled,
-  providers,
+// @MX:SPEC: SPEC-AI-014 REQ-AI14-003 REQ-AI14-006
+// @MX:NOTE: [AUTO] 도구별 모델 드롭다운. 선택지는 백엔드가 내려준 provider.models 만 쓴다(프런트에 모델
+//   이름 목록 없음, REQ-AI14-002). 첫 선택지 "CLI 기본값"은 null 이고, 저장값이 목록에 없으면 값을
+//   바꾸지 않은 채 "(목록에 없음)" 선택지로 보여 준다(REQ-AI14-006) — 요청 시 백엔드가 거부하고 안내한다.
+/** 도구 1개의 모델 드롭다운. 정책 잠금이거나 도구를 쓸 수 없으면 비활성. */
+function ModelSelect({
+  provider,
+  policyLocked,
 }: {
-  disabled: boolean;
-  providers: AiProviderStatus[];
+  provider: AiProviderStatus;
+  policyLocked: boolean;
 }): JSX.Element {
-  const advanced = useUIStore((s) => s.aiAdvancedModel);
-  const setAdvanced = useUIStore((s) => s.setAiAdvancedModel);
-  const selected = useUIStore((s) => s.aiSelectedProvider);
-
-  const { text, ariaLabel } = deriveAdvancedModelLabel(providers, selected);
+  const toolId = provider.id as 'claude' | 'codex';
+  const stored = useUIStore((s) => s.aiModels[toolId]);
+  const setModel = useUIStore((s) => s.setAiModel);
+  const { selectable } = deriveProviderRowState(provider);
+  const disabled = policyLocked || !selectable;
+  const name = toolId === 'claude' ? 'Claude' : 'Codex';
+  const options = provider.models ?? [];
+  const missing = stored !== null && !options.some((m) => m.id === stored);
 
   return (
     <label
@@ -329,24 +292,32 @@ function AdvancedModelToggle({
         gap: 'var(--md-space-2)',
         fontSize: 13,
         color: disabled ? 'var(--md-text-faint)' : 'var(--md-text-primary)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
       }}
     >
-      <input
-        type="checkbox"
-        aria-label={ariaLabel}
-        checked={advanced}
+      <span>{name} 모델</span>
+      <select
+        aria-label={`${name} 모델`}
+        value={stored ?? ''}
         disabled={disabled}
-        onChange={(e) => setAdvanced(e.target.checked)}
-      />
-      {text}
-      {disabled ? ' 🔒' : ''}
+        onChange={(e) => {
+          if (!disabled) setModel(toolId, e.target.value === '' ? null : e.target.value);
+        }}
+      >
+        <option value="">CLI 기본값</option>
+        {options.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label}
+          </option>
+        ))}
+        {missing && <option value={stored}>{stored} (목록에 없음)</option>}
+      </select>
+      {policyLocked ? ' 🔒' : ''}
     </label>
   );
 }
 
 // @MX:SPEC: SPEC-AI-006 REQ-AI6-012
-// @MX:NOTE: 이어쓰기 길이 옵션 토글 — AdvancedModelToggle 과 동일한 disabled+🔒 정책 잠금 관례를
+// @MX:NOTE: 이어쓰기 길이 옵션 토글 — 다른 AI 토글과 동일한 disabled+🔒 정책 잠금 관례를
 // 따른다. onChange 는 setAiContinueLength 로만 반영한다(uiStore persist, 기본 'normal').
 /** 이어쓰기(continue) 길이 옵션 토글(짧게/보통). 정책 잠금 시 disabled + 자물쇠 표기. */
 function ContinueLengthToggle({ disabled }: { disabled: boolean }): JSX.Element {

@@ -30,7 +30,7 @@ function makeRequest(overrides: Partial<StartCardRequest['args']> = {}): StartCa
       requestId: 'render-1',
       feature: 'inline-edit',
       presetKind: 'polish',
-      model: 'haiku',
+      models: { claude: 'haiku', codex: null },
       selection: 'hello',
       contextBefore: '',
       contextAfter: '',

@@ -62,7 +62,7 @@ describe('card wait notice (REQ-AI6-007/008/009)', () => {
         requestId: 'wait-1',
         feature: 'inline-edit',
         presetKind: 'polish',
-        model: 'haiku',
+        models: { claude: 'haiku', codex: null },
         selection: 'hello',
         contextBefore: '',
         contextAfter: '',

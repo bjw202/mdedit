@@ -53,7 +53,7 @@ beforeEach(async () => {
   const { useAiStore, idleSlice } = await import('@/store/aiStore');
   useAiStore.setState({ ...idleSlice, sessionRequestCount: 0 });
   const { useUIStore } = await import('@/store/uiStore');
-  useUIStore.setState({ aiAdvancedModel: false });
+  useUIStore.setState({ aiModels: { claude: 'haiku', codex: null } });
 });
 
 describe('getContinueBlockGate: syntaxTree 배제 판정 (REQ-AI3-003, 004)', () => {

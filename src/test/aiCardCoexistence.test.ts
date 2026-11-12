@@ -61,7 +61,7 @@ function makeRequest(requestId: string, from: number, to: number, original: stri
       requestId,
       feature: 'inline-edit',
       presetKind: 'polish',
-      model: 'haiku',
+      models: { claude: 'haiku', codex: null },
       selection: original,
       contextBefore: '',
       contextAfter: '',
@@ -120,7 +120,7 @@ describe('SPEC-AI-010 모듈 2: 카드 공존(이벤트 라우팅)', () => {
     const { a, b } = setupTwoCards();
 
     // 카드 A 의 ↻ 다시 → in-flight 슬롯이 A' 로 이동한다.
-    a.getRenderInput().callbacks.onReRequest('다시', 'haiku');
+    a.getRenderInput().callbacks.onReRequest('다시');
     expect(a.getState().phase).toBe('streaming');
     const reRequestId = (aiRequestMock.mock.calls[0][0] as { requestId: string }).requestId;
     expect(useAiStore.getState().requestId).toBe(reRequestId);
@@ -140,7 +140,7 @@ describe('SPEC-AI-010 모듈 2: 카드 공존(이벤트 라우팅)', () => {
 
   it('AC-AI10-007: 카드 A 의 백스톱 발동이 카드 B·문서·취소 IPC 에 영향을 주지 않는다', () => {
     const { a, b } = setupTwoCards();
-    a.getRenderInput().callbacks.onReRequest('다시', 'haiku');
+    a.getRenderInput().callbacks.onReRequest('다시');
     emit('ai://chunk', { requestId: 'req-B', text: '첫 조각 완성' });
     emit('ai://done', { requestId: 'req-B', result: '첫 조각 완성', truncated: false });
     expect(b.getState().phase).toBe('done');

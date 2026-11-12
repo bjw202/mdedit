@@ -1,7 +1,8 @@
 // @MX:SPEC: SPEC-AI-005 REQ-AI5-013 REQ-AI5-014
 // @MX:NOTE: 정책 캐시 + effective 셀렉터 — SettingsModal 이 아닌 독립 모듈에 배치한다.
-// ai-ghost-text.ts 가 SettingsModal 의 resolveModel 을 import 하므로, 이 셀렉터를 SettingsModal
-// 에 두면 ai-ghost-text.ts → SettingsModal 순환 import 가 발생한다(research.md §6, plan.md D2/D3).
+// ai-ghost-text.ts 등 에디터 확장이 이 셀렉터를 import 하므로, SettingsModal(React 컴포넌트)에 두면
+// 에디터 확장 → 설정 모달 방향의 의존이 생긴다(research.md §6, plan.md D2/D3). SPEC-AI-014 이후
+// 모델 읽기 함수가 설정 모달을 떠났지만 이 배치 이유(확장이 UI 컴포넌트를 import 하지 않는다)는 그대로다.
 
 import { useUIStore } from './uiStore';
 

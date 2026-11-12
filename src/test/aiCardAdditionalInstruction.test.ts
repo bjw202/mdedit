@@ -1,6 +1,6 @@
 // @MX:SPEC: SPEC-AI-012 REQ-AI12-008 REQ-AI12-012
 // AC-AI12-015 — ↻ 재요청 지시를 새 IPC 필드 additionalInstruction 으로 싣고, 원래 직접 입력 지시
-// (customInstruction)는 원본 값 그대로 승계하는지, 복구용 재요청 3곳은 지시를 싣지 않는지 고정한다.
+// (customInstruction)는 원본 값 그대로 승계하는지, 복구용 재요청 2곳은 지시를 싣지 않는지 고정한다.
 //
 // TDD RED phase(수정 전 작성): 현행 배선은 fireReRequest(args, { customInstruction: instruction })
 // 로 customInstruction 을 덮어써 원래 직접 입력 지시가 사라지고, 프리셋에서는 지시가 서버에서 버려진다.
@@ -75,7 +75,7 @@ describe('SPEC-AI-012: 카드 재요청의 additionalInstruction 배선', () => 
         requestId: 'orig-1',
         feature: 'inline-edit',
         presetKind: 'polish',
-        model: 'haiku',
+        models: { claude: 'haiku', codex: null },
         selection: 'hello',
         contextBefore: '앞 문맥',
         contextAfter: '뒤 문맥',
@@ -188,7 +188,7 @@ describe('SPEC-AI-012: 카드 재요청의 additionalInstruction 배선', () => 
     expect(sent.additionalInstruction).toContain('다른 방식으로');
   });
 
-  describe('7. 복구용 재요청 3곳은 추가 지시를 싣지 않는다', () => {
+  describe('7. 복구용 재요청 2곳은 추가 지시를 싣지 않는다', () => {
     const custom = {
       feature: 'inline-edit' as const,
       presetKind: 'custom',
@@ -215,24 +215,6 @@ describe('SPEC-AI-012: 카드 재요청의 additionalInstruction 배선', () => 
       const sent = lastSent();
       expect(sent.additionalInstruction).toBeUndefined();
       expect(sent.customInstruction).toBe(ORIGINAL_INSTRUCTION);
-    });
-
-    it('소진 카드 "⚡ 고급 모델로 다시 시도"', () => {
-      const controller = startSuggestionCard(makeRequest(custom));
-      complete('orig-1', SUGGESTION);
-      for (let i = 0; i < 3; i++) {
-        click('.mdedit-ai-retry');
-        complete(lastSent().requestId, SUGGESTION);
-      }
-      click('.mdedit-ai-retry');
-      expect(controller.getState().phase).toBe('retry-exhausted');
-      const before = aiRequestMock.mock.calls.length;
-      click('.mdedit-ai-advanced');
-      expect(aiRequestMock).toHaveBeenCalledTimes(before + 1);
-      const sent = lastSent();
-      expect(sent.additionalInstruction).toBeUndefined();
-      expect(sent.customInstruction).toBe(ORIGINAL_INSTRUCTION);
-      expect(sent.model).toBe('sonnet');
     });
   });
 });

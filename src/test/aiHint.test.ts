@@ -40,7 +40,7 @@ beforeEach(async () => {
   const { useAiStore, idleSlice } = await import('@/store/aiStore');
   useAiStore.setState({ ...idleSlice, sessionRequestCount: 0 });
   const { useUIStore } = await import('@/store/uiStore');
-  useUIStore.setState({ aiAdvancedModel: false });
+  useUIStore.setState({ aiModels: { claude: 'haiku', codex: null } });
   vi.useFakeTimers();
 });
 

@@ -175,7 +175,7 @@ describe('AiSuggestionCardController: store-driven transitions', () => {
       range: { from: 0, to: 5 },
       originalText: 'hello',
       insertOnly: false,
-      model: 'haiku' as const,
+      models: { claude: 'haiku', codex: null },
     };
     const ctrl = new AiSuggestionCardController(model, {
       onApply: vi.fn(),
@@ -203,7 +203,6 @@ describe('AiSuggestionCardController: store-driven transitions', () => {
         range: { from: 0, to: 1 },
         originalText: 'x',
         insertOnly: false,
-        model: 'haiku',
       },
       { onApply: vi.fn(), onCancel: vi.fn(), onReRequest: vi.fn(), onListFallback: vi.fn() },
     );
@@ -224,7 +223,7 @@ describe('toolbar → card seam: request carries the range, card binds + applies
       selection: 'hello',
       contextBefore: '',
       contextAfter: '',
-      model: 'haiku',
+      models: { claude: 'haiku', codex: null },
       from: 6,
       to: 11,
       originalText: 'hello',
@@ -236,7 +235,7 @@ describe('toolbar → card seam: request carries the range, card binds + applies
   it('startSuggestionCard binds the active controller to the request range', async () => {
     const card = await import('@/components/editor/extensions/ai-suggestion-card');
     const ctrl = card.startSuggestionCard({
-      args: { requestId: 'sc1', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'hello' },
+      args: { requestId: 'sc1', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'hello' },
       insertOnly: false,
       range: { from: 6, to: 11 },
       originalText: 'hello',
@@ -251,7 +250,7 @@ describe('toolbar → card seam: request carries the range, card binds + applies
     const { view, getDoc } = createApplyView('intro hello outro', 6, 11);
     card.setActiveEditorView(view);
     const ctrl = card.startSuggestionCard({
-      args: { requestId: 'sc2', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'hello' },
+      args: { requestId: 'sc2', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'hello' },
       insertOnly: false,
       range: { from: 6, to: 11 },
       originalText: 'hello',
@@ -266,7 +265,7 @@ describe('toolbar → card seam: request carries the range, card binds + applies
     const { view, getDoc } = createApplyView('intro hello outro', 6, 11);
     card.setActiveEditorView(view);
     const ctrl = card.startSuggestionCard({
-      args: { requestId: 'sc3', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'hello' },
+      args: { requestId: 'sc3', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'hello' },
       insertOnly: false,
       range: { from: 6, to: 11 },
       originalText: 'hello',
@@ -289,7 +288,7 @@ describe('card registry: review cards survive new requests (§3, REQ-AI-034)', (
     card.setActiveEditorView(view);
 
     const c1 = card.startSuggestionCard({
-      args: { requestId: 'rev-a', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'hello' },
+      args: { requestId: 'rev-a', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'hello' },
       insertOnly: false,
       range: { from: 6, to: 11 },
       originalText: 'hello',
@@ -298,7 +297,7 @@ describe('card registry: review cards survive new requests (§3, REQ-AI-034)', (
 
     // New request arrives while c1 is under review.
     const c2 = card.startSuggestionCard({
-      args: { requestId: 'rev-b', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'int' },
+      args: { requestId: 'rev-b', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'int' },
       insertOnly: false,
       range: { from: 0, to: 3 },
       originalText: 'int',
@@ -318,7 +317,7 @@ describe('card registry: review cards survive new requests (§3, REQ-AI-034)', (
     const card = await import('@/components/editor/extensions/ai-suggestion-card');
     card.clearCardRegistry();
     const c1 = card.startSuggestionCard({
-      args: { requestId: 'sf-a', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'x' },
+      args: { requestId: 'sf-a', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'x' },
       insertOnly: false,
       range: { from: 0, to: 1 },
       originalText: 'x',
@@ -326,7 +325,7 @@ describe('card registry: review cards survive new requests (§3, REQ-AI-034)', (
     expect(c1.getState().phase).toBe('streaming');
 
     card.startSuggestionCard({
-      args: { requestId: 'sf-b', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'y' },
+      args: { requestId: 'sf-b', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'y' },
       insertOnly: false,
       range: { from: 2, to: 3 },
       originalText: 'y',
@@ -338,14 +337,14 @@ describe('card registry: review cards survive new requests (§3, REQ-AI-034)', (
     const card = await import('@/components/editor/extensions/ai-suggestion-card');
     card.clearCardRegistry();
     const c1 = card.startSuggestionCard({
-      args: { requestId: 'two-a', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'hello' },
+      args: { requestId: 'two-a', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'hello' },
       insertOnly: false,
       range: { from: 6, to: 11 },
       originalText: 'hello',
     });
     c1.onComplete('A'); // review, so it survives
     card.startSuggestionCard({
-      args: { requestId: 'two-b', feature: 'inline-edit', presetKind: 'polish', model: 'haiku', selection: 'int' },
+      args: { requestId: 'two-b', feature: 'inline-edit', presetKind: 'polish', models: { claude: 'haiku', codex: null }, selection: 'int' },
       insertOnly: false,
       range: { from: 0, to: 3 },
       originalText: 'int',

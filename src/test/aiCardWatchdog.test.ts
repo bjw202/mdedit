@@ -101,7 +101,7 @@ describe('SPEC-AI-010 모듈 2: 프론트 백스톱', () => {
         requestId,
         feature: 'inline-edit',
         presetKind: 'polish',
-        model: 'haiku',
+        models: { claude: 'haiku', codex: null },
         selection: 'hello',
         contextBefore: '',
         contextAfter: '',
@@ -182,11 +182,11 @@ describe('SPEC-AI-010 모듈 2: 프론트 백스톱', () => {
     const controller = startCard();
     const half = Math.floor(FRONTEND_BACKSTOP_DELAY_MS / 2);
 
-    controller.getRenderInput().callbacks.onReRequest('다시', 'haiku');
+    controller.getRenderInput().callbacks.onReRequest('다시');
     vi.advanceTimersByTime(half);
     expect(controller.getState().phase).toBe('streaming');
 
-    controller.getRenderInput().callbacks.onReRequest('다시', 'haiku');
+    controller.getRenderInput().callbacks.onReRequest('다시');
     vi.advanceTimersByTime(half);
     expect(controller.getState().phase).toBe('streaming');
   });

@@ -11,12 +11,12 @@ import type { Extension } from '@codemirror/state';
 import { evaluateSelectionGuard, formatCharCount, EDIT_LIMIT } from './ai-length-guard';
 import type { AiPresetKind } from './ai-length-guard';
 import { aiRequest, ipcErrorMessage } from '@/lib/tauri/ipc';
-import type { AiModel, AiRequestArgs, DiagramType } from '@/lib/tauri/ipc';
+import type { AiModelSelection, AiRequestArgs, DiagramType } from '@/lib/tauri/ipc';
 import type { AiFeature } from '@/store/aiStore';
 import { DIAGRAM_ICON_INNER } from '@/components/icons/diagramIconMarkup';
 import { getClipBoundary, computeFlyoutOffset } from '@/lib/ui/menuPlacement';
 import { useAiStore } from '@/store/aiStore';
-import { useUIStore } from '@/store/uiStore';
+import { useUIStore, currentAiModels } from '@/store/uiStore';
 import { getEffectiveAiEnabled, resolveProviderId } from '@/store/aiPolicy';
 import { expandToSentenceBoundary, startSuggestionCard } from './ai-suggestion-card';
 
@@ -26,12 +26,12 @@ export type { AiPresetKind } from './ai-length-guard';
 // Types
 // ============================================================
 
-/** 로그인·고급모델 판정에 필요한 최소 UI 상태(주입 가능). */
+/** 로그인·모델 선택 판정에 필요한 최소 UI 상태(주입 가능). */
 export interface AiToolbarUiState {
   /** false 면 ✨ 클릭 시 "연결 필요" 상태 표시(REQ-AI-015). */
   loggedIn: boolean;
-  /** true 면 sonnet, false 면 haiku(REQ-AI-016). */
-  advancedModel: boolean;
+  /** 도구별 모델 선택 — 요청에 그대로 싣는다(SPEC-AI-014 REQ-AI14-007). */
+  models: AiModelSelection;
   /**
    * effectiveAiEnabled(SPEC-AI-005 REQ-AI5-013) — false 면 ✨ 데코레이션 자체를 렌더하지
    * 않는다(REQ-AI5-007). 생략 시(undefined) 하위호환을 위해 true 로 취급한다.
@@ -74,7 +74,7 @@ export interface BuildSelectionRequestInput {
   selection: string;
   contextBefore: string;
   contextAfter: string;
-  model: AiModel;
+  models: AiModelSelection;
   customInstruction?: string;
   /** 카드 적용 대상 범위(문장 경계 확장 반영). 생략 시 [0, selection.length]. */
   from?: number;
@@ -165,19 +165,6 @@ export function presetToFeature(kind: AiPresetKind): AiFeature {
   return kind === 'diagram' ? 'diagram' : 'inline-edit';
 }
 
-// @MX:WARN: [AUTO] 이름 충돌 — 이 저장소에는 export 된 resolveModel 이 두 개 있고 시그니처가 다르다.
-//   · 여기(ai-selection-toolbar.ts): resolveModel(uiState: AiToolbarUiState) — ✨ 툴바 전용, 호출처 1곳(아래 fire()).
-//   · src/components/settings/SettingsModal.tsx: resolveModel(advanced: boolean) — ai-ghost-text.ts 가
-//     import 해 3곳에서 호출한다.
-//   두 함수는 서로 import 관계가 없다. 이름만 보고 한쪽을 고치면 다른 쪽은 그대로 남아 고스트/툴바의
-//   모델 선택이 갈라진다. 통합·개명은 하지 말고(호출 계약이 다름) 양쪽을 함께 확인할 것.
-// @MX:REASON: [AUTO] grep 한 번으로 두 정의의 호출처가 합산돼 fan_in 이 부풀고, 한쪽만 수정하면
-//   나머지 경로는 조용히 옛 동작을 유지한다 — 타입이 달라 컴파일 오류로도 드러나지 않는다.
-/** 고급 모델 토글 → 모델(REQ-AI-016). */
-export function resolveModel(uiState: AiToolbarUiState): AiModel {
-  return uiState.advancedModel ? 'sonnet' : 'haiku';
-}
-
 // @MX:ANCHOR: [AUTO] Rust 쪽 ai_request 로 넘어가는 인자 조립 지점 — 프런트/백엔드 경계의 단일 통로다.
 //   불변식 3가지: (1) input.selection 은 절대 절단하지 않고 그대로 args.selection 에 싣는다(REQ-AI-027).
 //   (2) range/originalText 는 카드가 [바꾸기] 직전 문서와 대조할 스냅샷이므로 선택 시점 값이어야 한다
@@ -196,7 +183,7 @@ export function buildSelectionRequest(input: BuildSelectionRequestInput): AiSele
     requestId: input.requestId,
     feature: presetToFeature(input.presetKind),
     presetKind: input.presetKind,
-    model: input.model,
+    models: input.models,
     selection: input.selection,
     contextBefore: input.contextBefore,
     contextAfter: input.contextAfter,
@@ -774,14 +761,14 @@ export class AiSparkleWidget extends WidgetType {
     ): void => {
       const sel = this.ctx.getSelection();
       if (!sel) return;
-      const model = resolveModel(this.ctx.getUiState());
+      const { models } = this.ctx.getUiState();
       const req = buildSelectionRequest({
         requestId: generateRequestId(),
         presetKind,
         selection: sel.text,
         contextBefore: sel.contextBefore,
         contextAfter: sel.contextAfter,
-        model,
+        models,
         customInstruction,
         diagramType,
         from: sel.from,
@@ -850,18 +837,14 @@ export class AiSparkleWidget extends WidgetType {
 // Extension factory
 // ============================================================
 
-/** uiStore 에서 로그인·고급모델 상태를 읽는 기본 구현. 로그인 감지 배선은 후속(T-018). */
+/** uiStore 에서 로그인·모델 선택 상태를 읽는 기본 구현. 로그인 감지 배선은 후속(T-018). */
 const defaultGetUiState: GetUiState = () => {
-  const ui = useUIStore.getState() as unknown as {
-    aiLoggedIn?: boolean;
-    aiAdvancedModel?: boolean;
-  };
+  const ui = useUIStore.getState() as unknown as { aiLoggedIn?: boolean };
   return {
     // 감지 스토어는 후속 태스크에서 붙는다 — 그전까지는 사용 가능으로 가정하고, 실제 게이팅은
-    // 주입된 getUiState 로 수행한다(테스트가 양쪽 분기를 검증). advancedModel 은 T-011 이 uiStore 에
-    // 추가하는 aiAdvancedModel 토글을 읽는다.
+    // 주입된 getUiState 로 수행한다(테스트가 양쪽 분기를 검증).
     loggedIn: ui.aiLoggedIn !== false,
-    advancedModel: ui.aiAdvancedModel === true,
+    models: currentAiModels(),
     // SPEC-AI-005: effectiveAiEnabled = !policyDisabled && userAiEnabled(REQ-AI5-013).
     enabled: getEffectiveAiEnabled(),
   };

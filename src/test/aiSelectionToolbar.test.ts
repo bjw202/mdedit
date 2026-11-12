@@ -94,29 +94,13 @@ describe('presetToFeature: preset → AiFeature mapping', () => {
   });
 });
 
-describe('resolveModel: advanced-model toggle drives model selection', () => {
-  it('returns haiku by default (advanced off)', async () => {
-    const { resolveModel } = await import(
-      '@/components/editor/extensions/ai-selection-toolbar'
-    );
-    expect(resolveModel({ loggedIn: true, advancedModel: false })).toBe('haiku');
-  });
-
-  it('returns sonnet when the advanced model toggle is on', async () => {
-    const { resolveModel } = await import(
-      '@/components/editor/extensions/ai-selection-toolbar'
-    );
-    expect(resolveModel({ loggedIn: true, advancedModel: true })).toBe('sonnet');
-  });
-});
-
 describe('buildSelectionRequest: AiRequestArgs assembly + insertOnly metadata', () => {
   const base = {
     requestId: 'req-1',
     selection: 'hello',
     contextBefore: 'a ',
     contextAfter: ' b',
-    model: 'haiku' as const,
+    models: { claude: 'haiku', codex: null },
   };
 
   it('builds inline-edit args for the polish preset and omits customInstruction', async () => {
@@ -130,7 +114,8 @@ describe('buildSelectionRequest: AiRequestArgs assembly + insertOnly metadata', 
     expect(req.args.selection).toBe('hello');
     expect(req.args.contextBefore).toBe('a ');
     expect(req.args.contextAfter).toBe(' b');
-    expect(req.args.model).toBe('haiku');
+    expect(req.args.models).toEqual({ claude: 'haiku', codex: null });
+    expect('model' in req.args).toBe(false);
     expect(req.args.customInstruction).toBeUndefined();
     expect(req.insertOnly).toBe(false);
   });
@@ -171,12 +156,12 @@ describe('buildSelectionRequest: AiRequestArgs assembly + insertOnly metadata', 
     expect(req.args.selection).toHaveLength(7000);
   });
 
-  it('carries sonnet through when the advanced model is chosen', async () => {
+  it('carries the per-tool model selection through unchanged (SPEC-AI-014 AC-008)', async () => {
     const { buildSelectionRequest } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
-    const req = buildSelectionRequest({ ...base, presetKind: 'polish', model: 'sonnet' });
-    expect(req.args.model).toBe('sonnet');
+    const req = buildSelectionRequest({ ...base, presetKind: 'polish', models: { claude: 'opus', codex: 'm-a' } });
+    expect(req.args.models).toEqual({ claude: 'opus', codex: 'm-a' });
   });
 
   it('omits providerId by default (backward compat, SPEC-AI-009)', async () => {
@@ -748,7 +733,7 @@ describe('AiSparkleWidget: login gate and request firing (jsdom)', () => {
   function makeCtx(overrides: Record<string, unknown> = {}) {
     return {
       getSelection: () => ({ text: 'hello', contextBefore: 'a ', contextAfter: ' b' }),
-      getUiState: () => ({ loggedIn: true, advancedModel: false }),
+      getUiState: () => ({ loggedIn: true, models: { claude: 'haiku', codex: null } }),
       onRequest: vi.fn(),
       onConnectNeeded: vi.fn(),
       ...overrides,
@@ -760,7 +745,7 @@ describe('AiSparkleWidget: login gate and request firing (jsdom)', () => {
       '@/components/editor/extensions/ai-selection-toolbar'
     );
     const ctx = makeCtx({
-      getUiState: () => ({ loggedIn: false, advancedModel: false }),
+      getUiState: () => ({ loggedIn: false, models: { claude: 'haiku', codex: null } }),
     });
     const dom = new AiSparkleWidget(ctx as never, '0:5').toDOM();
     document.body.appendChild(dom);
@@ -797,17 +782,18 @@ describe('AiSparkleWidget: login gate and request firing (jsdom)', () => {
     const req = (ctx.onRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(req.args.feature).toBe('inline-edit');
     expect(req.args.presetKind).toBe('polish');
-    expect(req.args.model).toBe('haiku');
+    expect(req.args.models).toEqual({ claude: 'haiku', codex: null });
+    expect('model' in req.args).toBe(false);
     expect(req.args.selection).toBe('hello');
     expect(req.insertOnly).toBe(false);
   });
 
-  it('resolves the sonnet model through the widget when advanced is on', async () => {
+  it('passes the UI-state models through the widget fire() (AC-008)', async () => {
     const { AiSparkleWidget } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
     const ctx = makeCtx({
-      getUiState: () => ({ loggedIn: true, advancedModel: true }),
+      getUiState: () => ({ loggedIn: true, models: { claude: 'opus', codex: 'm-a' } }),
     });
     const dom = new AiSparkleWidget(ctx as never, '0:5').toDOM();
     document.body.appendChild(dom);
@@ -819,7 +805,8 @@ describe('AiSparkleWidget: login gate and request firing (jsdom)', () => {
       .dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     const req = (ctx.onRequest as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(req.args.model).toBe('sonnet');
+    expect(req.args.models).toEqual({ claude: 'opus', codex: 'm-a' });
+    expect('model' in req.args).toBe(false);
   });
 });
 
@@ -828,7 +815,7 @@ describe('AiSparkleWidget: in-flight pulse (SPEC-AI-002 REQ-AI2-008)', () => {
   function makeCtx(overrides: Record<string, unknown> = {}) {
     return {
       getSelection: () => ({ text: 'hello', contextBefore: 'a ', contextAfter: ' b' }),
-      getUiState: () => ({ loggedIn: true, advancedModel: false }),
+      getUiState: () => ({ loggedIn: true, models: { claude: 'haiku', codex: null } }),
       onRequest: vi.fn(),
       onConnectNeeded: vi.fn(),
       ...overrides,
@@ -1212,7 +1199,7 @@ describe('AiSparkleWidget: diagram type carried into onRequest (SPEC-AI-008)', (
         to: 5,
         originalText: 'hello',
       }),
-      getUiState: () => ({ loggedIn: true, advancedModel: false }),
+      getUiState: () => ({ loggedIn: true, models: { claude: 'haiku', codex: null } }),
       onRequest: vi.fn(),
       onConnectNeeded: vi.fn(),
       ...overrides,

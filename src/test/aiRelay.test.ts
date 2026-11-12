@@ -51,7 +51,7 @@ describe('ipc AI wrappers: command + arg passthrough', () => {
       requestId: 'req-1',
       feature: 'inline-edit' as const,
       presetKind: 'outline',
-      model: 'haiku' as const,
+      models: { claude: 'haiku', codex: null },
       selection: '문단1\n\n문단2',
       contextBefore: '앞',
       contextAfter: '뒤',
