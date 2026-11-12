@@ -399,14 +399,17 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
     menu.destroy();
   });
 
-  it('morphs into a one-line input when "직접 입력..." is chosen', async () => {
+  it('morphs into an auto-growing textarea when "직접 입력..." is chosen (SPEC-AI-015 REQ-001)', async () => {
     const { menu } = await build(100);
     const custom = menu.dom.querySelector<HTMLButtonElement>('[data-preset="custom"]')!;
     custom.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    const input = menu.dom.querySelector<HTMLInputElement>('.mdedit-ai-custom-input');
+    const input = menu.dom.querySelector<HTMLTextAreaElement>('.mdedit-ai-custom-input');
     expect(input).toBeTruthy();
+    expect(input!.tagName).toBe('TEXTAREA');
+    expect(input!.getAttribute('rows')).toBe('1');
     expect(input!.placeholder).toContain('영어로 번역');
+    expect(document.activeElement).toBe(input);
     // Preset list is gone while in custom-input mode.
     expect(menu.dom.querySelector('[data-preset="polish"]')).toBeNull();
     menu.destroy();
@@ -417,7 +420,7 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
     menu.dom
       .querySelector<HTMLButtonElement>('[data-preset="custom"]')!
       .dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    const input = menu.dom.querySelector<HTMLInputElement>('.mdedit-ai-custom-input')!;
+    const input = menu.dom.querySelector<HTMLTextAreaElement>('.mdedit-ai-custom-input')!;
     input.value = '  더 짧게  ';
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(callbacks.onSubmitCustom).toHaveBeenCalledWith('더 짧게');
@@ -429,7 +432,7 @@ describe('createPresetMenu: popover interaction (jsdom)', () => {
     menu.dom
       .querySelector<HTMLButtonElement>('[data-preset="custom"]')!
       .dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    const input = menu.dom.querySelector<HTMLInputElement>('.mdedit-ai-custom-input')!;
+    const input = menu.dom.querySelector<HTMLTextAreaElement>('.mdedit-ai-custom-input')!;
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
     expect(menu.dom.querySelector('[data-preset="polish"]')).toBeTruthy();
@@ -1262,5 +1265,355 @@ describe('AiSparkleWidget: diagram type carried into onRequest (SPEC-AI-008)', (
     document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     expect(dom.querySelector('.mdedit-ai-preset-menu')).toBeNull();
     expect(dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
+  });
+});
+
+// ============================================================
+// SPEC-AI-015: 직접 입력 칸 — 폭 확대 · 자동 높이 증가 textarea
+// ============================================================
+
+describe('computeCustomMenuWidth: 직접 입력 메뉴 폭 (SPEC-AI-015 D1, pure)', () => {
+  it.each([
+    [800, 0, null],
+    [348, 0, null],
+    [347, 0, 339],
+    [200, 100, 192],
+    [100, 250, 242],
+    [150, 100, 190],
+  ])('(%i, %i) → %s', async (spaceRight, spaceLeft, expected) => {
+    const { computeCustomMenuWidth } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(computeCustomMenuWidth({ spaceRight, spaceLeft })).toBe(expected);
+  });
+});
+
+describe('computeCustomInputMaxHeight: 높이 상한 (SPEC-AI-015 D3, pure)', () => {
+  it('아래 방향: 경계 아래까지 거리 − 외곽 − 여백', async () => {
+    const { computeCustomInputMaxHeight } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      computeCustomInputMaxHeight({
+        direction: 'below', anchorTop: 380, anchorBottom: 400,
+        boundaryTop: 0, boundaryBottom: 900, chromeHeight: 20,
+      }),
+    ).toBe(472);
+  });
+  it('위 방향: 앵커 top − 경계 top − 외곽 − 여백', async () => {
+    const { computeCustomInputMaxHeight } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      computeCustomInputMaxHeight({
+        direction: 'above', anchorTop: 100, anchorBottom: 120,
+        boundaryTop: 0, boundaryBottom: 900, chromeHeight: 20,
+      }),
+    ).toBe(72);
+  });
+  it('가용 거리가 작아도 28px 하한 (REQ-014)', async () => {
+    const { computeCustomInputMaxHeight } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      computeCustomInputMaxHeight({
+        direction: 'below', anchorTop: 0, anchorBottom: 870,
+        boundaryTop: 0, boundaryBottom: 900, chromeHeight: 20,
+      }),
+    ).toBe(28);
+  });
+});
+
+describe('computeCustomInputHeight: 필요 높이 vs 상한 (SPEC-AI-015 D9, pure)', () => {
+  it.each([
+    [20, 2, 300, 28, 'hidden'],
+    [120, 2, 300, 122, 'hidden'],
+    [298, 2, 300, 300, 'hidden'],
+    [299, 2, 300, 300, 'auto'],
+    [500, 2, 300, 300, 'auto'],
+    [500, 2, null, 502, 'hidden'],
+  ])('(%i, %i, %s) → %i %s', async (scrollHeight, borderY, maxHeight, height, overflowY) => {
+    const { computeCustomInputHeight } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(computeCustomInputHeight({ scrollHeight, borderY, maxHeight })).toEqual({
+      height,
+      overflowY,
+    });
+  });
+});
+
+describe('createPresetMenu: 직접 입력 textarea 배선 (SPEC-AI-015)', () => {
+  const rafCallbacks: FrameRequestCallback[] = [];
+
+  beforeEach(() => {
+    rafCallbacks.length = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+    Object.defineProperty(window, 'innerHeight', { value: 900, configurable: true });
+    Object.defineProperty(window, 'innerWidth', { value: 1600, configurable: true });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.replaceChildren();
+  });
+
+  function flushRaf(): void {
+    const cbs = rafCallbacks.splice(0, rafCallbacks.length);
+    cbs.forEach((cb) => cb(0));
+  }
+
+  function mockRect(el: Element, rect: Partial<DOMRect> | (() => Partial<DOMRect>)): void {
+    vi.spyOn(el, 'getBoundingClientRect').mockImplementation(
+      () =>
+        ({
+          top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0,
+          toJSON: () => ({}),
+          ...(typeof rect === 'function' ? rect() : rect),
+        }) as DOMRect,
+    );
+  }
+
+  /** 앵커(좌표 지정) + 클리핑 패널을 가진 메뉴. 메뉴 rect 목은 적용된 인라인 폭을 돌려준다. */
+  async function buildMenu(opts: {
+    anchor: { left: number; right: number; top: number; bottom: number };
+    pane?: { left: number; right: number; top: number; bottom: number };
+    menuHeight?: number;
+  }) {
+    const mod = await import('@/components/editor/extensions/ai-selection-toolbar');
+    const host: HTMLElement = document.createElement('div');
+    if (opts.pane) {
+      host.style.overflow = 'hidden';
+      mockRect(host, opts.pane);
+    }
+    document.body.appendChild(host);
+    const anchorEl = document.createElement('button');
+    host.appendChild(anchorEl);
+    mockRect(anchorEl, opts.anchor);
+    const callbacks = { onSelectPreset: vi.fn(), onSubmitCustom: vi.fn(), onClose: vi.fn() };
+    const menu = mod.createPresetMenu({ selectionLength: 100, callbacks, anchorEl });
+    host.appendChild(menu.dom);
+    mockRect(menu.dom, () => ({
+      width: menu.dom.style.width ? parseFloat(menu.dom.style.width) : menu.dom.classList.contains('mdedit-ai-preset-menu--custom') ? 340 : 190,
+      height: opts.menuHeight ?? 60,
+    }));
+    return { menu, callbacks, anchorEl };
+  }
+
+  const enterCustom = (menu: { dom: HTMLElement }) =>
+    menu.dom
+      .querySelector<HTMLButtonElement>('[data-preset="custom"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+  const getTa = (menu: { dom: HTMLElement }) =>
+    menu.dom.querySelector<HTMLTextAreaElement>('.mdedit-ai-custom-input')!;
+
+  const key = (init: KeyboardEventInit & { keyCode?: number }) => {
+    const ev = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    if (init.keyCode !== undefined) Object.defineProperty(ev, 'keyCode', { value: init.keyCode });
+    return ev;
+  };
+
+  it('Enter 는 trim 결과(내부 줄바꿈 보존)를 1회 전송하고 기본 동작을 막는다 (REQ-009)', async () => {
+    const { menu, callbacks } = await buildMenu({ anchor: { left: 0, right: 24, top: 100, bottom: 124 } });
+    enterCustom(menu);
+    const ta = getTa(menu);
+    ta.value = '  더 짧게\n존댓말로  ';
+    const ev = key({ key: 'Enter' });
+    ta.dispatchEvent(ev);
+    expect(callbacks.onSubmitCustom).toHaveBeenCalledTimes(1);
+    expect(callbacks.onSubmitCustom).toHaveBeenCalledWith('더 짧게\n존댓말로');
+    expect(ev.defaultPrevented).toBe(true);
+    menu.destroy();
+  });
+
+  it('공백만 있는 Enter 는 전송 없이 기본 동작만 막는다 (REQ-009)', async () => {
+    const { menu, callbacks } = await buildMenu({ anchor: { left: 0, right: 24, top: 100, bottom: 124 } });
+    enterCustom(menu);
+    const ta = getTa(menu);
+    ta.value = '   \n  ';
+    const ev = key({ key: 'Enter' });
+    ta.dispatchEvent(ev);
+    expect(callbacks.onSubmitCustom).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(true);
+    menu.destroy();
+  });
+
+  it('Shift+Enter 는 전송하지 않고 기본 동작(줄바꿈)을 막지 않는다 (REQ-010)', async () => {
+    const { menu, callbacks } = await buildMenu({ anchor: { left: 0, right: 24, top: 100, bottom: 124 } });
+    enterCustom(menu);
+    const ta = getTa(menu);
+    ta.value = 'abc';
+    const ev = key({ key: 'Enter', shiftKey: true });
+    ta.dispatchEvent(ev);
+    expect(callbacks.onSubmitCustom).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+    menu.destroy();
+  });
+
+  it.each([
+    ['isComposing: true', { key: 'Enter', isComposing: true }],
+    ['keyCode 229', { key: 'Enter', keyCode: 229 }],
+  ])('IME 조합 중 Enter(%s)는 아무 동작도 하지 않는다 (REQ-012)', async (_n, init) => {
+    const { menu, callbacks } = await buildMenu({ anchor: { left: 0, right: 24, top: 100, bottom: 124 } });
+    enterCustom(menu);
+    const ta = getTa(menu);
+    ta.value = '번역해';
+    const ev = key(init as KeyboardEventInit & { keyCode?: number });
+    ta.dispatchEvent(ev);
+    expect(callbacks.onSubmitCustom).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+    menu.destroy();
+  });
+
+  it.each([
+    ['isComposing: true', { key: 'Escape', isComposing: true }],
+    ['keyCode 229', { key: 'Escape', keyCode: 229 }],
+  ])('IME 조합 중 Escape(%s)는 직접 입력 상태를 유지하고 닫지 않는다 (REQ-012)', async (_n, init) => {
+    const { menu, callbacks } = await buildMenu({ anchor: { left: 0, right: 24, top: 100, bottom: 124 } });
+    enterCustom(menu);
+    const ta = getTa(menu);
+    const ev = key(init as KeyboardEventInit & { keyCode?: number });
+    ta.dispatchEvent(ev);
+    expect(menu.dom.querySelector('.mdedit-ai-custom-input')).toBeTruthy();
+    expect(callbacks.onClose).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+    // 조합 아닌 Escape 는 기존대로 프리셋 복귀.
+    getTa(menu).dispatchEvent(key({ key: 'Escape' }));
+    expect(menu.dom.querySelector('[data-preset="polish"]')).toBeTruthy();
+    menu.destroy();
+  });
+
+  it('진입 시 --custom 클래스, ← 복귀 시 클래스·인라인 width 제거 (REQ-004, 005)', async () => {
+    const { menu } = await buildMenu({
+      anchor: { left: 100, right: 124, top: 100, bottom: 124 },
+      pane: { left: 0, right: 300, top: 0, bottom: 900 },
+    });
+    flushRaf();
+    enterCustom(menu);
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--custom')).toBe(true);
+    flushRaf();
+    // 오른쪽 공간 200, 왼쪽 124 → 192px
+    expect(menu.dom.style.width).toBe('192px');
+    menu.dom.querySelector<HTMLButtonElement>('.mdedit-ai-back')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    );
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--custom')).toBe(false);
+    expect(menu.dom.style.width).toBe('');
+    menu.destroy();
+  });
+
+  it('넓은 쪽 공간이 왼쪽이면 폭을 줄이고 --end 로 뒤집는다 (REQ-004, D1)', async () => {
+    const { menu } = await buildMenu({
+      anchor: { left: 200, right: 224, top: 100, bottom: 124 },
+      pane: { left: 0, right: 300, top: 0, bottom: 900 },
+    });
+    flushRaf();
+    enterCustom(menu);
+    flushRaf();
+    // spaceRight 100, spaceLeft 224 → 216px
+    expect(menu.dom.style.width).toBe('216px');
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--end')).toBe(true);
+    menu.destroy();
+  });
+
+  it('공간이 넉넉하면 인라인 width 를 주지 않는다 (CSS 340)', async () => {
+    const { menu } = await buildMenu({ anchor: { left: 100, right: 124, top: 100, bottom: 124 } });
+    flushRaf();
+    enterCustom(menu);
+    flushRaf();
+    expect(menu.dom.style.width).toBe('');
+    menu.destroy();
+  });
+
+  it('모드 전환마다 rAF 가 다시 예약된다 (REQ-006)', async () => {
+    const { menu } = await buildMenu({ anchor: { left: 100, right: 124, top: 100, bottom: 124 } });
+    expect(rafCallbacks.length).toBe(1);
+    flushRaf();
+    enterCustom(menu);
+    expect(rafCallbacks.length).toBe(1);
+    flushRaf();
+    menu.dom.querySelector<HTMLButtonElement>('.mdedit-ai-back')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    );
+    expect(rafCallbacks.length).toBe(1);
+    menu.destroy();
+  });
+
+  it('직접 입력 세로 판정은 선호 높이 200 을 적용해 아래 공간 150 이면 위로 연다 (D4)', async () => {
+    const { menu } = await buildMenu({
+      anchor: { left: 100, right: 124, top: 726, bottom: 750 },
+      menuHeight: 60,
+    });
+    flushRaf();
+    // 프리셋: 높이 60, 아래 공간 150 → 아래 유지
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--above')).toBe(false);
+    enterCustom(menu);
+    flushRaf();
+    // 직접 입력: max(60,200)=200 > 150, 위 726 → above
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--above')).toBe(true);
+    menu.destroy();
+  });
+
+  it('세로 판정은 클리핑 조상(패널) 경계 기준이다 (D4)', async () => {
+    const { menu } = await buildMenu({
+      anchor: { left: 100, right: 124, top: 400, bottom: 550 },
+      pane: { left: 0, right: 800, top: 0, bottom: 700 },
+      menuHeight: 60,
+    });
+    flushRaf();
+    enterCustom(menu);
+    flushRaf();
+    // 뷰포트 기준 아래 350 ≥ 200 이지만 패널 기준 150 < 200, 위 400 → above
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--above')).toBe(true);
+    menu.destroy();
+  });
+
+  it('상한 배선: 필요 높이 > 상한이면 height=상한px, overflowY=auto (REQ-007, 008)', async () => {
+    const { menu } = await buildMenu({
+      anchor: { left: 100, right: 124, top: 500, bottom: 524 },
+      menuHeight: 60,
+    });
+    flushRaf();
+    enterCustom(menu);
+    const ta = getTa(menu);
+    Object.defineProperty(ta, 'scrollHeight', { value: 2000, configurable: true });
+    Object.defineProperty(ta, 'offsetHeight', { value: 30, configurable: true });
+    Object.defineProperty(ta, 'clientHeight', { value: 28, configurable: true });
+    flushRaf();
+    // 아래 공간 900-524=376 ≥ 200 → below. chrome = 60 - offsetHeight(30)=30 → 376-30-8=338
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(ta.style.height).toBe('338px');
+    expect(ta.style.overflowY).toBe('auto');
+    menu.destroy();
+  });
+
+  it('타이핑(input)은 rAF 를 추가로 예약하지 않는다 — 방향 재판정 없음 (REQ-011)', async () => {
+    const { menu } = await buildMenu({ anchor: { left: 100, right: 124, top: 100, bottom: 124 } });
+    flushRaf();
+    enterCustom(menu);
+    flushRaf();
+    const ta = getTa(menu);
+    for (let i = 0; i < 3; i++) ta.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(rafCallbacks.length).toBe(0);
+    menu.destroy();
+  });
+
+  it('빠른 왕복: rAF 실행 전에 ← 로 복귀해도 --custom·width 가 남지 않는다 (D5)', async () => {
+    const { menu } = await buildMenu({
+      anchor: { left: 100, right: 124, top: 100, bottom: 124 },
+      pane: { left: 0, right: 300, top: 0, bottom: 900 },
+    });
+    enterCustom(menu);
+    menu.dom.querySelector<HTMLButtonElement>('.mdedit-ai-back')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    );
+    expect(() => flushRaf()).not.toThrow();
+    expect(menu.dom.classList.contains('mdedit-ai-preset-menu--custom')).toBe(false);
+    expect(menu.dom.style.width).toBe('');
+    menu.destroy();
   });
 });
