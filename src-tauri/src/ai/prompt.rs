@@ -955,6 +955,64 @@ mod tests {
             assert_eq!(p.system_prompt, expected, "{:?} assembled prompt drifted", feature);
         }
     }
+
+    // --- SPEC-AI-012 M1: Pre-RED 문자열 리터럴 스냅샷 (REQ-AI12-011, AC-AI12-013) ---
+    // 기대값은 다른 함수 호출이 아니라 소스에 박힌 리터럴이다. 변경 전 코드로 기록했고,
+    // 이어쓰기·섹션 채우기 조립과 system_prompt() 반환값이 바이트 단위로 보존됨을 지킨다.
+
+    const SNAP_COMMON: &str = "결과 텍스트만 출력하라. 설명·인사·사족을 붙이지 말라. 마크다운 코드펜스는 요청받은 경우에만 사용하라.";
+    const SNAP_CONTINUE_TASK: &str = "너는 문서 작성 보조자다. 문서의 어조와 종결어미를 그대로 이어받아 직전 본문에 자연스럽게 이어지는 다음 내용을 작성하라. 문서 개요와 직전 본문의 맥락에서 벗어나지 말라. 이미 작성된 직전 본문을 다시 출력하거나 반복하지 말고, 끊긴 지점 바로 다음부터 새 텍스트만 이어서 작성하라. 분량은 한두 문단 이내로 하고, 직전 본문에 없던 코드 블록·표·목차 같은 새로운 형식을 임의로 도입하지 말라.";
+    const SNAP_AFTER_CLAUSE: &str = "끊긴 문장부터 이어서 완성하고, 뒤 문맥으로 자연스럽게 연결하라. 뒤 문맥의 내용을 반복하거나 선점하는 것은 금지한다.";
+
+    #[test]
+    fn snapshot_continue_before_only_literal() {
+        let p = build_continue_prompt("# 개요", "직전 본문", "");
+        assert_eq!(p.system_prompt, format!("{}\n\n{}", SNAP_CONTINUE_TASK, SNAP_COMMON));
+        assert_eq!(p.user_prompt, "[문서 개요]\n# 개요\n\n[직전 본문]\n직전 본문");
+    }
+
+    #[test]
+    fn snapshot_continue_before_and_after_literal() {
+        let p = build_continue_prompt("# 개요", "직전 본문", "뒤 문맥");
+        assert_eq!(
+            p.system_prompt,
+            format!("{}\n\n{}\n\n{}", SNAP_CONTINUE_TASK, SNAP_COMMON, SNAP_AFTER_CLAUSE)
+        );
+        assert_eq!(
+            p.user_prompt,
+            "[문서 개요]\n# 개요\n\n[직전 본문]\n직전 본문\n\n[뒤 문맥]\n뒤 문맥"
+        );
+    }
+
+    #[test]
+    fn snapshot_continue_short_literal() {
+        let p = build_continue_prompt_with_length("# 개요", "직전 본문", "", ContinueLength::Short);
+        assert_eq!(
+            p.system_prompt,
+            format!("{}\n\n{}\n\n짧게, 한두 문장만 작성하라.", SNAP_CONTINUE_TASK, SNAP_COMMON)
+        );
+        assert_eq!(p.user_prompt, "[문서 개요]\n# 개요\n\n[직전 본문]\n직전 본문");
+    }
+
+    #[test]
+    fn snapshot_section_fill_literal() {
+        let p = build_section_prompt("# 개요", "직전 본문");
+        assert_eq!(
+            p.system_prompt,
+            format!("너는 문서 작성 보조자다. 문서의 어조와 종결어미를 그대로 이어받아 지정된 섹션의 초안을 작성하라. 문서 개요와 직전 본문의 맥락에 맞는 내용을 채워라.\n\n{}", SNAP_COMMON)
+        );
+        assert_eq!(p.user_prompt, "[문서 개요]\n# 개요\n\n[직전 본문]\n직전 본문");
+    }
+
+    #[test]
+    fn snapshot_feature_system_prompts_literal() {
+        assert_eq!(
+            AiFeature::Shorten.system_prompt(),
+            format!("주어진 텍스트에서 핵심만 남겨 짧게 줄여라. 중요한 정보는 잃지 말라.\n\n{}", SNAP_COMMON)
+        );
+        assert_eq!(
+            AiFeature::Custom("x".to_string()).system_prompt(),
+            format!("{}\n\n지시: x", SNAP_COMMON)
+        );
+    }
 }
-
-
