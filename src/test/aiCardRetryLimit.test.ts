@@ -230,7 +230,7 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
     click('.mdedit-ai-redo');
 
     expect(aiRequestMock).toHaveBeenCalledTimes(3);
-    expect((aiRequestMock.mock.calls[2][0] as { customInstruction: string }).customInstruction).toBe(
+    expect((aiRequestMock.mock.calls[2][0] as { additionalInstruction: string }).additionalInstruction).toBe(
       '더 짧게',
     );
     expect(controller.getState().retryCount).toBe(0);
@@ -266,7 +266,7 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
     expect(aiRequestMock).toHaveBeenCalledTimes(before + 1);
-    expect((aiRequestMock.mock.calls[before][0] as { customInstruction: string }).customInstruction).toBe(
+    expect((aiRequestMock.mock.calls[before][0] as { additionalInstruction: string }).additionalInstruction).toBe(
       '표로 정리해줘',
     );
     expect(controller.getState().retryCount).toBe(0);

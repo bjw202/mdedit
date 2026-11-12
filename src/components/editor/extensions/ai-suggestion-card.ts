@@ -403,7 +403,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
       const retry = makeButton('mdedit-ai-retry', '다시 시도');
       // exempt — 오류 복구 동작이지 품질 반복이 아니다(REQ-AI10-026).
       retry.addEventListener('click', () =>
-        callbacks.onReRequest(buildRetryInstruction(), input.model ?? 'haiku', 'exempt'),
+        callbacks.onReRequest('', input.model ?? 'haiku', 'exempt'),
       );
       card.appendChild(retry);
     }
@@ -423,7 +423,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     const rerequest = makeButton('mdedit-ai-rerequest', '다시 요청');
     // exempt — 원문 편집으로 멈춘 제안의 복구 동작이다(REQ-AI10-026).
     rerequest.addEventListener('click', () =>
-      callbacks.onReRequest(buildRetryInstruction(), input.model ?? 'haiku', 'exempt'),
+      callbacks.onReRequest('', input.model ?? 'haiku', 'exempt'),
     );
     card.appendChild(msg);
     card.appendChild(ignore);
@@ -509,7 +509,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     // REQ-AI-025: 1회성 sonnet 재요청. exempt 여야 한다 — 이 버튼은 소진 상태에서만 눌리므로
     // 카운트되는 순간 상한을 다시 넘겨 자기 자신을 미발행 게이트에 걸리게 만든다(REQ-AI10-032).
     advanced.addEventListener('click', () =>
-      callbacks.onReRequest(buildRetryInstruction(), 'sonnet', 'exempt'),
+      callbacks.onReRequest('', 'sonnet', 'exempt'),
     );
     card.appendChild(msg);
     card.appendChild(advanced);
@@ -1345,12 +1345,13 @@ function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode
 
 // @MX:ANCHOR: [AUTO] fireReRequest - 카드 재요청(↻/직접지시/sonnet/목록폴백) 공통 발행 경로
 // @MX:REASON: [AUTO] BUG-2 재발 방지 — originalArgs 를 기준으로 스프레드해야 selection/
-//   contextBefore/contextAfter 가 재요청에도 실린다. overrides 로만 필드를 덮어써야 하며,
+//   contextBefore/contextAfter + 원래 customInstruction 이 재요청에도 실린다. overrides 로만
+//   필드를 덮어써야 하며(재요청 지시는 additionalInstruction 으로 분리, SPEC-AI-012),
 //   originalArgs 를 생략한 채 부분 필드만 조립하면 재요청 프롬프트가 컨텍스트 없이 비게 된다.
 /**
  * 재요청 발행 — 원본 요청(originalArgs)을 기준으로 selection/contextBefore/contextAfter 를
- * 그대로 승계하고, overrides 로 customInstruction/model(및 목록 폴백의 presetKind/feature)만
- * 덮어써 새 in-flight 요청을 스폰한다(BUG-2). 새로 발행한 requestId 를 반환해 호출자(카드
+ * 그대로 승계하고, overrides 로 additionalInstruction/model(및 목록 폴백의 presetKind/feature/
+ * customInstruction)만 덮어써 새 in-flight 요청을 스폰한다(BUG-2, SPEC-AI-012 D6). 새로 발행한 requestId 를 반환해 호출자(카드
  * 컨트롤러)가 구독 대상을 그 id 로 옮길 수 있게 한다(BUG-1).
  */
 function fireReRequest(originalArgs: AiRequestArgs, overrides: Partial<AiRequestArgs>): string {
@@ -1435,7 +1436,13 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       // 옛 제안(done)으로 보이지 않는다.
       controller.enterReRequest();
       // BUG-2: 원본 args(selection/contextBefore/contextAfter)를 그대로 승계하고 지시/모델만 덮어쓴다.
-      boundRequestId = fireReRequest(request.args, { customInstruction: instruction, model: useModel });
+      // SPEC-AI-012 D6/D9: 재요청 지시는 customInstruction 을 덮어쓰지 않고 additionalInstruction 으로
+      // 분리해 싣는다(원래 직접 입력 지시 승계 + 프리셋도 추가 지시 수신). 빈 지시(복구용 재요청
+      // 3곳)는 필드를 싣지 않는다 — undefined 는 JSON 직렬화에서 빠진다.
+      boundRequestId = fireReRequest(request.args, {
+        additionalInstruction: instruction.trim() ? instruction : undefined,
+        model: useModel,
+      });
       lastHandledTerminal = null;
     },
     onListFallback: () => {
