@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-014
 title: "AI 모델 선택 — 고급 모델 토글을 도구별 모델 목록 선택으로 교체"
-version: "0.1.1"
+version: "0.1.2"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -24,6 +24,7 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 |---------|------|--------|---------|
 | 0.1.0 | 2026-11-13 | jw | 최초 작성. 계기: 백로그 카드 t6(사용자 결정 2026-11-13). 계획 단계에서 코드와 두 CLI의 모델 목록을 직접 확인했다(research.md). 사용자가 잠든 동안 자율 진행 권한을 받아, 열려 있던 설계 선택은 기본값을 정해 design.md에 결정으로 기록했다. |
 | 0.1.1 | 2026-11-13 | jw | plan-audit 1차(`.moai/reports/plan-audit/SPEC-AI-014-review-1.md`, FAIL 0.78) 반영. (D1, BLOCKING) 고스트 텍스트·이어쓰기 경로는 invoke 거부 메시지를 어디에도 표시하지 않는다는 사실을 코드에서 확인했다(`ai-ghost-text.ts` 상태 구독은 `error`에서 고스트만 지움). REQ-AI14-018을 새로 두어 그 경로의 거부 메시지를 상태 표시줄에 띄우고 AC-020을 더했다. (D2·D3) codex 조회가 동기 명령 안에서 UI를 막을 수 있다: `ai_detect_providers`를 비동기 명령으로 바꾸고(REQ-AI14-015), `ai_request`가 조회하는 조건을 좁히고 남는 멈춤을 알려진 한계로 적었다(REQ-AI14-014). (D4) M1 판정이 기본 설계와 다를 때 구현자가 spec.md를 고치지 않는다. 결과는 progress.md에 적고 차단 보고를 돌려주며, 개정은 manager-spec이 한다(REQ-AI14-016). (D5·D6) REQ-AI14-007의 라우팅 선택과 REQ-AI14-015의 목록 채우기에 AC를 더했다(AC-021, AC-016 보강). (D7) M1에서 `sonnet`이 빠지면 이전 규칙의 대상을 `haiku`로 한다(REQ-AI14-005). (D18) 고스트 ↻ 재시도도 원래 선택을 이어받는다고 REQ-AI14-017에 적었다. 나머지(D8~D17, D19)는 plan.md·acceptance.md·research.md의 사실·명령 정정이다. |
+| 0.1.2 | 2026-11-13 | jw | plan-audit 2차(`.moai/reports/plan-audit/SPEC-AI-014-review-2.md`, PASS-WITH-DEBT 0.89) 반영. 캐시 잠금을 조회 대기 중에 잡지 않고 조회 중 표시로 중복 조회를 막으며, 조회가 필요 없는 검증은 잠금을 잡지 않는다(REQ-AI14-014). codex 미설치·미로그인이면 조회하지 않는다. 앱 시작 때 감지가 돌아 `CATALOG`이면 시작마다 조회한다는 사실과 멈춤 조건을 바로 적었다. 고스트 경로 네 명령 이름을 명시했다(REQ-AI14-018). §5에서 고스트 실행 오류는 표시되지 않음을 한계로, `models` 없는 요청이 CLI 기본값임을 의도로 적었다. AC-015·017·019·020·008, plan M0·A를 맞췄다. |
 
 ## §1 Overview
 
@@ -139,7 +140,9 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
   - The 성공한 조회 목록 shall 앱 프로세스가 끝날 때까지 메모리에 캐시되고 다시 조회하지 않는다.
   - **While** 마지막 결과가 고정 목록(조회 실패)인 동안, `ai_request`의 검증은 그 결과를 다시 쓰고(요청마다 조회하지 않는다), `ai_detect_providers`는 조회를 다시 시도한다.
   - **When** `ai_request`가 검증할 때, the 백엔드 shall 다음이 모두 참일 때만 조회한다: 라우팅된 도구가 codex이고, 선택값이 `null`이 아니며, 그 값이 고정 목록에 없고, 캐시가 비어 있다. 그 밖에는 조회하지 않는다. 한 요청에서 조회는 많아야 한 번이다.
-  - 알려진 한계: `ai_request`는 동기 명령이라 위 조건에서 조회가 돌면 최대 3초 동안 앱이 멈출 수 있다. 앱 실행 후 설정을 한 번도 열지 않았고, 고정 목록에 없는 codex 모델을 저장해 둔 경우에만 생기며 세션당 많아야 한 번이다(성공 결과는 캐시되고 실패 결과도 요청 검증에 재사용되므로).
+  - The 캐시 잠금 shall 하위 프로세스를 기다리는 동안 잡혀 있지 않다. 동시에 두 번 조회하지 않도록 조회 중 표시를 둔다. **While** 다른 조회가 진행 중인 동안, `ai_request`의 검증은 기다리지 않고 그 순간의 허용 목록(캐시가 비었으면 고정 목록)으로 판정한다. 조회가 필요 없는 검증(claude, `null`, 고정 목록 모델)은 캐시 잠금을 잡지 않는다.
+  - **Where** codex가 설치·로그인되지 않았으면, the 백엔드 shall 조회하지 않고 고정 목록을 쓴다.
+  - 알려진 한계: 앱 시작 때 `AppLayout`이 `ai_detect_providers`를 부르므로(`AppLayout.tsx:65`), `CATALOG`이면 codex가 설치·로그인된 기기에서 앱을 켤 때마다 `codex debug models`가 백그라운드로 한 번 돈다(이 기기 0.57초, 네트워크 사용). `ai_request`가 동기 조회를 하는 경우는 시작 때 조회가 실패했거나 아직 끝나지 않았고, 고정 목록에 없는 codex 모델을 저장해 둔 경우뿐이며, 그때 최대 3초 멈출 수 있다.
 
 #### REQ-AI14-015: 목록은 감지 결과로 전달한다 (Ubiquitous)
 
@@ -168,7 +171,7 @@ related_specs: [SPEC-AI-001, SPEC-AI-005, SPEC-AI-009, SPEC-AI-010, SPEC-AI-015]
 
 #### REQ-AI14-018: 고스트 경로의 요청 거부를 숨기지 않는다 (Event-driven)
 
-- **When** 고스트 텍스트·이어쓰기·자유 위치 이어쓰기·고스트 ↻ 재시도의 `ai_request` 호출이 거부되면(`aiRequest(...)` 프라미스 거부, 모델 검증 오류 포함), the 앱 shall 거부 메시지(`ipcErrorMessage(e)`)를 상태 표시줄(`uiStore.setStatusMessage`)에 띄운다. 지금처럼 `failRequest`도 부른다.
+- **When** 고스트 경로 네 명령(`startSectionFillCommand` 섹션 채우기, `startContinueWritingCommand` 이어쓰기, `startFreeContinueWritingCommand` 자유 위치 이어쓰기, 고스트 ↻ 재시도)의 `ai_request` 호출이 거부되면(`aiRequest(...)` 프라미스 거부, 모델 검증 오류 포함), the 앱 shall 거부 메시지(`ipcErrorMessage(e)`)를 상태 표시줄(`uiStore.setStatusMessage`)에 띄운다. 지금처럼 `failRequest`도 부른다.
 - 사유: 지금 이 경로는 거부되면 고스트만 지우고 이유를 보여 주지 않는다(`ai-ghost-text.ts` 상태 구독의 `error` 분기). 조용한 대체를 없앤 뒤에 거부 이유까지 숨으면 사용자는 아무 일도 안 일어난 것으로 본다.
 - 범위: invoke 거부만 다룬다. 실행 뒤 `ai://error`로 오는 오류(로그인·네트워크 등)의 고스트 표시는 바꾸지 않는다. 상태 표시줄 메시지는 기존 규칙대로 2초 뒤 사라진다(알려진 한계).
 
@@ -197,7 +200,8 @@ acceptance.md § 추적표를 따른다.
 ### 알려진 한계 (수용)
 
 - haiku에서 `MAX_THINKING_TOKENS=0`을 빼면 응답이 느려질 수 있다. M1이 고스트 텍스트 길이의 요청으로 차이를 재서 기록한다. 기록과 상관없이 이 SPEC은 사용자 결정(CLI 기본값)을 따른다(design.md D-5, §7).
-- 목록에 있어도 계정 등급 때문에 실제 요청이 실패하는 모델은 오류 카드로 드러난다. 앱은 요청 전에 모델별 가용성을 시험하지 않는다(요청마다 비용이 들기 때문).
+- 목록에 있어도 계정 등급 때문에 실제 요청이 실패하는 모델은 CLI 실행 뒤 `ai://error`로 실패한다. ✨ 툴바·카드 경로는 오류 카드로 보이지만, 고스트 경로는 지금처럼 고스트만 지워지고 이유가 표시되지 않는다(REQ-AI14-018은 invoke 거부만 다룬다, `useAiRelay.ts` 69-74행). 앱은 요청 전에 모델별 가용성을 시험하지 않는다(요청마다 비용이 들기 때문).
+- `models` 필드 없이 온 요청은 두 도구 모두 "CLI 기본값"으로 처리한다(claude도 haiku가 아니라 CLI 기본 모델). 앱 프런트엔드는 항상 `models`를 싣으므로 실제로는 생기지 않으며, 의도한 동작이다(AC-021).
 
 ## §6 Exclusions (What NOT to Build)
 

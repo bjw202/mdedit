@@ -7,7 +7,8 @@
 - 기준: `origin/main` `5c617ae`. run은 SPEC-AI-012(t4)와 SPEC-AI-013(t5)이 `main`에 병합된 뒤 그 `main`에서 새 worktree를 만들어 시작한다(§E).
 - codex 조회 목록에는 `gpt-5.5`가 없고 내장 목록에는 있다. 조회는 이 기기에서 0.57초(research.md §2).
 - 새 앱 명령을 만들지 않으므로 SPEC-SEC-001 앱 ACL(`app_commands.rs`, `capabilities/main.json`)은 바뀌지 않는다(design.md D-4).
-- invoke 거부는 이미 카드 오류로 표시된다. 검증 오류에 새 UI 경로가 필요 없다(research.md §3).
+- invoke 거부는 ✨ 툴바·카드 경로에서는 이미 카드 오류로 표시된다. 고스트 경로는 표시하지 않으므로 REQ-AI14-018이 상태 표시줄 경로를 더한다(research.md §3).
+- 앱 시작 때 `AppLayout.tsx:65`가 `ai_detect_providers`를 부른다.
 - e2e 저장 상태 fixture(5개 파일 6곳)는 버전 1의 `aiAdvancedModel`을 담고 있어 이전 규칙의 실제 입력이 된다. 손대지 않는다.
 - 고스트 경로는 invoke 거부 메시지를 화면에 보여 주지 않는다(research.md §3). REQ-AI14-018이 이를 고친다.
 - `ai_request`·`ai_detect_providers`는 동기 명령이다(`mod.rs:122`, `:349`). 동기 Tauri 명령은 메인 스레드에서 돈다.
@@ -24,7 +25,7 @@
 
 ### M0 — 선행 SPEC 확인 (코드 변경 없음)
 
-- `git fetch origin` 뒤 `git ls-tree --name-only origin/main .moai/specs/`에서 `SPEC-AI-012`·`SPEC-AI-013`으로 시작하는 디렉터리를 찾고, `git show origin/main:<그 디렉터리>/spec.md`의 프런트매터 `status`가 `implemented` 또는 `completed`인지 확인한다. 아니면 시작하지 않고 코디네이터에게 알린다.
+- `git fetch origin` 뒤 `git ls-tree --name-only origin/main .moai/specs/`에서 `SPEC-AI-012`·`SPEC-AI-013`으로 시작하는 디렉터리를 찾고, `git show origin/main:<그 디렉터리>/spec.md`의 프런트매터 `status`가 `completed`인지 확인한다(run 게이트의 선행 조건과 같다). 아니면 시작하지 않고 코디네이터에게 알린다.
 - run worktree는 그 `origin/main`에서 새로 만든다. §E 표의 함수 이름을 그 커밋에서 다시 grep해, 바뀐 시그니처를 progress.md에 적는다.
 - 기준 품질 게이트 결과(`npm run typecheck`, `npm run lint`, `npm test`, `cargo test`)를 기록해 이미 실패하던 항목을 구분한다.
 
