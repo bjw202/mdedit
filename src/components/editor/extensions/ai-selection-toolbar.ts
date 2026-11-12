@@ -413,6 +413,80 @@ export function decideMenuHorizontalDirection({
   return spaceLeft > spaceRight ? 'end' : 'start';
 }
 
+// ── SPEC-AI-015: 직접 입력 칸 — 폭·높이 계산(순수) ─────────────────────────────
+
+/** 직접 입력 칸 선호 높이(px) — 세로 방향 판정에서 메뉴 높이의 하한으로 쓴다(D4). */
+export const CUSTOM_INPUT_PREFERRED_HEIGHT = 200;
+/** 직접 입력 상태 메뉴 기본 폭(px) — CSS `.mdedit-ai-preset-menu--custom` 과 같은 값(D1). */
+export const CUSTOM_MENU_WIDTH = 340;
+/** 직접 입력 상태 메뉴 최소 폭(px) — 프리셋 메뉴 min-width 와 같다. */
+export const CUSTOM_MENU_MIN_WIDTH = 190;
+/** textarea 최소 높이(px) — 1줄 높이이며 상한 계산의 하한이다(REQ-014). */
+export const CUSTOM_INPUT_MIN_HEIGHT = 28;
+/** 경계와 메뉴 사이 여백(px) — 세로 상한·가로 폭 공용. */
+export const CUSTOM_INPUT_MARGIN = 8;
+
+export interface CustomMenuWidthInput {
+  /** 앵커 left 부터 클리핑 경계 오른쪽까지의 공간(px) — 가로 flip 과 같은 값. */
+  spaceRight: number;
+  /** 클리핑 경계 왼쪽부터 앵커 right 까지의 공간(px) — 가로 flip 과 같은 값. */
+  spaceLeft: number;
+}
+
+/**
+ * 직접 입력 메뉴 폭(순수, D1). 좌·우 중 넓은 쪽 공간에서 여백을 뺀 값이 340 이상이면 CSS 기본 폭을
+ * 그대로 쓰도록 null, 아니면 190 이상으로 줄인 px 값을 돌려준다.
+ */
+export function computeCustomMenuWidth({ spaceRight, spaceLeft }: CustomMenuWidthInput): number | null {
+  const w = Math.max(spaceRight, spaceLeft) - CUSTOM_INPUT_MARGIN;
+  return w >= CUSTOM_MENU_WIDTH ? null : Math.max(CUSTOM_MENU_MIN_WIDTH, w);
+}
+
+export interface CustomInputMaxHeightInput {
+  direction: MenuFlipDirection;
+  anchorTop: number;
+  anchorBottom: number;
+  /** 실효 세로 경계(뷰포트 ∩ 클리핑 조상) 위쪽 좌표. */
+  boundaryTop: number;
+  /** 실효 세로 경계 아래쪽 좌표. */
+  boundaryBottom: number;
+  /** 메뉴 외곽 높이(= 메뉴 높이 − textarea 높이). */
+  chromeHeight: number;
+}
+
+/** textarea 높이 상한(순수, D3·REQ-014): 선택된 방향의 가용 거리 − 외곽 − 여백, 최소 28px. */
+export function computeCustomInputMaxHeight({
+  direction,
+  anchorTop,
+  anchorBottom,
+  boundaryTop,
+  boundaryBottom,
+  chromeHeight,
+}: CustomInputMaxHeightInput): number {
+  const available = direction === 'below' ? boundaryBottom - anchorBottom : anchorTop - boundaryTop;
+  return Math.max(CUSTOM_INPUT_MIN_HEIGHT, available - chromeHeight - CUSTOM_INPUT_MARGIN);
+}
+
+export interface CustomInputHeightInput {
+  /** textarea.scrollHeight — 위아래 테두리는 빠져 있다. */
+  scrollHeight: number;
+  /** 위아래 테두리 합(offsetHeight − clientHeight). */
+  borderY: number;
+  /** 높이 상한(px). 아직 계산 전이면 null — 상한 없이 필요 높이를 따른다. */
+  maxHeight: number | null;
+}
+
+/** textarea 높이·세로 스크롤 판정(순수, D9·REQ-008). */
+export function computeCustomInputHeight({
+  scrollHeight,
+  borderY,
+  maxHeight,
+}: CustomInputHeightInput): { height: number; overflowY: 'hidden' | 'auto' } {
+  const need = scrollHeight + borderY;
+  const height = Math.max(CUSTOM_INPUT_MIN_HEIGHT, maxHeight === null ? need : Math.min(need, maxHeight));
+  return { height, overflowY: maxHeight !== null && need > maxHeight ? 'auto' : 'hidden' };
+}
+
 /** flip 판정에 쓰이는 CSS 클래스 — 아래 열림(기본)과 대칭 배치를 담당(mdedit-components.css). */
 const MENU_ABOVE_CLASS = 'mdedit-ai-preset-menu--above';
 

@@ -1264,3 +1264,78 @@ describe('AiSparkleWidget: diagram type carried into onRequest (SPEC-AI-008)', (
     expect(dom.querySelector('.mdedit-ai-diagram-submenu')).toBeNull();
   });
 });
+
+// ============================================================
+// SPEC-AI-015: 직접 입력 칸 — 폭 확대 · 자동 높이 증가 textarea
+// ============================================================
+
+describe('computeCustomMenuWidth: 직접 입력 메뉴 폭 (SPEC-AI-015 D1, pure)', () => {
+  it.each([
+    [800, 0, null],
+    [348, 0, null],
+    [347, 0, 339],
+    [200, 100, 192],
+    [100, 250, 242],
+    [150, 100, 190],
+  ])('(%i, %i) → %s', async (spaceRight, spaceLeft, expected) => {
+    const { computeCustomMenuWidth } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(computeCustomMenuWidth({ spaceRight, spaceLeft })).toBe(expected);
+  });
+});
+
+describe('computeCustomInputMaxHeight: 높이 상한 (SPEC-AI-015 D3, pure)', () => {
+  it('아래 방향: 경계 아래까지 거리 − 외곽 − 여백', async () => {
+    const { computeCustomInputMaxHeight } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      computeCustomInputMaxHeight({
+        direction: 'below', anchorTop: 380, anchorBottom: 400,
+        boundaryTop: 0, boundaryBottom: 900, chromeHeight: 20,
+      }),
+    ).toBe(472);
+  });
+  it('위 방향: 앵커 top − 경계 top − 외곽 − 여백', async () => {
+    const { computeCustomInputMaxHeight } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      computeCustomInputMaxHeight({
+        direction: 'above', anchorTop: 100, anchorBottom: 120,
+        boundaryTop: 0, boundaryBottom: 900, chromeHeight: 20,
+      }),
+    ).toBe(72);
+  });
+  it('가용 거리가 작아도 28px 하한 (REQ-014)', async () => {
+    const { computeCustomInputMaxHeight } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(
+      computeCustomInputMaxHeight({
+        direction: 'below', anchorTop: 0, anchorBottom: 870,
+        boundaryTop: 0, boundaryBottom: 900, chromeHeight: 20,
+      }),
+    ).toBe(28);
+  });
+});
+
+describe('computeCustomInputHeight: 필요 높이 vs 상한 (SPEC-AI-015 D9, pure)', () => {
+  it.each([
+    [20, 2, 300, 28, 'hidden'],
+    [120, 2, 300, 122, 'hidden'],
+    [298, 2, 300, 300, 'hidden'],
+    [299, 2, 300, 300, 'auto'],
+    [500, 2, 300, 300, 'auto'],
+    [500, 2, null, 502, 'hidden'],
+  ])('(%i, %i, %s) → %i %s', async (scrollHeight, borderY, maxHeight, height, overflowY) => {
+    const { computeCustomInputHeight } = await import(
+      '@/components/editor/extensions/ai-selection-toolbar'
+    );
+    expect(computeCustomInputHeight({ scrollHeight, borderY, maxHeight })).toEqual({
+      height,
+      overflowY,
+    });
+  });
+});
