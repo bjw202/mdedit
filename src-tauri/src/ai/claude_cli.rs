@@ -7,9 +7,7 @@
 //! 인자 조립·스크래치 경로·릴레이 판정은 순수 함수로 분리해 단위 테스트하고,
 //! 실제 프로세스 스폰과 Tauri emit은 얇은 계층으로 감싼다(watcher.rs 스레드+emit 패턴 재사용).
 
-use crate::ai::provider::{
-    AiModel, AiProvider, AiRequest, Capabilities, ProviderRegistry, ProviderStatus,
-};
+use crate::ai::provider::{AiProvider, AiRequest, Capabilities, ProviderRegistry, ProviderStatus};
 use crate::ai::stream::{
     classify_stderr, parse_final_result, parse_text_delta, Completion, CompletionTracker,
 };
@@ -78,13 +76,13 @@ pub enum RelayOutcome {
 
 /// 모델·시스템 프롬프트 파일 경로로 claude 실행 인자를 조립한다(순수).
 ///
+/// `model` 이 `None`(CLI 기본값)이면 `--model` 쌍을 넣지 않는다. 추론 설정은 넘기지 않는다(CLI 기본값).
+///
 /// 사용자 프롬프트는 표준 입력으로, 시스템 프롬프트는 파일(`--system-prompt-file`)로 전달하므로
 /// 인자에는 어떤 프롬프트 본문도 줄바꿈도 없다(Windows 명령줄 한도 회피, SPEC-AI-013 REQ-AI13-001).
 ///
 /// 격리 플래그: `--output-format stream-json --include-partial-messages --verbose
 /// --setting-sources "" --tools ""`.
-/// (`MAX_THINKING_TOKENS` env는 기본 티어에서만 `spawn_claude`가 설정하고, 고급 티어는
-/// 미설정으로 CLI 기본값에 위임한다 — `claude_thinking_env` 참조, SPEC-AI-009 REQ-AI9-046)
 //
 // @MX:ANCHOR: [AUTO] `--tools ""` — 내장 도구 전면 비활성화 계약
 // @MX:REASON: [AUTO] 이 앱의 AI 기능(인라인 편집·고스트 텍스트·다이어그램)은 전부 순수 텍스트
@@ -94,13 +92,17 @@ pub enum RelayOutcome {
 //   `--tools ""` 를 주면 차단된다. 따라서 cwd 를 바꾸는 기능(금고 조회 등)이 나중에 추가되면
 //   이 한 줄이 유일한 방어선이 된다. 도구가 필요한 기능을 만들 때도 여기를 비우지 말고
 //   필요한 도구만 명시적으로 나열할 것.
-pub fn build_claude_args(model: AiModel, system_prompt_path: &Path) -> Vec<String> {
-    vec![
+pub fn build_claude_args(model: Option<&str>, system_prompt_path: &Path) -> Vec<String> {
+    let mut args = vec![
         "-p".to_string(),
         "--system-prompt-file".to_string(),
         system_prompt_path.to_string_lossy().into_owned(),
-        "--model".to_string(),
-        model.as_arg().to_string(),
+    ];
+    if let Some(model) = model {
+        args.push("--model".to_string());
+        args.push(model.to_string());
+    }
+    args.extend([
         "--output-format".to_string(),
         "stream-json".to_string(),
         "--include-partial-messages".to_string(),
@@ -109,25 +111,8 @@ pub fn build_claude_args(model: AiModel, system_prompt_path: &Path) -> Vec<Strin
         String::new(),
         "--tools".to_string(),
         String::new(),
-    ]
-}
-
-/// claude 의 사고 예산 환경변수를 티어에서 파생한다(순수, REQ-AI9-046).
-///
-/// 기본 티어(Haiku)는 `MAX_THINKING_TOKENS=0`(추론 비활성, 기존 동작 유지).
-/// 고급 티어(Sonnet)는 `None` — 환경변수를 아예 설정하지 않고 claude CLI 자체 기본값에
-/// 위임한다. 숫자 예산을 발명하지 않는다(무출처 매직 넘버 금지, REQ-AI9-047).
-pub fn claude_thinking_env(model: AiModel) -> Option<(&'static str, &'static str)> {
-    match model {
-        AiModel::Haiku => Some(("MAX_THINKING_TOKENS", "0")),
-        AiModel::Sonnet => None,
-    }
-}
-
-/// 고급 티어 표시 문자열(SPEC-AI-009 REQ-AI9-051/052) — `AiModel::as_arg(Sonnet)` 반환값
-/// 그 자체다. 이 값을 다시 적어둔 두 번째 상수를 두지 않는다(REQ-AI9-049 (b)).
-pub fn claude_advanced_model_label() -> String {
-    AiModel::Sonnet.as_arg().to_string()
+    ]);
+    args
 }
 
 /// 스크래치 디렉토리 경로(앱 데이터 디렉토리 하위).
@@ -237,19 +222,14 @@ pub fn decide_outcome(
 
 /// claude 명령어의 Command 구성을 조립한다(순수 — 스폰하지 않음, `build_codex_command` 와 형제).
 ///
-/// 사고 예산 env(`MAX_THINKING_TOKENS`)는 `claude_thinking_env(model)` 이 `Some((k, v))` 를
-/// 반환할 때만 설정한다 — 기본 티어는 `0`(추론 비활성), 고급 티어는 미설정(CLI 기본값 위임,
-/// SPEC-AI-009 REQ-AI9-046). stdin/stdout/stderr 는 모두 piped — 사용자 프롬프트는 표준 입력으로
+/// 추론·사고 관련 환경 변수는 설정하지 않는다(CLI 기본값, SPEC-AI-014). stdin/stdout/stderr 는 모두 piped — 사용자 프롬프트는 표준 입력으로
 /// 전달한다(SPEC-AI-013 REQ-AI13-001).
 // @MX:WARN: [AUTO] 외부 바이너리(claude)를 실행한다 - 임의 경로 실행 보안 표면
 // @MX:REASON: [AUTO] cwd를 빈 스크래치로 고정하고 --setting-sources ""로 사용자/프로젝트 설정·훅을 차단해 부작용을 최소화한다(부록 A)
-pub fn build_claude_command(binary: &Path, args: &[String], cwd: &Path, model: AiModel) -> Command {
+pub fn build_claude_command(binary: &Path, args: &[String], cwd: &Path) -> Command {
     let mut cmd = Command::new(binary);
     // Windows에서 콘솔 창이 깜빡이며 뜨는 것을 막는다(GUI 앱 전면 탈취 방지).
     no_window(&mut cmd).args(args).current_dir(cwd);
-    if let Some((key, value)) = claude_thinking_env(model) {
-        cmd.env(key, value);
-    }
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -260,13 +240,12 @@ pub fn build_claude_command(binary: &Path, args: &[String], cwd: &Path, model: A
 pub fn spawn_claude(
     args: &[String],
     cwd: &Path,
-    model: AiModel,
     user_prompt: &str,
 ) -> Result<Child, String> {
     // bare "claude"가 아니라 detect와 동일하게 해석된 절대경로로 스폰한다(GUI 최소 PATH 우회).
     let binary = crate::ai::detect::claude_binary()
         .ok_or_else(|| "claude 실행 파일을 찾지 못했어요.".to_string())?;
-    let mut child = build_claude_command(&binary, args, cwd, model)
+    let mut child = build_claude_command(&binary, args, cwd)
         .spawn()
         .map_err(|e| format!("claude 실행에 실패했어요: {}", e))?;
     if let Some(stdin) = child.stdin.take() {
@@ -380,18 +359,15 @@ impl AiProvider for ClaudeProvider {
     }
 
     fn detect(&self) -> ProviderStatus {
-        // SPEC-AI-009 REQ-AI9-051: 매핑 소유 어댑터가 고급 티어 표시 문자열을 채운다.
-        ProviderStatus {
-            advanced_model_label: Some(claude_advanced_model_label()),
-            ..crate::ai::detect::detect_claude()
-        }
+        // 모델 목록은 조회하지 않는다 — 자동 모드에서 요청마다 불리므로 명령 계층이 붙인다(SPEC-AI-014).
+        crate::ai::detect::detect_claude()
     }
 
     fn spawn(&self, request: &AiRequest, cwd: &Path) -> Result<Child, String> {
         // cwd 는 작업 폴더(ai-scratch) — 시스템 프롬프트 파일은 그 형제 폴더에 쓴다(D1).
         let prompt_path = prepare_system_prompt_file(cwd, &request.system_prompt)?;
-        let args = build_claude_args(request.model, &prompt_path);
-        spawn_claude(&args, cwd, request.model, &request.user_prompt)
+        let args = build_claude_args(request.model.as_deref(), &prompt_path);
+        spawn_claude(&args, cwd, &request.user_prompt)
     }
 
     fn capabilities(&self) -> Capabilities {
@@ -439,7 +415,7 @@ mod tests {
         let base = temp_app_data("ac001");
         let scratch = ensure_scratch_dir(&base).unwrap();
         let path = prepare_system_prompt_file(&scratch, SYS_MARK).unwrap();
-        let args = build_claude_args(AiModel::Haiku, &path);
+        let args = build_claude_args(Some("haiku"), &path);
 
         for a in &args {
             assert!(!a.contains("SYS-표지-91c2"), "시스템 프롬프트가 인자에 있다: {a}");
@@ -484,7 +460,7 @@ mod tests {
     #[test]
     fn args_disable_all_builtin_tools() {
         // 도구 전면 비활성화(`--tools ""`)는 격리 계약의 일부다.
-        let args = build_claude_args(AiModel::Haiku, Path::new("/p/system-prompt.txt"));
+        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"));
         let idx = args
             .iter()
             .position(|a| a == "--tools")
@@ -493,20 +469,9 @@ mod tests {
     }
 
     #[test]
-    fn args_toggle_model_haiku_vs_sonnet() {
-        let p = Path::new("/p/system-prompt.txt");
-        let haiku = build_claude_args(AiModel::Haiku, p);
-        let sonnet = build_claude_args(AiModel::Sonnet, p);
-        let hidx = haiku.iter().position(|a| a == "--model").unwrap();
-        let sidx = sonnet.iter().position(|a| a == "--model").unwrap();
-        assert_eq!(haiku[hidx + 1], "haiku");
-        assert_eq!(sonnet[sidx + 1], "sonnet");
-    }
-
-    #[test]
     fn build_claude_args_haiku_snapshot_byte_equal() {
         // 전체 Vec 를 하드코딩해 순서·개수·값을 고정한다(SPEC-AI-013: 본문 인자 제거로 13개).
-        let args = build_claude_args(AiModel::Haiku, Path::new("/p/system-prompt.txt"));
+        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"));
         let expected = vec![
             "-p".to_string(),
             "--system-prompt-file".to_string(),
@@ -528,7 +493,7 @@ mod tests {
 
     #[test]
     fn build_claude_args_isolation_flags_never_drop() {
-        let args = build_claude_args(AiModel::Haiku, Path::new("/p/system-prompt.txt"));
+        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"));
         for flag in [
             "--system-prompt-file",
             "--model",
@@ -545,6 +510,57 @@ mod tests {
             );
         }
         assert_eq!(args.first().map(|s| s.as_str()), Some("-p"));
+    }
+
+    // --- SPEC-AI-014: 모델 인자 계약 (AC-010) ---
+
+    #[test]
+    fn claude_args_model_absent_vs_present() {
+        let p = Path::new("/p/system-prompt.txt");
+        let none = build_claude_args(None, p);
+        assert!(!none.iter().any(|a| a == "--model"));
+        assert_eq!(none.len(), 11);
+        let some = build_claude_args(Some("opus"), p);
+        assert_eq!(some.len(), 13);
+        assert_eq!(some.iter().filter(|a| a.as_str() == "opus").count(), 1);
+        let midx = some.iter().position(|a| a == "--model").unwrap();
+        assert_eq!(some[midx + 1], "opus");
+        let mut stripped = some.clone();
+        stripped.drain(midx..midx + 2);
+        assert_eq!(stripped, none);
+    }
+
+    #[test]
+    fn claude_args_keep_isolation_flags_and_no_user_text_in_both_cases() {
+        let p = Path::new("/p/system-prompt.txt");
+        for model in [None, Some("haiku")] {
+            let args = build_claude_args(model, p);
+            for flag in [
+                "-p",
+                "--system-prompt-file",
+                "--output-format",
+                "--include-partial-messages",
+                "--verbose",
+                "--setting-sources",
+                "--tools",
+            ] {
+                assert!(args.iter().any(|a| a == flag), "{flag} 누락");
+            }
+            let fidx = args.iter().position(|a| a == "--system-prompt-file").unwrap();
+            assert_eq!(args[fidx + 1], "/p/system-prompt.txt");
+            assert!(args.iter().all(|a| !a.contains(USER_MARK) && !a.contains('\n')));
+        }
+    }
+
+    #[test]
+    fn claude_command_sets_no_env_overrides() {
+        let cmd = build_claude_command(Path::new("/bin/cat"), &[], Path::new("/tmp"));
+        assert_eq!(cmd.get_envs().count(), 0);
+    }
+
+    #[test]
+    fn claude_detect_reports_no_models() {
+        assert!(ClaudeProvider::new().detect().models.is_empty());
     }
 
     // --- 표준 입력 쓰기 (AC-AI13-003) ---
@@ -573,7 +589,7 @@ mod tests {
     #[test]
     fn claude_command_pipes_stdin_to_child() {
         let cmd =
-            build_claude_command(Path::new("/bin/cat"), &[], Path::new("/tmp"), AiModel::Haiku);
+            build_claude_command(Path::new("/bin/cat"), &[], Path::new("/tmp"));
         cat_roundtrip(cmd);
     }
 
@@ -729,38 +745,6 @@ mod tests {
             assert!(!msg.contains("{"));
             assert!(!msg.contains("Error:"));
         }
-    }
-
-    // --- SPEC-AI-009 M10.3 / AC-AI9-031: 라벨이 중앙 매핑 함수 반환값과 대조되어야 함 ---
-
-    #[test]
-    fn claude_advanced_model_label_matches_as_arg_sonnet() {
-        // 하드코딩 기대 문자열이 아니라 AiModel::as_arg(Sonnet) 반환값과 대조한다(REQ-AI9-052).
-        assert_eq!(claude_advanced_model_label(), AiModel::Sonnet.as_arg());
-    }
-
-    #[test]
-    fn claude_detect_fills_advanced_model_label_non_empty() {
-        let status = ClaudeProvider::new().detect();
-        assert_eq!(status.id, "claude");
-        let label = status.advanced_model_label.expect("label must be Some");
-        assert!(!label.trim().is_empty());
-    }
-
-    // --- SPEC-AI-009 M10.2 / AC-AI9-029: claude 티어별 사고 예산 env 파생 ---
-
-    #[test]
-    fn claude_thinking_env_haiku_sets_zero() {
-        assert_eq!(
-            claude_thinking_env(AiModel::Haiku),
-            Some(("MAX_THINKING_TOKENS", "0"))
-        );
-    }
-
-    #[test]
-    fn claude_thinking_env_sonnet_is_none() {
-        // 고급 티어는 env 를 아예 설정하지 않는다(CLI 기본값 위임, REQ-AI9-046/047).
-        assert_eq!(claude_thinking_env(AiModel::Sonnet), None);
     }
 
     // --- SPEC-AI-006 항목 2: timeout 오류 종류 + 단일발행 선점 헬퍼 (REQ-AI6-004/005/006) ---

@@ -73,7 +73,7 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
         requestId: 'orig-1',
         feature: 'inline-edit',
         presetKind: 'polish',
-        model: 'haiku',
+        models: { claude: 'haiku', codex: null },
         selection: 'hello',
         contextBefore: '',
         contextAfter: '',
@@ -173,7 +173,7 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
     return controller;
   }
 
-  it('retry-exhausted renders the full done card plus the exhaustion notice and advanced-model offer', () => {
+  it('retry-exhausted renders the full done card plus the exhaustion notice but no advanced-model button (SPEC-AI-014 AC-002)', () => {
     reachExhausted();
     const card = cardEl();
 
@@ -183,7 +183,9 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
     expect(card.querySelector('.mdedit-ai-retry')).not.toBeNull();
     expect(card.querySelectorAll('.mdedit-ai-apply').length).toBeGreaterThanOrEqual(1);
     expect(card.querySelector('.mdedit-ai-cancel')).not.toBeNull();
-    expect(card.querySelector('.mdedit-ai-advanced')).not.toBeNull();
+    expect(card.querySelectorAll('button').length).toBeGreaterThan(0);
+    expect(Array.from(card.querySelectorAll('button')).some((b) => /고급|⚡/.test(b.textContent ?? ''))).toBe(false);
+    expect(card.textContent ?? '').not.toContain('고급 모델');
     expect(card.textContent ?? '').toContain(EXHAUSTION_NOTICE);
   });
 
@@ -274,50 +276,6 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
     );
     expect(controller.getState().retryCount).toBe(0);
     expect(controller.getState().phase).toBe('streaming');
-  });
-
-  // ---- AC-AI10-016: 고급 모델 폴백의 면제 ----
-
-  it('the advanced-model fallback fires a sonnet request and leaves the retry counter untouched', () => {
-    const controller = reachExhausted();
-    const before = aiRequestMock.mock.calls.length;
-
-    click('.mdedit-ai-advanced');
-
-    expect(aiRequestMock).toHaveBeenCalledTimes(before + 1);
-    expect((aiRequestMock.mock.calls[before][0] as { model: string }).model).toBe('sonnet');
-    expect(controller.getState().retryCount).toBe(3);
-    expect(controller.getState().phase).toBe('streaming');
-    expect(cardEl().querySelectorAll('.mdedit-ai-skeleton-line')).toHaveLength(3);
-  });
-
-  it('the advanced-model fallback does not reset the counter either', () => {
-    const controller = reachExhausted();
-    click('.mdedit-ai-advanced');
-    completeLastRequest();
-    expect(controller.getState().phase).toBe('done');
-    const before = aiRequestMock.mock.calls.length;
-
-    click('.mdedit-ai-retry');
-
-    expect(controller.getState().phase).toBe('retry-exhausted');
-    expect(aiRequestMock).toHaveBeenCalledTimes(before);
-  });
-
-  it('repeated advanced-model attempts never self-exhaust', () => {
-    const controller = reachExhausted();
-    const before = aiRequestMock.mock.calls.length;
-
-    // 1회차 — 소진 카드에서 발행된다.
-    click('.mdedit-ai-advanced');
-    completeLastRequest();
-    // 카운터가 3 그대로이므로 blind 한 번이면 다시 소진 카드로 돌아온다(미발행).
-    click('.mdedit-ai-retry');
-    expect(controller.getState().phase).toBe('retry-exhausted');
-    // 2회차 — 자기 자신을 카운트했다면 여기서 게이트에 막혀 아무 일도 일어나지 않는다.
-    click('.mdedit-ai-advanced');
-
-    expect(aiRequestMock).toHaveBeenCalledTimes(before + 2);
   });
 
   // ---- AC-AI10-017: error/intruded 면제 ----
@@ -413,7 +371,7 @@ describe('SPEC-AI-010 모듈 4: 재요청 소진 안내 도달 가능화', () =>
     expect(controller.getState().retryCount).toBe(2);
     const before = aiRequestMock.mock.calls.length;
 
-    controller.getRenderInput().callbacks.onReRequest('다시', 'haiku');
+    controller.getRenderInput().callbacks.onReRequest('다시');
 
     expect(aiRequestMock).toHaveBeenCalledTimes(before + 1);
     expect(controller.getState().retryCount).toBe(2);

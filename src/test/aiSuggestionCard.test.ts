@@ -356,19 +356,18 @@ describe('renderSuggestionCard: DOM per phase (jsdom)', () => {
     expect(dom.querySelector('.mdedit-ai-apply')).toBeNull();
   });
 
-  it('retry-exhausted shows the sonnet fallback trigger (REQ-AI-025)', async () => {
-    const { dom, callbacks } = await render({
+  it('retry-exhausted has no advanced-model button, keeps guidance + direction input (AC-002)', async () => {
+    const { dom } = await render({
       state: { phase: 'retry-exhausted', suggestion: 'S', retryCount: 3 },
       actions: { modes: ['replace'], primary: 'replace' },
       presetKind: 'polish',
       streamBuffer: '',
     });
-    const advanced = dom.querySelector<HTMLButtonElement>('.mdedit-ai-advanced')!;
-    expect(advanced).toBeTruthy();
-    advanced.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    // one-shot sonnet re-request
-    expect(callbacks.onReRequest).toHaveBeenCalled();
-    expect(callbacks.onReRequest.mock.calls[0][1]).toBe('sonnet');
+    // SPEC-AI-014 AC-002: 단발 고급 모델 버튼은 없고, 방향 지시 입력칸과 안내 문구는 남는다.
+    expect(Array.from(dom.querySelectorAll('button')).some((b) => /고급|⚡/.test(b.textContent ?? ''))).toBe(false);
+    expect(dom.textContent ?? '').not.toContain('고급 모델');
+    expect(dom.querySelector('.mdedit-ai-direct-input')).not.toBeNull();
+    expect(dom.textContent ?? '').toContain('방향을 알려주시면 더 정확해요 (위 입력칸)');
   });
 
   it('diagram-valid renders the mermaid code + a mini render placeholder + 아래 삽입', async () => {
@@ -531,7 +530,7 @@ describe('닫기 컨트롤: 런타임 통합 (레지스트리 제거 1가지 부
         requestId: 'card-dismiss-1',
         feature: 'inline-edit',
         presetKind: 'polish',
-        model: 'haiku',
+        models: { claude: 'haiku', codex: null },
         selection: 'x',
       },
       insertOnly: false,

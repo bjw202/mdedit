@@ -177,17 +177,9 @@ describe('SettingsModal: onboarding wizard (T-010)', () => {
   });
 });
 
-describe('resolveModel: advanced toggle → model id', () => {
-  it('advanced ON → sonnet, OFF → haiku', async () => {
-    const { resolveModel } = await import('@/components/settings/SettingsModal');
-    expect(resolveModel(true)).toBe('sonnet');
-    expect(resolveModel(false)).toBe('haiku');
-  });
-});
-
-describe('SettingsModal: notice banner + advanced toggle + policy lock (T-011)', () => {
+describe('SettingsModal: notice banner + policy lock (T-011)', () => {
   beforeEach(() => {
-    useUIStore.setState({ aiNoticeAcknowledged: false, aiAdvancedModel: false });
+    useUIStore.setState({ aiNoticeAcknowledged: false, aiModels: { claude: 'haiku', codex: null } });
     localStorage.clear();
   });
 
@@ -214,23 +206,6 @@ describe('SettingsModal: notice banner + advanced toggle + policy lock (T-011)',
     render(<SettingsModal open onClose={() => {}} />);
     await screen.findByText(/사용 가능/);
     expect(screen.queryByTestId('ai-notice-banner')).toBeNull();
-  });
-
-  it('advanced-model toggle reflects and persists aiAdvancedModel', async () => {
-    const { SettingsModal } = await import('@/components/settings/SettingsModal');
-    render(<SettingsModal open onClose={() => {}} />);
-    const toggle = await screen.findByRole('checkbox', { name: /고급 모델/ });
-    expect(toggle).not.toBeChecked();
-    fireEvent.click(toggle);
-    expect(useUIStore.getState().aiAdvancedModel).toBe(true);
-  });
-
-  it('policy-locked disables the advanced-model toggle (lock indicator)', async () => {
-    policyMock.mockResolvedValue({ disabled: true, source: 'env' });
-    const { SettingsModal } = await import('@/components/settings/SettingsModal');
-    render(<SettingsModal open onClose={() => {}} />);
-    const toggle = await screen.findByRole('checkbox', { name: /고급 모델/ });
-    expect(toggle).toBeDisabled();
   });
 });
 
@@ -296,108 +271,94 @@ describe('deriveProviderRowState: 행별 상태 파생 순수 함수 (AC-AI9-017
   });
 });
 
-// @MX:SPEC: SPEC-AI-009 REQ-AI9-048 REQ-AI9-050 REQ-AI9-053
-// 고급 모델 토글 라벨 — 백엔드가 보낸 advancedModelLabel 을 그대로 렌더 + 폴백 3경로(AC-AI9-030).
-describe('SettingsModal: 고급 모델 토글 라벨 — 백엔드 공급 문자열 렌더 (AC-AI9-030)', () => {
+// @MX:SPEC: SPEC-AI-014 REQ-AI14-001 REQ-AI14-003 REQ-AI14-006
+// 도구별 모델 드롭다운(AC-001·005·007). 선택지는 백엔드가 내려준 models 만 쓴다.
+describe('SettingsModal: 도구별 모델 드롭다운 (SPEC-AI-014)', () => {
+  const both = [
+    {
+      id: 'claude',
+      installed: true,
+      loggedIn: true,
+      models: [
+        { id: 'haiku', label: 'Haiku' },
+        { id: 'opus', label: 'Opus' },
+      ],
+    },
+    { id: 'codex', installed: true, loggedIn: true, models: [{ id: 'm-a', label: 'M A' }] },
+  ];
+
   beforeEach(() => {
-    useUIStore.setState({ aiNoticeAcknowledged: true, aiSelectedProvider: 'auto' });
-  });
-
-  it('codex 선택 시 백엔드가 보낸 advancedModelLabel 을 그대로 라벨/aria-label 에 포함', async () => {
-    useUIStore.setState({ aiSelectedProvider: 'codex' });
-    detectMock.mockResolvedValue([
-      { id: 'claude', installed: true, loggedIn: true, version: '2.1.218', advancedModelLabel: 'sonnet' },
-      {
-        id: 'codex',
-        installed: true,
-        loggedIn: true,
-        version: '0.144.1',
-        advancedModelLabel: 'gpt-5.5 · 높은 추론',
-      },
-    ]);
-    const { SettingsModal } = await import('@/components/settings/SettingsModal');
-    render(<SettingsModal open onClose={() => {}} />);
-    const toggle = await screen.findByRole('checkbox', {
-      name: /고급 모델 사용 \(gpt-5\.5 · 높은 추론/,
+    useUIStore.setState({
+      aiNoticeAcknowledged: true,
+      aiSelectedProvider: 'auto',
+      aiModels: { claude: 'haiku', codex: null },
     });
-    expect(toggle).toBeInTheDocument();
-    expect(screen.getByText(/고급 모델 사용 \(gpt-5\.5 · 높은 추론 — 더 정확, 더 느림\)/)).toBeInTheDocument();
+    localStorage.clear();
   });
 
-  it('claude 선택 시 mock 이 내려준 sonnet 라벨을 렌더', async () => {
-    useUIStore.setState({ aiSelectedProvider: 'claude' });
-    detectMock.mockResolvedValue([
-      { id: 'claude', installed: true, loggedIn: true, version: '2.1.218', advancedModelLabel: 'sonnet' },
-      {
-        id: 'codex',
-        installed: true,
-        loggedIn: true,
-        version: '0.144.1',
-        advancedModelLabel: 'gpt-5.5 · 높은 추론',
-      },
-    ]);
+  const optionTexts = (sel: HTMLElement) =>
+    Array.from((sel as HTMLSelectElement).options).map((o) => o.textContent);
+
+  it('AC-001: 고급 모델 토글이 없고 저장소에도 aiAdvancedModel 키가 없다', async () => {
+    detectMock.mockResolvedValue(both);
     const { SettingsModal } = await import('@/components/settings/SettingsModal');
     render(<SettingsModal open onClose={() => {}} />);
-    await screen.findByText(/고급 모델 사용 \(sonnet — 더 정확, 더 느림\)/);
+    await screen.findByRole('combobox', { name: 'Claude 모델' });
+    expect(screen.queryByRole('checkbox', { name: /고급 모델/ })).toBeNull();
+    expect(screen.queryByText(/고급 모델/)).toBeNull();
+    expect('aiAdvancedModel' in useUIStore.getState()).toBe(false);
   });
 
-  it('mock 값을 임의 문자열로 바꾸면 라벨이 그대로 따라간다(프론트 재구성 부재 증명)', async () => {
-    useUIStore.setState({ aiSelectedProvider: 'claude' });
-    detectMock.mockResolvedValue([
-      { id: 'claude', installed: true, loggedIn: true, advancedModelLabel: 'ZZZ-테스트-라벨' },
-    ]);
+  it('AC-005: 두 드롭다운, 선택지 텍스트, 텍스트 입력 없음, 선택이 저장소에 반영된다', async () => {
+    detectMock.mockResolvedValue(both);
     const { SettingsModal } = await import('@/components/settings/SettingsModal');
     render(<SettingsModal open onClose={() => {}} />);
-    await screen.findByText(/ZZZ-테스트-라벨/);
+    const claude = await screen.findByRole('combobox', { name: 'Claude 모델' });
+    const codex = screen.getByRole('combobox', { name: 'Codex 모델' });
+    expect(optionTexts(claude)).toEqual(['CLI 기본값', 'Haiku', 'Opus']);
+    expect(optionTexts(codex)).toEqual(['CLI 기본값', 'M A']);
+    expect(screen.queryByRole('textbox')).toBeNull();
+
+    fireEvent.change(claude, { target: { value: 'opus' } });
+    expect(useUIStore.getState().aiModels.claude).toBe('opus');
+    fireEvent.change(claude, { target: { value: '' } });
+    expect(useUIStore.getState().aiModels.claude).toBeNull();
+    fireEvent.change(codex, { target: { value: 'm-a' } });
+    expect(useUIStore.getState().aiModels.codex).toBe('m-a');
   });
 
-  it('auto 선택 시 selectable 인 첫 provider 의 라벨을 사용', async () => {
-    useUIStore.setState({ aiSelectedProvider: 'auto' });
-    detectMock.mockResolvedValue([
-      { id: 'claude', installed: false, loggedIn: false },
-      { id: 'codex', installed: true, loggedIn: true, advancedModelLabel: 'gpt-5.5 · 높은 추론' },
-    ]);
-    const { SettingsModal } = await import('@/components/settings/SettingsModal');
-    render(<SettingsModal open onClose={() => {}} />);
-    await screen.findByText(/고급 모델 사용 \(gpt-5\.5 · 높은 추론 — 더 정확, 더 느림\)/);
-  });
-
-  it('폴백 (a) — advancedModelLabel 부재 시 표시명 기반 폴백', async () => {
-    useUIStore.setState({ aiSelectedProvider: 'auto' });
-    detectMock.mockResolvedValue([{ id: 'gemini', installed: true, loggedIn: true }]);
-    const { SettingsModal } = await import('@/components/settings/SettingsModal');
-    render(<SettingsModal open onClose={() => {}} />);
-    await screen.findByText(/고급 모델 사용 \(gemini 고급 티어 — 더 정확, 더 느림\)/);
-  });
-
-  it('폴백 (b) — advancedModelLabel 이 공백만이면 동일한 표시명 기반 폴백', async () => {
-    useUIStore.setState({ aiSelectedProvider: 'auto' });
-    detectMock.mockResolvedValue([
-      { id: 'gemini', installed: true, loggedIn: true, advancedModelLabel: '   ' },
-    ]);
-    const { SettingsModal } = await import('@/components/settings/SettingsModal');
-    render(<SettingsModal open onClose={() => {}} />);
-    await screen.findByText(/고급 모델 사용 \(gemini 고급 티어 — 더 정확, 더 느림\)/);
-  });
-
-  it('폴백 (c) — 유효 provider 자체가 없으면 중립 문구', async () => {
-    useUIStore.setState({ aiSelectedProvider: 'auto' });
-    detectMock.mockResolvedValue([
-      { id: 'claude', installed: false, loggedIn: false },
-      { id: 'codex', installed: true, loggedIn: false },
-    ]);
-    const { SettingsModal } = await import('@/components/settings/SettingsModal');
-    render(<SettingsModal open onClose={() => {}} />);
-    await screen.findByText('고급 모델 사용 (더 정확, 더 느림)');
-  });
-
-  it('정책 잠금 상태에서도 AC-AI9-016~019 관례(disabled+🔒)가 그대로 동작', async () => {
+  it('AC-005: 정책 잠금이면 두 드롭다운이 비활성이다', async () => {
     policyMock.mockResolvedValue({ disabled: true, source: 'env' });
-    detectMock.mockResolvedValue([{ id: 'claude', installed: true, loggedIn: true, advancedModelLabel: 'sonnet' }]);
+    detectMock.mockResolvedValue(both);
     const { SettingsModal } = await import('@/components/settings/SettingsModal');
     render(<SettingsModal open onClose={() => {}} />);
-    const toggle = await screen.findByRole('checkbox', { name: /고급 모델 사용/ });
-    expect(toggle).toBeDisabled();
+    expect(await screen.findByRole('combobox', { name: 'Claude 모델' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Codex 모델' })).toBeDisabled();
+  });
+
+  it('AC-005: codex 미설치면 codex 드롭다운이 비활성이다', async () => {
+    detectMock.mockResolvedValue([both[0], { id: 'codex', installed: false, loggedIn: false }]);
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    expect(await screen.findByRole('combobox', { name: 'Codex 모델' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Claude 모델' })).not.toBeDisabled();
+  });
+
+  it('AC-005: codex 설치·미로그인이면 codex 드롭다운이 비활성이다', async () => {
+    detectMock.mockResolvedValue([both[0], { id: 'codex', installed: true, loggedIn: false }]);
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    expect(await screen.findByRole('combobox', { name: 'Codex 모델' })).toBeDisabled();
+  });
+
+  it('AC-007: 목록에 없는 저장값은 "(목록에 없음)"으로 보이고 저장소는 그대로다', async () => {
+    useUIStore.setState({ aiModels: { claude: 'haiku', codex: 'gone-model' } });
+    detectMock.mockResolvedValue(both);
+    const { SettingsModal } = await import('@/components/settings/SettingsModal');
+    render(<SettingsModal open onClose={() => {}} />);
+    const codex = (await screen.findByRole('combobox', { name: 'Codex 모델' })) as HTMLSelectElement;
+    expect(codex.selectedOptions[0].textContent).toBe('gone-model (목록에 없음)');
+    expect(useUIStore.getState().aiModels.codex).toBe('gone-model');
   });
 });
 
@@ -484,7 +445,8 @@ describe('SettingsModal: 대등 provider 행 목록 (SPEC-AI-009 v0.0.4, AC-AI9-
     render(<SettingsModal open onClose={() => {}} />);
     await screen.findAllByRole('radio');
     expect(screen.queryByLabelText('AI 엔진 선택')).toBeNull();
-    expect(screen.queryByRole('combobox')).toBeNull();
+    // 모델 드롭다운(SPEC-AI-014)은 엔진 선택이 아니다 — 엔진 선택용 combobox 만 없어야 한다.
+    expect(screen.queryByRole('combobox', { name: /엔진/ })).toBeNull();
   });
 
   it('codex 행 선택 시 aiSelectedProvider 가 즉시 갱신되고 값 도메인은 무변경 (REQ-AI9-030(a))', async () => {

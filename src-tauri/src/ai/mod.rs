@@ -5,6 +5,7 @@ pub mod claude_cli;
 pub mod codex_cli;
 pub mod detect;
 pub mod prompt;
+pub mod models;
 pub mod provider;
 pub mod stream;
 
@@ -14,7 +15,8 @@ use prompt::{
     build_continue_prompt_with_length, build_inline_prompt_ex, build_section_prompt,
     AiFeature, ContinueLength,
 };
-use provider::{AiModel, AiRequest, ProviderStatus};
+use models::{ModelOption, ModelSelection};
+use provider::{AiRequest, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -90,7 +92,7 @@ pub struct AiCancelArgs {
 }
 
 /// 프론트에서 넘어오는 AI 요청 인자. 프롬프트는 Rust에서 조립하므로 텍스트 조각만 받는다(REQ-AI-003).
-/// IPC 계약(camelCase): `{ requestId, feature, presetKind?, model, selection?, contextBefore?, contextAfter?, outline?, customInstruction? }`.
+/// IPC 계약(camelCase): `{ requestId, feature, presetKind?, models?, selection?, contextBefore?, contextAfter?, outline?, customInstruction? }`.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiRequestArgs {
@@ -101,8 +103,9 @@ pub struct AiRequestArgs {
     pub feature: String,
     #[serde(default)]
     pub preset_kind: Option<String>,
+    /// 도구별 모델 선택(SPEC-AI-014). 라우팅된 도구의 항목만 쓰고, 키가 없으면 CLI 기본값이다.
     #[serde(default)]
-    pub model: Option<String>,
+    pub models: ModelSelection,
     #[serde(default)]
     pub selection: Option<String>,
     #[serde(default)]
@@ -129,6 +132,31 @@ pub struct AiRequestArgs {
     // @MX:SPEC: SPEC-AI-012
     #[serde(default)]
     pub additional_instruction: Option<String>,
+}
+
+/// 라우팅된 도구의 모델 선택을 허용 목록으로 검증한다(순수에 가깝다 — 스폰 앞 단계).
+/// `Ok(None)` 은 CLI 기본값(`--model` 생략), `Err` 는 사용자에게 보이는 거부 메시지다.
+// @MX:NOTE: [AUTO] 스폰 앞의 모델 검증 단계 - 실패하면 ai_request 가 Err 로 끝나 CLI 가 실행되지 않는다
+// @MX:SPEC: SPEC-AI-014
+pub fn resolve_request_model(
+    selection: &ModelSelection,
+    provider_id: &str,
+) -> Result<Option<String>, String> {
+    models::validate(provider_id, selection.for_provider(provider_id))
+}
+
+/// 감지 결과의 각 도구 상태에 그 도구의 모델 목록을 붙인다(순수 — 목록 조회는 `lister` 가 맡는다).
+pub fn attach_models(
+    statuses: Vec<ProviderStatus>,
+    lister: impl Fn(&ProviderStatus) -> Vec<ModelOption>,
+) -> Vec<ProviderStatus> {
+    statuses
+        .into_iter()
+        .map(|mut s| {
+            s.models = lister(&s);
+            s
+        })
+        .collect()
 }
 
 /// AI 요청을 시작한다 — 정책 확인 → 프롬프트 조립 → in-flight 교체 → 스폰 → 릴레이(REQ-AI-002/004/006).
@@ -184,16 +212,16 @@ pub fn ai_request(
     };
     let truncated = assembled.truncated;
 
-    // 4. 모델 결정(기본 haiku).
-    let model = AiModel::from_opt(args.model.as_deref());
-
-    // 5. 프로바이더 라우팅(trait 경유).
+    // 4. 프로바이더 라우팅(trait 경유).
     // SPEC-AI-009: default_registry() 가 claude+codex 2개를 등록하고, route(None) 은
     // first_available()(installed && logged_in 첫 provider)로 자동 감지(claude 우선, codex 폴백).
     let registry = claude_cli::default_registry();
     let provider = registry
         .route(args.provider_id.as_deref())
         .ok_or_else(|| "사용 가능한 AI 도구가 없어요.".to_string())?;
+
+    // 5. 모델 검증 — 라우팅된 도구의 선택만 쓰고, 허용 목록 밖이면 CLI 를 실행하지 않고 거부한다(SPEC-AI-014).
+    let model = resolve_request_model(&args.models, provider.id())?;
 
     // 6. 빈 스크래치 cwd 준비(문서·프로젝트 폴더 격리).
     let app_data_dir = app_handle
@@ -366,9 +394,15 @@ pub fn ai_cancel(
 
 /// 등록된 프로바이더의 설치·버전·로그인 상태를 감지한다(REQ-AI-012).
 /// SPEC-AI-009: claude + codex 양쪽 상태를 반환한다(default_registry 경유).
+/// SPEC-AI-014: 도구별 모델 목록(`models`)을 붙인다. codex 목록 조회는 최대 3초 블로킹이라
+/// 비동기 명령 안에서 `spawn_blocking` 으로 돌려 UI 스레드를 막지 않는다.
 #[tauri::command]
-pub fn ai_detect_providers() -> Result<Vec<ProviderStatus>, String> {
-    Ok(claude_cli::default_registry().detect_all())
+pub async fn ai_detect_providers() -> Result<Vec<ProviderStatus>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        attach_models(claude_cli::default_registry().detect_all(), models::list_for_status)
+    })
+    .await
+    .map_err(|e| format!("AI 도구 감지에 실패했어요: {}", e))
 }
 
 /// 정책 kill-switch 상태를 반환한다(REQ-AI-017). 값은 setup에서 1회 프로브해 저장됨.
@@ -435,6 +469,57 @@ mod tests {
         assert_eq!(in_flight_replacement_notice(None), None);
     }
 
+    // --- SPEC-AI-014: 모델 선택 계약 (AC-009, AC-016, AC-021) ---
+
+    #[test]
+    fn request_args_without_models_key_deserialize_to_cli_default() {
+        let args: AiRequestArgs =
+            serde_json::from_str(r#"{"requestId":"r1","feature":"polish","selection":"x"}"#).unwrap();
+        assert_eq!(args.models, models::ModelSelection::default());
+        assert!(args.models.claude.is_none() && args.models.codex.is_none());
+    }
+
+    #[test]
+    fn request_args_deserialize_models_selection() {
+        let args: AiRequestArgs = serde_json::from_str(
+            r#"{"requestId":"r1","feature":"polish","models":{"claude":"opus","codex":"gpt-6-sol"}}"#,
+        )
+        .unwrap();
+        assert_eq!(args.models.claude.as_deref(), Some("opus"));
+        assert_eq!(args.models.codex.as_deref(), Some("gpt-6-sol"));
+    }
+
+    #[test]
+    fn resolve_request_model_picks_routed_tool_entry() {
+        let sel = models::ModelSelection {
+            claude: Some("opus".to_string()),
+            codex: Some("gpt-6-sol".to_string()),
+        };
+        assert_eq!(resolve_request_model(&sel, "claude"), Ok(Some("opus".to_string())));
+        assert_eq!(resolve_request_model(&sel, "codex"), Ok(Some("gpt-6-sol".to_string())));
+        assert_eq!(resolve_request_model(&models::ModelSelection::default(), "claude"), Ok(None));
+    }
+
+    #[test]
+    fn resolve_request_model_rejects_unlisted_model_before_any_spawn() {
+        let sel = models::ModelSelection { claude: Some("gpt-x".to_string()), codex: None };
+        let err = resolve_request_model(&sel, "claude").unwrap_err();
+        assert!(err.contains("gpt-x") && err.contains("Claude") && err.contains("설정"));
+        // 다른 도구의 선택은 라우팅된 도구 검증에 영향이 없다.
+        assert_eq!(resolve_request_model(&sel, "codex"), Ok(None));
+    }
+
+    #[test]
+    fn attach_models_fills_each_status_from_lister_by_tool_id() {
+        let statuses = vec![
+            ProviderStatus { id: "claude".into(), installed: true, version: None, logged_in: true, models: vec![] },
+            ProviderStatus { id: "codex".into(), installed: false, version: None, logged_in: false, models: vec![] },
+        ];
+        let out = attach_models(statuses, |s| vec![models::ModelOption::new(&format!("{}-m", s.id), "L")]);
+        assert_eq!(out[0].models, vec![models::ModelOption::new("claude-m", "L")]);
+        assert_eq!(out[1].models, vec![models::ModelOption::new("codex-m", "L")]);
+    }
+
     #[test]
     fn request_args_deserialize_camel_case_minimal() {
         // 프론트가 최소 필드만 camelCase로 보내도 파싱된다(옵션·기본값).
@@ -443,7 +528,7 @@ mod tests {
         assert_eq!(args.request_id, "r1");
         assert_eq!(args.feature, "polish");
         assert_eq!(args.selection.as_deref(), Some("안녕"));
-        assert!(args.model.is_none());
+        assert_eq!(args.models, ModelSelection::default());
         assert!(args.context_before.is_none());
         assert!(args.preset_kind.is_none());
         assert!(args.length.is_none());
@@ -523,7 +608,7 @@ mod tests {
         let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
         assert_eq!(args.feature, "inline-edit");
         assert_eq!(args.preset_kind.as_deref(), Some("diagram"));
-        assert_eq!(args.model.as_deref(), Some("sonnet"));
+        assert_eq!(args.models.claude, None);
         assert_eq!(args.context_before.as_deref(), Some("앞"));
         assert_eq!(args.context_after.as_deref(), Some("뒤"));
         assert_eq!(args.custom_instruction.as_deref(), Some("영어로"));

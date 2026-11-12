@@ -41,7 +41,7 @@ beforeEach(async () => {
   const { useAiStore, idleSlice } = await import('@/store/aiStore');
   useAiStore.setState({ ...idleSlice, sessionRequestCount: 0 });
   const { useUIStore } = await import('@/store/uiStore');
-  useUIStore.setState({ aiAdvancedModel: false });
+  useUIStore.setState({ aiModels: { claude: 'haiku', codex: null } });
 });
 
 describe('buildOutline: heading extraction', () => {
@@ -231,7 +231,7 @@ describe('startSectionFillCommand: trigger builds outline + section-fill request
     expect(aiRequestMock).toHaveBeenCalledTimes(1);
     const arg = aiRequestMock.mock.calls[0][0];
     expect(arg.feature).toBe('section-fill');
-    expect(arg.model).toBe('haiku'); // aiAdvancedModel=false → haiku
+    expect(arg.models).toEqual({ claude: 'haiku', codex: null }); // 기본 선택
     // 백엔드 계약: outline = 전체 헤딩 아웃라인, contextBefore = 커서 앞 본문 꼬리, presetKind/selection 없음.
     expect(arg.outline).toContain('## 결론');
     expect(arg.outline).toContain('# 제목');

@@ -1,0 +1,7 @@
+{
+ "code": 1,
+ "out": "{\"type\":\"thread.started\",\"thread_id\":\"01a1d0f8-164f-7d11-802f-b1eb9b026977\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"Model metadata for `gpt-5.5` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"error\",\"message\":\"The 'gpt-5.5' model is not supported when using Codex with a ChatGPT account.\"}\n{\"type\":\"turn.failed\",\"error\":{\"message\":\"The 'gpt-5.5' model is not supported when using Codex with a ChatGPT account.\"}}\n",
+ "err": "Reading prompt from stdin...\n",
+ "total": 2.31,
+ "first": 0.3
+}

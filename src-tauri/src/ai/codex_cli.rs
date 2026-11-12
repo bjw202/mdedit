@@ -18,7 +18,7 @@ use crate::ai::claude_cli::{
     claim_terminal, decide_outcome, spawn_stdin_writer, ChunkPayload, DonePayload, ErrorPayload,
     RelayOutcome,
 };
-use crate::ai::provider::{AiModel, AiProvider, AiRequest, Capabilities, ProviderStatus};
+use crate::ai::provider::{AiProvider, AiRequest, Capabilities, ProviderStatus};
 use crate::ai::stream::{parse_codex_agent_message, parse_codex_turn_completed, Completion};
 use crate::process_util::{login_shell_path, no_window};
 use std::io::{BufRead, BufReader, Read};
@@ -36,70 +36,22 @@ pub fn combine_prompts(system_prompt: &str, user_prompt: &str) -> String {
     format!("{}\n\n{}", system_prompt, user_prompt)
 }
 
-/// codex 의 `--model` 인자 값으로 매핑한다(순수, REQ-AI9-018).
+/// model·scratch_dir 로 codex 실행 인자를 조립한다(순수, REQ-AI9-004 → SPEC-AI-014).
 ///
-/// v1 매핑: Haiku/Sonnet 모두 `gpt-5.5`(사전 합의). 이 매핑 로직은 본 함수에 국소화하고
-/// 분산을 금지한다(Design Notes "모델 매핑 중앙화"). 향후 모델 다양화는 본 함수와 SPEC 개정으로만.
-pub fn codex_model_arg(model: AiModel) -> &'static str {
-    match model {
-        AiModel::Haiku | AiModel::Sonnet => "gpt-5.5",
-    }
-}
-
-/// codex 의 `model_reasoning_effort` 값으로 매핑한다(순수, REQ-AI9-045).
-///
-/// `codex_model_arg` 와 형제 위치에 중앙화 — 기본(Haiku)="medium", 고급(Sonnet)="high".
-/// `build_codex_args` 는 이 함수의 반환값만 소비하며, 이 값을 다시 적어둔 두 번째 상수를
-/// 두지 않는다(REQ-AI9-049 (b) — 라벨 조립부도 반드시 이 함수를 호출해야 한다).
-pub fn codex_reasoning_effort(model: AiModel) -> &'static str {
-    match model {
-        AiModel::Haiku => "medium",
-        AiModel::Sonnet => "high",
-    }
-}
-
-/// `codex_reasoning_effort` 가 반환한 값을 사람이 읽는 표기로 옮긴다(순수, REQ-AI9-052).
-///
-/// **알 수 없는 키는 원문 그대로 통과시킨다** — 향후 `codex_reasoning_effort` 가 새 키를
-/// 반환해도 이 함수는 그 키를 날것으로 노출할 뿐 "높은 추론"이라고 거짓 주장하지 않는다.
-/// 티어→문자열 매칭을 라벨 쪽에서 다시 수행하는 것은 REQ-AI9-049 (b) 위반이다.
-pub fn codex_effort_display(effort: &str) -> &str {
-    match effort {
-        "high" => "높은 추론",
-        "medium" => "보통 추론",
-        other => other,
-    }
-}
-
-/// 고급 티어 표시 문자열(SPEC-AI-009 REQ-AI9-051/052) — `codex_model_arg(Sonnet)` 과
-/// `codex_effort_display(codex_reasoning_effort(Sonnet))` 만으로 조립한다. 모델명·effort
-/// 리터럴을 여기 다시 적지 않는다(REQ-AI9-049 (b)).
-pub fn codex_advanced_model_label() -> String {
-    format!(
-        "{} · {}",
-        codex_model_arg(AiModel::Sonnet),
-        codex_effort_display(codex_reasoning_effort(AiModel::Sonnet))
-    )
-}
-
-/// model·scratch_dir 로 codex 실행 인자를 조립한다(순수, REQ-AI9-004).
-///
-/// 산출 인자는 정확히 다음 순서의 13개 원소다(codex-cli 0.144.1 실측 기준):
+/// `model` 이 `None`(CLI 기본값)이면 `--model` 쌍을 넣지 않아 11개, `Some` 이면 13개 원소다:
 /// ```text
 /// ["exec", "-C", <scratch>, "--ignore-user-config", "--skip-git-repo-check",
-///  "--ephemeral", "--sandbox", "read-only", "--model", <model_arg>,
-///  "-c", "model_reasoning_effort=\"<effort>\"", "--json"]
+///  "--ephemeral", "--sandbox", "read-only", ["--model", <model>,] "--json"]
 /// ```
-/// `<effort>` 는 `codex_reasoning_effort` 결과(기본 티어 `medium` / 고급 티어 `high`, REQ-AI9-045)다.
-/// `<scratch>` 는 빈 스크래치 디렉토리 절대경로, `<model_arg>` 는 `codex_model_arg` 결과다.
+/// 추론 설정(`-c ...`)은 넘기지 않는다(CLI 기본값). `<scratch>` 는 빈 스크래치 디렉토리 절대경로다.
 /// 결합 프롬프트(`combine_prompts`)는 위치 인자가 아니라 표준 입력으로 전달한다 — 위치 인자를
 /// 빼면 codex 가 표준 입력에서 읽는다(SPEC-AI-013 REQ-AI13-002, 실측).
 // @MX:ANCHOR: [AUTO] codex 격리 플래그 시퀀스 - --ignore-user-config/--sandbox read-only/--ephemeral
 // @MX:REASON: [AUTO] 사용자 홈 컨텍스트 오염(~/.codex/AGENTS.md 자동 로딩 → 32K 토큰 폭발 사례)을
 //   막는 1차 방어선. 플래그 하나라도 누락되면 격리가 빈 cwd 정황에만 의존해 회귀(REQ-AI9-004/008).
-pub fn build_codex_args(model: AiModel, scratch_dir: &Path) -> Vec<String> {
+pub fn build_codex_args(model: Option<&str>, scratch_dir: &Path) -> Vec<String> {
     let scratch = scratch_dir.to_string_lossy().into_owned();
-    vec![
+    let mut args = vec![
         "exec".to_string(),
         "-C".to_string(),
         scratch,
@@ -108,15 +60,13 @@ pub fn build_codex_args(model: AiModel, scratch_dir: &Path) -> Vec<String> {
         "--ephemeral".to_string(),
         "--sandbox".to_string(),
         "read-only".to_string(),
-        "--model".to_string(),
-        codex_model_arg(model).to_string(),
-        "-c".to_string(),
-        format!(
-            "model_reasoning_effort=\"{}\"",
-            codex_reasoning_effort(model)
-        ),
-        "--json".to_string(),
-    ]
+    ];
+    if let Some(model) = model {
+        args.push("--model".to_string());
+        args.push(model.to_string());
+    }
+    args.push("--json".to_string());
+    args
 }
 
 /// codex 명령어의 Command 구성을 조립한다(순수, D6 힌트 — AC-AI9-005 자동화 지원).
@@ -305,11 +255,8 @@ impl AiProvider for CodexProvider {
     }
 
     fn detect(&self) -> ProviderStatus {
-        // SPEC-AI-009 REQ-AI9-051: 매핑 소유 어댑터가 고급 티어 표시 문자열을 채운다.
-        ProviderStatus {
-            advanced_model_label: Some(codex_advanced_model_label()),
-            ..crate::ai::detect::detect_codex()
-        }
+        // 모델 목록은 조회하지 않는다 — 자동 모드에서 요청마다 불리므로 명령 계층이 붙인다(SPEC-AI-014).
+        crate::ai::detect::detect_codex()
     }
 
     fn spawn(&self, request: &AiRequest, cwd: &Path) -> Result<Child, String> {
@@ -318,7 +265,7 @@ impl AiProvider for CodexProvider {
         // system/user 가 분리되어 전달되는 버그 방지). 결합 프롬프트는 인자가 아니라 표준 입력으로
         // 전달된다(SPEC-AI-013 REQ-AI13-002).
         let combined = combine_prompts(&request.system_prompt, &request.user_prompt);
-        let args = build_codex_args(request.model, cwd);
+        let args = build_codex_args(request.model.as_deref(), cwd);
         spawn_codex(&args, cwd, &combined)
     }
 
@@ -371,184 +318,53 @@ mod tests {
         assert_eq!(combine_prompts(s, u), "line1\nline2\n\nu1\nu2");
     }
 
-    // --- codex_model_arg (REQ-AI9-018, AC-AI9-011) ---
+    // --- SPEC-AI-014: 모델 인자 계약 (AC-010, AC-011) ---
 
     #[test]
-    fn codex_model_arg_haiku_maps_to_gpt55() {
-        assert_eq!(codex_model_arg(AiModel::Haiku), "gpt-5.5");
-    }
-
-    #[test]
-    fn codex_model_arg_sonnet_maps_to_gpt55() {
-        // v1 일단 동일 매핑(사전 합의). 향후 분리 시 본 함수와 SPEC 개정.
-        assert_eq!(codex_model_arg(AiModel::Sonnet), "gpt-5.5");
-    }
-
-    // --- build_codex_args (REQ-AI9-004, AC-AI9-003) ---
-
-    #[test]
-    fn build_codex_args_haiku_snapshot_exact_14_elements() {
-        // AC-AI9-003: 정확한 순서·개수·값의 스냅샷. <scratch> 자리에는 실제 경로를 넣는다.
+    fn codex_args_model_absent_vs_present() {
         let scratch = Path::new("/tmp/scratch");
-        let args = build_codex_args(AiModel::Haiku, scratch);
-
-        let expected = vec![
-            "exec".to_string(),
-            "-C".to_string(),
-            "/tmp/scratch".to_string(),
-            "--ignore-user-config".to_string(),
-            "--skip-git-repo-check".to_string(),
-            "--ephemeral".to_string(),
-            "--sandbox".to_string(),
-            "read-only".to_string(),
-            "--model".to_string(),
-            "gpt-5.5".to_string(),
-            "-c".to_string(),
-            "model_reasoning_effort=\"medium\"".to_string(),
-            "--json".to_string(),
-        ];
-        assert_eq!(args, expected);
+        let none = build_codex_args(None, scratch);
         assert_eq!(
-            args.len(),
-            13,
-            "codex 인자는 정확히 13개여야 한다(SPEC-AI-013: 프롬프트는 표준 입력으로)"
+            none,
+            vec![
+                "exec", "-C", "/tmp/scratch", "--ignore-user-config", "--skip-git-repo-check",
+                "--ephemeral", "--sandbox", "read-only", "--json"
+            ]
         );
+        let some = build_codex_args(Some("m-a"), scratch);
+        assert_eq!(some.len(), none.len() + 2);
+        let midx = some.iter().position(|a| a == "--model").unwrap();
+        assert_eq!(some[midx + 1], "m-a");
+        assert_eq!(some.iter().filter(|a| a.as_str() == "m-a").count(), 1);
+        assert_eq!(some.last().map(|s| s.as_str()), Some("--json"));
     }
 
     #[test]
-    fn build_codex_args_sonnet_also_maps_to_gpt55() {
-        // v1 매핑: Sonnet 도 gpt-5.5. Haiku 와 동일 인자(+ combined 만 다름).
+    fn codex_args_have_no_reasoning_override_and_keep_isolation() {
         let scratch = Path::new("/tmp/scratch");
-        let args = build_codex_args(AiModel::Sonnet, scratch);
-        let model_idx = args
-            .iter()
-            .position(|a| a == "--model")
-            .expect("--model 플래그 있어야 함");
-        assert_eq!(args[model_idx + 1], "gpt-5.5");
-        // SPEC-AI-009 M10.1.3: Sonnet(고급 티어)는 reasoning effort 가 "high" 여야 한다.
-        let c_idx = args.iter().position(|a| a == "-c").unwrap();
-        assert_eq!(args[c_idx + 1], "model_reasoning_effort=\"high\"");
-    }
-
-    // --- SPEC-AI-009 M10.1 / AC-AI9-028: 기본 vs 고급 인자 벡터가 원소 1개만 달라야 함 ---
-
-    #[test]
-    fn build_codex_args_haiku_vs_sonnet_differ_in_exactly_one_element() {
-        // RED 확보 계약: 현행 구현은 effort 를 하드코딩하므로 두 벡터가 완전히 동일해
-        // "상이한 인덱스 0개"로 이 단언이 실패해야 한다.
-        let scratch = Path::new("/tmp/scratch");
-        let haiku_args = build_codex_args(AiModel::Haiku, scratch);
-        let sonnet_args = build_codex_args(AiModel::Sonnet, scratch);
-
-        assert_eq!(haiku_args.len(), 13);
-        assert_eq!(sonnet_args.len(), 13);
-
-        let diffs: Vec<usize> = haiku_args
-            .iter()
-            .zip(sonnet_args.iter())
-            .enumerate()
-            .filter_map(|(i, (a, b))| if a != b { Some(i) } else { None })
-            .collect();
-
-        assert_eq!(
-            diffs.len(),
-            1,
-            "기본/고급 벡터는 정확히 1개 원소만 달라야 한다: {:?}",
-            diffs
-        );
-        let idx = diffs[0];
-        assert_eq!(haiku_args[idx], "model_reasoning_effort=\"medium\"");
-        assert_eq!(sonnet_args[idx], "model_reasoning_effort=\"high\"");
-        // 그 인덱스 직전 원소가 "-c"(플래그-값 쌍 유지).
-        assert_eq!(haiku_args[idx - 1], "-c");
-        assert_eq!(sonnet_args[idx - 1], "-c");
-    }
-
-    #[test]
-    fn build_codex_args_both_tiers_keep_model_gpt55() {
-        // 사전 합의 §2: --model 값은 두 티어 모두 여전히 "gpt-5.5"(REQ-AI9-045 무변경 부분).
-        let scratch = Path::new("/tmp/scratch");
-        for model in [AiModel::Haiku, AiModel::Sonnet] {
+        for model in [None, Some("m-a")] {
             let args = build_codex_args(model, scratch);
-            let model_idx = args.iter().position(|a| a == "--model").unwrap();
-            assert_eq!(args[model_idx + 1], "gpt-5.5");
-        }
-    }
-
-    #[test]
-    fn build_codex_args_both_tiers_keep_isolation_flags() {
-        // AC-AI9-028: 격리 플래그 단언을 두 티어로 범위만 확장(완화 금지).
-        let scratch = Path::new("/tmp/scratch");
-        for model in [AiModel::Haiku, AiModel::Sonnet] {
-            let args = build_codex_args(model, scratch);
-            for flag in [
-                "--ignore-user-config",
-                "--skip-git-repo-check",
-                "--ephemeral",
-                "--sandbox",
-                "--json",
-                "-c",
-            ] {
-                assert!(
-                    args.iter().any(|a| a == flag),
-                    "{:?} 티어에 격리 플래그 {} 가 빠졌다",
-                    model,
-                    flag
-                );
+            assert!(args.iter().all(|a| a != "-c"), "추론 설정 -c 가 있다");
+            for flag in ["--ignore-user-config", "--skip-git-repo-check", "--ephemeral", "--json"] {
+                assert!(args.iter().any(|a| a == flag), "{flag} 누락");
             }
-            let sb_idx = args.iter().position(|a| a == "--sandbox").unwrap();
-            assert_eq!(args[sb_idx + 1], "read-only");
-            let c_idx = args.iter().position(|a| a == "-C").unwrap();
-            assert_eq!(args[c_idx + 1], "/tmp/scratch");
+            let sb = args.iter().position(|a| a == "--sandbox").unwrap();
+            assert_eq!(args[sb + 1], "read-only");
+            let c = args.iter().position(|a| a == "-C").unwrap();
+            assert_eq!(args[c + 1], "/tmp/scratch");
         }
     }
 
     #[test]
-    fn codex_reasoning_effort_haiku_medium_sonnet_high() {
-        // REQ-AI9-045: 추론 강도 매핑이 codex_model_arg 와 형제인 단일 순수 함수에 중앙화.
-        assert_eq!(codex_reasoning_effort(AiModel::Haiku), "medium");
-        assert_eq!(codex_reasoning_effort(AiModel::Sonnet), "high");
-    }
-
-    // --- SPEC-AI-009 M10.3 / AC-AI9-031: 라벨이 중앙 매핑 함수 반환값과 대조되어야 함 ---
-
-    #[test]
-    fn codex_effort_display_known_keys() {
-        assert_eq!(codex_effort_display("high"), "높은 추론");
-        assert_eq!(codex_effort_display("medium"), "보통 추론");
-    }
-
-    #[test]
-    fn codex_effort_display_unknown_key_passes_through_verbatim() {
-        // REQ-AI9-052: 알 수 없는 키는 원문 그대로 통과 — "높은 추론"이라 거짓 주장하지 않는다.
-        assert_eq!(codex_effort_display("ultra"), "ultra");
-        assert_eq!(codex_effort_display(""), "");
-    }
-
-    #[test]
-    fn codex_advanced_model_label_matches_central_functions() {
-        // 하드코딩 기대 문자열("gpt-5.5 · 높은 추론")과 단독 비교하지 않고, 중앙 함수 반환값과
-        // 대조한다(REQ-AI9-052) — 라벨이 codex_model_arg(Sonnet) 로 시작하고 그 뒤에
-        // codex_effort_display(codex_reasoning_effort(Sonnet)) 이 이어짐을 검증.
-        let label = codex_advanced_model_label();
-        assert!(label.starts_with(codex_model_arg(AiModel::Sonnet)));
-        let expected_effort = codex_effort_display(codex_reasoning_effort(AiModel::Sonnet));
-        assert!(label.ends_with(expected_effort));
-    }
-
-    #[test]
-    fn codex_detect_fills_advanced_model_label_non_empty() {
-        let status = CodexProvider::new().detect();
-        assert_eq!(status.id, "codex");
-        let label = status.advanced_model_label.expect("label must be Some");
-        assert!(!label.trim().is_empty());
+    fn codex_detect_reports_no_models() {
+        assert!(CodexProvider::new().detect().models.is_empty());
     }
 
     #[test]
     fn build_codex_args_has_no_prompt_and_last_element_is_json() {
         // AC-AI13-002: 결합 프롬프트는 인자에 없고(표준 입력으로 전달), 마지막 인자는 `--json` 이다.
         let scratch = Path::new("/tmp/scratch");
-        let args = build_codex_args(AiModel::Haiku, scratch);
+        let args = build_codex_args(None, scratch);
         assert_eq!(args.last().map(|s| s.as_str()), Some("--json"));
         let combined = combine_prompts("SYS-표지-91c2\n둘째 줄", "선택-표지-7f3a");
         assert!(args
@@ -574,39 +390,12 @@ mod tests {
     fn build_codex_args_scratch_dir_embedded_at_index_2() {
         // -C 다음 원소가 scratch 경로와 일치(절대경로 주입 검증).
         let scratch = Path::new("/var/empty/scratch");
-        let args = build_codex_args(AiModel::Haiku, scratch);
+        let args = build_codex_args(None, scratch);
         let c_idx = args
             .iter()
             .position(|a| a == "-C")
             .expect("-C 플래그 있어야 함");
         assert_eq!(args[c_idx + 1], "/var/empty/scratch");
-    }
-
-    #[test]
-    fn build_codex_args_isolation_flags_never_missing() {
-        // AC-AI9-003: 격리 플래그 전부 존재. 하나라도 누락되면 사용자 홈 컨텍스트 오염 회귀.
-        let scratch = Path::new("/tmp/scratch");
-        let args = build_codex_args(AiModel::Haiku, scratch);
-        for flag in [
-            "--ignore-user-config",
-            "--skip-git-repo-check",
-            "--ephemeral",
-            "--sandbox",
-            "--json",
-            "-c",
-        ] {
-            assert!(
-                args.iter().any(|a| a == flag),
-                "build_codex_args 에 격리 플래그 {} 가 빠졌다",
-                flag
-            );
-        }
-        // --sandbox 값은 read-only 고정.
-        let sb_idx = args.iter().position(|a| a == "--sandbox").unwrap();
-        assert_eq!(args[sb_idx + 1], "read-only");
-        // -c 값은 model_reasoning_effort="medium" 고정(REQ-AI9-004 플래그 시퀀스).
-        let c_idx = args.iter().position(|a| a == "-c").unwrap();
-        assert_eq!(args[c_idx + 1], "model_reasoning_effort=\"medium\"");
     }
 
     // --- build_codex_command (D6, AC-AI9-005) ---
@@ -615,7 +404,7 @@ mod tests {
     fn build_codex_command_returns_command_without_panic() {
         // Command 빌더 자체가 panic 없이 동작하는지 검증. stdin/stdout/stderr 설정은 코드 구조로 강제.
         let binary = Path::new("/usr/local/bin/codex");
-        let args = build_codex_args(AiModel::Haiku, Path::new("/tmp/scratch"));
+        let args = build_codex_args(Some("m-a"), Path::new("/tmp/scratch"));
         let cwd = Path::new("/tmp/scratch");
         let _cmd = build_codex_command(binary, &args, cwd);
     }
@@ -656,23 +445,6 @@ mod tests {
             assert!(err.contains("codex"), "에러 메시지에 codex 언급: {}", err);
             // raw stderr 미노출(안전 메시지).
             assert!(!err.contains("Error:"));
-        }
-    }
-
-    // --- REQ-AI9-008 방어: CODEX_HOME 미사용 grep 방식 검증(컴파일 시점) ---
-
-    #[test]
-    fn codex_model_arg_is_centralized_no_drift() {
-        // 모델 매핑이 분산되지 않았는지 확인 — 모든 AiModel 변형이 단일 함수를 경유.
-        // 향후 AiModel variant 가 추가되면 codex_model_arg 만 업데이트하면 된다.
-        for model in [AiModel::Haiku, AiModel::Sonnet] {
-            let arg = codex_model_arg(model);
-            assert!(!arg.is_empty());
-            assert!(
-                arg.contains("gpt-"),
-                "codex 모델은 gpt- 계열이어야 한다: {}",
-                arg
-            );
         }
     }
 

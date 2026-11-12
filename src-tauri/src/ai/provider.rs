@@ -5,45 +5,22 @@
 //! AI 프로바이더 추상화. MVP는 claude 어댑터 단독이지만, M4 codex 도입 시
 //! 어댑터만 추가하면 되도록 trait 계약(`capabilities()` 포함)을 지금 확정한다(REQ-AI-001).
 
+use crate::ai::models::ModelOption;
 use serde::Serialize;
 use std::path::Path;
 use std::process::Child;
 
-/// 사용 모델. 기본 haiku(속도·비용), 옵션 sonnet(정확도) — REQ-AI-016.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AiModel {
-    Haiku,
-    Sonnet,
-}
-
-impl AiModel {
-    /// `--model` 인자로 넘길 문자열.
-    pub fn as_arg(&self) -> &'static str {
-        match self {
-            AiModel::Haiku => "haiku",
-            AiModel::Sonnet => "sonnet",
-        }
-    }
-
-    /// 프론트에서 전달된 문자열을 모델로 해석한다. 미지정·미상은 haiku 기본.
-    pub fn from_opt(raw: Option<&str>) -> AiModel {
-        match raw {
-            Some("sonnet") => AiModel::Sonnet,
-            _ => AiModel::Haiku,
-        }
-    }
-}
-
 /// 프로바이더에 넘기는 조립 완료된 요청. 프롬프트는 Rust(prompt.rs)에서 조립된다(REQ-AI-003).
 #[derive(Debug, Clone)]
 pub struct AiRequest {
-    pub model: AiModel,
+    /// 라우팅된 도구의 검증된 모델. `None` 이면 CLI 기본값(`--model` 생략).
+    pub model: Option<String>,
     pub system_prompt: String,
     pub user_prompt: String,
 }
 
 /// 감지 결과 — 설치·버전·로그인 상태. 프론트 payload로 직렬화된다(REQ-AI-012).
-/// IPC 계약: `{ id, installed, version?, loggedIn }` (camelCase).
+/// IPC 계약: `{ id, installed, version?, loggedIn, models? }` (camelCase).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderStatus {
@@ -52,12 +29,10 @@ pub struct ProviderStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
     pub logged_in: bool,
-    /// 고급 티어 표시 문자열(SPEC-AI-009 REQ-AI9-051) — claude → `sonnet`, codex →
-    /// `gpt-5.5 · 높은 추론`. 중앙 매핑 함수(`AiModel::as_arg`/`codex_model_arg`/
-    /// `codex_reasoning_effort`)에서 파생되며, 어댑터의 `detect()` 가 채운다. `detect.rs` 의
-    /// 생성 지점은 매핑 지식이 새지 않도록 `None` 으로 둔다(REQ-AI9-052).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub advanced_model_label: Option<String>,
+    /// 이 도구에서 고를 수 있는 모델 목록(SPEC-AI-014). 트레이트 `detect()` 는 비워 두고
+    /// 명령 계층(`ai_detect_providers`)이 채운다. 비면 직렬화에서 빠진다.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub models: Vec<ModelOption>,
 }
 
 /// 프로바이더 능력 — M4 codex의 무스트리밍 분기를 위한 계약(REQ-AI-001).
@@ -171,7 +146,7 @@ mod tests {
                 installed: true,
                 version: Some("1.0.0".to_string()),
                 logged_in: true,
-                advanced_model_label: None,
+                models: Vec::new(),
             }
         }
         fn spawn(&self, _request: &AiRequest, _cwd: &Path) -> Result<Child, String> {
@@ -203,7 +178,7 @@ mod tests {
                 installed: self.installed,
                 version: (self.installed).then(|| "1.0.0".to_string()),
                 logged_in: self.logged_in,
-                advanced_model_label: None,
+                models: Vec::new(),
             }
         }
         fn spawn(&self, _request: &AiRequest, _cwd: &Path) -> Result<Child, String> {
@@ -218,17 +193,30 @@ mod tests {
     }
 
     #[test]
-    fn model_arg_mapping() {
-        assert_eq!(AiModel::Haiku.as_arg(), "haiku");
-        assert_eq!(AiModel::Sonnet.as_arg(), "sonnet");
+    fn provider_status_serializes_models_and_omits_when_empty() {
+        let mut status = ProviderStatus {
+            id: "codex".to_string(),
+            installed: true,
+            version: None,
+            logged_in: true,
+            models: vec![crate::ai::models::ModelOption::new("m-a", "M A")],
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains(r#""models":[{"id":"m-a","label":"M A"}]"#), "{json}");
+        assert!(!json.contains("advancedModelLabel"));
+        status.models.clear();
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(!json.contains("models"));
     }
 
     #[test]
-    fn model_from_opt_defaults_to_haiku() {
-        assert_eq!(AiModel::from_opt(None), AiModel::Haiku);
-        assert_eq!(AiModel::from_opt(Some("haiku")), AiModel::Haiku);
-        assert_eq!(AiModel::from_opt(Some("unknown")), AiModel::Haiku);
-        assert_eq!(AiModel::from_opt(Some("sonnet")), AiModel::Sonnet);
+    fn request_model_is_optional_string() {
+        let req = AiRequest {
+            model: Some("opus".to_string()),
+            system_prompt: String::new(),
+            user_prompt: String::new(),
+        };
+        assert_eq!(req.model.as_deref(), Some("opus"));
     }
 
     #[test]
@@ -269,11 +257,11 @@ mod tests {
     fn request_carries_assembled_prompt() {
         // 프롬프트는 Rust에서 조립되어 요청에 담긴다(REQ-AI-003).
         let req = AiRequest {
-            model: AiModel::Haiku,
+            model: None,
             system_prompt: "결과 텍스트만 출력".to_string(),
             user_prompt: "다듬어줘".to_string(),
         };
-        assert_eq!(req.model, AiModel::Haiku);
+        assert_eq!(req.model, None);
         assert!(req.system_prompt.contains("결과"));
     }
 
@@ -292,7 +280,7 @@ mod tests {
             installed: true,
             version: Some("2.1.211".to_string()),
             logged_in: false,
-            advanced_model_label: None,
+            models: Vec::new(),
         };
         let json = serde_json::to_string(&status).unwrap();
         assert!(json.contains("\"loggedIn\":false"));
@@ -307,7 +295,7 @@ mod tests {
             installed: false,
             version: None,
             logged_in: false,
-            advanced_model_label: None,
+            models: Vec::new(),
         };
         let json = serde_json::to_string(&status).unwrap();
         assert!(!json.contains("version"));

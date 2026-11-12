@@ -510,7 +510,7 @@
 
 /* card buttons — shared base (secondary), .is-primary + apply gets accent fill */
 .mdedit-ai-apply, .mdedit-ai-redo, .mdedit-ai-retry, .mdedit-ai-cancel,
-.mdedit-ai-advanced, .mdedit-ai-list-fallback {
+.mdedit-ai-list-fallback {
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   height: 28px; padding: 0 var(--md-space-3);
   font: inherit; font-size: var(--md-fs-titlebar); line-height: 1;
@@ -520,11 +520,11 @@
   transition: background var(--md-dur-fast) var(--md-ease), border-color var(--md-dur-fast) var(--md-ease);
 }
 .mdedit-ai-apply:hover, .mdedit-ai-redo:hover, .mdedit-ai-retry:hover, .mdedit-ai-cancel:hover,
-.mdedit-ai-advanced:hover, .mdedit-ai-list-fallback:hover {
+.mdedit-ai-list-fallback:hover {
   background: color-mix(in srgb, var(--md-text-primary) 8%, transparent);
 }
 .mdedit-ai-apply:focus-visible, .mdedit-ai-redo:focus-visible, .mdedit-ai-retry:focus-visible,
-.mdedit-ai-cancel:focus-visible, .mdedit-ai-advanced:focus-visible, .mdedit-ai-list-fallback:focus-visible {
+.mdedit-ai-cancel:focus-visible, .mdedit-ai-list-fallback:focus-visible {
   outline: 2px solid var(--md-accent); outline-offset: 1px;
 }
 /* primary apply(프리셋별로 [바꾸기] 또는 [아래에 삽입]) + 목록 폴백 = accent-filled call to action */

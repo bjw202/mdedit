@@ -83,7 +83,7 @@ describe('AiSuggestionCardController: table validation path', () => {
     range: { from: 0, to: 5 },
     originalText: 'hello',
     insertOnly: false,
-    model: 'haiku' as const,
+    models: { claude: 'haiku', codex: null },
   };
   const BROKEN = '| A | B |\n| 1 | 2 |'; // 구분선 누락
   const GOOD = '| A | B |\n| --- | --- |\n| 1 | 2 |';

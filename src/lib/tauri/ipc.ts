@@ -255,15 +255,22 @@ export async function takePendingOpenFile(): Promise<PendingOpenFile | null> {
 // 키를 Rust snake_case 인자로 자동 매핑한다(기존 래퍼 관례와 동일).
 // @MX:SPEC: SPEC-AI-001
 
-/** AI 모델 선택 — 기본 haiku, "고급 모델" 토글 시 sonnet(설계 §8.2). */
-export type AiModel = 'haiku' | 'sonnet';
+/**
+ * SPEC-AI-014 REQ-AI14-007: 도구별 모델 선택. null 은 "CLI 기본값"(--model 인자 없음).
+ * 어느 도구가 쓰일지는 백엔드가 요청 시점에 정하므로 둘 다 싣는다.
+ */
+export interface AiModelSelection {
+  claude: string | null;
+  codex: string | null;
+}
 
 /** ai_request 인자. feature 는 aiStore 와 단일 소스를 공유한다. */
 export interface AiRequestArgs {
   requestId: string;
   feature: AiFeature;
   presetKind?: string;
-  model: AiModel;
+  /** SPEC-AI-014: 도구별 모델 선택(백엔드가 라우팅된 도구의 항목을 꺼내 허용 목록과 대조한다). */
+  models: AiModelSelection;
   selection?: string;
   contextBefore?: string;
   contextAfter?: string;
@@ -306,13 +313,8 @@ export interface AiProviderStatus {
   installed: boolean;
   version?: string;
   loggedIn: boolean;
-  /**
-   * SPEC-AI-009 REQ-AI9-051: 백엔드가 공급하는 고급 티어 표시 문자열(claude → `sonnet`,
-   * codex → `gpt-5.5 · 높은 추론`). 실제 인자를 조립하는 중앙 매핑 함수에서 파생되므로
-   * 프론트는 이 값을 그대로 렌더하고 재구성하지 않는다(REQ-AI9-048/052). 부재·빈 값일 때의
-   * 폴백은 REQ-AI9-053 참조.
-   */
-  advancedModelLabel?: string;
+  /** SPEC-AI-014 REQ-AI14-015: 백엔드가 채워 주는 선택 가능 모델 목록(없으면 생략). */
+  models?: { id: string; label: string }[];
 }
 
 /** ai_policy_status 결과 — kill-switch 활성 여부와 출처(설계 §8.2, REQ-AI-017). */

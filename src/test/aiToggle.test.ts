@@ -43,7 +43,7 @@ beforeEach(async () => {
   aiRequestMock.mockClear();
   aiCancelMock.mockClear();
   const { useUIStore } = await import('@/store/uiStore');
-  useUIStore.setState({ aiEnabled: true, aiAdvancedModel: false });
+  useUIStore.setState({ aiEnabled: true, aiModels: { claude: 'haiku', codex: null } });
   const { setAiPolicyDisabled } = await import('@/store/aiPolicy');
   setAiPolicyDisabled(false);
   const { useAiStore, idleSlice } = await import('@/store/aiStore');
@@ -328,7 +328,7 @@ describe('aiOffEffects: ON->OFF transition cleanup (REQ-AI5-011/012)', () => {
         requestId: 'card-off-1',
         feature: 'inline-edit',
         presetKind: 'polish',
-        model: 'haiku',
+        models: { claude: 'haiku', codex: null },
         selection: 'x',
       },
       insertOnly: false,

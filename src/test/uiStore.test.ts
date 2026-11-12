@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { act } from 'react';
-import { useUIStore } from '@/store/uiStore';
+import { useUIStore, currentAiModels } from '@/store/uiStore';
 
 describe('uiStore', () => {
   beforeEach(() => {
@@ -438,9 +438,9 @@ describe('uiStore: saveStatus 비영속화 + 마이그레이션 (SPEC-FS-003)', 
     expect(persisted.state).not.toHaveProperty('saveStatus');
   });
 
-  it('persist version이 2로 범프되었다 (SPEC-PREVIEW-020 — 기존 사용자 마이그레이션 트리거)', () => {
+  it('persist version이 3으로 범프되었다 (SPEC-AI-014 AC-006 — 모델 선택 이전 트리거)', () => {
     const opts = useUIStore.persist.getOptions();
-    expect(opts.version).toBe(2);
+    expect(opts.version).toBe(3);
   });
 
   it('migrate가 version<1의 stale saveStatus를 제거하고 다른 필드는 보존한다 (V2, AC-004)', () => {
@@ -468,13 +468,14 @@ describe('uiStore: saveStatus 비영속화 + 마이그레이션 (SPEC-FS-003)', 
     [{ htmlRenderMode: 'garbage', theme: 'light' }, { htmlRenderMode: null, theme: 'light' }],
   ])('migrate는 version 1 상태 %j 를 %j 로 바꾼다 (REQ-005)', (input, expected) => {
     const opts = useUIStore.persist.getOptions();
-    expect(opts.migrate!(input, 1)).toEqual(expected);
+    // v3 단계(SPEC-AI-014)가 aiModels 를 더하므로 이 단계의 관심사만 부분 일치로 확인한다.
+    expect(opts.migrate!(input, 1)).toMatchObject(expected);
   });
 
-  it('migrate는 version>=2의 상태를 그대로 반환한다 (명시 선택 보존)', () => {
+  it('migrate는 version>=3의 상태를 그대로 반환한다 (명시 선택 보존)', () => {
     const opts = useUIStore.persist.getOptions();
-    const state = { htmlRenderMode: 'crisp', theme: 'light' };
-    expect(opts.migrate!(state, 2)).toEqual(state);
+    const state = { htmlRenderMode: 'crisp', theme: 'light', aiModels: { claude: 'opus', codex: null } };
+    expect(opts.migrate!(state, 3)).toEqual(state);
   });
 });
 
@@ -559,4 +560,71 @@ describe('uiStore: htmlZoom (SPEC-PREVIEW-018)', () => {
       expect(useUIStore.getState().htmlZoom).toBe(100);
     }
   );
+});
+
+
+// SPEC-AI-014 AC-006 (REQ-AI14-004/005) — 모델 선택 기본값·이전·모양 정규화
+describe('uiStore: aiModels (SPEC-AI-014)', () => {
+  async function rehydrateWith(state: Record<string, unknown>, version: number): Promise<void> {
+    localStorage.setItem('mdedit-ui-store', JSON.stringify({ state, version }));
+    await useUIStore.persist.rehydrate();
+  }
+
+  beforeEach(() => {
+    localStorage.removeItem('mdedit-ui-store');
+  });
+
+  it('새 저장소의 aiModels 기본값은 { claude: haiku, codex: null } 이다', async () => {
+    useUIStore.persist.clearStorage();
+    await useUIStore.persist.rehydrate();
+    expect(useUIStore.getState().aiModels).toEqual({ claude: 'haiku', codex: null });
+    expect('aiAdvancedModel' in useUIStore.getState()).toBe(false);
+  });
+
+  it('버전 1 { aiAdvancedModel: true, fontSize: 16 } 은 claude sonnet 으로 옮기고 키를 지우며 다른 설정은 보존한다', async () => {
+    await rehydrateWith({ aiAdvancedModel: true, fontSize: 16 }, 1);
+    const s = useUIStore.getState();
+    expect(s.aiModels).toEqual({ claude: 'sonnet', codex: null });
+    expect('aiAdvancedModel' in s).toBe(false);
+    expect(s.fontSize).toBe(16);
+  });
+
+  it('버전 1 { aiAdvancedModel: false } 는 claude haiku 가 된다', async () => {
+    await rehydrateWith({ aiAdvancedModel: false }, 1);
+    expect(useUIStore.getState().aiModels).toEqual({ claude: 'haiku', codex: null });
+  });
+
+  it('버전 2 {} (필드 없음) 는 claude haiku 가 된다', async () => {
+    await rehydrateWith({}, 2);
+    expect(useUIStore.getState().aiModels).toEqual({ claude: 'haiku', codex: null });
+  });
+
+  it('버전 3 모양이 틀린 항목만 기본값으로 되돌린다 (merge 정규화)', async () => {
+    await rehydrateWith({ aiModels: { claude: 42, codex: 'm-a' } }, 3);
+    expect(useUIStore.getState().aiModels).toEqual({ claude: 'haiku', codex: 'm-a' });
+  });
+
+  it('aiModels 자체가 객체가 아니면 기본값으로 되돌린다', async () => {
+    await rehydrateWith({ aiModels: 'x' }, 3);
+    expect(useUIStore.getState().aiModels).toEqual({ claude: 'haiku', codex: null });
+  });
+
+  it('setAiModel 은 도구별로 값을 바꾸고 null(CLI 기본값)을 허용한다', () => {
+    act(() => useUIStore.getState().setAiModel('claude', 'opus'));
+    act(() => useUIStore.getState().setAiModel('codex', 'm-a'));
+    expect(useUIStore.getState().aiModels).toEqual({ claude: 'opus', codex: 'm-a' });
+    act(() => useUIStore.getState().setAiModel('claude', null));
+    expect(useUIStore.getState().aiModels.claude).toBeNull();
+  });
+
+  it('currentAiModels() 는 현재 저장소 값을 돌려준다', () => {
+    act(() => useUIStore.getState().setAiModel('codex', 'm-b'));
+    expect(currentAiModels().codex).toBe('m-b');
+  });
+
+  it('영속 version 이 3이다', async () => {
+    await rehydrateWith({}, 2);
+    act(() => useUIStore.getState().setFontSize(20));
+    expect(JSON.parse(localStorage.getItem('mdedit-ui-store') as string).version).toBe(3);
+  });
 });

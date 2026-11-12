@@ -108,10 +108,10 @@ describe('uiStore: 영속 버전 1 → 2 마이그레이션 (SPEC-PREVIEW-020 AC
     expect(s).not.toHaveProperty('saveStatus', 'unsaved');
   });
 
-  it('마이그레이션 뒤 다시 영속화하면 저장 버전이 2다', async () => {
+  it('마이그레이션 뒤 다시 영속화하면 저장 버전이 3이다', async () => {
     await rehydrateWith({ htmlRenderMode: 'crisp' }, 1);
     act(() => useUIStore.getState().setFontSize(20));
-    expect(JSON.parse(localStorage.getItem('mdedit-ui-store') as string).version).toBe(2);
+    expect(JSON.parse(localStorage.getItem('mdedit-ui-store') as string).version).toBe(3);
   });
 
   it.each([[null], ['문자열']])(

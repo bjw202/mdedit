@@ -30,7 +30,6 @@ function makeModel(overrides: Partial<SuggestionCardModel> = {}): SuggestionCard
     range: { from: 0, to: 10 },
     originalText: '원래 문장',
     insertOnly: false,
-    model: 'haiku',
     ...overrides,
   };
 }

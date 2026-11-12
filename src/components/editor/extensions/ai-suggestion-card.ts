@@ -12,7 +12,7 @@ import type { Extension, EditorState } from '@codemirror/state';
 import type { AiPresetKind } from './ai-length-guard';
 import { SAFE_REPLACE_LIMIT } from './ai-length-guard';
 import { aiRequest, aiCancel, ipcErrorMessage } from '@/lib/tauri/ipc';
-import type { AiModel, AiRequestArgs } from '@/lib/tauri/ipc';
+import type { AiRequestArgs } from '@/lib/tauri/ipc';
 import { useAiStore } from '@/store/aiStore';
 import type { AiErrorKind, Completion } from '@/store/aiStore';
 import { resolveProviderId } from '@/store/aiPolicy';
@@ -135,7 +135,7 @@ export function buildRetryInstruction(directed?: string): string {
 // blind/directed 를 구별할 수 없고, 사용자가 우연히 같은 문구를 입력하면 조용히 오분류된다.
 //   - blind:    done 카드의 [↻ 다시], 그리고 입력칸이 **빈 상태**의 [↻]/Enter → 카운터 +1
 //   - directed: 입력칸에 내용이 있는 상태의 [↻]/Enter → 카운터 0 으로 리셋(연속이 끊김)
-//   - exempt:   error 의 [다시 시도], intruded 의 [다시 요청], [⚡ 고급 모델로 다시 시도],
+//   - exempt:   error 의 [다시 시도], intruded 의 [다시 요청],
 //               표 검증 자동 재요청, 다이어그램 오류 동봉 자동 재시도 → 세지도 리셋하지도 않음
 // @MX:SPEC: SPEC-AI-010 REQ-AI10-023 REQ-AI10-024 REQ-AI10-025 REQ-AI10-026
 export type ReRequestKind = 'blind' | 'directed' | 'exempt';
@@ -252,14 +252,15 @@ export interface CardCallbacks {
   /** [✕ 취소] — 스트리밍 중 취소 또는 검토 카드 닫기. */
   onCancel: () => void;
   /**
-   * ↻ 재요청(직접 지시/블라인드/고급 모델). model 은 이 시도에 쓸 모델.
+   * ↻ 재요청(직접 지시/블라인드/복구). 모델 선택은 원래 요청(`request.args.models`)을 그대로
+   * 이어받는다(SPEC-AI-014 REQ-AI14-017) — 콜백은 모델을 받지 않는다.
    * `kind` 는 **선택적이며 기본값은 `exempt`** 다(SPEC-AI-010 REQ-AI10-023/033). 이는 의도된
    * 호환성 결정이다 — 이 콜백을 2인자로 호출·mock 하는 기존 테스트가 다수이므로 필수 인자로
    * 만들면 그 계약이 즉시 깨진다. 기본값이 `exempt` 라 2인자 호출은 세지도 리셋하지도 않는
    * 현행 동작을 그대로 유지한다. 다만 **프로덕션 호출부는 기본값에 기대지 않고 전부 명시
    * 전달한다** — 생략하면 그 컨트롤이 조용히 카운터를 비껴간다.
    */
-  onReRequest: (instruction: string, model: AiModel, kind?: ReRequestKind) => void;
+  onReRequest: (instruction: string, kind?: ReRequestKind) => void;
   /** [✓ 목록으로] — 다이어그램 실패 폴백(presetKind 'outline' 재요청). */
   onListFallback: () => void;
   /** [연결 안내 보기] — 로그인 만료 시 설정 온보딩 열기(REQ-AI-037). */
@@ -282,8 +283,6 @@ export interface RenderCardInput {
   completionNotice?: string;
   /** SPEC-AI-006 REQ-AI6-007: 발행 후 대기 임계(기본 8초)를 넘겨도 첫 청크가 없으면 true. */
   waitingLong?: boolean;
-  /** 현재 카드 모델(직접/블라인드 재요청에 승계). 기본 haiku. */
-  model?: AiModel;
   /** diagram-valid 카드 미니 렌더러(주입). 없으면 placeholder 만(테스트는 미주입). */
   renderMermaid?: (code: string, container: HTMLElement) => void;
   callbacks: CardCallbacks;
@@ -338,7 +337,6 @@ function renderApplyButtons(input: RenderCardInput): HTMLElement {
 
 /** 즉석 지시 입력 + [↻] (directed) + [↻ 다시] (blind) + [✕ 취소]. */
 function renderDoneControls(input: RenderCardInput): HTMLElement {
-  const model = input.model ?? 'haiku';
   const wrap = document.createElement('div');
   wrap.className = 'mdedit-ai-done-controls';
 
@@ -355,7 +353,6 @@ function renderDoneControls(input: RenderCardInput): HTMLElement {
   const fireDirected = (): void =>
     input.callbacks.onReRequest(
       buildRetryInstruction(input$.value),
-      model,
       input$.value.trim() === '' ? 'blind' : 'directed',
     );
   redo.addEventListener('click', fireDirected);
@@ -368,7 +365,7 @@ function renderDoneControls(input: RenderCardInput): HTMLElement {
   const btnRow = renderApplyButtons(input);
   const retry = makeButton('mdedit-ai-retry', '↻ 다시');
   retry.addEventListener('click', () =>
-    input.callbacks.onReRequest(buildRetryInstruction(), model, 'blind'),
+    input.callbacks.onReRequest(buildRetryInstruction(), 'blind'),
   );
   const cancel = makeButton('mdedit-ai-cancel', '✕ 취소');
   cancel.addEventListener('click', () => input.callbacks.onCancel());
@@ -452,7 +449,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
       const retry = makeButton('mdedit-ai-retry', '다시 시도');
       // exempt — 오류 복구 동작이지 품질 반복이 아니다(REQ-AI10-026).
       retry.addEventListener('click', () =>
-        callbacks.onReRequest('', input.model ?? 'haiku', 'exempt'),
+        callbacks.onReRequest('', 'exempt'),
       );
       card.appendChild(retry);
     }
@@ -472,7 +469,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     const rerequest = makeButton('mdedit-ai-rerequest', '다시 요청');
     // exempt — 원문 편집으로 멈춘 제안의 복구 동작이다(REQ-AI10-026).
     rerequest.addEventListener('click', () =>
-      callbacks.onReRequest('', input.model ?? 'haiku', 'exempt'),
+      callbacks.onReRequest('', 'exempt'),
     );
     card.appendChild(msg);
     card.appendChild(ignore);
@@ -555,14 +552,7 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     const msg = document.createElement('div');
     msg.className = 'mdedit-ai-notice';
     msg.textContent = '방향을 알려주시면 더 정확해요 (위 입력칸)';
-    const advanced = makeButton('mdedit-ai-advanced', '⚡ 고급 모델로 다시 시도');
-    // REQ-AI-025: 1회성 sonnet 재요청. exempt 여야 한다 — 이 버튼은 소진 상태에서만 눌리므로
-    // 카운트되는 순간 상한을 다시 넘겨 자기 자신을 미발행 게이트에 걸리게 만든다(REQ-AI10-032).
-    advanced.addEventListener('click', () =>
-      callbacks.onReRequest('', 'sonnet', 'exempt'),
-    );
     card.appendChild(msg);
-    card.appendChild(advanced);
     // appendDismissButton 을 부르지 않는다 — renderDoneControls 가 이미 [✕ 취소]를 제공하므로
     // 종료 성격 컨트롤은 정확히 1개여야 한다(REQ-AI10-030, streaming 분기와 같은 근거).
   }
@@ -745,7 +735,6 @@ export interface SuggestionCardModel {
   /** 범위의 원문 스냅샷 — 적용 직전 재검증 기준(REQ-AI-035). */
   originalText: string;
   insertOnly: boolean;
-  model: AiModel;
   /**
    * 요청이 `selection` 으로 보낸 텍스트의 UTF-16 길이(SPEC-AI-013 D4/D5). 백스톱 지연과
    * 「바꾸기」 제거 판정이 모두 이 값을 쓴다. 생략하면 originalText 길이로 갈음한다.
@@ -1066,7 +1055,7 @@ export class AiSuggestionCardController {
     }, WAIT_NOTICE_DELAY_MS);
   }
 
-  /** 재요청(↻/직접지시/sonnet/목록폴백)이 새 스트림을 시작할 때 대기 타이머를 재무장한다. */
+  /** 재요청(↻/직접지시/목록폴백)이 새 스트림을 시작할 때 대기 타이머를 재무장한다. */
   rearmWaitNotice(): void {
     this.waitingLong = false;
     this.armWaitNoticeTimer();
@@ -1196,7 +1185,7 @@ export class AiSuggestionCardController {
     // 1회차 실패만 오류를 동봉해 자동 재요청. 발행은 wiring 콜백이 담당(다이어그램과 동일 채널).
     this.commit({ type: 'stream' });
     // exempt — 사용자가 요청한 품질 반복이 아니라 컨트롤러가 스스로 거는 검증 재요청이다.
-    this.callbacks.onReRequest(`이전 오류: ${validation.error}`, this.model.model, 'exempt');
+    this.callbacks.onReRequest(`이전 오류: ${validation.error}`, 'exempt');
     return true;
   }
 
@@ -1213,7 +1202,7 @@ export class AiSuggestionCardController {
       // 오류를 동봉해 1회 자동 재요청(REQ-AI-024). 재요청 발행은 wiring 콜백이 담당.
       this.commit({ type: 'stream' });
       // exempt — 표 검증과 같은 이유로 카운터에 닿지 않는다(REQ-AI10-026).
-      this.callbacks.onReRequest(`이전 오류: ${outcome.error}`, this.model.model, 'exempt');
+      this.callbacks.onReRequest(`이전 오류: ${outcome.error}`, 'exempt');
     } else {
       this.commit({ type: 'diagram-fallback' });
     }
@@ -1324,7 +1313,6 @@ export class AiSuggestionCardController {
       presetKind: this.model.presetKind,
       streamBuffer: this.streamBuffer,
       waitingLong: this.waitingLong,
-      model: this.model.model,
       renderMermaid: this.options.renderMermaid,
       callbacks: this.callbacks,
     };
@@ -1415,14 +1403,14 @@ function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode
   }
 }
 
-// @MX:ANCHOR: [AUTO] fireReRequest - 카드 재요청(↻/직접지시/sonnet/목록폴백) 공통 발행 경로
+// @MX:ANCHOR: [AUTO] fireReRequest - 카드 재요청(↻/직접지시/목록폴백) 공통 발행 경로
 // @MX:REASON: [AUTO] BUG-2 재발 방지 — originalArgs 를 기준으로 스프레드해야 selection/
 //   contextBefore/contextAfter + 원래 customInstruction 이 재요청에도 실린다. overrides 로만
 //   필드를 덮어써야 하며(재요청 지시는 additionalInstruction 으로 분리, SPEC-AI-012),
 //   originalArgs 를 생략한 채 부분 필드만 조립하면 재요청 프롬프트가 컨텍스트 없이 비게 된다.
 /**
  * 재요청 발행 — 원본 요청(originalArgs)을 기준으로 selection/contextBefore/contextAfter 를
- * 그대로 승계하고, overrides 로 additionalInstruction/model(및 목록 폴백의 presetKind/feature/
+ * 그대로 승계하고, overrides 로 additionalInstruction(및 목록 폴백의 presetKind/feature/
  * customInstruction)만 덮어써 새 in-flight 요청을 스폰한다(BUG-2, SPEC-AI-012 D6). 새로 발행한 requestId 를 반환해 호출자(카드
  * 컨트롤러)가 구독 대상을 그 id 로 옮길 수 있게 한다(BUG-1).
  */
@@ -1467,11 +1455,10 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
     range: request.range,
     originalText: request.originalText,
     insertOnly: request.insertOnly,
-    model: request.args.model,
     selectionLength: request.args.selection?.length ?? 0,
   };
 
-  // BUG-1: 재요청(↻/직접지시/sonnet/목록폴백)마다 새 requestId 가 발행되므로, 구독이 어느
+  // BUG-1: 재요청(↻/직접지시/목록폴백)마다 새 requestId 가 발행되므로, 구독이 어느
   // requestId 를 바라볼지는 고정 값이 아니라 이 가변 바인딩을 따라간다.
   let boundRequestId = request.args.requestId;
   // 같은 requestId 의 done/error 를 두 번 처리하지 않기 위한 가드(구독을 더 이상 끊지 않으므로 필요).
@@ -1496,25 +1483,24 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
     // suggestion 이 없는 phase 에서 도달하면 본문 없는 껍데기 카드가 된다.
     // 소진 판정은 여기서 다시 계산하지 않고 reduceCard 가 만든 phase 를 읽기만 한다.
     // @MX:SPEC: SPEC-AI-010 REQ-AI10-024 REQ-AI10-026 REQ-AI10-027 REQ-AI10-028 / SPEC-AI-001 REQ-AI-025
-    onReRequest: (instruction, useModel, kind = 'exempt') => {
+    onReRequest: (instruction, kind = 'exempt') => {
       controller.applyReRequestKind(kind);
       // 상한을 넘긴 blind 재요청은 **발행하지 않는다** — enterReRequest 도, fireReRequest 도,
       // boundRequestId·lastHandledTerminal 갱신도 하지 않는다. 카드는 제안을 그대로 든 채
       // 소진 안내로 전이한다(이미 가진 제안을 스켈레톤으로 덮지 않는다).
       if (kind === 'blind' && controller.getState().phase === 'retry-exhausted') return;
-      // SPEC-AI-010 REQ-AI10-001/003: 사용자 개시 재요청 5종(↻ / ↻ 다시 / ⚡ 고급 모델 /
+      // SPEC-AI-010 REQ-AI10-001/003: 사용자 개시 재요청 5종(↻ / ↻ 다시 /
       // 다시 시도(error) / 다시 요청(intruded))이 전부 이 배선 하나로 수렴한다. 전이는
       // fireReRequest **이전에** 수행해야 한다 — fireReRequest 안의 store.startRequest 가
       // 구독을 동기 발화시키므로, 그 전에 카드가 이미 streaming 이어야 화면이 한 순간도
       // 옛 제안(done)으로 보이지 않는다.
       controller.enterReRequest();
-      // BUG-2: 원본 args(selection/contextBefore/contextAfter)를 그대로 승계하고 지시/모델만 덮어쓴다.
+      // BUG-2: 원본 args(selection/contextBefore/contextAfter)를 그대로 승계하고 지시만 덮어쓴다 — models 도 원본에서 승계한다(SPEC-AI-014 REQ-AI14-017).
       // SPEC-AI-012 D6/D9: 재요청 지시는 customInstruction 을 덮어쓰지 않고 additionalInstruction 으로
       // 분리해 싣는다(원래 직접 입력 지시 승계 + 프리셋도 추가 지시 수신). 빈 지시(복구용 재요청
       // 3곳)는 필드를 싣지 않는다 — undefined 는 JSON 직렬화에서 빠진다.
       boundRequestId = fireReRequest(request.args, {
         additionalInstruction: instruction.trim() ? instruction : undefined,
-        model: useModel,
       });
       lastHandledTerminal = null;
     },
@@ -1527,7 +1513,6 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
         feature: 'inline-edit',
         presetKind: 'outline',
         customInstruction: '',
-        model: model.model,
       });
       lastHandledTerminal = null;
     },
