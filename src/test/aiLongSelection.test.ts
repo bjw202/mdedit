@@ -192,14 +192,14 @@ describe('SPEC-AI-013 카드 통합', () => {
 
   // ---- AC-AI13-006 ----
   describe('AC-AI13-006: 6,000자 선택 백스톱 시점', () => {
-    it('65초에는 streaming, 97초에 백스톱 오류; 재요청도 같은 규칙', () => {
+    it('65초에는 streaming, 113초(108+5)에 백스톱 오류; 재요청도 같은 규칙', () => {
       const sel = '가'.repeat(6000);
       const c: AiSuggestionCardController = startSuggestionCard(makeRequest('long-1', sel));
       useAiStore.getState().startRequest('long-1', 'inline-edit');
 
       vi.advanceTimersByTime(65_000);
       expect(c.getState().phase).toBe('streaming');
-      vi.advanceTimersByTime(31_999);
+      vi.advanceTimersByTime(47_999);
       expect(c.getState().phase).toBe('streaming');
       vi.advanceTimersByTime(1);
       expect(c.getState().phase).toBe('error');
@@ -208,7 +208,7 @@ describe('SPEC-AI-013 카드 통합', () => {
       // 오류 카드의 [다시 시도](exempt 재요청) → 같은 규칙으로 재무장
       c.getRenderInput().callbacks.onReRequest('', 'haiku', 'exempt');
       expect(c.getState().phase).toBe('streaming');
-      vi.advanceTimersByTime(96_999);
+      vi.advanceTimersByTime(112_999);
       expect(c.getState().phase).toBe('streaming');
       vi.advanceTimersByTime(1);
       expect(c.getState().phase).toBe('error');

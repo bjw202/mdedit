@@ -3,7 +3,7 @@
 // 알 수 있고, 순서가 뒤집히면 사용자는 덜 유용한 오류를 보게 된다.
 //
 //   1) 소프트 대기 안내(8초)   — "아직 생성 중이에요" 보조 문구. 종결을 만들지 않는다.
-//   2) 백엔드 하드 워치독(60초~150초, 선택 길이 비례) — 자식 프로세스를 kill 하고 분류된 ai://error{kind:"timeout"}
+//   2) 백엔드 하드 워치독(60초~180초, 선택 길이 비례) — 자식 프로세스를 kill 하고 분류된 ai://error{kind:"timeout"}
 //                                을 emit 한다. 실제 값은 Rust 에 있고 여기는 미러다.
 //   3) 프론트 백스톱(2번 + 유예) — 2번의 종결 이벤트마저 프론트에 닿지 않았을 때의 최후 방어.
 //
@@ -23,7 +23,7 @@ export const WAIT_NOTICE_TEXT = '아직 생성 중이에요 — 취소할 수 �
  * (2) 백엔드 하드 워치독의 **미러** 값(ms) — 선택 길이 `n`(UTF-16, JS `String.length`)에
  * 비례해 늘어난다(SPEC-AI-013 D5).
  *
- *   timeout_secs(n) = min(60 + 8 × ceil(max(0, n − 2000) / 1000), 150)
+ *   timeout_secs(n) = min(60 + 12 × ceil(max(0, n − 2000) / 1000), 180)
  *
  * 원본은 Rust `src-tauri/src/ai/mod.rs` 의 같은 공식이며, 두 구현이 같은 값을 내는지는
  * 공유 표(`src-tauri/tests/fixtures/ai-timeout-table.json`)를 양쪽 테스트가 읽어 검증한다.
@@ -31,7 +31,7 @@ export const WAIT_NOTICE_TEXT = '아직 생성 중이에요 — 취소할 수 �
  */
 export function backendWatchdogTimeoutMs(selectionLength: number): number {
   const extraKilo = Math.ceil(Math.max(0, selectionLength - 2000) / 1000);
-  return Math.min(60 + 8 * extraKilo, 150) * 1000;
+  return Math.min(60 + 12 * extraKilo, 180) * 1000;
 }
 
 /**

@@ -26,18 +26,18 @@ pub const AI_MODULE_NAME: &str = "ai";
 // @MX:NOTE: [AUTO] watchdog_timeout_secs - 요청별 하드 타임아웃 공식(SPEC-AI-006 REQ-AI6-004 → SPEC-AI-013 REQ-AI13-004).
 // 실측 typical_latency ~2.7초(claude_cli.rs Capabilities) 대비 p99 훨씬 상회로 잡아, 정당한
 // 지연(사내 프록시 콜드스타트 등)은 죽이지 않으면서 무한 행(hang)만 차단한다. 선택이 2,000자를
-// 넘으면 1,000자마다 8초씩 늘리고 150초에서 멈춘다. 프런트 `waitNotice.ts` 가 같은 공식을 미러하며
+// 넘으면 1,000자마다 12초씩 늘리고 180초에서 멈춘다(D6 조정: 8초/150초 → 12초/180초). 프런트 `waitNotice.ts` 가 같은 공식을 미러하며
 // 두 쪽은 공유 표 `tests/fixtures/ai-timeout-table.json` 으로 검증한다. 대기 안내(프론트 8초 상수)는
 // 이 값의 소프트 짝이다.
 // @MX:SPEC: SPEC-AI-013
-/// 요청별 워치독 하드 타임아웃(초) = `min(60 + 8 × ceil(max(0, n − 2000) / 1000), 150)` (순수).
+/// 요청별 워치독 하드 타임아웃(초) = `min(60 + 12 × ceil(max(0, n − 2000) / 1000), 180)` (순수).
 ///
 /// `n` 은 요청 인자 `selection` 의 **UTF-16 길이**(JS `String.length` 와 같은 단위)다. 선택이
 /// 없으면 0 이고 60초다.
 pub fn watchdog_timeout_secs(n: usize) -> u64 {
     let over = n.saturating_sub(2000);
     let steps = over.div_ceil(1000) as u64;
-    (60 + 8 * steps).min(150)
+    (60 + 12 * steps).min(180)
 }
 
 /// 조직 정책 파일 이름(앱 설정 디렉토리 하위). 존재하면 AI 강제 비활성(REQ-AI-017).
@@ -665,6 +665,6 @@ mod tests {
         assert_eq!(input.encode_utf16().count(), 2001);
         // 문자 수로 재면 60초가 나온다 — 단위가 실제로 갈리는 행임을 스스로 확인한다.
         assert_eq!(watchdog_timeout_secs(input.chars().count()), 60);
-        assert_eq!(row.expected_secs, 68);
+        assert_eq!(row.expected_secs, 72);
     }
 }

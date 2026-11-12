@@ -78,3 +78,13 @@ Playwright: plan.md 가 지정한 spec 이 없어 실행하지 않았다(UI 외�
 - `parse_final_result` 가 `is_error:true` 결과도 정상으로 읽음(범위 밖, M1 4번 캡처).
 - Windows `.cmd` 미확인. `--system-prompt-file` 제거 시 모든 claude 요청 인자 오류(위험 표 기재).
 - Rust 쪽 AC 는 CI 에서 돌지 않음 — 위 `cargo test` 원문이 유일한 증거.
+
+### D6 계수 조정 (코디네이터 지시, 2026-11-13, 1회 사용)
+
+- 사유: codex 6,000자 다듬기 실측 75.5초가 공식 92초 대비 여유 18%뿐이고, 카드 t6 이 codex 추론 강도 강제를 없애 CLI 기본값으로 바뀌면 더 느려질 수 있다.
+- 변경: `min(60 + 8×k, 150)` → `min(60 + 12×k, 180)` (k = ceil(max(0,n−2000)/1000)). 6,000자 92→108초(여유 43%), 12,000자 140→180초(상한에 처음 닿음), 2,001자 68→72초. 상한 180은 D6 허용 한도.
+- 수정 위치: Rust `watchdog_timeout_secs`(mod.rs), TS `backendWatchdogTimeoutMs`(waitNotice.ts), 공유 표 `ai-timeout-table.json`, 테스트(Rust 이모지 행 기대값 72, `aiLongSelection.test.ts` 백스톱 시점 113초), spec.md D5/D6/REQ-004/006/AC 요약, acceptance.md AC-004/006 숫자.
+- 재실행(영향 범위만):
+  - `cargo test --manifest-path src-tauri/Cargo.toml ai::tests::watchdog` → exit 0, `2 passed; 0 failed`
+  - `npx vitest run src/test/aiLongSelection.test.ts aiCardWatchdog.test.ts aiCardRetryLimit.test.ts aiCardCoexistence.test.ts aiWaitNotice.test.ts` → exit 0, `Test Files 5 passed (5)`, `Tests 79 passed (79)`
+- 한계: 전체 스위트는 재실행하지 않았다(상수·기대값만 바뀜). 위 §AC 표의 AC-004~006 은 새 값 기준으로 여전히 PASS.
