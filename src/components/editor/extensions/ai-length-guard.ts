@@ -1,8 +1,10 @@
-// @MX:SPEC: SPEC-AI-001 REQ-AI-026 REQ-AI-027
-// @MX:NOTE: 선택 길이 가드 상한(설계 §4.4). 편집 프리셋 2,000자 / 변환 프리셋 4,000자.
+// @MX:SPEC: SPEC-AI-001 REQ-AI-026 REQ-AI-027 / SPEC-AI-013 REQ-AI13-008 REQ-AI13-009 REQ-AI13-013
+// @MX:NOTE: 선택 길이 가드 상한(설계 §4.4, SPEC-AI-013 완화). 편집 프리셋 6,000자 / 변환 프리셋 12,000자.
 // 이 값은 "교체 대상 상한"이며 선택 텍스트를 절단하지 않기 위한 방어선이다 — 절단된 결과로
 // 선택 전체를 교체하면 무손실 삭제가 발생한다(REQ-AI-027). 초과 시 프리셋을 비활성화할 뿐,
 // 절대 잘라서 진행하지 않는다.
+// SPEC-AI-013: 한도를 넓힌 대신 "바꾸기" 의 안전선은 SAFE_REPLACE_LIMIT(2,000자)로 따로 둔다 —
+// 그보다 긴 선택은 응답이 끝까지 왔다고 확인된 경우에만 카드가 「바꾸기」를 허용한다.
 
 /** ✨ 프리셋 5종 + 직접 입력. 편집 계열(polish/custom)과 변환 계열(outline/table/diagram/shorten)로 나뉜다. */
 export type AiPresetKind = 'polish' | 'custom' | 'outline' | 'table' | 'diagram' | 'shorten';
@@ -16,8 +18,10 @@ export interface SelectionGuardResult {
   reason?: string;
 }
 
-export const EDIT_LIMIT = 2000;
-export const TRANSFORM_LIMIT = 4000;
+export const EDIT_LIMIT = 6000;
+export const TRANSFORM_LIMIT = 12000;
+/** 이 길이를 넘는 선택은 응답 완결이 확인돼야만 「바꾸기」를 허용한다(SPEC-AI-013 D4). */
+export const SAFE_REPLACE_LIMIT = 2000;
 const EDIT_PRESETS: readonly AiPresetKind[] = ['polish', 'custom'];
 
 /** 계열별 프리셋 이름 — 조사까지 포함한다(받침 유무가 달라 템플릿으로 못 붙인다). */
@@ -45,10 +49,10 @@ function buildTooLongReason(selectionLength: number, limit: number, presetNames:
 /**
  * 선택 길이와 프리셋 종류로 가드 결과를 판정한다(설계 §4.4).
  *
- * - ≤ 2,000자: 모든 프리셋 정상 처리.
- * - 편집 프리셋(다듬기·직접 입력) > 2,000자: 비활성 + 안내.
- * - 변환 프리셋(개요/표/다이어그램/짧게) 2,001~4,000자: 허용하되 "아래에 삽입" 전용.
- * - 변환 프리셋 > 4,000자: 비활성 + 안내.
+ * - ≤ EDIT_LIMIT(6,000자): 모든 프리셋 정상 처리.
+ * - 편집 프리셋(다듬기·직접 입력) > EDIT_LIMIT: 비활성 + 안내.
+ * - 변환 프리셋(개요/표/다이어그램/짧게) EDIT_LIMIT 초과~TRANSFORM_LIMIT(12,000자): 허용하되 "아래에 삽입" 전용.
+ * - 변환 프리셋 > TRANSFORM_LIMIT: 비활성 + 안내.
  */
 export function evaluateSelectionGuard(
   selectionLength: number,
