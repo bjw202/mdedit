@@ -87,7 +87,7 @@ textarea 'input' → computeCustomInputHeight({ scrollHeight, borderY: offsetHei
 선례 `e2e/ai-008-diagram-submenu-flip.spec.ts`의 헬퍼 패턴(✨ 띄우기, `.md-editor` 패널 rect, 사이드바 접기)과 픽스처 `e2e/fixtures/tauri-v2-ai-mock.ts`를 따른다. 전체 앱을 띄운 상태에서만 측정한다(메모리 교훈: 단독 렌더는 겹침을 놓친다).
 
 1. 넓은 패널: 직접 입력 진입 → 메뉴 `boundingBox().width`가 340±2.
-2. 좁은 패널(스플리터를 끌어 에디터 패널 ≈ 300px, ✨ 가 줄 중간과 줄 끝에 있는 두 경우): 메뉴 폭 < 340, 메뉴 box 의 좌·우 모서리가 `.md-editor` 패널 안(±1px).
+2. 좁은 패널(스플리터를 끌어 에디터 패널 ≈ 420px, ✨ 가 줄 중간과 줄 끝에 있는 두 경우): 메뉴 box 의 좌·우 모서리가 `.md-editor` 패널 안(±1px), 줄 중간 경우 메뉴 폭 < 340. 420px 보다 좁은 패널의 줄 중간은 R1 Known Limitation 이라 다루지 않는다.
 3. 증가: 줄바꿈 3개 입력(Shift+Enter) → textarea 높이가 1줄일 때보다 커지고 내부 스크롤 없음(`scrollHeight <= clientHeight + 1`).
 4. 상한: 줄바꿈 60개 입력 → 메뉴 box 가 뷰포트와 `.md-editor` 패널 세로 범위 안, textarea `scrollHeight > clientHeight`, 계산 `overflow-y` 가 `auto`.
 5. flip 고정: 문서 아래쪽 줄에서 열어 `--above` 상태로 진입 → 60줄 입력 후에도 `--above` 클래스 유지.

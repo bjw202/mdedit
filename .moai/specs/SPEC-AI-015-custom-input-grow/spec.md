@@ -19,7 +19,8 @@ tier: M
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-11-13 | jw | 최초 작성 — 백로그 카드 t7. AI 선택 툴바(✨) 프리셋 메뉴의 "직접 입력" 칸을 한 줄 `<input>`에서 자동으로 높이가 늘어나는 `<textarea>`로 바꾸고, 직접 입력 상태에서만 메뉴 폭을 넓힌다. 사용자 결정(2026-11-13): Enter 전송·Shift+Enter 줄바꿈, 입력에 맞춰 계속 늘어나다 화면 가용 공간을 넘으면 그때 멈추고 스크롤. 나머지 세부 결정은 사용자가 자율 진행을 위임해 plan 단계에서 기본값으로 정하고 §Decisions 에 기록했다. Tier M(요구 14개가 Tier S 상한 8을 넘고, 테스트·e2e 포함 예상 변경량이 300 LOC 를 넘음). 관련 SPEC-AI-008·SPEC-AI-011 은 동작 보존 대상이며 `depends_on`으로 걸지 않는다(둘 다 이미 병합된 기능이고, 저장소 관례상 `status: draft`로 남아 있어 run 사전 점검을 막기 때문). |
-| 1.0.0 | 2026-11-13 | jw | plan-auditor 1차(FAIL 0.81) 반영 — D1 폭을 앵커 기준 넓은 쪽 공간으로(감사 D3), D4 세로 판정도 실효 경계 기준(D2), D5 실행 시점 상태 getter(D4), D9·REQ-008 높이에 테두리 포함(D1), `null` 상한 처리 명시(D5), REQ-012~014 GEARS 형식·분류 정리(D6·D7), Out of Scope 소제목(D9), 검증 계층 표 정정(D8), R6 추가. |
+| 1.0.0 (개정 1) | 2026-11-13 | jw | plan-auditor 1차(FAIL 0.81) 반영 — D1 폭을 앵커 기준 넓은 쪽 공간으로(감사 D3), D4 세로 판정도 실효 경계 기준(D2), D5 실행 시점 상태 getter(D4), D9·REQ-008 높이에 테두리 포함(D1), `null` 상한 처리 명시(D5), REQ-012~014 GEARS 형식·분류 정리(D6·D7), Out of Scope 소제목(D9), 검증 계층 표 정정(D8), R6 추가. |
+| 1.0.0 (개정 2) | 2026-11-13 | jw | plan-auditor 2차(PASS 0.92) 잔여 지적 반영 — 좁은 패널 e2e 를 420px 로(S1), 단위 rect 목이 적용 폭을 돌려주도록 명시(N1), REQ-014 무조건 형식(N2), HISTORY 개정 표기(N3). 재감사 불필요 판정. |
 
 ## Summary
 
@@ -79,7 +80,7 @@ WebKit(사용자 macOS WKWebView)은 `compositionend`를 조합 확정 keydown �
 - **REQ-AI-015-001**: 직접 입력 상태의 입력 칸은 `<textarea>` 요소이며 클래스 `mdedit-ai-custom-input`, `rows` 속성 1, placeholder `CUSTOM_PLACEHOLDER`(`예: 영어로 번역해줘`)를 갖고, 생성 직후 포커스를 받는다.
 - **REQ-AI-015-002**: 제안 카드의 방향 지시 칸(`.mdedit-ai-direct-input`)과 그 행(`.mdedit-ai-direct-row`)에 적용되는 CSS 선언은 본 SPEC 이전과 같다.
 - **REQ-AI-015-003**: 프리셋 목록 상태의 메뉴 폭 규칙(`min-width: 190px`, 내용 맞춤)과 세로 flip 경계(뷰포트)는 바뀌지 않는다.
-- **REQ-AI-015-014**: D3 상한 계산 결과가 28px 미만이면, 프리셋 메뉴는 상한을 28px 로 잡아야 한다(칸이 사라지지 않음).
+- **REQ-AI-015-014**: 프리셋 메뉴는 직접 입력 칸의 높이 상한을 항상 28px 이상으로 잡아야 한다(D3 계산 결과가 더 작아도 칸이 사라지지 않음).
 
 ### Event-Driven
 

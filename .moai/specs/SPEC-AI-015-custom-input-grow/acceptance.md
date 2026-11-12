@@ -73,7 +73,8 @@ npm run test:e2e -- ai-custom-input-grow
 - 단위: 진입 시 `dom.classList`에 `mdedit-ai-preset-menu--custom`. ← 또는 Escape 복귀 시 클래스 없음, `dom.style.width === ''`. 목 rect 로 spaceRight 200·spaceLeft 100 → 진입 rAF 뒤 `dom.style.width === '192px'`이고 `--end` 없음; spaceRight 100·spaceLeft 250 → `'242px'`이고 `--end` 있음; spaceRight 800 → `dom.style.width === ''`.
 - 순수 함수 `computeCustomMenuWidth`: `(800, 0) → null`, `(348, 0) → null`, `(347, 0) → 339`, `(200, 100) → 192`, `(100, 250) → 242`, `(150, 100) → 190`.
 - e2e(넓은 패널): 메뉴 너비 340±2. 프리셋 상태 너비는 340 미만(기존 내용 맞춤).
-- e2e(에디터 패널 ≈ 300px, ✨ 가 줄 중간인 경우와 줄 끝인 경우): 메뉴 너비 < 340, 메뉴 box 좌·우 모서리가 `.md-editor` 패널 안(±1px).
+- e2e(에디터 패널 ≈ 420px, ✨ 가 줄 중간인 경우와 줄 끝인 경우): 두 경우 모두 메뉴 box 좌·우 모서리가 `.md-editor` 패널 안(±1px), 줄 중간 경우는 메뉴 너비 < 340. (패널 폭 W ≥ 372 이면 ✨ 위치와 무관하게 한쪽 공간이 198px 이상이라 담김이 성립한다. 그보다 좁은 패널의 줄 중간은 R1 Known Limitation 이라 검증 대상이 아니다.)
+- 단위 테스트의 `getBoundingClientRect` 목은 메뉴 너비로 **적용된 폭**(인라인 width, 없으면 340)을 돌려준다 — 기존 테스트처럼 `width: 0`을 돌려주면 `--end` 판정이 성립하지 않는다.
 
 해당 REQ: **003, 004, 005**
 
