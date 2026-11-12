@@ -74,6 +74,66 @@ pub fn parse_final_result(line: &str) -> Option<String> {
     Some(value.get("result")?.as_str()?.to_string())
 }
 
+/// 응답이 끝까지 왔는지에 대한 판정. `ai://done` payload 에 소문자 문자열로 실린다(SPEC-AI-013 D7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Completion {
+    /// 정지 사유 `end_turn`·`stop_sequence` 를 확인했다.
+    Complete,
+    /// 정지 사유 `max_tokens` 를 확인했다(응답이 중간에 끊김).
+    Cutoff,
+    /// 정지 사유를 확인하지 못했다(codex 포함). 「완결」로 취급하지 않는다.
+    Unknown,
+}
+
+/// claude stream-json 한 줄에서 정지 사유를 읽는다(순수).
+///
+/// 대상 형태(M1 실측): `{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn",...}}}`.
+/// `result` 줄 최상위 `stop_reason` 은 읽지 않는다 — 실측에서 `max_tokens` 실패에도 `stop_sequence` 로
+/// 찍혔다. `assistant` 줄의 `message.stop_reason` 도 읽지 않는다(스트림 이벤트가 정본).
+pub fn parse_stop_reason(line: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(line.trim()).ok()?;
+    if value.get("type")?.as_str()? != "stream_event" {
+        return None;
+    }
+    let event = value.get("event")?;
+    if event.get("type")?.as_str()? != "message_delta" {
+        return None;
+    }
+    Some(event.get("delta")?.get("stop_reason")?.as_str()?.to_string())
+}
+
+/// 한 실행 동안 정지 사유를 끈적하게 모으는 순수 집계기(SPEC-AI-013 D7).
+///
+/// `max_tokens` 를 한 번이라도 보면 이후 다른 사유로 덮지 않고 `Cutoff`, 아니면 `end_turn`·
+/// `stop_sequence` 를 봤을 때 `Complete`, 하나도 못 봤으면 `Unknown`.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct CompletionTracker {
+    saw_cutoff: bool,
+    saw_complete: bool,
+}
+
+impl CompletionTracker {
+    /// stdout 한 줄을 넣는다(정지 사유가 없는 줄은 무시).
+    pub fn observe(&mut self, line: &str) {
+        match parse_stop_reason(line).as_deref() {
+            Some("max_tokens") => self.saw_cutoff = true,
+            Some("end_turn") | Some("stop_sequence") => self.saw_complete = true,
+            _ => {}
+        }
+    }
+
+    pub fn completion(&self) -> Completion {
+        if self.saw_cutoff {
+            Completion::Cutoff
+        } else if self.saw_complete {
+            Completion::Complete
+        } else {
+            Completion::Unknown
+        }
+    }
+}
+
 /// stderr 텍스트를 로그인/네트워크/기타로 분류한다.
 ///
 /// 휴리스틱: 인증 관련 키워드를 네트워크보다 우선 검사한다.
@@ -512,5 +572,74 @@ mod tests {
             StderrKind::Network
         );
         assert_eq!(classify_stderr("unexpected panic"), StderrKind::Other);
+    }
+
+    // --- SPEC-AI-013 완결 판정 (AC-AI13-008): M1 실측 캡처 원문 fixture ---
+
+    const COMPLETE_FIXTURE: &str =
+        include_str!("../../tests/fixtures/claude-stop-reason-complete.jsonl");
+    const CUTOFF_FIXTURE: &str =
+        include_str!("../../tests/fixtures/claude-stop-reason-cutoff.jsonl");
+
+    fn run_tracker<'a>(lines: impl IntoIterator<Item = &'a str>) -> Completion {
+        let mut t = CompletionTracker::default();
+        for l in lines {
+            t.observe(l);
+        }
+        t.completion()
+    }
+
+    /// message_delta 줄(정지 사유를 담은 줄)인지.
+    fn is_message_delta(line: &str) -> bool {
+        line.contains("\"type\":\"message_delta\"")
+    }
+
+    #[test]
+    fn parse_stop_reason_reads_only_stream_event_message_delta() {
+        let delta = COMPLETE_FIXTURE
+            .lines()
+            .find(|l| is_message_delta(l))
+            .expect("fixture 에 message_delta 줄이 있어야 한다");
+        assert_eq!(parse_stop_reason(delta), Some("end_turn".to_string()));
+        // assistant 줄·result 줄의 정지 사유는 읽지 않는다(M1: result 줄은 max_tokens 에서도 stop_sequence).
+        for l in COMPLETE_FIXTURE.lines().filter(|l| !is_message_delta(l)) {
+            assert_eq!(parse_stop_reason(l), None, "{}", &l[..l.len().min(80)]);
+        }
+        assert_eq!(parse_stop_reason("not json"), None);
+        assert_eq!(parse_stop_reason(""), None);
+    }
+
+    #[test]
+    fn completion_complete_fixture_is_complete() {
+        assert_eq!(run_tracker(COMPLETE_FIXTURE.lines()), Completion::Complete);
+    }
+
+    #[test]
+    fn completion_cutoff_fixture_is_cutoff() {
+        assert_eq!(run_tracker(CUTOFF_FIXTURE.lines()), Completion::Cutoff);
+    }
+
+    #[test]
+    fn completion_without_stop_reason_lines_is_unknown() {
+        // 정지 사유가 든 message_delta 줄을 모두 뺀다. assistant·result 줄의 정지 사유는 세지 않는다.
+        let stripped = COMPLETE_FIXTURE.lines().filter(|l| !is_message_delta(l));
+        assert_eq!(run_tracker(stripped), Completion::Unknown);
+    }
+
+    #[test]
+    fn completion_cutoff_is_sticky_against_later_end_turn() {
+        let end_turn = COMPLETE_FIXTURE
+            .lines()
+            .find(|l| is_message_delta(l))
+            .unwrap();
+        let lines: Vec<&str> = CUTOFF_FIXTURE.lines().chain(std::iter::once(end_turn)).collect();
+        assert_eq!(run_tracker(lines), Completion::Cutoff);
+    }
+
+    #[test]
+    fn completion_serializes_lowercase() {
+        assert_eq!(serde_json::to_string(&Completion::Complete).unwrap(), "\"complete\"");
+        assert_eq!(serde_json::to_string(&Completion::Cutoff).unwrap(), "\"cutoff\"");
+        assert_eq!(serde_json::to_string(&Completion::Unknown).unwrap(), "\"unknown\"");
     }
 }
