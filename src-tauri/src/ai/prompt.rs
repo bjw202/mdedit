@@ -777,9 +777,9 @@ mod tests {
         assert!(prompt.truncated);
     }
 
-    // --- SPEC-AI-004 D-A 는 SPEC-AI-006 INLINE_SCOPE 로 대체됨 ---
+    // --- SPEC-AI-004 D-A 는 SPEC-AI-006 INLINE_SCOPE 를 거쳐 SPEC-AI-012 scope_clause 로 대체됨 ---
     // 가드 존재를 단언하던 두 테스트(문맥 있을 때 삽입 / Custom 커버)는 제거했다. 대상 스코핑은
-    // 이제 system_prompt 의 INLINE_SCOPE 가 담당하며, 6기능 커버는
+    // 이제 system_prompt 의 scope_clause 가 담당하며, 6기능 커버는
     // inline_scope_clause_present_for_all_six_inline_features 가 검증한다.
 
     #[test]
