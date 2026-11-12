@@ -484,6 +484,8 @@
 /* streaming: 아직 확정 전이라 살짝 흐리게(타이핑 표시) */
 .mdedit-ai-stream { color: var(--md-text-muted); }
 .mdedit-ai-notice { color: var(--md-text-muted); line-height: var(--md-lh-ui); }
+/* SPEC-AI-013 D9: 「바꾸기」가 빠진 이유 한 줄 — .mdedit-ai-notice 와 같은 톤. */
+.mdedit-ai-completion-notice { color: var(--md-text-muted); line-height: var(--md-lh-ui); }
 .mdedit-ai-mermaid-preview {
   padding: var(--md-space-3); background: var(--md-code-bg);
   border: 1px solid var(--md-border); border-radius: var(--md-radius-sm);

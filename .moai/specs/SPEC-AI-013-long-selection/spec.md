@@ -2,7 +2,7 @@
 id: SPEC-AI-013
 title: "긴 선택 허용 — 표준 입력 전달·크기 비례 대기 한도·원문 손실 방지"
 version: "0.2.1"
-status: draft
+status: implemented
 created: 2026-11-13
 updated: 2026-11-13
 author: jw

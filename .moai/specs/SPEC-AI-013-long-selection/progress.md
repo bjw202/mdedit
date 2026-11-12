@@ -88,3 +88,29 @@ Playwright: plan.md 가 지정한 spec 이 없어 실행하지 않았다(UI 외�
   - `cargo test --manifest-path src-tauri/Cargo.toml ai::tests::watchdog` → exit 0, `2 passed; 0 failed`
   - `npx vitest run src/test/aiLongSelection.test.ts aiCardWatchdog.test.ts aiCardRetryLimit.test.ts aiCardCoexistence.test.ts aiWaitNotice.test.ts` → exit 0, `Test Files 5 passed (5)`, `Tests 79 passed (79)`
 - 한계: 전체 스위트는 재실행하지 않았다(상수·기대값만 바뀜). 위 §AC 표의 AC-004~006 은 새 값 기준으로 여전히 PASS.
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+```yaml
+sync_status: audit-ready
+sync_complete_at: 2026-11-13
+backlog_card: t5
+spec_status_transition: "draft -> implemented (completed 는 AC-AI13-013/014 수동 확인 후)"
+files_changed_in_sync:
+  - CHANGELOG.md            # [Unreleased] ### Changed 에 SPEC-AI-013 항목 추가 (SPEC-AI-012 항목 위)
+  - docs/USER_GUIDE.md      # 「선택 길이 제한」 문단: 6,000/12,000자 + 「바꾸기」 숨김·이유 문구 설명
+  - src/styles/mdedit-components.css  # .mdedit-ai-completion-notice (오케스트레이터 추가, 흐린 글자색)
+  - .moai/specs/SPEC-AI-013-long-selection/spec.md  # frontmatter status/updated 만
+  - .moai/specs/SPEC-AI-013-long-selection/progress.md  # 본 절
+readme_user_manual_checked: "README.md, docs/USER_MANUAL.md 에 옛 선택 길이 수치(2,000/4,000자) 없음 (grep 확인), 수정 안 함"
+pending_manual_checks:
+  - AC-AI13-013  # macOS 실제 앱, 6,000자 다듬기
+  - AC-AI13-014  # Windows .cmd 셈 경유 실행
+gaps:
+  - "CI 는 cargo test 를 돌리지 않음 — Rust 증거는 §E.2 로컬 실행 원문뿐"
+  - "D6 계수 조정(8/150 -> 12/180) 뒤 전체 스위트 미재실행 (영향 범위만: cargo ai::tests::watchdog 2건, vitest 5파일 79건)"
+  - "codex 6,000자 다듬기 여유 43% (75.5s / 108s) — 느린 계정에서 시간 초과 가능"
+  - "parse_final_result 가 is_error:true result 를 정상으로 읽음 (범위 밖)"
+  - "§E.2 의 'completion-notice CSS 없음' 기록은 sync 에서 CSS 가 추가되어 현재는 해당 없음"
+sync-audit: (pending)
+```
