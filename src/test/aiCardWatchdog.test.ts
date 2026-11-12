@@ -11,9 +11,13 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import {
   WAIT_NOTICE_DELAY_MS,
-  BACKEND_WATCHDOG_TIMEOUT_MS,
-  FRONTEND_BACKSTOP_DELAY_MS,
+  backendWatchdogTimeoutMs,
+  frontendBackstopDelayMs,
 } from '@/lib/ai/waitNotice';
+
+// 이 테스트의 선택('hello')은 2,000자 이하라 대기 한도가 60초 + 유예 5초다(SPEC-AI-013).
+const BACKEND_WATCHDOG_TIMEOUT_MS = backendWatchdogTimeoutMs('hello'.length);
+const FRONTEND_BACKSTOP_DELAY_MS = frontendBackstopDelayMs('hello'.length);
 
 const aiRequestMock = vi.fn().mockResolvedValue(undefined);
 const aiCancelMock = vi.fn().mockResolvedValue(undefined);
