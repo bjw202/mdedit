@@ -12,8 +12,8 @@ pub mod stream;
 use crate::state::app_state::{AppState, InFlightRequest};
 use claude_cli::{claim_terminal, ErrorPayload};
 use prompt::{
-    build_continue_prompt_with_length, build_inline_prompt_ex, build_section_prompt,
-    AiFeature, ContinueLength,
+    build_continue_prompt_with_length, build_inline_prompt_ex, build_research_prompt,
+    build_section_prompt, AiFeature, ContinueLength,
 };
 use models::{ModelOption, ModelSelection};
 use provider::{AiRequest, ProviderStatus};
@@ -40,6 +40,33 @@ pub fn watchdog_timeout_secs(n: usize) -> u64 {
     let over = n.saturating_sub(2000);
     let steps = over.div_ceil(1000) as u64;
     (60 + 12 * steps).min(180)
+}
+
+/// 리서치 요청의 워치독(초) — 선택 길이와 무관하게 고정(SPEC-AI-016 D11). 프런트 백스톱(185초)의
+/// 기준이 되는 `waitNotice.ts` `RESEARCH_WATCHDOG_MS`(180,000ms)와 같은 값이어야 한다.
+pub const RESEARCH_WATCHDOG_SECS: u64 = 180;
+
+/// 요청의 워치독(초): 웹 허용(리서치)이면 고정 180초, 아니면 `watchdog_timeout_secs(n)` (순수).
+pub fn request_watchdog_secs(web_allowed: bool, selection_utf16_len: usize) -> u64 {
+    if web_allowed {
+        RESEARCH_WATCHDOG_SECS
+    } else {
+        watchdog_timeout_secs(selection_utf16_len)
+    }
+}
+
+/// 스폰 요청을 조립한다. 웹 허용은 기능 종류(`allows_web`)에서만 정해진다 — 프런트 인자는 닿지 않는다(D2).
+pub fn build_ai_request(
+    model: Option<String>,
+    feature: &AiFeature,
+    assembled: prompt::AssembledPrompt,
+) -> AiRequest {
+    AiRequest {
+        model,
+        system_prompt: assembled.system_prompt,
+        user_prompt: assembled.user_prompt,
+        web_allowed: feature.allows_web(),
+    }
 }
 
 /// 조직 정책 파일 이름(앱 설정 디렉토리 하위). 존재하면 AI 강제 비활성(REQ-AI-017).
@@ -197,6 +224,13 @@ pub fn ai_request(
             };
             build_continue_prompt_with_length(outline, before, after, length)
         }
+        // SPEC-AI-016 D5: 리서치는 앞뒤 문맥을 보내지 않는다(웹 도구가 열린 요청). 인라인 조립기를
+        // 빈 문맥으로 호출하는 build_research_prompt 가 이를 보장한다.
+        AiFeature::Research => build_research_prompt(
+            selection,
+            args.additional_instruction.as_deref(),
+            &args.request_id,
+        ),
         // SPEC-AI-008: 공유 인라인 조립 경로에 diagram_type 을 전달한다. 조각 부착은
         // build_inline_prompt_ex 내부에서 feature 가 Diagram 일 때만 일어난다.
         // SPEC-AI-012: 재요청 추가 지시와 태그 충돌 시드(요청 ID)도 이 분기에서만 넘긴다.
@@ -259,11 +293,16 @@ pub fn ai_request(
     }
 
     // 8. 요청 조립 + trait 경유 스폰.
-    let request = AiRequest {
+    let web_allowed = feature.allows_web();
+    let request = build_ai_request(
         model,
-        system_prompt: assembled.system_prompt,
-        user_prompt: assembled.user_prompt,
-    };
+        &feature,
+        prompt::AssembledPrompt {
+            system_prompt: assembled.system_prompt,
+            user_prompt: assembled.user_prompt,
+            truncated: false,
+        },
+    );
     // SPEC-AI-009: provider id 에 따라 릴레이 파서를 분기 — codex 는 JSONL 파서,
     // claude 는 기존 stream-json 파서(REQ-AI9-023 회귀 가드: claude 경로 무변경).
     let provider_id = provider.id();
@@ -326,7 +365,8 @@ pub fn ai_request(
         let watchdog_app_handle = app_handle.clone();
         let watchdog_request_id = args.request_id;
         // 대기 한도는 모델이 받은 선택 텍스트의 UTF-16 길이로 정한다(REQ-AI13-004).
-        let watchdog_secs = watchdog_timeout_secs(selection.encode_utf16().count());
+        // 리서치(웹 허용)는 길이와 무관하게 고정 한도(SPEC-AI-016 D11).
+        let watchdog_secs = request_watchdog_secs(web_allowed, selection.encode_utf16().count());
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_secs(watchdog_secs));
             if !claim_terminal(&finished) {
@@ -751,5 +791,55 @@ mod tests {
         // 문자 수로 재면 60초가 나온다 — 단위가 실제로 갈리는 행임을 스스로 확인한다.
         assert_eq!(watchdog_timeout_secs(input.chars().count()), 60);
         assert_eq!(row.expected_secs, 72);
+    }
+    // --- SPEC-AI-016: 웹 허용 판정·리서치 대기 한도 (AC-AI16-002, 013) ---
+
+    fn polish_assembled() -> prompt::AssembledPrompt {
+        prompt::build_inline_prompt_ex(&AiFeature::Polish, "S", "", "", None, None, "")
+    }
+
+    #[test]
+    fn web_allowed_comes_only_from_feature() {
+        let research = prompt::build_research_prompt("S", None, "");
+        let req = build_ai_request(None, &AiFeature::Research, research);
+        assert!(req.web_allowed);
+        for f in [
+            AiFeature::Polish,
+            AiFeature::Outline,
+            AiFeature::Table,
+            AiFeature::Diagram,
+            AiFeature::Shorten,
+            AiFeature::Custom("x".to_string()),
+            AiFeature::FillSection,
+            AiFeature::Continue,
+        ] {
+            let req = build_ai_request(Some("m".to_string()), &f, polish_assembled());
+            assert!(!req.web_allowed, "{f:?}");
+        }
+    }
+
+    #[test]
+    fn unknown_web_access_key_is_ignored_and_polish_stays_offline() {
+        let json = r#"{"requestId":"r","feature":"inline-edit","presetKind":"polish","selection":"S","webAccess":true}"#;
+        let args: AiRequestArgs = serde_json::from_str(json).expect("deserialize");
+        let feature = AiFeature::resolve(
+            &args.feature,
+            args.preset_kind.as_deref(),
+            args.custom_instruction.as_deref(),
+        )
+        .unwrap();
+        let req = build_ai_request(None, &feature, polish_assembled());
+        assert!(!req.web_allowed);
+    }
+
+    #[test]
+    fn research_watchdog_is_fixed_180_regardless_of_selection_length() {
+        assert_eq!(RESEARCH_WATCHDOG_SECS, 180);
+        assert_eq!(request_watchdog_secs(true, 0), 180);
+        assert_eq!(request_watchdog_secs(true, 6000), 180);
+        // 리서치가 아니면 공유 표 공식 그대로.
+        assert_eq!(request_watchdog_secs(false, 0), watchdog_timeout_secs(0));
+        assert_eq!(request_watchdog_secs(false, 3000), watchdog_timeout_secs(3000));
+        assert_eq!(request_watchdog_secs(false, 0), 60);
     }
 }

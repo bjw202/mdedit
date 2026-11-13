@@ -17,6 +17,9 @@ pub struct AiRequest {
     pub model: Option<String>,
     pub system_prompt: String,
     pub user_prompt: String,
+    /// 웹 도구(검색·페이지 열기) 허용 여부(SPEC-AI-016 D2). `AiFeature::allows_web()` 에서만 정해지며
+    /// 프런트 요청 인자에서는 오지 않는다(`mod.rs` `build_ai_request`).
+    pub web_allowed: bool,
 }
 
 /// 감지 결과 — 설치·버전·로그인 상태. 프론트 payload로 직렬화된다(REQ-AI-012).
@@ -215,6 +218,7 @@ mod tests {
             model: Some("opus".to_string()),
             system_prompt: String::new(),
             user_prompt: String::new(),
+            web_allowed: false,
         };
         assert_eq!(req.model.as_deref(), Some("opus"));
     }
@@ -260,6 +264,7 @@ mod tests {
             model: None,
             system_prompt: "결과 텍스트만 출력".to_string(),
             user_prompt: "다듬어줘".to_string(),
+            web_allowed: false,
         };
         assert_eq!(req.model, None);
         assert!(req.system_prompt.contains("결과"));
