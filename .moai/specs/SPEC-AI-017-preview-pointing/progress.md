@@ -132,3 +132,35 @@
 - run_status: audit-ready (자동 게이트 전부 통과, 수동 AC-015·016 대기)
 - run_complete_at: 2026-11-13
 - 푸시·PR 없음 — sync 단계가 PR 을 연다.
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+- sync_complete_at: 2026-11-13
+- sync_commit_sha: pending-backfill (이 sync 커밋은 자기 SHA 를 담을 수 없다. 커밋 후 보고서에 기록)
+- sync_status: implemented (completed 아님 — 사용자 수동 확인 AC-AI17-015·016 과 눈 확인이 남아 있어 completed 전환은 보류)
+- frontmatter_status_transitions: spec.md `in-progress → implemented`, `updated: 2026-11-13`. plan.md·acceptance.md 의 frontmatter 는 이번 지시 범위(spec.md 만) 밖이라 `status: draft` 그대로 둠 — 정리는 completed 전환 때 함께 필요(gap).
+- b12_self_test_a: `grep -c 'SPEC-AI-017' CHANGELOG.md` 가 emission 전 0 (중복 없음)
+- b12_self_test_b: acceptance.md 의 고유 AC-AI17 식별자 16개(001~016), CHANGELOG 는 AC-AI17-001~014 자동 통과 + 015·016 대기로 16건 전부 언급. 같은 명령 출력에는 다른 SPEC 참조용 `AC-006/007/009` 3개가 더 잡혀 19로 나오나 AC-AI17 이 아니므로 제외
+- b12_self_test_c: CHANGELOG 에 적은 파일 경로 중 `ls` 로 존재 확인한 것: pointTarget/pointHighlight/pointRequest/pointUi.ts, PointInstructionPopover/PreviewRenderer/MarkdownPreview.tsx, usePreview.ts, renderer.ts, tableValidate.ts, aiOffEffects.ts, ipc.ts, index.css, ai-suggestion-card/ai-length-guard/ai-selection-toolbar.ts, prompt.rs, mod.rs, 테스트 파일 5개, e2e/preview-pointing.spec.ts (전부 존재). 픽스처 4개는 `git diff --stat` 목록으로 확인
+- changelog_entry_position: `## [Unreleased]` → `### Added` 맨 위
+
+### 변경한 파일
+
+- `CHANGELOG.md` — [Unreleased] Added 맨 위에 SPEC-AI-017 항목
+- `docs/USER_GUIDE.md` — 4.4 「미리보기에서 가리켜 지시하기」 신설
+- `README.md` — AI 기능 목록에 한 줄 추가(USER_GUIDE 4.4 링크)
+- `.moai/project/codemaps/overview.md` — AI 보조 줄에 한 줄 언급
+- `.moai/specs/SPEC-AI-017-preview-pointing/spec.md` — frontmatter status 만
+- `.moai/specs/SPEC-AI-017-preview-pointing/progress.md` — 이 §E.4
+
+### 관찰한 것 / 관찰하지 못한 것
+
+- 관찰: spec.md·progress.md §E.2 를 읽고 그 내용(사실, 수치)을 문서에 옮김. CHANGELOG 의 파일 경로 존재는 `ls` 로 확인. USER_GUIDE 의 "동작하지 않는 경우" 항목은 spec.md D2·D10·D11·D12 를 근거로 씀.
+- 관찰하지 못함: **이 sync 에서 테스트·린트·타입체크·빌드를 다시 돌리지 않았다.** CHANGELOG 의 수치(typecheck/lint 0, vitest 129 파일 2262개, Playwright webkit 11건, cargo 461 + app_acl 3 + asset_charset 8)는 progress.md §E.2 의 run 단계 기록이다. 문서 링크(`README.md` → USER_GUIDE 앵커 `#44-…`)의 실제 이동은 확인하지 않았다(앵커는 헤딩에서 유추).
+- 구현 코드가 문서 설명(예: 입력창 요약 형식 `열: {머리}`, 오류 문구)과 일치하는지는 spec 기준으로만 썼고 소스를 대조하지 않았다.
+
+### 남은 것
+
+- 사용자 수동 확인: AC-AI17-015(macOS 실 CLI, claude haiku·codex), AC-AI17-016(Windows Alt+클릭·창 메뉴), 강조 색·두께·입력창 배치 눈 확인(라이트·다크).
+- 이 확인이 끝나면 `implemented → completed` 전환(spec.md·plan.md·acceptance.md frontmatter)과 sync_commit_sha 백필.
+- sync-auditor 독립 감사는 오케스트레이터 몫.
