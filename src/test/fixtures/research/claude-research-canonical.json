@@ -1,0 +1,8 @@
+{
+  "source": "src-tauri/tests/fixtures/claude-research-canonical.jsonl",
+  "opened": [
+    "https://v2.tauri.app/blog/tauri-20/",
+    "https://v2.tauri.app/security/capabilities/"
+  ],
+  "text": "- Tauri 2.0 stable 공식 발표문은 모바일 지원을 릴리스의 핵심으로 소개한다. \"A very much awaited part of this release is the mobile operating system support.\"라고 적혀 있고, 발표일은 2024년 10월 2일로 표기되어 있다 [1]. 다만 같은 글에서 \"On mobile not all of the official plugins are supported.\"라고 밝혀, 모든 데스크톱 기능이 모바일에 동등하게 있는 것은 아니다 [1].\n- 권한 시스템이 capability 기반으로 바뀌었다는 설명은 공식 문서에서 확인된다. Capability는 \"which permissions are granted or denied for which windows or webviews\"를 정의하며, `src-tauri/capabilities` 디렉터리에 JSON 또는 TOML 파일로 둔다 [2].\n- 보안 경계는 창 제목이 아닌 창 레이블에 따라 정해지고, 여러 capability에 속한 창은 권한과 보안 경계가 합쳐진다 [2].\n\n출처\n1. [Tauri 2.0 Stable Release](https://v2.tauri.app/blog/tauri-20/)\n2. [Capabilities | Tauri](https://v2.tauri.app/security/capabilities/)"
+}

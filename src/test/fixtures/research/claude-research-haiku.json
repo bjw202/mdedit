@@ -1,0 +1,8 @@
+{
+  "source": "src-tauri/tests/fixtures/claude-research-haiku.jsonl",
+  "opened": [
+    "https://v2.tauri.app/security/capabilities/",
+    "https://v2.tauri.app/blog/tauri-20/"
+  ],
+  "text": "- Tauri 2.0 stable 릴리스(2024년 10월 2일 공개 페이지 기준)에 모바일 지원이 포함됐다. 블로그는 \"A very much awaited part of this release is the mobile operating system support\"라고 소개하며, 변경 로그에도 \"Added Mobile support\"가 있다 [1]\n- 다만 모바일의 한계도 함께 명시돼 있다. \"On mobile not all of the official plugins are supported\"라고 적혀 있어, 모바일에서 모든 공식 플러그인이 지원되지는 않는다 [1]\n- 권한은 capability 기반이다. \"Capabilities define which permissions are granted or denied for which windows or webviews\"이며, capability 파일은 `src-tauri/capabilities` 안의 JSON 또는 TOML로 정의된다 [2]. 단, 이 페이지는 \"default-deny\"라고 하지 않는다. 앱에 등록된 명령은 기본적으로 모든 창과 webview에서 쓸 수 있고, 원격 접근만 기본 제한된다 [2]\n\n출처\n1. [Tauri 2.0 Stable Release](https://v2.tauri.app/blog/tauri-20/)\n2. [Security > Capabilities | Tauri](https://v2.tauri.app/security/capabilities/)"
+}
