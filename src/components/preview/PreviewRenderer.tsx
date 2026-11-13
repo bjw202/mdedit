@@ -23,6 +23,7 @@ import {
 } from '@/lib/preview/pointHighlight';
 import { getPointRef, sendPointRequest } from '@/lib/preview/pointRequest';
 import { registerPointUiCleanup } from '@/lib/preview/pointUi';
+import { isPointMac, isPointModifierHeld, isPointModifierKey } from '@/lib/preview/pointModifier';
 import {
   getActiveEditorView,
   getCardControllers,
@@ -200,9 +201,11 @@ export function PreviewRenderer({ html, source, zoom = 1 }: PreviewRendererProps
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    // 수정키 판정은 pointModifier 한 곳에서만 한다(macOS ⌥ / 그 외 Alt·Ctrl).
+    const isMac = isPointMac();
 
     const onClickCapture = (event: MouseEvent): void => {
-      if (!event.altKey) return;
+      if (!isPointModifierHeld(event, isMac)) return;
       // 평가 순간의 활성 조건 — 정책 잠금 캐시는 반응형이 아니다(REQ-AI17-001).
       if (!isPointingActiveNow()) return;
       const target = classifyTarget(event.target as Element | null, container);
@@ -274,7 +277,7 @@ export function PreviewRenderer({ html, source, zoom = 1 }: PreviewRendererProps
 
     const onPointerMove = (event: MouseEvent): void => {
       lastEl = event.target as Element;
-      altHeld = event.altKey;
+      altHeld = isPointModifierHeld(event, isMac);
       updateHover();
     };
     const onPointerLeave = (): void => {
@@ -282,13 +285,14 @@ export function PreviewRenderer({ html, source, zoom = 1 }: PreviewRendererProps
       updateHover();
     };
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Alt') return;
+      if (!isPointModifierKey(event.key, isMac)) return;
       altHeld = true;
       updateHover();
     };
     const onKeyUp = (event: KeyboardEvent): void => {
-      if (event.key !== 'Alt') return;
-      altHeld = false;
+      if (!isPointModifierKey(event.key, isMac)) return;
+      // 다른 수정키가 아직 눌려 있을 수 있어 이벤트의 현재 상태로 다시 판정한다.
+      altHeld = isPointModifierHeld(event, isMac);
       updateHover();
     };
     const onBlur = (): void => {
