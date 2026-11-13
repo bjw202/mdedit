@@ -164,3 +164,11 @@
 - 사용자 수동 확인: AC-AI17-015(macOS 실 CLI, claude haiku·codex), AC-AI17-016(Windows Alt+클릭·창 메뉴), 강조 색·두께·입력창 배치 눈 확인(라이트·다크).
 - 이 확인이 끝나면 `implemented → completed` 전환(spec.md·plan.md·acceptance.md frontmatter)과 sync_commit_sha 백필.
 - sync-auditor 독립 감사는 오케스트레이터 몫.
+
+### sync-auditor 판정 (독립 감사, 2026-11-13)
+
+- 판정 PASS-WITH-DEBT, 종합 0.88 (기능 0.88 / 보안 0.92 / 완성도 0.82 / 일관성 0.88, Tier M 기준 0.80). 차단 결함 없음.
+- 보고서: `.moai/reports/sync-audit/SPEC-AI-017.md`
+- 수정함(ab3a6a4): D3 카드 표 수식 중복 표시(RED 먼저 확인 후 수정), D1 카드 표 CSS 추가(CSS만이라 RED 없음, 눈 확인 필요).
+- 미수정(부채): D2 스트리밍 중 반복 파싱(카드 구독 API 변경 필요), D4~D10(MINOR).
+- 수정 후 재검증: 영향받은 vitest 2개 파일 54개 통과, tsc 0, eslint(수정 ts 2개) 0. 전체 스위트는 다시 돌리지 않음.
