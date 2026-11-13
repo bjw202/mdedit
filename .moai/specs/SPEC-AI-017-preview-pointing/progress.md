@@ -26,3 +26,23 @@
 | `cli-roundtrip.mjs` → `cli-roundtrip.json`, `captures/` | S5 — 정본 문구로 claude haiku·codex 기본 모델 표 1건·다이어그램 1건 | `node …/cli-roundtrip.mjs <임시 폴더>` |
 | `haiku-diagram-repeat.mjs` → `haiku-diagram-repeat.json` | S5 — 초안 vs 개정 문구, haiku 다이어그램 3회씩. **주의**: 이 스크립트는 `captures/diagram-node.*.txt` 를 초안으로 읽어 개정 문장을 끼워 넣는다. 정본 문구로 다시 잰 뒤 그 파일들이 개정본으로 바뀌었으므로, 지금 다시 돌리면 두 변형이 같아진다(기록된 JSON 은 바뀌기 전 실행 결과) | — |
 | `captures/diagram-node.claude-haiku.draft-run0-unchanged.out.txt` | S5 — 초안 문구 1회차에 haiku 가 원본을 그대로 돌려준 실제 응답 | — |
+
+## §E.2 Run-phase Evidence
+
+### 진행 기준 (run 시작, 2026-11-13)
+
+- 사용자 승인: 구현 킥오프 승인 완료(D1~D17 원문 그대로, ⌥+클릭·분할 보기만). plan-auditor 3차 FAIL 0.90 은 PASS-with-debt 로 수용됨. v0.2.2 의 R1~R5 는 재감사되지 않았으므로 run 제약으로 다룸(R1 먼저 RED, R2/D17 비활성 문서 파싱).
+- origin/main 병합: `git fetch origin main` + `git merge --no-ff origin/main` — 문서 3개(SPEC-AI-012/014/015 spec.md)만 바뀜, 충돌 없음.
+- 구현 방식: 코디네이터 지시에 따라 `manager-develop` 대신 `general-purpose` 에이전트에 manager-develop 역할 지시를 주어 순차 실행(`isolation: "worktree"` 금지, 작업 경로 명시).
+
+### M1 — 실제 브라우저 클릭 확인 (webkit)
+
+- 명령: `npx playwright test e2e/preview-pointing.spec.ts --retries=0`
+- 결과(원문 일부):
+  ```
+  M1 node hits: ["text|C|alt=true","polygon|C|alt=true"]
+  M1 selection after alt+click: ""
+  2 passed (9.5s)
+  ```
+- 해석: flowchart 노드 `C` 의 글자(`text`)와 도형(`polygon`) 위 ⌥+클릭 모두 `closest('g.pele-node[data-id]')` 가 `C` 를 돌려줬다. 표 칸 ⌥+클릭은 텍스트 선택을 만들지 않았다(기본 동작을 막지 않은 상태에서도 선택 문자열이 빈 값). **설계 전제 유지 — STOP 조건 아님.** sequence 노드는 e2e 가 아니라 AC-003 vitest(jsdom)에서만 확인한다(gap).
+- 픽스처 복사: `spike/captures/{table-column,diagram-node}.{system,user}.txt` → `src-tauri/tests/fixtures/point-{table,diagram}-{system,user}.txt` (4개).
