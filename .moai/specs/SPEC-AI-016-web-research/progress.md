@@ -124,7 +124,7 @@ Rust 테스트는 CI 가 돌리지 않는다(`release.yml:11`). 위가 유일한
 | 런 단계 검증 수치(typecheck·lint 0, vitest 2159, cargo 443+3+8, AC-001~013 자동 통과) | 위 §E.2 기록 | 아니오 — §E.2 이월, 이번에 재실행하지 않음 |
 | spec.md 변경은 `status` 한 줄뿐 | `git diff --cached` 출력에서 `-status: draft` / `+status: implemented` 1줄 확인 | 예 |
 | CHANGELOG 파일 목록이 실제 변경과 일치 | `git diff --stat 03450c1..HEAD` 출력과 대조, 인용 경로 `ls` 확인 | 예 |
-| 문서의 리서치 비용·소요 시간·codex 권장 버전 | 지시문 수치를 그대로 옮김, §E.2 실측 기록에 근거 | 아니오 — 이월 |
+| 문서의 리서치 비용·소요 시간·codex 권장 버전 | 지시문 수치를 그대로 옮김. 출처는 §E.2가 아니라 spec.md 실측표(R1-C·R7·R14)이며, sonnet 약 $0.7은 정본이 아닌 1차 프롬프트 측정, 33초 상한은 서술을 유도한 R7 실험값(정본 프롬프트 측정은 haiku 25.4초·codex 20.5초) | 아니오 — 이월 |
 
 ### 갭
 
@@ -145,3 +145,10 @@ Rust 테스트는 CI 가 돌리지 않는다(`release.yml:11`). 위가 유일한
 - AC-AI16-015: macOS 앱에서 claude·codex 각 1회, `ai://research` 가 `ai://done` 보다 먼저 도착하고 서술 문장이 없는지.
 - AC-AI16-016: Windows.
 - 둘 다 통과하면 `completed` 로 올리는 close 변경이 필요함(별도 처리).
+
+### 감사 결과와 후속 조치 (sync-audit)
+
+- 판정: PASS-WITH-DEBT, 종합 0.84 (보고서: `.moai/reports/sync-audit/SPEC-AI-016.md`). BLOCKING 0건.
+- F1(SHOULD-FIX) 수정: 리서치 중 codex가 `turn.completed` 없이 끝나면 서술 문장이 결과로 나가던 경로를 순수 함수 `codex_eof_result`로 분리해 리서치에서는 `None`(기존 `decide_outcome` 오류 경로)으로 보냄. 비리서치는 기존 폴백 유지. 증거: 실측 픽스처 `codex-nonresearch-hardened.jsonl` 앞 3줄 재생 테스트 `research_eof_without_turn_completed_does_not_use_narration_as_result` — 수정 전 RED(`left: Some("웹 검색 도구로 공식 출시일과 출처를 확인하겠습니다.")`, `right: None`), 수정 후 GREEN, `cargo test --lib ai::` 295개 통과.
+- F2·F3·F4·F5 수정: 문서의 미검증 출처 안내 서술 정정, 위 표의 출처 귀속 정정, CSS 클래스 2개 스타일 추가, acceptance.md·plan.md `status: implemented`.
+- 받아들인 부채: F6 URL 추출이 http(s)만 대상이고 `**URL**`은 오탐 경고가 날 수 있음 / F7 rustfmt 기준과 다른 새 줄 / F8 `build_ai_request`용 `AssembledPrompt` 재조립과 `web_allowed` 이중 계산 / F9 게이트 로그 `.moai/logs/gate-*.txt`가 추적되지 않음.

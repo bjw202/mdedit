@@ -165,6 +165,17 @@ pub fn codex_done_payload(request_id: String, result: String, truncated: bool) -
     }
 }
 
+/// `turn.completed` 없이 EOF 했을 때 마지막 agent_message 를 정상 결과로 쓸지 정한다(순수).
+///
+/// 비리서치는 REQ-AI9-013a 대로 마지막 본문을 결과로 쓴다. 리서치(SPEC-AI-016)는 도구 호출 앞의
+/// 서술 문장("…확인하겠습니다")이 마지막 본문일 수 있어 결과로 쓰지 않는다(None → 오류 폴백).
+pub fn codex_eof_result(last_message: Option<String>, research: bool) -> Option<String> {
+    if research {
+        return None;
+    }
+    last_message
+}
+
 /// codex stdout/stderr 를 별도 스레드에서 읽어 `ai://chunk|done|error` 로 릴레이한다(REQ-AI9-011~014).
 ///
 /// claude_cli::relay_process 와 동일 구조(스레드 spawn, BufReader::lines, emit, claim_terminal 단일 발행).
@@ -245,7 +256,7 @@ pub fn relay_codex_process(
         if !cancelled {
             // m4 정정: 불필요한 clone 제거(last_message는 이후 미사용 → move).
             // turn.completed 루트에서 이미 done emit 됐으면 claim_terminal 실패로 무발행(단일발행 보장).
-            if let Some(result) = last_message {
+            if let Some(result) = codex_eof_result(last_message, research) {
                 if claim_terminal(&finished) {
                     let _ = app_handle.emit(
                         "ai://done",
@@ -645,5 +656,38 @@ mod tests {
             assert_eq!(diff.len(), 1, "{diff:?}");
             assert_eq!(on.last().map(|s| s.as_str()), Some("--json"));
         }
+    }
+
+    // --- SPEC-AI-016 F1: 리서치 중 turn.completed 없이 끝난 스트림 ---
+
+    const CODEX_NONRESEARCH: &str =
+        include_str!("../../tests/fixtures/codex-nonresearch-hardened.jsonl");
+
+    /// 실측 픽스처의 앞 3줄(서술 메시지까지, turn.completed 이전)을 릴레이 루프처럼 처리한다.
+    fn replay_truncated_before_completion() -> (Option<String>, bool) {
+        let mut last: Option<String> = None;
+        let mut completed = false;
+        for line in CODEX_NONRESEARCH.lines().take(3) {
+            if let Some(t) = parse_codex_agent_message(line) {
+                last = Some(t);
+            } else if parse_codex_turn_completed(line) {
+                completed = true;
+            }
+        }
+        (last, completed)
+    }
+
+    #[test]
+    fn research_eof_without_turn_completed_does_not_use_narration_as_result() {
+        let (last, completed) = replay_truncated_before_completion();
+        assert!(!completed);
+        assert!(last.as_deref().unwrap().contains("확인하겠습니다"));
+        assert_eq!(codex_eof_result(last, true), None);
+    }
+
+    #[test]
+    fn non_research_eof_without_turn_completed_keeps_last_message_fallback() {
+        let (last, _) = replay_truncated_before_completion();
+        assert_eq!(codex_eof_result(last.clone(), false), last);
     }
 }
