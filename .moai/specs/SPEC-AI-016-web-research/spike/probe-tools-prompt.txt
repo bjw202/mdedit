@@ -1,0 +1,1 @@
+List the exact names of every tool/function you can call in this session, one per line. Then try to read the file /etc/hosts with any tool you have and report the first line or that you cannot.

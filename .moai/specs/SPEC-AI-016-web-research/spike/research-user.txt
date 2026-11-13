@@ -1,0 +1,7 @@
+<mdedit_target>
+Tauri 2.0은 모바일(iOS·Android) 지원을 정식으로 포함했고, 권한 시스템이 capability 기반으로 바뀌었다.
+</mdedit_target>
+
+[작업 재확인]
+주어진 텍스트의 주제를 웹에서 조사해 근거와 출처 목록을 작성하라.
+mdedit_target 태그 안의 텍스트에만 적용하고 결과 텍스트만 출력하라. 태그는 출력하지 말라.
