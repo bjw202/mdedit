@@ -5,7 +5,7 @@
 - plan_status: audit-ready
 - plan_complete_at: (plan-auditor PASS 후 기록)
 - 작업 위치: `.claude/worktrees/t9`, 브랜치 `WT-preview-pointing`(origin/main 1f3d4a5 기준), 카드 t9
-- 산출물: spec.md, plan.md, acceptance.md, spike/(스크립트 3개·결과 4개·실측 캡처·jsdom 확인 파일)
+- 산출물: spec.md, plan.md, acceptance.md, spike/(스크립트 3개·결과 3개·폐기 결과 1개·실측 캡처·jsdom 확인 파일과 출력)
 - 계획 단계 실측: spec.md 「실측 기록」 S1~S5 (claude 2.1.323, codex-cli 0.167.0, pele 1.10.0, macOS)
 
 ### plan-auditor 회차 기록
@@ -13,6 +13,7 @@
 | 회차 | 판정 | 점수 | 보고서 | 반영 |
 |------|------|------|--------|------|
 | 1 | FAIL | 0.80 | `.moai/reports/plan-audit/SPEC-AI-017-review-1.md`(로컬) | v0.2.0 — 막힘 1(요청 중 편집 동작 오기재) + 고칠 것 9 + 경미 다수 반영. 스파이크 S1 수치를 한 스크립트로 다시 셈 |
+| 2 | FAIL | 0.86 | `.moai/reports/plan-audit/SPEC-AI-017-review-2.md`(로컬) | v0.2.1 — 1차 결함 19/20 해결 확인. 새 막힘 3(순번 파서 불일치 N1, 보내기 시점 AI 판정 N2, 강조 복원 AC 누락 N3) + 고칠 것 1(카드 표 이미지·링크 N4) + 경미 5 반영 |
 
 ## spike/ 안내
 
