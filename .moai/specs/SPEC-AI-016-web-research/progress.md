@@ -5,8 +5,8 @@
 - plan_status: audit-ready
 - plan_complete_at: (plan-auditor 통과 후 기록)
 - 작업 위치: `.claude/worktrees/t8`, 브랜치 `WT-web-research`(origin/main 7480a95 기준), 카드 t8
-- 산출물: spec.md, plan.md, acceptance.md, spike/(실측 캡처 4개·프롬프트·정리 스크립트)
-- 계획 단계 실측: spec.md 「실측 기록」 R1~R9 (claude 2.1.323, codex-cli 0.167.0, macOS)
+- 산출물: spec.md, plan.md, acceptance.md, spike/(실측 캡처 8개·기준 프롬프트·탐침 프롬프트·정리 스크립트)
+- 계획 단계 실측: spec.md 「실측 기록」 R1~R14 (claude 2.1.323, codex-cli 0.167.0, macOS)
 - plan-auditor: (아래에 회차별 기록)
 
 ### plan-auditor 회차 기록
