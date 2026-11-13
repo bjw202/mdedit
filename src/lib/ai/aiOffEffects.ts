@@ -9,6 +9,7 @@
 import { useUIStore } from '@/store/uiStore';
 import { useAiStore } from '@/store/aiStore';
 import { aiCancel } from '@/lib/tauri/ipc';
+import { runPointUiCleanup } from '@/lib/preview/pointUi';
 import { aiGhostField, clearGhostEffect } from '@/components/editor/extensions/ai-ghost-text';
 import {
   getActiveEditorView,
@@ -40,6 +41,9 @@ export function runAiArtifactCleanup(): void {
   if (getCardControllers().length > 0) {
     clearCardRegistry();
   }
+
+  // SPEC-AI-017 REQ-AI17-015: 가리키기 입력창을 닫고 미리보기 강조를 지운다(문서는 건드리지 않는다).
+  runPointUiCleanup();
 }
 
 /**

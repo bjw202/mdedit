@@ -188,6 +188,21 @@ export function blockTextAt(source: string, kind: BlockKind, ordinal: number): s
   return f ? fenceCode(f.content) : null;
 }
 
+/** 문서에서 같은 순번 블록의 줄 범위(0부터, 끝 제외; 다이어그램은 펜스 줄 포함)와 텍스트. 보내기 순간의 카드 범위 계산용. */
+export function findBlockInDoc(
+  doc: string,
+  kind: BlockKind,
+  ordinal: number,
+): { startLine: number; endLine: number; text: string } | null {
+  const parsed = parseBlocks(doc);
+  if (kind === 'table') {
+    const t = parsed.tables[ordinal];
+    return t ? { startLine: t.startLine, endLine: t.endLine, text: tableText(doc, t) } : null;
+  }
+  const f = parsed.fences[ordinal];
+  return f ? { startLine: f.startLine, endLine: f.endLine, text: fenceCode(f.content) } : null;
+}
+
 /**
  * 낡음 판정(D11): 렌더 소스의 순번 블록 텍스트가 현재 에디터 문서의 같은 순번 블록과 다르면(블록이 없어도) 낡음.
  * ⌥+클릭 순간과 보내기 순간에 각각 부른다.
