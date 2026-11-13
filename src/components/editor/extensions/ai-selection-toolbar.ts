@@ -1040,7 +1040,7 @@ const defaultGetUiState: GetUiState = () => {
  * 띄운 뒤 IPC 를 스폰한다(설계 §3/§4.2). startSuggestionCard 가 aiStore 구독으로 델타를 카드에
  * 반영하고, 카드의 [바꾸기]/[아래삽입]은 req.range 를 재검증·교체한다(REQ-AI-035).
  */
-const defaultOnRequest = (req: AiSelectionRequest): void => {
+export const defaultOnRequest = (req: AiSelectionRequest): void => {
   const store = useAiStore.getState();
   store.startRequest(req.args.requestId, req.args.feature);
   store.incrementCount();

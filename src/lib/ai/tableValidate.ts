@@ -18,7 +18,7 @@ export interface TableValidationResult {
  * (`\|` 는 이스케이프, 백틱 안 파이프는 markdown-it 도 구분자로 취급하므로 동일하게 둔다 —
  * 실제 렌더 결과와 셀 수 해석이 어긋나면 안 된다.)
  */
-function splitRow(line: string): string[] {
+export function splitRow(line: string): string[] {
   const cells: string[] = [];
   let current = '';
   let lastPos = 0;

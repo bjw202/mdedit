@@ -159,6 +159,28 @@ pub struct AiRequestArgs {
     // @MX:SPEC: SPEC-AI-012
     #[serde(default)]
     pub additional_instruction: Option<String>,
+    // @MX:NOTE: [AUTO] SPEC-AI-017 REQ-AI17-009/010: 미리보기에서 가리킨 대상의 위치 정보(「대상 정보 형식」 문자열).
+    // 가리키기 두 기능(point-table·point-diagram)에서만 쓰이며 `#[serde(default)]` 로 하위호환(None).
+    // 가리키기 분기는 없거나 공백뿐이면 오류를 돌려준다.
+    // @MX:SPEC: SPEC-AI-017
+    #[serde(default)]
+    pub pointer: Option<String>,
+}
+
+/// 가리키기 요청 조립(SPEC-AI-017 D6) — 앞뒤 문맥(contextBefore/After)은 쓰지 않고 `selection`(블록) +
+/// `pointer` + `customInstruction`(지시)만 싣는다. `pointer` 가 없거나 공백뿐이면 오류다(순수).
+pub fn build_point_from_args(
+    feature: &AiFeature,
+    args: &AiRequestArgs,
+) -> Result<prompt::AssembledPrompt, String> {
+    prompt::build_point_prompt(
+        feature,
+        args.selection.as_deref().unwrap_or(""),
+        args.pointer.as_deref(),
+        args.custom_instruction.as_deref().unwrap_or(""),
+        args.additional_instruction.as_deref(),
+        &args.request_id,
+    )
 }
 
 /// 라우팅된 도구의 모델 선택을 허용 목록으로 검증한다(순수에 가깝다 — 스폰 앞 단계).
@@ -231,6 +253,8 @@ pub fn ai_request(
             args.additional_instruction.as_deref(),
             &args.request_id,
         ),
+        // SPEC-AI-017: 가리키기는 앞뒤 문맥 없이 블록 + 대상 정보만 보낸다. 도구는 열지 않는다(allows_web 거짓).
+        AiFeature::PointTable | AiFeature::PointDiagram => build_point_from_args(&feature, &args)?,
         // SPEC-AI-008: 공유 인라인 조립 경로에 diagram_type 을 전달한다. 조각 부착은
         // build_inline_prompt_ex 내부에서 feature 가 Diagram 일 때만 일어난다.
         // SPEC-AI-012: 재요청 추가 지시와 태그 충돌 시드(요청 ID)도 이 분기에서만 넘긴다.
@@ -843,5 +867,85 @@ mod tests {
         assert_eq!(request_watchdog_secs(false, 0), watchdog_timeout_secs(0));
         assert_eq!(request_watchdog_secs(false, 3000), watchdog_timeout_secs(3000));
         assert_eq!(request_watchdog_secs(false, 0), 60);
+    }
+
+    // --- SPEC-AI-017: 가리키기 요청 인자·조립 분기 (AC-AI17-010, 013) ---
+
+    fn point_args_json(preset: &str, pointer: Option<&str>) -> String {
+        let pointer_part = match pointer {
+            Some(p) => format!(r#","pointer":{}"#, serde_json::to_string(p).unwrap()),
+            None => String::new(),
+        };
+        format!(
+            r#"{{"requestId":"req-abcdefghij","feature":"inline-edit","presetKind":"{preset}","selection":"| a | b |\n|---|---|\n| 1 | 2 |","customInstruction":"둘째 열 지워","contextBefore":"앞 문맥 ZZZ","contextAfter":"뒤 문맥 QQQ"{pointer_part}}}"#
+        )
+    }
+
+    #[test]
+    fn request_args_deserialize_pointer_camel_case_and_default_none() {
+        let with: AiRequestArgs =
+            serde_json::from_str(&point_args_json("point-table", Some("대상: 열"))).unwrap();
+        assert_eq!(with.pointer.as_deref(), Some("대상: 열"));
+        let without: AiRequestArgs = serde_json::from_str(
+            r#"{"requestId":"r","feature":"inline-edit","presetKind":"polish"}"#,
+        )
+        .unwrap();
+        assert!(without.pointer.is_none());
+    }
+
+    #[test]
+    fn point_args_assemble_without_surrounding_context() {
+        let args: AiRequestArgs = serde_json::from_str(&point_args_json(
+            "point-table",
+            Some("대상: 열\n열 번호: 2 (왼쪽부터)\n열 머리: b"),
+        ))
+        .unwrap();
+        let feature = AiFeature::resolve(
+            &args.feature,
+            args.preset_kind.as_deref(),
+            args.custom_instruction.as_deref(),
+        )
+        .unwrap();
+        let p = build_point_from_args(&feature, &args).expect("조립");
+        assert!(!p.user_prompt.contains("ZZZ") && !p.user_prompt.contains("QQQ"));
+        assert!(!p.system_prompt.contains("ZZZ") && !p.system_prompt.contains("QQQ"));
+        assert!(p.user_prompt.contains("지시: 둘째 열 지워"));
+        assert!(p.user_prompt.starts_with("<mdedit_pointer>\n대상: 열"));
+    }
+
+    #[test]
+    fn point_args_without_or_blank_pointer_are_an_error() {
+        for pointer in [None, Some("   ")] {
+            let args: AiRequestArgs =
+                serde_json::from_str(&point_args_json("point-diagram", pointer)).unwrap();
+            let feature =
+                AiFeature::resolve(&args.feature, args.preset_kind.as_deref(), None).unwrap();
+            assert!(build_point_from_args(&feature, &args).is_err(), "{pointer:?}");
+        }
+    }
+
+    #[test]
+    fn point_requests_use_toolless_claude_args_and_locked_codex_args() {
+        use std::path::Path;
+        for f in [AiFeature::PointTable, AiFeature::PointDiagram] {
+            let req = build_ai_request(Some("m".to_string()), &f, polish_assembled());
+            assert!(!req.web_allowed, "{f:?}");
+            let claude =
+                claude_cli::build_claude_args(Some("m"), Path::new("/p/s.txt"), req.web_allowed);
+            let t = claude.iter().position(|a| a == "--tools").unwrap();
+            assert_eq!(claude[t + 1], "");
+            assert!(!claude.iter().any(|a| a == "--allowedTools"));
+            let codex =
+                codex_cli::build_codex_args(Some("m"), Path::new("/tmp/scratch"), req.web_allowed);
+            for v in [
+                "features.apps=false",
+                "features.shell_tool=false",
+                "features.view_image=false",
+                "web_search=disabled",
+            ] {
+                assert!(codex.iter().any(|a| a == v), "{f:?} {v}");
+            }
+            assert!(!codex.iter().any(|a| a == "web_search=live"));
+        }
     }
 }

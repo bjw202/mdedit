@@ -1,0 +1,9 @@
+[spike] flowchart: nodes=["A","B","C"] clusters=["S"] edges=2 closest=A
+[spike] sequence: nodes=["U","S","U","S"] clusters=[] edges=2 closest=U
+[spike] state: nodes=["root_start","대기","실행","root_end"] clusters=[] edges=3 closest=대기
+[spike] class: nodes=["주문","결제"] clusters=[] edges=1 closest=주문
+[spike] er: nodes=["CUSTOMER","ORDER"] clusters=[] edges=1 closest=CUSTOMER
+[spike] mindmap: nodes=["조사","실행","root"] clusters=[] edges=0 closest=조사
+[spike] pie: nodes=[] clusters=[] edges=0 closest=null
+[spike] gantt: nodes=[] clusters=[] edges=0 closest=null
+      Tests  8 passed (8)

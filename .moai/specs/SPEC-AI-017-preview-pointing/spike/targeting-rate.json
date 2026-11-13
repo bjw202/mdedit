@@ -1,0 +1,73 @@
+{
+ "files": 293,
+ "table": {
+  "tables": 811,
+  "nestedInListOrQuote": 20,
+  "tablesWithRowMap": 811,
+  "rows": 6249,
+  "rowsSourceCellCountDiffersFromRendered": 11,
+  "headerCols": 2530,
+  "headerTextUniqueInTable": 2530,
+  "emptyHeader": 0,
+  "bodyCells": 16697,
+  "bodyCellTextUniqueInTable": 13422,
+  "topLevelTables": 791,
+  "topLevelOver2000": 60,
+  "topLevelOver6000": 4,
+  "topLevelOver12000": 1,
+  "topLevelMaxChars": 15359
+ },
+ "diagram": {
+  "blocks": 24,
+  "rendered": 23,
+  "renderFailed": 1,
+  "byType": {
+   "flowchart": {
+    "blocks": 15,
+    "nodes": 140,
+    "nodeIdInSource": 140,
+    "clusters": 0,
+    "edges": 142
+   },
+   "sequence": {
+    "blocks": 6,
+    "nodes": 76,
+    "nodeIdInSource": 76,
+    "clusters": 0,
+    "edges": 59
+   },
+   "state": {
+    "blocks": 1,
+    "nodes": 8,
+    "nodeIdInSource": 6,
+    "clusters": 0,
+    "edges": 9
+   },
+   "pie": {
+    "blocks": 1,
+    "nodes": 0,
+    "nodeIdInSource": 0,
+    "clusters": 0,
+    "edges": 0
+   }
+  },
+  "nodes": 224,
+  "nodeIdFoundInSource": 222,
+  "nodeIdOnExactlyOneLine": 56,
+  "nodeIdOnSeveralLines": 166,
+  "nodeIdNotInSource": 2,
+  "clusters": 0,
+  "clusterIdFoundInSource": 0,
+  "edges": 210,
+  "edgeIdPatternL": 142,
+  "renderFailures": [
+   "codemaps: Lexical error on line 2. Unrecognized text.\n    A[\"``` mermaid 펜스\"] -->|mermaidPlugin| B[\""
+  ],
+  "notInSourceSamples": [
+   "state:root_start",
+   "state:root_end"
+  ],
+  "topLevelFenceMaxChars": 1094,
+  "fencesNestedInListOrQuote": 0
+ }
+}

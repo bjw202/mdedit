@@ -20,6 +20,7 @@ import { buildFallbackDecision, validateMermaid } from '@/lib/ai/mermaidValidate
 import { renderDiagram } from '@/lib/diagram/diagramRenderer';
 import type { MermaidValidationResult } from '@/lib/ai/mermaidValidate';
 import { validateMarkdownTable } from '@/lib/ai/tableValidate';
+import { createMarkdownParser } from '@/lib/markdown/renderer';
 import { subscribeAiEvents } from '@/lib/ai/aiEventRouter';
 import type { ResearchActivity } from '@/lib/ai/aiEventRouter';
 import { findUnverifiedSources } from '@/lib/ai/researchSources';
@@ -224,6 +225,66 @@ export function applyCompletionToActions(
  */
 export const TABLE_MAX_VALIDATION_ATTEMPTS = 2;
 
+// ============================================================
+// 가리키기(point-table / point-diagram) 검증 (pure) — SPEC-AI-017 D8
+// ============================================================
+
+/** 가리키기 프리셋인지(미리보기에서 블록을 가리켜 시작한 카드). */
+export function isPointingPreset(kind: string | undefined): kind is 'point-table' | 'point-diagram' {
+  return kind === 'point-table' || kind === 'point-diagram';
+}
+
+/** D8 (b): 결과가 원본과 같을 때 자동 재요청에 붙이는 고정 지시문. */
+export const POINT_SAME_AS_ORIGINAL_INSTRUCTION = '이전 결과가 원본과 같았다. 지시한 변경을 반영하라.';
+
+/** 두 번째 실패 오류 카드에 보이는 문구(사용자용). */
+export const POINT_SAME_AS_ORIGINAL_MESSAGE = '결과가 원본과 같아서 바뀐 곳이 없어요';
+
+/** 표 하나만 출력하라는 위반(표 앞뒤에 다른 내용이 붙음) 사유. */
+export const POINT_TABLE_ONLY_ERROR = '표 하나만 출력해야 해요 — 표 앞뒤에 다른 내용이 붙어 있습니다.';
+
+/** D8 (b) 정규화: 줄마다 끝 공백 제거 → `\n` 으로 잇기 → 앞뒤 공백 제거. */
+export function normalizeForCompare(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+$/, ''))
+    .join('\n')
+    .trim();
+}
+
+export type PointValidation =
+  | { valid: true; text: string }
+  | { valid: false; error: string; sameAsOriginal: boolean };
+
+/**
+ * 표 결과 판정(D8 a·b). 앞뒤 공백을 뺀 전체가 markdown-it 파싱에서 표 하나뿐이고(최상위 토큰이
+ * table_open…table_close 둘뿐) validateMarkdownTable 을 통과해야 하며, selection 과 같으면 실패다.
+ * 파서는 미리보기가 쓰는 공용 구성(createMarkdownParser)이라 "미리보기에서 표로 보이는가"와 일치한다.
+ */
+export function validatePointTable(output: string, selection: string): PointValidation {
+  const text = output.trim();
+  const top = createMarkdownParser(null)
+    .parse(text, {})
+    .filter((t) => t.level === 0)
+    .map((t) => t.type);
+  if (top.length !== 2 || top[0] !== 'table_open' || top[1] !== 'table_close') {
+    // 표가 아예 없으면 기존 문구(구분선 필요)를, 표 외 내용이 있으면 전용 문구를 쓴다.
+    if (!top.includes('table_open')) {
+      const base = validateMarkdownTable(text);
+      return { valid: false, error: base.error ?? POINT_TABLE_ONLY_ERROR, sameAsOriginal: false };
+    }
+    return { valid: false, error: POINT_TABLE_ONLY_ERROR, sameAsOriginal: false };
+  }
+  const structure = validateMarkdownTable(text);
+  if (!structure.valid) {
+    return { valid: false, error: structure.error ?? POINT_TABLE_ONLY_ERROR, sameAsOriginal: false };
+  }
+  if (normalizeForCompare(text) === normalizeForCompare(selection)) {
+    return { valid: false, error: POINT_SAME_AS_ORIGINAL_INSTRUCTION, sameAsOriginal: true };
+  }
+  return { valid: true, text };
+}
+
 export type DiagramOutcome =
   | { kind: 'valid'; code: string }
   | { kind: 'auto-retry'; error: string }
@@ -293,6 +354,8 @@ export interface RenderCardInput {
   unverifiedSources?: string[];
   /** diagram-valid 카드 미니 렌더러(주입). 없으면 placeholder 만(테스트는 미주입). */
   renderMermaid?: (code: string, container: HTMLElement) => void;
+  /** 가리키기 표 결과의 렌더된 모습(주입). 없으면 렌더 영역을 만들지 않는다(SPEC-AI-017 D5). */
+  renderTable?: (markdown: string, container: HTMLElement) => void;
   callbacks: CardCallbacks;
 }
 
@@ -553,6 +616,14 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
   body.textContent = state.suggestion;
   card.appendChild(body);
 
+  // SPEC-AI-017 D5: 가리키기 표 결과는 텍스트와 함께 렌더된 모습을 보여 준다(이미지·링크는 글자로, D17).
+  if (input.presetKind === 'point-table' && state.phase === 'done' && input.renderTable) {
+    const tablePreview = document.createElement('div');
+    tablePreview.className = 'mdedit-ai-table-preview';
+    input.renderTable(state.suggestion, tablePreview);
+    card.appendChild(tablePreview);
+  }
+
   // 절단 고지(P7) — 문서가 길어 일부만 컨텍스트로 보냈을 때 침묵하지 않는다.
   if (state.truncated) {
     const note = document.createElement('div');
@@ -568,6 +639,11 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
     // 카드 안 미니 렌더(strict SVG). 주입된 렌더러가 있으면 위임하고, 없으면 placeholder 유지
     // — jsdom 단위 테스트는 렌더러를 주입하지 않아 mermaid DOM 의존을 타지 않는다.
     input.renderMermaid?.(state.suggestion, preview);
+    // SPEC-AI-017: 가리키기 다이어그램은 검토 카드에서도 ↻(새 요청 묶음)를 쓸 수 있어야 한다.
+    if (input.presetKind === 'point-diagram') {
+      card.appendChild(renderDoneControls(input));
+      return card;
+    }
     appendCompletionNotice(card, input);
     card.appendChild(renderApplyButtons(input));
     const cancel = makeButton('mdedit-ai-cancel', '✕ 취소');
@@ -772,6 +848,8 @@ export interface SuggestionCardModel {
    * 「바꾸기」 제거 판정이 모두 이 값을 쓴다. 생략하면 originalText 길이로 갈음한다.
    */
   selectionLength?: number;
+  /** 가리키기 카드만: 요청에 보낸 selection(원본과 같음 판정 기준, D8 b). */
+  selection?: string;
 }
 
 /** createAiSuggestionCard 설정. 활성 카드 목록 조회 훅(기본은 레지스트리). */
@@ -1042,6 +1120,8 @@ function defaultGetActiveCards(): Array<{ model: SuggestionCardModel; render: Re
 export interface CardControllerOptions {
   /** diagram-valid 미니 렌더러 주입(기본 renderMermaidInto). */
   renderMermaid?: (code: string, container: HTMLElement) => void;
+  /** point-table 검토 카드 표 렌더러 주입(기본 renderPointTableInto). */
+  renderTable?: (markdown: string, container: HTMLElement) => void;
 }
 
 /**
@@ -1053,6 +1133,9 @@ export class AiSuggestionCardController {
   private streamBuffer = '';
   private diagramAttempts = 0;
   private tableAttempts = 0;
+  // SPEC-AI-017 D8 (c): 가리키기 전용 묶음 실패 카운터. tableAttempts/diagramAttempts 는 카드 수명 동안
+  // 줄지 않아 ↻ 뒤 검증이 건너뛰어지므로 쓰지 않는다.
+  private pointFailures = 0;
   // BUG-6: '✓ 목록으로'가 눌리면 이 카드는 더 이상 mermaid 검증 경로를 타면 안 된다 — 재요청
   // 응답이 목록(일반 텍스트)이지 다이어그램이 아니기 때문이다. model.presetKind 는 'diagram'
   // 으로 고정해 두고(적용 버튼 배치 등 기존 계약 유지), 완료 처리/펜스 삽입만 이 플래그로 우회한다.
@@ -1202,6 +1285,14 @@ export class AiSuggestionCardController {
     // 다이어그램은 삽입 전 strict 사전 검증(REQ-AI-023) 후 valid/자동재요청/목록폴백으로 분기.
     // BUG-6: 목록 폴백이 활성화된 뒤에는(재요청 응답이 목록 텍스트) 더 이상 이 분기를 타지
     // 않는다 — mermaid 검증에 넣으면 항상 실패해 diagram-fallback 으로 되돌아가 무한 루프가 된다.
+    if (this.model.presetKind === 'point-table') {
+      this.handlePointTableComplete(finalText, opts?.truncated);
+      return;
+    }
+    if (this.model.presetKind === 'point-diagram') {
+      void this.handlePointDiagramComplete(finalText);
+      return;
+    }
     if (this.model.presetKind === 'diagram' && !this.listFallbackActive) {
       void this.handleDiagramComplete(finalText);
       return;
@@ -1238,6 +1329,67 @@ export class AiSuggestionCardController {
     // exempt — 사용자가 요청한 품질 반복이 아니라 컨트롤러가 스스로 거는 검증 재요청이다.
     this.callbacks.onReRequest(`이전 오류: ${validation.error}`, 'exempt');
     return true;
+  }
+
+  /** 가리키기 표 결과 검증(D8). 통과하면 검토 단계(done), 실패는 묶음 예산에 따라 처리한다. */
+  private handlePointTableComplete(output: string, truncated?: boolean): void {
+    const v = validatePointTable(output, this.model.selection ?? this.model.originalText);
+    if (v.valid) {
+      this.commit({ type: 'complete', finalText: v.text, original: this.model.originalText, truncated });
+      return;
+    }
+    this.failPoint(
+      v.sameAsOriginal ? POINT_SAME_AS_ORIGINAL_INSTRUCTION : `이전 오류: ${v.error}`,
+      v.sameAsOriginal ? POINT_SAME_AS_ORIGINAL_MESSAGE : v.error,
+    );
+  }
+
+  /** 가리키기 다이어그램 결과 검증(D8). 펜스를 벗긴 코드로 validateMermaid·원본 비교를 한다. 목록 폴백은 없다. */
+  private async handlePointDiagramComplete(output: string): Promise<void> {
+    const code = stripMermaidFence(output);
+    const original = stripMermaidFence(this.model.selection ?? this.model.originalText);
+    const validation = await validateMermaid(code);
+    if (!validation.valid) {
+      this.failPoint(`이전 오류: ${validation.error ?? ''}`, validation.error ?? '다이어그램을 만들지 못했어요');
+    } else if (normalizeForCompare(code) === normalizeForCompare(original)) {
+      this.failPoint(POINT_SAME_AS_ORIGINAL_INSTRUCTION, POINT_SAME_AS_ORIGINAL_MESSAGE);
+    } else {
+      this.commit({ type: 'diagram-valid', code });
+    }
+  }
+
+  // @MX:NOTE: [AUTO] 컨트롤러 내부 자동 재요청과 사용자 재요청은 둘 다 kind 'exempt' 일 수 있어 값으로
+  //   가르지 못한다(D8 c). 내부 재요청은 onReRequest 호출을 이 플래그로 감싸 호출 경로로 구분한다.
+  // @MX:SPEC: SPEC-AI-017 REQ-AI17-011
+  private internalRetry = false;
+
+  /** 지금 onReRequest 호출이 컨트롤러 내부 자동 재요청에서 왔는가(배선이 새 묶음 여부를 가를 때 쓴다). */
+  isInternalRetry(): boolean {
+    return this.internalRetry;
+  }
+
+  /** 사용자가 새 요청 묶음을 시작했다(카드 ↻ · 오류 카드 「다시 시도」) — 가리키기 예산을 0으로. */
+  startUserBundle(): void {
+    this.pointFailures = 0;
+  }
+
+  /**
+   * 가리키기 검증 실패 처리(D8 c) — 같은 묶음의 첫 실패는 자동 재요청(exempt, ↻ 횟수 불변),
+   * 두 번째 실패는 실패 이유를 담은 오류 카드로 끝낸다.
+   */
+  private failPoint(instruction: string, userMessage: string): void {
+    this.pointFailures += 1;
+    if (this.pointFailures > 1) {
+      this.commit({ type: 'fail', kind: 'other', message: userMessage });
+      return;
+    }
+    this.commit({ type: 'stream' });
+    this.internalRetry = true;
+    try {
+      this.callbacks.onReRequest(instruction, 'exempt');
+    } finally {
+      this.internalRetry = false;
+    }
   }
 
   private async handleDiagramComplete(code: string): Promise<void> {
@@ -1376,9 +1528,50 @@ export class AiSuggestionCardController {
       streamBuffer: this.streamBuffer,
       waitingLong: this.waitingLong,
       renderMermaid: this.options.renderMermaid,
+      renderTable: this.options.renderTable,
       callbacks: this.callbacks,
     };
   }
+}
+
+// @MX:WARN: [AUTO] 확정 전 모델 출력이 원격 요청을 일으키거나 눌리는 링크가 되면 안 된다(D17).
+// @MX:REASON: [AUTO] 앱 CSP 가 없어(csp: null) 활성 문서에 붙은 img 는 원격 주소를 즉시 불러온다.
+//   그래서 HTML 은 반드시 비활성 문서(DOMParser)에서 파싱·정화한 뒤에만 카드에 옮긴다.
+// @MX:SPEC: SPEC-AI-017 D17 REQ-AI17-012
+/** 네트워크를 쓸 수 있는 요소 — 글자로 바꿀 수 없는 것은 통째로 제거한다. */
+const NETWORK_ELEMENTS = 'iframe,video,audio,object,embed,link,script,source,svg,style,base,meta,form';
+/** 표 칸 정렬용으로 markdown-it 이 붙이는 style 만 남긴다. */
+const SAFE_STYLE = /^\s*text-align:\s*(left|right|center)\s*;?\s*$/;
+
+/**
+ * 표 HTML 을 비활성 문서에서 파싱해 이미지는 alt 글자로, 링크는 글자만으로 바꾸고 네트워크 가능
+ * 요소·속성을 모두 지운다. 반환값은 비활성 문서의 body 이며 활성 문서에 붙어 있지 않다.
+ */
+export function sanitizeTableHtml(html: string): HTMLElement {
+  const body = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
+  const doc = body.ownerDocument;
+  body.querySelectorAll('img').forEach((img) => {
+    img.replaceWith(doc.createTextNode(img.getAttribute('alt') ?? ''));
+  });
+  body.querySelectorAll('picture,a').forEach((el) => {
+    el.replaceWith(doc.createTextNode(el.textContent ?? ''));
+  });
+  body.querySelectorAll(NETWORK_ELEMENTS).forEach((el) => el.remove());
+  // class 를 지우면 KaTeX 의 숨김 MathML 이 보이게 되므로, 속성 제거 전에 HTML 본문만 남긴다(D3).
+  body.querySelectorAll('.katex-mathml').forEach((el) => el.remove());
+  body.querySelectorAll('*').forEach((el) => {
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.name === 'style' && SAFE_STYLE.test(attr.value)) continue;
+      el.removeAttribute(attr.name);
+    }
+  });
+  return body;
+}
+
+/** 카드 안 표 렌더 — 미리보기와 같은 파서로 그린 HTML 을 정화해 넣는다(D17). */
+export function renderPointTableInto(markdown: string, container: HTMLElement): void {
+  const sanitized = sanitizeTableHtml(createMarkdownParser(null).render(markdown));
+  container.replaceChildren(...Array.from(sanitized.childNodes));
 }
 
 // @MX:NOTE: [AUTO] SPEC-AI-004 D-C — 무태그(```)·타 태그(```mmd) 펜스까지 매칭하도록 일반화.
@@ -1448,7 +1641,8 @@ function applyActiveCard(controller: AiSuggestionCardController, mode: ApplyMode
   // 씌우지 않는다 — model.presetKind 는 여전히 'diagram' 으로 고정되어 있어 이 플래그가 없으면
   // 목록 텍스트가 ```mermaid 로 잘못 감싸진다.
   const isDiagramInsertion =
-    controller.model.presetKind === 'diagram' && !controller.isListFallbackActive();
+    (controller.model.presetKind === 'diagram' && !controller.isListFallbackActive()) ||
+    controller.model.presetKind === 'point-diagram';
   const suggestion = isDiagramInsertion ? ensureMermaidFence(rawSuggestion) : rawSuggestion;
   const result = applySuggestion(view as unknown as ApplyView, {
     from: controller.model.range.from,
@@ -1518,6 +1712,7 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
     originalText: request.originalText,
     insertOnly: request.insertOnly,
     selectionLength: request.args.selection?.length ?? 0,
+    selection: isPointingPreset(request.args.presetKind) ? request.args.selection : undefined,
   };
 
   // BUG-1: 재요청(↻/직접지시/목록폴백)마다 새 requestId 가 발행되므로, 구독이 어느
@@ -1546,6 +1741,8 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
     // 소진 판정은 여기서 다시 계산하지 않고 reduceCard 가 만든 phase 를 읽기만 한다.
     // @MX:SPEC: SPEC-AI-010 REQ-AI10-024 REQ-AI10-026 REQ-AI10-027 REQ-AI10-028 / SPEC-AI-001 REQ-AI-025
     onReRequest: (instruction, kind = 'exempt') => {
+      // SPEC-AI-017 D8 (c): 카드 버튼에서 온 재요청만 새 묶음이다(내부 자동 재요청은 같은 묶음).
+      if (!controller.isInternalRetry()) controller.startUserBundle();
       controller.applyReRequestKind(kind);
       // 상한을 넘긴 blind 재요청은 **발행하지 않는다** — enterReRequest 도, fireReRequest 도,
       // boundRequestId·lastHandledTerminal 갱신도 하지 않는다. 카드는 제안을 그대로 든 채
@@ -1586,7 +1783,10 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       removeCardController(controller);
     },
   };
-  controller = new AiSuggestionCardController(model, callbacks, { renderMermaid: renderMermaidInto });
+  controller = new AiSuggestionCardController(model, callbacks, {
+    renderMermaid: renderMermaidInto,
+    renderTable: renderPointTableInto,
+  });
   registerCardController(controller);
 
   // aiStore 스트리밍 → 컨트롤러 반영(useAiRelay 가 ai://chunk 를 버퍼에 누적하면 여기서 미러링).

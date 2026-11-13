@@ -6,8 +6,8 @@
 // SPEC-AI-013: 한도를 넓힌 대신 "바꾸기" 의 안전선은 SAFE_REPLACE_LIMIT(2,000자)로 따로 둔다 —
 // 그보다 긴 선택은 응답이 끝까지 왔다고 확인된 경우에만 카드가 「바꾸기」를 허용한다.
 
-/** ✨ 프리셋 5종 + 직접 입력. 편집 계열(polish/custom)과 변환 계열(outline/table/diagram/shorten)로 나뉜다. */
-export type AiPresetKind = 'polish' | 'custom' | 'outline' | 'table' | 'diagram' | 'shorten' | 'research';
+/** ✨ 프리셋 5종 + 직접 입력 + 미리보기 가리키기 2종(SPEC-AI-017 D10, 변환 계열). 편집 계열(polish/custom)과 변환 계열(outline/table/diagram/shorten)로 나뉜다. */
+export type AiPresetKind = 'polish' | 'custom' | 'outline' | 'table' | 'diagram' | 'shorten' | 'research' | 'point-table' | 'point-diagram';
 
 export interface SelectionGuardResult {
   /** 요청 진행 허용 여부. false 면 프리셋 비활성 + reason 안내(P7, 침묵 금지). */
