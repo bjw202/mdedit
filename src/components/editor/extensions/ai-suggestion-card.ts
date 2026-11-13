@@ -21,10 +21,13 @@ import { renderDiagram } from '@/lib/diagram/diagramRenderer';
 import type { MermaidValidationResult } from '@/lib/ai/mermaidValidate';
 import { validateMarkdownTable } from '@/lib/ai/tableValidate';
 import { subscribeAiEvents } from '@/lib/ai/aiEventRouter';
+import type { ResearchActivity } from '@/lib/ai/aiEventRouter';
+import { findUnverifiedSources } from '@/lib/ai/researchSources';
 import {
   WAIT_NOTICE_DELAY_MS,
   WAIT_NOTICE_TEXT,
   frontendBackstopDelayMs,
+  researchBackstopDelayMs,
   BACKSTOP_ERROR_TEXT,
 } from '@/lib/ai/waitNotice';
 
@@ -165,7 +168,8 @@ const INSERT_FIRST_PRESETS: readonly AiPresetKind[] = ['table', 'diagram'];
  * - 기본 포커스만 계열별로 다르다: 표/다이어그램은 아래에 삽입, 나머지는 바꾸기.
  */
 export function deriveCardActions(presetKind: AiPresetKind, insertOnly: boolean): CardActions {
-  if (insertOnly) {
+  // SPEC-AI-016 D9: 리서치 결과는 근거 목록이라 원문을 대체하지 않는다 — 「아래에 삽입」 하나뿐.
+  if (presetKind === 'research' || insertOnly) {
     return { modes: ['insert-below'], primary: 'insert-below' };
   }
   return {
@@ -283,6 +287,10 @@ export interface RenderCardInput {
   completionNotice?: string;
   /** SPEC-AI-006 REQ-AI6-007: 발행 후 대기 임계(기본 8초)를 넘겨도 첫 청크가 없으면 true. */
   waitingLong?: boolean;
+  /** SPEC-AI-016: 리서치 도구 활동 누적값(리서치 카드만, 없으면 아직 활동 없음). */
+  researchActivity?: ResearchActivity | null;
+  /** SPEC-AI-016 D7: 결과 텍스트에 있으나 AI가 열어 본 기록이 없는 주소(없으면 알림 줄 없음). */
+  unverifiedSources?: string[];
   /** diagram-valid 카드 미니 렌더러(주입). 없으면 placeholder 만(테스트는 미주입). */
   renderMermaid?: (code: string, container: HTMLElement) => void;
   callbacks: CardCallbacks;
@@ -319,6 +327,22 @@ function appendCompletionNotice(parent: HTMLElement, input: RenderCardInput): vo
   notice.className = 'mdedit-ai-completion-notice';
   notice.textContent = input.completionNotice;
   parent.appendChild(notice);
+}
+
+/** SPEC-AI-016 D7: 열어 본 기록이 없는 출처 한 줄. 목록이 비면 아무것도 붙이지 않는다. */
+function appendUnverifiedNotice(parent: HTMLElement, input: RenderCardInput): void {
+  if (!input.unverifiedSources || input.unverifiedSources.length === 0) return;
+  const notice = document.createElement('div');
+  notice.className = 'mdedit-ai-unverified-notice';
+  notice.textContent = `AI가 직접 열어 확인한 기록이 없는 출처: ${input.unverifiedSources.join(', ')}`;
+  parent.appendChild(notice);
+}
+
+/** SPEC-AI-016 REQ-AI16-010: 리서치 진행 문구. */
+export function researchProgressText(activity: ResearchActivity | null | undefined): string {
+  return activity
+    ? `검색 ${activity.searches}회 · 페이지 ${activity.opened.length}개 열어 봄`
+    : '웹에서 찾는 중…';
 }
 
 /** 적용 버튼 행(actions.modes 순서대로). primary 에 .is-primary(accent 채움) 부여 — 포커스는 주지 않는다. */
@@ -374,6 +398,7 @@ function renderDoneControls(input: RenderCardInput): HTMLElement {
 
   wrap.appendChild(directRow);
   appendCompletionNotice(wrap, input);
+  appendUnverifiedNotice(wrap, input);
   wrap.appendChild(btnRow);
   return wrap;
 }
@@ -407,8 +432,15 @@ export function renderSuggestionCard(input: RenderCardInput): HTMLElement {
       }
       card.appendChild(skeleton);
     }
+    // SPEC-AI-016 REQ-AI16-010: 리서치는 8초 대기 안내 대신 진행 문구를 보여 준다(가짜 진행률 아님 — 실제 도구 활동 수).
+    if (input.presetKind === 'research') {
+      const progress = document.createElement('div');
+      progress.className = 'mdedit-ai-research-progress';
+      progress.textContent = researchProgressText(input.researchActivity);
+      card.appendChild(progress);
+    }
     // SPEC-AI-006 REQ-AI6-007/008/009: 8초 무응답이면 보조 문구만 표시한다(진행률 바 금지).
-    if (input.waitingLong && input.streamBuffer.trim() === '') {
+    if (input.presetKind !== 'research' && input.waitingLong && input.streamBuffer.trim() === '') {
       const notice = document.createElement('div');
       notice.className = 'mdedit-ai-wait-notice';
       notice.textContent = WAIT_NOTICE_TEXT;
@@ -766,7 +798,11 @@ export function buildCardKey(model: SuggestionCardModel, render: RenderCardInput
   // SPEC-AI-006 REQ-AI6-007: waitingLong 전환도 key 에 반영해야 widget 이 재생성되어 대기
   // 안내 문구가 실제로 DOM 에 반영된다(그렇지 않으면 eq() 가 true 라 toDOM 이 재호출되지 않는다).
   const waitingSuffix = render.waitingLong ? ':waiting' : '';
-  return `${model.requestId}:${phase}:${bufferState}${waitingSuffix}`;
+  // SPEC-AI-016: 활동 수가 바뀌면 key 도 바뀌어야 진행 문구가 DOM 에 반영된다.
+  const researchSuffix = render.researchActivity
+    ? `:r${render.researchActivity.searches}-${render.researchActivity.opened.length}`
+    : '';
+  return `${model.requestId}:${phase}:${bufferState}${waitingSuffix}${researchSuffix}`;
 }
 
 /** 활성 카드를 원문 아래 block widget 으로 감싸는 위젯. */
@@ -1031,6 +1067,8 @@ export class AiSuggestionCardController {
   private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
   // SPEC-AI-013: 마지막 done 이 실어 온 응답 완결 신호. 재요청이 시작되면 'unknown' 으로 되돌린다.
   private completion: Completion = 'unknown';
+  // SPEC-AI-016: 리서치 도구 활동 누적값. 재요청이 시작되면 null 로 되돌린다.
+  private researchActivity: ResearchActivity | null = null;
 
   constructor(
     public readonly model: SuggestionCardModel,
@@ -1083,7 +1121,14 @@ export class AiSuggestionCardController {
       // 신규 errorKind 를 만들지 않고 기존 'other' 분기에 얹는다 → 재시도 + 닫기가 자동으로
       // 따라온다(REQ-AI10-011). 문서·다른 카드는 건드리지 않는다.
       this.commit({ type: 'fail', kind: 'other', message: BACKSTOP_ERROR_TEXT });
-    }, frontendBackstopDelayMs(this.selectionLength())); // 첫 요청·모든 재요청이 이 카드 요청의 선택 길이를 쓴다(REQ-AI13-005)
+    }, this.backstopDelayMs()); // 첫 요청·모든 재요청이 이 카드 요청의 선택 길이를 쓴다(REQ-AI13-005)
+  }
+
+  /** 리서치 카드는 선택 길이와 무관하게 185초(SPEC-AI-016 D11), 그 외는 SPEC-AI-013 공식. */
+  private backstopDelayMs(): number {
+    return this.model.presetKind === 'research'
+      ? researchBackstopDelayMs()
+      : frontendBackstopDelayMs(this.selectionLength());
   }
 
   private clearWatchdogTimer(): void {
@@ -1134,6 +1179,12 @@ export class AiSuggestionCardController {
    */
   appendStreamDelta(delta: string): void {
     this.onStream(this.streamBuffer + delta);
+  }
+
+  /** SPEC-AI-016: `ai://research` 누적 스냅샷을 반영한다(라우터 경로 — 스토어 슬롯과 무관). */
+  onResearch(activity: ResearchActivity): void {
+    this.researchActivity = activity;
+    this.commit({ type: 'stream' });
   }
 
   onStream(buffer: string): void {
@@ -1276,6 +1327,7 @@ export class AiSuggestionCardController {
   enterReRequest(): void {
     this.streamBuffer = '';
     this.completion = 'unknown';
+    this.researchActivity = null;
     this.rearmWaitNotice();
     this.armWatchdogTimer();
     this.commit({ type: 'stream' });
@@ -1301,15 +1353,25 @@ export class AiSuggestionCardController {
   getRenderInput(): RenderCardInput {
     const base = deriveCardActions(this.model.presetKind, this.model.insertOnly);
     // 완결 신호는 done 계열 phase 에서만 의미가 있다(스트리밍 중에는 적용 버튼 자체가 없다).
-    const { actions, reason } = applyCompletionToActions(base, {
-      selectionLength: this.selectionLength(),
-      completion: this.completion,
-      guardInsertOnly: this.model.insertOnly,
-    });
+    // SPEC-AI-016 D9: 리서치는 완결 신호와 무관하게 삽입 전용이고 안내 문구도 없다.
+    const isResearch = this.model.presetKind === 'research';
+    const { actions, reason } = isResearch
+      ? { actions: base, reason: undefined }
+      : applyCompletionToActions(base, {
+          selectionLength: this.selectionLength(),
+          completion: this.completion,
+          guardInsertOnly: this.model.insertOnly,
+        });
+    const hasResult = this.state.phase === 'done' || this.state.phase === 'retry-exhausted';
     return {
       state: this.state,
       actions,
       completionNotice: reason,
+      researchActivity: isResearch ? this.researchActivity : undefined,
+      unverifiedSources:
+        isResearch && hasResult
+          ? findUnverifiedSources(this.state.suggestion, this.researchActivity?.opened ?? [])
+          : undefined,
       presetKind: this.model.presetKind,
       streamBuffer: this.streamBuffer,
       waitingLong: this.waitingLong,
@@ -1570,6 +1632,8 @@ export function startSuggestionCard(request: StartCardRequest): AiSuggestionCard
       // result 는 권위 값 — 누적 버퍼를 덮어쓴다(reduceCompleteRequest 와 동일 의미론).
       controller.onComplete(result, { truncated, completion });
     },
+    // SPEC-AI-016: 활동 이벤트는 스토어를 거치지 않으므로 슬롯 여부와 무관하게 반영한다.
+    onResearch: (activity) => controller.onResearch(activity),
     onError: (kind, message) => {
       if (isStoreSlot()) return;
       const key = `${boundRequestId}:error`;

@@ -96,11 +96,11 @@ describe('ipc AI wrappers: command + arg passthrough', () => {
 });
 
 describe('useAiRelay: ai:// events → aiStore', () => {
-  it('registers listeners for all three ai:// channels on mount', async () => {
+  it('registers listeners for all four ai:// channels on mount', async () => {
     const { useAiRelay } = await import('@/hooks/useAiRelay');
     renderHook(() => useAiRelay());
     await flush();
-    expect(Object.keys(listeners).sort()).toEqual(['ai://chunk', 'ai://done', 'ai://error']);
+    expect(Object.keys(listeners).sort()).toEqual(['ai://chunk', 'ai://done', 'ai://error', 'ai://research']);
   });
 
   it('ai://chunk accumulates text into the store buffer (matching requestId)', async () => {
@@ -175,6 +175,6 @@ describe('useAiRelay: ai:// events → aiStore', () => {
     const { unmount } = renderHook(() => useAiRelay());
     await flush();
     unmount();
-    expect(unlistenMock).toHaveBeenCalledTimes(3);
+    expect(unlistenMock).toHaveBeenCalledTimes(4);
   });
 });

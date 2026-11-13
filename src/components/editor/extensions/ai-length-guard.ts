@@ -7,7 +7,7 @@
 // 그보다 긴 선택은 응답이 끝까지 왔다고 확인된 경우에만 카드가 「바꾸기」를 허용한다.
 
 /** ✨ 프리셋 5종 + 직접 입력. 편집 계열(polish/custom)과 변환 계열(outline/table/diagram/shorten)로 나뉜다. */
-export type AiPresetKind = 'polish' | 'custom' | 'outline' | 'table' | 'diagram' | 'shorten';
+export type AiPresetKind = 'polish' | 'custom' | 'outline' | 'table' | 'diagram' | 'shorten' | 'research';
 
 export interface SelectionGuardResult {
   /** 요청 진행 허용 여부. false 면 프리셋 비활성 + reason 안내(P7, 침묵 금지). */
@@ -22,10 +22,10 @@ export const EDIT_LIMIT = 6000;
 export const TRANSFORM_LIMIT = 12000;
 /** 이 길이를 넘는 선택은 응답 완결이 확인돼야만 「바꾸기」를 허용한다(SPEC-AI-013 D4). */
 export const SAFE_REPLACE_LIMIT = 2000;
-const EDIT_PRESETS: readonly AiPresetKind[] = ['polish', 'custom'];
+const EDIT_PRESETS: readonly AiPresetKind[] = ['polish', 'custom', 'research'];
 
 /** 계열별 프리셋 이름 — 조사까지 포함한다(받침 유무가 달라 템플릿으로 못 붙인다). */
-const EDIT_PRESET_NAMES = '다듬기·직접 입력은';
+const EDIT_PRESET_NAMES = '다듬기·직접 입력·리서치는'; // SPEC-AI-016 D10: 리서치는 편집 계열 한도(6,000자)를 쓴다
 const TRANSFORM_PRESET_NAMES = '개요·표·다이어그램·짧게는';
 
 /** 1000 단위 쉼표. 5170 → "5,170" — 한도와 나란히 놓았을 때 자릿수 비교가 쉬워진다. */

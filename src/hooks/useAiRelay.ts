@@ -7,7 +7,12 @@ import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useAiStore, normalizeCompletion } from '@/store/aiStore';
 import type { AiErrorKind, Completion } from '@/store/aiStore';
-import { dispatchAiChunk, dispatchAiDone, dispatchAiError } from '@/lib/ai/aiEventRouter';
+import {
+  dispatchAiChunk,
+  dispatchAiDone,
+  dispatchAiError,
+  dispatchAiResearch,
+} from '@/lib/ai/aiEventRouter';
 
 /** `ai://chunk` payload — 스트림 델타 조각(REQ-AI-004). */
 export interface AiChunkEvent {
@@ -32,6 +37,13 @@ export interface AiErrorEvent {
   cancelledBy?: 'new-request' | 'user';
 }
 
+/** `ai://research` payload — 리서치 도구 활동 누적값(SPEC-AI-016). 스토어에는 반영하지 않는다. */
+export interface AiResearchEvent {
+  requestId: string;
+  searches: number;
+  opened: string[];
+}
+
 /**
  * 이벤트가 현재 in-flight 요청 것인지 판정한다(stale-event 가드).
  * 취소된 이전 요청의 지각 델타가 새 요청 버퍼를 오염시키는 것을 막는다(설계 §3 "취소 대상은 in-flight만").
@@ -51,7 +63,7 @@ export function useAiRelay(): void {
     let cancelled = false;
 
     const register = async (): Promise<void> => {
-      const [offChunk, offDone, offError] = await Promise.all([
+      const [offChunk, offDone, offError, offResearch] = await Promise.all([
         // SPEC-AI-010 REQ-AI10-012: 세 리스너 전부 **isCurrent 여부와 무관하게** 먼저
         // 라우터로 발송한 뒤, 기존 스토어 릴레이 경로를 그대로 통과시킨다. 스토어의 단일
         // 슬롯 게이트(isCurrent)는 한 글자도 바뀌지 않으므로 고스트·툴바·설정이 의존하는
@@ -76,6 +88,11 @@ export function useAiRelay(): void {
           if (!isCurrent(requestId)) return;
           useAiStore.getState().failRequest({ kind, message });
         }),
+        // SPEC-AI-016 REQ-AI16-009: 도구 활동은 라우터로만 보낸다(스토어·ai://done 계약 불변).
+        listen<AiResearchEvent>('ai://research', (event) => {
+          const { requestId, searches, opened } = event.payload;
+          dispatchAiResearch(requestId, { searches, opened });
+        }),
       ]);
 
       // 등록 완료 전에 언마운트되면 즉시 해제해 리스너 누수를 막는다.
@@ -83,9 +100,10 @@ export function useAiRelay(): void {
         offChunk();
         offDone();
         offError();
+        offResearch();
         return;
       }
-      unlisteners = [offChunk, offDone, offError];
+      unlisteners = [offChunk, offDone, offError, offResearch];
     };
 
     void register();
