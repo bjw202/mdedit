@@ -3,7 +3,7 @@
 ## §E.1 Plan-phase Audit-Ready Signal
 
 - plan_status: audit-ready
-- plan_complete_at: (plan-auditor PASS 후 기록)
+- plan_complete_at: 2026-11-13 (plan-auditor 3회 상한 도달 — 3차 FAIL 0.90, 감사자 권고 PASS-with-debt. 3차 지적 R1~R5 는 v0.2.2 에서 문구로 반영했고 재감사는 하지 않았다. 판정 수용 여부는 구현 승인 단계에서 사용자가 정한다)
 - 작업 위치: `.claude/worktrees/t9`, 브랜치 `WT-preview-pointing`(origin/main 1f3d4a5 기준), 카드 t9
 - 산출물: spec.md, plan.md, acceptance.md, spike/(스크립트 3개·결과 3개·폐기 결과 1개·실측 캡처·jsdom 확인 파일과 출력)
 - 계획 단계 실측: spec.md 「실측 기록」 S1~S5 (claude 2.1.323, codex-cli 0.167.0, pele 1.10.0, macOS)
@@ -14,6 +14,7 @@
 |------|------|------|--------|------|
 | 1 | FAIL | 0.80 | `.moai/reports/plan-audit/SPEC-AI-017-review-1.md`(로컬) | v0.2.0 — 막힘 1(요청 중 편집 동작 오기재) + 고칠 것 9 + 경미 다수 반영. 스파이크 S1 수치를 한 스크립트로 다시 셈 |
 | 2 | FAIL | 0.86 | `.moai/reports/plan-audit/SPEC-AI-017-review-2.md`(로컬) | v0.2.1 — 1차 결함 19/20 해결 확인. 새 막힘 3(순번 파서 불일치 N1, 보내기 시점 AI 판정 N2, 강조 복원 AC 누락 N3) + 고칠 것 1(카드 표 이미지·링크 N4) + 경미 5 반영 |
+| 3 | FAIL (감사자 권고: PASS-with-debt) | 0.90 | `.moai/reports/plan-audit/SPEC-AI-017-review-3.md`(로컬) | N1~N3 해결 확인. 남은 막힘급 R1(다이어그램 일치 확인이 문자 참조 든 라벨을 막음, 안전한 쪽 실패) — 상한 도달로 재감사 없이 v0.2.2 에서 문구 수정. R2~R5 도 v0.2.2 에서 반영(재감사 없음) |
 
 ## spike/ 안내
 

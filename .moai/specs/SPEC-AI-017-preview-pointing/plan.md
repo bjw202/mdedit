@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-017
 title: "미리보기에서 가리켜 지시하기 — 구현 계획"
-version: "0.2.1"
+version: "0.2.2"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -36,7 +36,7 @@ updated: 2026-11-13
 ### M3 — 미리보기 대응과 대상 판정 (Priority: High)
 - `renderer.ts`: `renderMarkdown` 의 파서 구성(옵션·플러그인)을 공용 함수로 꺼낸다(렌더 출력 불변, 기존 테스트 무수정 통과). `tableValidate.ts`: `splitRow` 공개.
 - `usePreview.ts`·`MarkdownPreview.tsx`: 렌더 소스를 HTML 과 한 상태로.
-- 새 `src/lib/preview/pointTarget.ts`: (a) 이벤트 대상 → 대상 종류(열·칸·노드·없음), (b) 순번 블록 찾기(D11: DOM 의 k번째 `table`/`.mermaid-container` ↔ 공용 파서로 파싱한 k번째 `table_open`/mermaid `fence`, 개수·`data-diagram`·머리 칸 수 일치 확인) → 블록 줄 범위·블록 텍스트(표 줄 / 펜스 전체·펜스 안 코드)·행 위치, 최상위 여부, 노드 ID 낱말 경계(유니코드), (c) 에디터 문서와의 낡음 판정(⌥+클릭·보내기 두 시점), (d) 대상 정보 문자열, (e) 길이 판정(`evaluateSelectionGuard` 재사용). 여러 줄 인라인 `<svg>` 가 앞에 있는 문서로 순번 대응을 확인한다(AC-AI17-004). 테스트는 실제 `renderMarkdown` 출력 HTML 과 `renderDiagram` SVG 로.
+- 새 `src/lib/preview/pointTarget.ts`: (a) 이벤트 대상 → 대상 종류(열·칸·노드·없음), (b) 순번 블록 찾기(D11: DOM 의 k번째 `table`/`.mermaid-container` ↔ 공용 파서로 파싱한 k번째 `table_open`/mermaid `fence`, 개수·`data-diagram`(`previewDiagramInput` 기준)·머리 칸 수 일치 확인) → 블록 줄 범위·블록 텍스트(표 줄 / 펜스 전체·펜스 안 코드)·행 위치, 최상위 여부, 노드 ID 낱말 경계(유니코드), (c) 에디터 문서와의 낡음 판정(⌥+클릭·보내기 두 시점), (d) 대상 정보 문자열, (e) 길이 판정(`evaluateSelectionGuard` 재사용). 여러 줄 인라인 `<svg>` 가 앞에 있는 문서로 순번 대응을 확인한다(AC-AI17-004). 테스트는 실제 `renderMarkdown` 출력 HTML 과 `renderDiagram` SVG 로.
 
 ### M4 — 입력창·강조·카드 (Priority: High)
 - `PreviewRenderer.tsx`: 캡처 단계 `click`(⌥ 이고 대상이면 기본 동작·전파 막고 입력창), `keydown`/`keyup`/`pointermove` 로 ⌥ 강조, 카드 구독(`subscribeActiveCard`)으로 대상 강조 유지·해제, 다시 그린 뒤 같은 순번 블록 텍스트가 같을 때만 강조 복원(REQ-AI17-014). 노드 강조는 같은 `data-id` 의 모든 `g.pele-node`(D16). ⌥+클릭·보내기 시점에 `effectiveAiEnabled`·보기 모드 판정(REQ-AI17-001).
