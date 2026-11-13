@@ -12,7 +12,8 @@ function walk(d) {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const p = path.join(d, e.name);
     if (e.isDirectory()) {
-      if (e.name !== 'node_modules') walk(p);
+      // 이 SPEC 자신의 문서(표·예시)는 측정 대상에서 뺀다.
+      if (e.name !== 'node_modules' && e.name !== 'SPEC-AI-017-preview-pointing') walk(p);
     } else if (p.endsWith('.md')) files.push(p);
   }
 }
@@ -62,6 +63,12 @@ const T = {
   emptyHeader: 0,
   bodyCells: 0,
   bodyCellTextUniqueInTable: 0,
+  // 최상위 표 블록 길이(UTF-16 길이, 표 줄 전체) — D9·D10 판단 근거
+  topLevelTables: 0,
+  topLevelOver2000: 0,
+  topLevelOver6000: 0,
+  topLevelOver12000: 0,
+  topLevelMaxChars: 0,
 };
 const D = {
   blocks: 0,
@@ -79,6 +86,8 @@ const D = {
   edgeIdPatternL: 0,
   renderFailures: [],
   notInSourceSamples: [],
+  topLevelFenceMaxChars: 0,
+  fencesNestedInListOrQuote: 0,
 };
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -95,6 +104,14 @@ for (const f of files) {
     if (t.type === 'table_open') {
       T.tables++;
       if (depth > 0) T.nestedInListOrQuote++;
+      else {
+        const len = lines.slice(t.map[0], t.map[1]).join('\n').length;
+        T.topLevelTables++;
+        if (len > 2000) T.topLevelOver2000++;
+        if (len > 6000) T.topLevelOver6000++;
+        if (len > 12000) T.topLevelOver12000++;
+        T.topLevelMaxChars = Math.max(T.topLevelMaxChars, len);
+      }
       let rowsOk = true;
       let header = null;
       const body = [];
@@ -131,6 +148,8 @@ for (const f of files) {
     if (t.type === 'fence' && t.info.trim() === 'mermaid') {
       D.blocks++;
       const code = t.content;
+      if (depth > 0) D.fencesNestedInListOrQuote++;
+      D.topLevelFenceMaxChars = Math.max(D.topLevelFenceMaxChars, depth > 0 ? 0 : code.length);
       let r;
       try {
         r = render(code, { links: false, images: false, autoDirection: false });
@@ -155,7 +174,7 @@ for (const f of files) {
       const codeLines = code.split('\n');
       for (const id of nodes) {
         D.nodes++;
-        const re = new RegExp('(^|[^\\w가-힣])' + esc(id) + '($|[^\\w가-힣])');
+        const re = new RegExp('(^|[^\\p{L}\\p{N}_])' + esc(id) + '($|[^\\p{L}\\p{N}_])', 'u');
         const hits = codeLines.filter((l) => re.test(l)).length;
         if (hits > 0) {
           D.nodeIdFoundInSource++;

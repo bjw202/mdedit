@@ -10,7 +10,12 @@
   "headerTextUniqueInTable": 2530,
   "emptyHeader": 0,
   "bodyCells": 16697,
-  "bodyCellTextUniqueInTable": 13422
+  "bodyCellTextUniqueInTable": 13422,
+  "topLevelTables": 791,
+  "topLevelOver2000": 60,
+  "topLevelOver6000": 4,
+  "topLevelOver12000": 1,
+  "topLevelMaxChars": 15359
  },
  "diagram": {
   "blocks": 24,
@@ -61,6 +66,8 @@
   "notInSourceSamples": [
    "state:root_start",
    "state:root_end"
-  ]
+  ],
+  "topLevelFenceMaxChars": 1094,
+  "fencesNestedInListOrQuote": 0
  }
 }
