@@ -294,7 +294,7 @@
 }
 
 /* SPEC-AI-017: 미리보기 가리키기 강조. 표 칸은 outline, 다이어그램 노드(SVG g)는 outline 이 그려지지 않으므로
-   안쪽 도형에 drop-shadow 를 준다. ⌥ 강조(--hover)는 옅게, 카드 대기 강조(--pending)는 진하게 구분한다. */
+   안쪽 도형의 stroke 를 강조색으로 바꾼다(WebKit 은 SVG g 의 CSS filter 를 그리지 않는다 — 카드 t12). ⌥ 강조(--hover)는 옅게, 카드 대기 강조(--pending)는 진하게 구분한다. */
 .preview-content th.md-point-target,
 .preview-content td.md-point-target {
   outline: 2px solid var(--md-accent);
@@ -305,11 +305,12 @@
   background-color: var(--md-accent-soft);
   outline-style: dashed;
 }
-.preview-content g.md-point-target {
-  filter: drop-shadow(0 0 3px var(--md-accent));
+.preview-content g.md-point-target > :is(rect, path, polygon, ellipse, circle) {
+  stroke: var(--md-accent);
+  stroke-width: 3.5px;
 }
-.preview-content g.md-point-target--hover {
-  filter: drop-shadow(0 0 2px var(--md-accent));
+.preview-content g.md-point-target--hover > :is(rect, path, polygon, ellipse, circle) {
+  stroke-width: 2px;
 }
 
 /* SPEC-AI-017: 가리키기 입력창(뷰포트 고정 배치 — 위치는 컴포넌트가 flip+clamp 로 계산) */

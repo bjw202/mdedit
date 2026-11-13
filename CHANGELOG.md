@@ -14,6 +14,9 @@ All notable changes to MdEdit are documented here.
   - **확인하지 못한 것**: (1) plan이 지정한 Playwright 스펙이 없습니다(기존 CI e2e는 그대로 돕니다). (2) `ai://research`가 `ai://done`보다 먼저 도착하는 순서는 실제 Tauri 이벤트 루프에서 시험하지 않았습니다. (3) codex 인자 테스트의 RED(실패 확인) 단계를 따로 캡처하지 못했습니다. (4) 실제 프로브는 `--skip-git-repo-check`를 뺀 인자로 돌렸습니다. (5) 사용자 수동 확인 AC-AI16-015(macOS 앱에서 claude·codex 각 1회, 알림이 먼저 도착하는지)와 AC-AI16-016(Windows)이 남아 있습니다. (6) Rust 코드 커버리지는 측정하지 않았습니다. (7) 메뉴 항목이 6개에서 7개로 늘어 메뉴 높이가 바뀐 영향(위/아래 뒤집힘 위치를 단언하는 e2e)은 확인하지 않았습니다. **고친 것**: 리서치 중 codex가 `turn.completed` 없이 끝나면 마지막 서술 문장("…확인하겠습니다")이 결과로 카드에 실리던 문제를 고쳐, 이 경우 오류로 알립니다. **알려진 한계**: `**https://…**`처럼 굵게 감싼 주소는 열어 본 주소여도 "확인하지 못한 출처"로 잘못 알릴 수 있습니다(고치지 않음).
   - **받아들인 잔여 위험**: Claude의 WebFetch는 사용자 PC에서 접속하므로, 선택한 글에 섞인 지시문이 인증 없는 로컬·사내 HTTPS 주소를 열게 만들 수 있습니다. 주소 차단은 후속 카드 t11에서 다룹니다.
 
+### Fixed
+- **macOS 앱에서 미리보기 다이어그램 노드의 ⌥ 강조·대기 강조가 보이지 않던 문제 (SPEC-AI-017 후속, 카드 t12)**: 표 칸은 강조되는데 mermaid 노드는 ⌥를 눌러도, 지시를 보낸 뒤에도 아무 표시가 없었습니다(클릭은 동작). WebKit이 SVG 그룹의 CSS `drop-shadow`를 그리지 않기 때문이며, 이제 노드 도형의 테두리(stroke)를 강조색으로 바꿔 보여 줍니다(⌥는 얇게, 대기는 굵게). 실제 화면 픽셀 변화를 확인하는 e2e `e2e/point-node-highlight.spec.ts`를 추가했습니다. 변경 파일: `src/index.css`.
+
 ### Security
 - **codex AI 요청에서 셸·연결 앱·이미지 보기·웹 검색을 끔 (카드 t10)**: 기존에는 선택한 글에 섞인 지시문이 codex의 셸 도구와 연결 앱 도구(메일 발송·삭제, GitHub 병합 등)를 움직일 수 있었습니다(codex-cli 0.167.0 실측). 이제 모든 codex 요청에 `-c features.apps=false -c features.shell_tool=false -c features.view_image=false -c web_search=disabled`를 붙입니다. codex 0.167 이상을 권장하며, 구버전은 모르는 설정 이름을 무시합니다. 변경 파일: `src-tauri/src/ai/codex_cli.rs`.
 
