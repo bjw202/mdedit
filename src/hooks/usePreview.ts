@@ -17,6 +17,8 @@ const DEBOUNCE_MS = 300;
 /** Return type for the usePreview hook */
 interface PreviewState {
   html: string;
+  /** html 을 렌더할 때 쓴 마크다운 소스 — html 과 한 상태로 함께 갱신된다(SPEC-AI-017 D11, A5). */
+  source: string;
   isLoading: boolean;
 }
 
@@ -28,7 +30,8 @@ interface PreviewState {
  * - Handles rendering errors gracefully (keeps previous HTML on failure)
  */
 export function usePreview(): PreviewState {
-  const [html, setHtml] = useState('');
+  // html 과 그 렌더 소스는 항상 같이 바뀌어야 하므로 한 상태로 묶는다.
+  const [rendered, setRendered] = useState({ html: '', source: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [highlighter, setHighlighter] = useState<ShikiHighlighter | null>(null);
 
@@ -54,7 +57,7 @@ export function usePreview(): PreviewState {
       renderMarkdown(content, highlighter, isDark)
         .then((rendered) => embedPreviewImages(rendered, currentFilePath))
         .then((resolved) => {
-          setHtml(resolved);
+          setRendered({ html: resolved, source: content });
         })
         .catch(() => {
           // Keep previous HTML on rendering error - do not update html state
@@ -67,5 +70,5 @@ export function usePreview(): PreviewState {
     return () => clearTimeout(timer);
   }, [content, highlighter, theme, currentFilePath]);
 
-  return { html, isLoading };
+  return { html: rendered.html, source: rendered.source, isLoading };
 }

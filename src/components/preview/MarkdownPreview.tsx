@@ -21,7 +21,7 @@ interface MarkdownPreviewProps {
  * Accepts a previewRef for scroll synchronization.
  */
 export function MarkdownPreview({ previewRef }: MarkdownPreviewProps): JSX.Element {
-  const { html } = usePreview();
+  const { html, source } = usePreview();
   const fontSize = useUIStore((s) => s.fontSize);
   // fontSize를 zoom 비율로 변환 — 헤딩·코드 등 고정 Tailwind 크기 포함 전체 비례 스케일
   const zoom = getPreviewZoom(fontSize);
@@ -29,7 +29,7 @@ export function MarkdownPreview({ previewRef }: MarkdownPreviewProps): JSX.Eleme
   return (
     <div ref={previewRef} className="md-previewpane h-full overflow-auto p-4 preview-scroll">
       {html ? (
-        <PreviewRenderer html={html} zoom={zoom} />
+        <PreviewRenderer html={html} source={source} zoom={zoom} />
       ) : (
         <div
           className="h-full flex items-center justify-center text-sm select-none"

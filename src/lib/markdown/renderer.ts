@@ -349,30 +349,17 @@ function imageResolverPlugin(md: MarkdownIt, mdFilePath?: string | null): void {
 }
 
 /**
- * Renders a markdown string to an HTML string.
+ * 미리보기 렌더와 소스 대응(SPEC-AI-017 D11)이 함께 쓰는 markdown-it 파서를 만든다.
+ * renderMarkdown 이 쓰던 옵션·플러그인 구성을 그대로 꺼낸 것이라 출력이 바이트까지 같아야 한다.
  *
- * @param content - Raw markdown source string
- * @param highlighter - A Shiki highlighter instance for syntax highlighting,
- *                      or null to fall back to plain <code> blocks
- * @param isDark - Whether dark theme is active
- * @param mdFilePath - Absolute path to the current markdown file for resolving relative image paths
- * @returns Promise resolving to an HTML string
+ * @MX:NOTE: 이 함수의 구성을 바꾸면 pointTarget.ts 의 순번 블록 찾기와 DOM 순번이 어긋난다.
+ * @MX:SPEC: SPEC-AI-017 D11
  */
-export async function renderMarkdown(
-  content: string,
+export function createMarkdownParser(
   highlighter: ShikiHighlighter | null,
   isDark = false,
   mdFilePath?: string | null,
-): Promise<string> {
-  if (!content) {
-    return '';
-  }
-
-  // SPEC-PREVIEW-008 D4: 렌더 전에 코드블록 밖의 <svg> 블록을 플레이스홀더로 치환한다.
-  // html:false 설정(아래)은 그대로 유지되며, 치환된 토큰은 순수 텍스트이므로 markdown-it이
-  // 안전하게 단락 텍스트로 렌더한다. 실제 svg 복원은 md.render() 이후에 수행한다.
-  const { content: preprocessed, svgMap } = extractInlineSvg(content);
-
+): MarkdownIt {
   const shikiTheme = isDark ? 'github-dark' : 'github-light';
 
   // Build markdown-it with optional shiki highlight callback
@@ -424,6 +411,36 @@ export async function renderMarkdown(
   // @MX:NOTE: [AUTO] core.ruler 체인에서 data_line 직후 실행되도록 등록. inline 자식만 조작하고
   //   블록 토큰의 data-line 속성·map은 건드리지 않는다(무간섭, REQ-PREVIEW012-007).
   md.use(tableCellLineBreakPlugin);
+
+  return md;
+}
+
+/**
+ * Renders a markdown string to an HTML string.
+ *
+ * @param content - Raw markdown source string
+ * @param highlighter - A Shiki highlighter instance for syntax highlighting,
+ *                      or null to fall back to plain <code> blocks
+ * @param isDark - Whether dark theme is active
+ * @param mdFilePath - Absolute path to the current markdown file for resolving relative image paths
+ * @returns Promise resolving to an HTML string
+ */
+export async function renderMarkdown(
+  content: string,
+  highlighter: ShikiHighlighter | null,
+  isDark = false,
+  mdFilePath?: string | null,
+): Promise<string> {
+  if (!content) {
+    return '';
+  }
+
+  // SPEC-PREVIEW-008 D4: 렌더 전에 코드블록 밖의 <svg> 블록을 플레이스홀더로 치환한다.
+  // html:false 설정(아래)은 그대로 유지되며, 치환된 토큰은 순수 텍스트이므로 markdown-it이
+  // 안전하게 단락 텍스트로 렌더한다. 실제 svg 복원은 md.render() 이후에 수행한다.
+  const { content: preprocessed, svgMap } = extractInlineSvg(content);
+
+  const md = createMarkdownParser(highlighter, isDark, mdFilePath);
 
   const rendered = md.render(preprocessed);
 

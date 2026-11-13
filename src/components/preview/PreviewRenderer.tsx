@@ -53,6 +53,8 @@ function restoreInlineSvgMarkers(html: string): string {
 /** Props for the PreviewRenderer component */
 interface PreviewRendererProps {
   html: string;
+  /** html 을 렌더한 마크다운 소스(SPEC-AI-017 D11 — M4 에서 가리키기 대응에 쓴다). */
+  source?: string;
   /** CSS zoom 비율 — fontSize/14 로 파생된 값. 기본 1(변화 없음).
    *  헤딩·코드·테이블 등 Tailwind 고정 크기 요소를 포함해 전체를 비례 스케일한다. */
   zoom?: number;
