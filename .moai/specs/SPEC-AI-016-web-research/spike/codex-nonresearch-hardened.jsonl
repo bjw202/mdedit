@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"01a1d240-fbaa-7b60-85d1-14c299eb61da"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"웹 검색 도구로 공식 출시일과 출처를 확인하겠습니다."}}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"Tauri 2.0 정식 출시일은 2024년 10월 2일입니다(공식 발표: https://v2.tauri.app/blog/tauri-20/); 현재 검색 도구가 제공되지 않아 실제 웹 검색·확인은 수행하지 못했습니다."}}
+{"type":"turn.completed","usage":{"input_tokens":40081,"cached_input_tokens":30976,"cache_write_input_tokens":0,"output_tokens":203,"reasoning_output_tokens":16}}

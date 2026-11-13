@@ -1,0 +1,7 @@
+{
+  "source": "src-tauri/tests/fixtures/codex-research-canonical.jsonl",
+  "opened": [
+    "https://v2.tauri.app/blog/tauri-20/"
+  ],
+  "text": "- 2024년 10월 2일 발표된 Tauri 2.0 정식 버전은 기존 데스크톱 지원을 iOS·Android로 확장해, 하나의 UI 코드베이스로 모바일 앱도 개발할 수 있도록 했다. [1]\n- 기존 `allowlist`는 `permissions`, `scopes`, `capabilities`를 조합하는 접근 제어 시스템으로 대체됐다. `capabilities`는 권한과 범위를 창·WebView에 연결하는 역할을 한다. [1]\n- 모바일 지원이 모든 플러그인의 모바일 호환성을 뜻하지는 않는다. 정식 출시 발표에서도 일부 공식 플러그인은 모바일에 적합하지 않거나 모바일 지원이 아직 구현되지 않았다고 명시했다. [1]\n\n출처\n1. [Tauri 2.0 Stable Release](https://v2.tauri.app/blog/tauri-20/)"
+}

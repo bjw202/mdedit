@@ -1,0 +1,5 @@
+{
+  "source": "src-tauri/tests/fixtures/claude-webfetch-error.jsonl",
+  "opened": [],
+  "text": "The fetch failed. The exact error was:\n\n```\nerror:100000f7:SSL routines:OPENSSL_internal:WRONG_VERSION_NUMBER\n```\n\nWebFetch upgrades `http://` URLs to HTTPS, so it likely attempted a TLS handshake with the local server. If that server speaks plain HTTP, the handshake fails with this error. The tool's description says to use curl for localhost, but I only have WebFetch and WebSearch here, so I couldn't try that. If you want the marker text, run `curl http://127.0.0.1:47613/marker.txt` in a terminal, or send it to me and I can work with it."
+}

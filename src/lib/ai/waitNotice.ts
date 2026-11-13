@@ -35,6 +35,12 @@ export function backendWatchdogTimeoutMs(selectionLength: number): number {
 }
 
 /**
+ * SPEC-AI-016 D11: 리서치 요청의 백엔드 워치독(ms) — 선택 길이와 무관하게 180초 고정.
+ * Rust `src-tauri/src/ai/mod.rs` 의 `RESEARCH_WATCHDOG_SECS`(180)와 짝이며, 양쪽 테스트가 180 을 단언한다.
+ */
+export const RESEARCH_WATCHDOG_MS = 180_000;
+
+/**
  * 백엔드 워치독이 만료된 뒤 `claim_terminal` → 자식 kill → `emit` 까지의 전달 지연과
  * 이벤트 큐 여유를 덮기 위한 고정 유예(ms). 크게 잡을수록 "진짜로 죽었을 때 사용자가
  * 기다리는 시간"이 늘어나므로, 전달 지연을 덮는 최소 폭(5초)으로 둔다.
@@ -48,6 +54,11 @@ export const FRONTEND_BACKSTOP_GRACE_MS = 5_000;
  */
 export function frontendBackstopDelayMs(selectionLength: number): number {
   return backendWatchdogTimeoutMs(selectionLength) + FRONTEND_BACKSTOP_GRACE_MS;
+}
+
+/** SPEC-AI-016 D11: 리서치 카드의 프론트 백스톱(185초) — 리서치 워치독에서 파생한다. */
+export function researchBackstopDelayMs(): number {
+  return RESEARCH_WATCHDOG_MS + FRONTEND_BACKSTOP_GRACE_MS;
 }
 
 /**

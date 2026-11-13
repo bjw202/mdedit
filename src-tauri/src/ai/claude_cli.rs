@@ -9,7 +9,8 @@
 
 use crate::ai::provider::{AiProvider, AiRequest, Capabilities, ProviderRegistry, ProviderStatus};
 use crate::ai::stream::{
-    classify_stderr, parse_final_result, parse_text_delta, Completion, CompletionTracker,
+    classify_stderr, decide_claude_line, parse_final_result, Completion, CompletionTracker,
+    ResearchActivity,
 };
 use crate::process_util::no_window;
 use serde::Serialize;
@@ -37,6 +38,26 @@ pub const SYSTEM_PROMPT_FILE_NAME: &str = "system-prompt.txt";
 pub struct ChunkPayload {
     pub request_id: String,
     pub text: String,
+}
+
+/// `ai://research` payload — 리서치 도구 활동 누적값. IPC 계약: `{ requestId, searches, opened }`.
+/// 항상 같은 요청의 `ai://done` 보다 먼저 발행된다(SPEC-AI-016 REQ-AI16-009).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResearchPayload {
+    pub request_id: String,
+    pub searches: usize,
+    pub opened: Vec<String>,
+}
+
+impl ResearchPayload {
+    pub fn new(request_id: &str, activity: ResearchActivity) -> Self {
+        Self {
+            request_id: request_id.to_string(),
+            searches: activity.searches,
+            opened: activity.opened,
+        }
+    }
 }
 
 /// `ai://done` payload — 최종 결과 전문. IPC 계약: `{ requestId, result, truncated?, completion }`.
@@ -83,16 +104,26 @@ pub enum RelayOutcome {
 ///
 /// 격리 플래그: `--output-format stream-json --include-partial-messages --verbose
 /// --setting-sources "" --tools ""`.
+///
+/// `web_allowed`(리서치 전용, SPEC-AI-016 D3)이면 `--tools ""` 자리에
+/// `--tools WebSearch,WebFetch --allowedTools WebSearch,WebFetch` 를 넣는다 — `--tools` 만 주면
+/// 비대화 모드에서 승인할 사람이 없어 호출이 거부되므로(실측) 허용 목록까지 준다. 웹 허용이 아니면
+/// 이전과 바이트까지 같은 인자다.
 //
-// @MX:ANCHOR: [AUTO] `--tools ""` — 내장 도구 전면 비활성화 계약
+// @MX:ANCHOR: [AUTO] `--tools ""` — 내장 도구 전면 비활성화 계약(기본). 리서치만 WebSearch·WebFetch 를 이름으로 나열하고 허용 목록에도 넣는다
 // @MX:REASON: [AUTO] 이 앱의 AI 기능(인라인 편집·고스트 텍스트·다이어그램)은 전부 순수 텍스트
 //   변환이라 도구가 하나도 필요 없다. 이 플래그가 없으면 CLI 기본 도구 집합이 그대로 살아있고,
 //   격리는 오직 "빈 스크래치 cwd 라서 찾을 게 없다"는 정황에만 의존한다 — 실측으로 확인했다:
 //   플래그 없이 파일이 있는 디렉토리에서 돌리면 Read 도구가 실제로 동작해 내용을 반환하고,
 //   `--tools ""` 를 주면 차단된다. 따라서 cwd 를 바꾸는 기능(금고 조회 등)이 나중에 추가되면
 //   이 한 줄이 유일한 방어선이 된다. 도구가 필요한 기능을 만들 때도 여기를 비우지 말고
-//   필요한 도구만 명시적으로 나열할 것.
-pub fn build_claude_args(model: Option<&str>, system_prompt_path: &Path) -> Vec<String> {
+//   필요한 도구만 명시적으로 나열할 것. SPEC-AI-016 리서치가 그 첫 사례다 — 웹 2개만 나열한다.
+// @MX:SPEC: SPEC-AI-016
+pub fn build_claude_args(
+    model: Option<&str>,
+    system_prompt_path: &Path,
+    web_allowed: bool,
+) -> Vec<String> {
     let mut args = vec![
         "-p".to_string(),
         "--system-prompt-file".to_string(),
@@ -110,8 +141,16 @@ pub fn build_claude_args(model: Option<&str>, system_prompt_path: &Path) -> Vec<
         "--setting-sources".to_string(),
         String::new(),
         "--tools".to_string(),
-        String::new(),
     ]);
+    if web_allowed {
+        args.extend([
+            "WebSearch,WebFetch".to_string(),
+            "--allowedTools".to_string(),
+            "WebSearch,WebFetch".to_string(),
+        ]);
+    } else {
+        args.push(String::new());
+    }
     args
 }
 
@@ -260,6 +299,9 @@ pub fn spawn_claude(
 /// watcher.rs의 스레드+emit 패턴을 따른다. 취소 플래그가 서면 종료 시 무음 처리하고
 /// 취소 통보는 커맨드가 담당한다(§3 P7). `truncated`는 프롬프트 컨텍스트가 잘렸는지로,
 /// 완료 payload에 그대로 실어 UI가 "일부만 참고" 안내를 띄우게 한다(§7).
+///
+/// `research`(SPEC-AI-016)면 `text_delta` 를 청크로 보내지 않고, 도구 활동 누적값이 바뀔 때
+/// `ai://research` 를 발행한다(항상 `ai://done` 보다 먼저 — 같은 스레드의 발행 순서).
 pub fn relay_process(
     app_handle: AppHandle,
     request_id: String,
@@ -268,6 +310,7 @@ pub fn relay_process(
     cancel_flag: Arc<AtomicBool>,
     truncated: bool,
     finished: Arc<AtomicBool>,
+    research: bool,
 ) {
     std::thread::spawn(move || {
         let reader = BufReader::new(stdout);
@@ -275,6 +318,7 @@ pub fn relay_process(
         let mut saw_stream_output = false;
         // 정지 사유를 끈적하게 모은다(SPEC-AI-013 REQ-AI13-011).
         let mut completion = CompletionTracker::default();
+        let mut activity = ResearchActivity::default();
 
         for line in reader.lines() {
             let line = match line {
@@ -283,7 +327,14 @@ pub fn relay_process(
             };
             saw_stream_output = true;
             completion.observe(&line);
-            if let Some(text) = parse_text_delta(&line) {
+            let decision = decide_claude_line(&line, research, &mut activity);
+            if let Some(snapshot) = decision.activity {
+                let _ = app_handle.emit(
+                    "ai://research",
+                    ResearchPayload::new(&request_id, snapshot),
+                );
+            }
+            if let Some(text) = decision.chunk {
                 let _ = app_handle.emit(
                     "ai://chunk",
                     ChunkPayload {
@@ -366,7 +417,7 @@ impl AiProvider for ClaudeProvider {
     fn spawn(&self, request: &AiRequest, cwd: &Path) -> Result<Child, String> {
         // cwd 는 작업 폴더(ai-scratch) — 시스템 프롬프트 파일은 그 형제 폴더에 쓴다(D1).
         let prompt_path = prepare_system_prompt_file(cwd, &request.system_prompt)?;
-        let args = build_claude_args(request.model.as_deref(), &prompt_path);
+        let args = build_claude_args(request.model.as_deref(), &prompt_path, request.web_allowed);
         spawn_claude(&args, cwd, &request.user_prompt)
     }
 
@@ -415,7 +466,7 @@ mod tests {
         let base = temp_app_data("ac001");
         let scratch = ensure_scratch_dir(&base).unwrap();
         let path = prepare_system_prompt_file(&scratch, SYS_MARK).unwrap();
-        let args = build_claude_args(Some("haiku"), &path);
+        let args = build_claude_args(Some("haiku"), &path, false);
 
         for a in &args {
             assert!(!a.contains("SYS-표지-91c2"), "시스템 프롬프트가 인자에 있다: {a}");
@@ -460,7 +511,7 @@ mod tests {
     #[test]
     fn args_disable_all_builtin_tools() {
         // 도구 전면 비활성화(`--tools ""`)는 격리 계약의 일부다.
-        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"));
+        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"), false);
         let idx = args
             .iter()
             .position(|a| a == "--tools")
@@ -471,7 +522,7 @@ mod tests {
     #[test]
     fn build_claude_args_haiku_snapshot_byte_equal() {
         // 전체 Vec 를 하드코딩해 순서·개수·값을 고정한다(SPEC-AI-013: 본문 인자 제거로 13개).
-        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"));
+        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"), false);
         let expected = vec![
             "-p".to_string(),
             "--system-prompt-file".to_string(),
@@ -493,7 +544,7 @@ mod tests {
 
     #[test]
     fn build_claude_args_isolation_flags_never_drop() {
-        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"));
+        let args = build_claude_args(Some("haiku"), Path::new("/p/system-prompt.txt"), false);
         for flag in [
             "--system-prompt-file",
             "--model",
@@ -517,10 +568,10 @@ mod tests {
     #[test]
     fn claude_args_model_absent_vs_present() {
         let p = Path::new("/p/system-prompt.txt");
-        let none = build_claude_args(None, p);
+        let none = build_claude_args(None, p, false);
         assert!(!none.iter().any(|a| a == "--model"));
         assert_eq!(none.len(), 11);
-        let some = build_claude_args(Some("opus"), p);
+        let some = build_claude_args(Some("opus"), p, false);
         assert_eq!(some.len(), 13);
         assert_eq!(some.iter().filter(|a| a.as_str() == "opus").count(), 1);
         let midx = some.iter().position(|a| a == "--model").unwrap();
@@ -534,7 +585,7 @@ mod tests {
     fn claude_args_keep_isolation_flags_and_no_user_text_in_both_cases() {
         let p = Path::new("/p/system-prompt.txt");
         for model in [None, Some("haiku")] {
-            let args = build_claude_args(model, p);
+            let args = build_claude_args(model, p, false);
             for flag in [
                 "-p",
                 "--system-prompt-file",
@@ -869,5 +920,41 @@ mod tests {
         // 명시적 id 로 항상 확정 검증 가능.
         assert_eq!(registry.route(Some("claude")).unwrap().id(), "claude");
         assert_eq!(registry.route(Some("codex")).unwrap().id(), "codex");
+    }
+    // --- SPEC-AI-016: 웹 허용 인자 (AC-AI16-005) ---
+
+    #[test]
+    fn claude_args_web_allowed_lists_web_tools_and_allow_list() {
+        let p = Path::new("/p/system-prompt.txt");
+        for model in [None, Some("haiku")] {
+            let args = build_claude_args(model, p, true);
+            let t = args.iter().position(|a| a == "--tools").unwrap();
+            assert_eq!(args[t + 1], "WebSearch,WebFetch");
+            let al = args.iter().position(|a| a == "--allowedTools").unwrap();
+            assert_eq!(args[al + 1], "WebSearch,WebFetch");
+            // 빈 문자열 원소는 --setting-sources 다음 하나뿐이다.
+            assert_eq!(args.iter().filter(|a| a.is_empty()).count(), 1);
+            let sidx = args.iter().position(|a| a == "--setting-sources").unwrap();
+            assert_eq!(args[sidx + 1], "");
+            for a in &args {
+                assert!(!a.contains('\n'), "인자에 줄바꿈: {a:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn claude_args_web_off_has_no_allowed_tools_and_matches_web_on_otherwise() {
+        let p = Path::new("/p/system-prompt.txt");
+        let off = build_claude_args(Some("haiku"), p, false);
+        assert!(!off.iter().any(|a| a == "--allowedTools"));
+        assert!(!off.iter().any(|a| a.contains("Web")));
+        let on = build_claude_args(Some("haiku"), p, true);
+        // 도구 인자(--tools 값 + --allowedTools 쌍)를 빼면 나머지는 같다.
+        let mut on_rest = on.clone();
+        let al = on_rest.iter().position(|a| a == "--allowedTools").unwrap();
+        on_rest.drain(al..al + 2);
+        let t = on_rest.iter().position(|a| a == "--tools").unwrap();
+        on_rest[t + 1] = String::new();
+        assert_eq!(on_rest, off);
     }
 }

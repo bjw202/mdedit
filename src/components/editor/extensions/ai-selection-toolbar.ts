@@ -136,6 +136,7 @@ const PRESET_DEFS: readonly { kind: AiPresetKind; label: string }[] = [
   { kind: 'table', label: '📊 표로 만들기' },
   { kind: 'diagram', label: '🧜 다이어그램으로' },
   { kind: 'shorten', label: '✂️ 짧게 줄이기' },
+  { kind: 'research', label: '🔎 리서치' }, // SPEC-AI-016 REQ-AI16-001
   { kind: 'custom', label: '✏️ 직접 입력...' },
 ];
 
@@ -235,7 +236,7 @@ export interface PresetMenuNotice {
  */
 function buildMenuNoticePartial(selectionLength: number): string {
   return (
-    `지금 ${formatCharCount(selectionLength)}자예요 — ${formatCharCount(EDIT_LIMIT)}자가 넘어서 다듬기·직접 입력은 쓸 수 없어요. ` +
+    `지금 ${formatCharCount(selectionLength)}자예요 — ${formatCharCount(EDIT_LIMIT)}자가 넘어서 다듬기·직접 입력·리서치는 쓸 수 없어요. ` +
     '개요·표·다이어그램·짧게는 되지만, 원문이 지워지지 않도록 결과를 「아래에 삽입」만 할 수 있어요.'
   );
 }

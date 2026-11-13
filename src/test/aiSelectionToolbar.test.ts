@@ -182,9 +182,9 @@ describe('buildSelectionRequest: AiRequestArgs assembly + insertOnly metadata', 
 });
 
 describe('buildPresetMenuItems: guard-driven disable states by selection length', () => {
-  const kinds = ['polish', 'outline', 'table', 'diagram', 'shorten', 'custom'];
+  const kinds = ['polish', 'outline', 'table', 'diagram', 'shorten', 'research', 'custom'];
 
-  it('produces the 6 presets in design order with emoji labels', async () => {
+  it('produces the 7 presets in design order with emoji labels', async () => {
     const { buildPresetMenuItems } = await import(
       '@/components/editor/extensions/ai-selection-toolbar'
     );
@@ -195,7 +195,8 @@ describe('buildPresetMenuItems: guard-driven disable states by selection length'
     expect(items[2].label).toContain('표로 만들기');
     expect(items[3].label).toContain('다이어그램으로');
     expect(items[4].label).toContain('짧게 줄이기');
-    expect(items[5].label).toContain('직접 입력');
+    expect(items[5].label).toContain('리서치');
+    expect(items[6].label).toContain('직접 입력');
   });
 
   it('len=5999: every preset enabled, none insertOnly', async () => {

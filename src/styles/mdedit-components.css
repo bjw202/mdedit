@@ -500,6 +500,9 @@
 .mdedit-ai-notice { color: var(--md-text-muted); line-height: var(--md-lh-ui); }
 /* SPEC-AI-013 D9: 「바꾸기」가 빠진 이유 한 줄 — .mdedit-ai-notice 와 같은 톤. */
 .mdedit-ai-completion-notice { color: var(--md-text-muted); line-height: var(--md-lh-ui); }
+/* SPEC-AI-016: 리서치 진행 문구·미검증 출처 알림 — 같은 톤(새 색 없음). */
+.mdedit-ai-research-progress,
+.mdedit-ai-unverified-notice { color: var(--md-text-muted); line-height: var(--md-lh-ui); }
 .mdedit-ai-mermaid-preview {
   padding: var(--md-space-3); background: var(--md-code-bg);
   border: 1px solid var(--md-border); border-radius: var(--md-radius-sm);

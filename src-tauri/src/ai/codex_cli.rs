@@ -16,10 +16,13 @@
 
 use crate::ai::claude_cli::{
     claim_terminal, decide_outcome, spawn_stdin_writer, ChunkPayload, DonePayload, ErrorPayload,
-    RelayOutcome,
+    RelayOutcome, ResearchPayload,
 };
 use crate::ai::provider::{AiProvider, AiRequest, Capabilities, ProviderStatus};
-use crate::ai::stream::{parse_codex_agent_message, parse_codex_turn_completed, Completion};
+use crate::ai::stream::{
+    decide_codex_line, parse_codex_agent_message, parse_codex_turn_completed, Completion,
+    ResearchActivity,
+};
 use crate::process_util::{login_shell_path, no_window};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -46,6 +49,8 @@ pub fn combine_prompts(system_prompt: &str, user_prompt: &str) -> String {
 ///  "-c", "features.view_image=false", "-c", "web_search=disabled",
 ///  ["--model", <model>,] "--json"]
 /// ```
+/// `web_allowed`(리서치 전용, SPEC-AI-016 D4)이면 마지막 쌍만 `web_search=live` 로 바뀐다 —
+/// 나머지 셋(apps·shell_tool·view_image)은 항상 끈다. 원소 수는 두 경우 모두 같다.
 /// 도구 잠금용 `-c` 4쌍 외에 추론 설정(reasoning effort 등)은 넘기지 않는다(CLI 기본값).
 /// `<scratch>` 는 빈 스크래치 디렉토리 절대경로다.
 /// 결합 프롬프트(`combine_prompts`)는 위치 인자가 아니라 표준 입력으로 전달한다 — 위치 인자를
@@ -59,7 +64,9 @@ pub fn combine_prompts(system_prompt: &str, user_prompt: &str) -> String {
 //   (codex-cli 0.167.0 실측). apps·shell_tool·view_image 를 끄고 web_search 를 disabled 로 둔다.
 //   `-c features.<이름>=false` 는 모르는 이름을 무시하고(구버전 안전), 잘못된 web_search 값은 오류가 난다(실측).
 //   웹 리서치(SPEC-AI-016)는 web_search 값만 live 로 바꾸며 나머지 셋은 항상 끈다.
-pub fn build_codex_args(model: Option<&str>, scratch_dir: &Path) -> Vec<String> {
+// @MX:NOTE: [AUTO] 리서치 live — web_search=live 에서 open_page 가 실제로 일어남(codex-cli 0.167.0 에서 검증, 실측 R5·R14)
+// @MX:SPEC: SPEC-AI-016
+pub fn build_codex_args(model: Option<&str>, scratch_dir: &Path, web_allowed: bool) -> Vec<String> {
     let scratch = scratch_dir.to_string_lossy().into_owned();
     let mut args = vec![
         "exec".to_string(),
@@ -72,11 +79,16 @@ pub fn build_codex_args(model: Option<&str>, scratch_dir: &Path) -> Vec<String> 
         "read-only".to_string(),
     ];
     // @MX:NOTE: [AUTO] 도구 잠금 4쌍 — 셸·연결 앱·이미지 보기·웹 검색 끔(codex-cli 0.167.0 검증, 위 WARN 참조)
+    let web_search = if web_allowed {
+        "web_search=live"
+    } else {
+        "web_search=disabled"
+    };
     for kv in [
         "features.apps=false",
         "features.shell_tool=false",
         "features.view_image=false",
-        "web_search=disabled",
+        web_search,
     ] {
         args.push("-c".to_string());
         args.push(kv.to_string());
@@ -153,6 +165,17 @@ pub fn codex_done_payload(request_id: String, result: String, truncated: bool) -
     }
 }
 
+/// `turn.completed` 없이 EOF 했을 때 마지막 agent_message 를 정상 결과로 쓸지 정한다(순수).
+///
+/// 비리서치는 REQ-AI9-013a 대로 마지막 본문을 결과로 쓴다. 리서치(SPEC-AI-016)는 도구 호출 앞의
+/// 서술 문장("…확인하겠습니다")이 마지막 본문일 수 있어 결과로 쓰지 않는다(None → 오류 폴백).
+pub fn codex_eof_result(last_message: Option<String>, research: bool) -> Option<String> {
+    if research {
+        return None;
+    }
+    last_message
+}
+
 /// codex stdout/stderr 를 별도 스레드에서 읽어 `ai://chunk|done|error` 로 릴레이한다(REQ-AI9-011~014).
 ///
 /// claude_cli::relay_process 와 동일 구조(스레드 spawn, BufReader::lines, emit, claim_terminal 단일 발행).
@@ -161,6 +184,8 @@ pub fn codex_done_payload(request_id: String, result: String, truncated: bool) -
 /// - `parse_codex_turn_completed` 가 true 면 `ai://done`(result=마지막 agent_message) emit(REQ-AI9-012).
 /// - chunk 1회 emit 후 turn.completed 없이 EOF 하면 폴백으로 done emit(REQ-AI9-013a).
 /// - 그 외 EOF 는 기존 `decide_outcome` 폴백(REQ-AI9-013). stderr 은 기존 `classify_stderr` 재사용(REQ-AI9-014).
+/// - `research`(SPEC-AI-016)면 `agent_message` 를 청크로 보내지 않고(마지막 본문은 그대로 최종 결과),
+///   도구 활동 누적값이 바뀔 때 `ai://research` 를 발행한다(항상 `ai://done` 보다 먼저).
 pub fn relay_codex_process(
     app_handle: AppHandle,
     request_id: String,
@@ -169,11 +194,13 @@ pub fn relay_codex_process(
     cancel_flag: Arc<AtomicBool>,
     truncated: bool,
     finished: Arc<AtomicBool>,
+    research: bool,
 ) {
     std::thread::spawn(move || {
         let reader = BufReader::new(stdout);
         let mut last_message: Option<String> = None;
         let mut saw_stream_output = false;
+        let mut activity = ResearchActivity::default();
 
         for line in reader.lines() {
             let line = match line {
@@ -181,17 +208,27 @@ pub fn relay_codex_process(
                 Err(_) => break,
             };
             saw_stream_output = true;
+            let decision = decide_codex_line(&line, research, &mut activity);
+            if let Some(snapshot) = decision.activity {
+                let _ = app_handle.emit(
+                    "ai://research",
+                    ResearchPayload::new(&request_id, snapshot),
+                );
+            }
             if let Some(text) = parse_codex_agent_message(&line) {
                 // REQ-AI9-011: agent_message 도착 즉시 ai://chunk 를 정확히 1회 emit(토큰 분할 금지).
                 // 완성본을 통째로 전달한다. 마지막 수신 본문을 기억해 turn.completed 시 result 로 사용.
-                last_message = Some(text.clone());
-                let _ = app_handle.emit(
-                    "ai://chunk",
-                    ChunkPayload {
-                        request_id: request_id.clone(),
-                        text,
-                    },
-                );
+                // 리서치(SPEC-AI-016)에서는 청크를 보내지 않고 최종 결과로만 쓴다(decision.chunk 가 None).
+                last_message = Some(text);
+                if let Some(chunk) = decision.chunk {
+                    let _ = app_handle.emit(
+                        "ai://chunk",
+                        ChunkPayload {
+                            request_id: request_id.clone(),
+                            text: chunk,
+                        },
+                    );
+                }
             } else if parse_codex_turn_completed(&line) {
                 // REQ-AI9-012: turn.completed 수신 시 ai://done emit. result 는 마지막 agent_message 본문.
                 // claim_terminal 단일 발행 — 워치독/ai_cancel/신규 요청 교체와 동일 finished 공유.
@@ -219,7 +256,7 @@ pub fn relay_codex_process(
         if !cancelled {
             // m4 정정: 불필요한 clone 제거(last_message는 이후 미사용 → move).
             // turn.completed 루트에서 이미 done emit 됐으면 claim_terminal 실패로 무발행(단일발행 보장).
-            if let Some(result) = last_message {
+            if let Some(result) = codex_eof_result(last_message, research) {
                 if claim_terminal(&finished) {
                     let _ = app_handle.emit(
                         "ai://done",
@@ -285,7 +322,7 @@ impl AiProvider for CodexProvider {
         // system/user 가 분리되어 전달되는 버그 방지). 결합 프롬프트는 인자가 아니라 표준 입력으로
         // 전달된다(SPEC-AI-013 REQ-AI13-002).
         let combined = combine_prompts(&request.system_prompt, &request.user_prompt);
-        let args = build_codex_args(request.model.as_deref(), cwd);
+        let args = build_codex_args(request.model.as_deref(), cwd, request.web_allowed);
         spawn_codex(&args, cwd, &combined)
     }
 
@@ -343,7 +380,7 @@ mod tests {
     #[test]
     fn codex_args_model_absent_vs_present() {
         let scratch = Path::new("/tmp/scratch");
-        let none = build_codex_args(None, scratch);
+        let none = build_codex_args(None, scratch, false);
         assert_eq!(
             none,
             vec![
@@ -366,7 +403,7 @@ mod tests {
                 "--json"
             ]
         );
-        let some = build_codex_args(Some("m-a"), scratch);
+        let some = build_codex_args(Some("m-a"), scratch, false);
         assert_eq!(some.len(), none.len() + 2);
         let midx = some.iter().position(|a| a == "--model").unwrap();
         assert_eq!(some[midx + 1], "m-a");
@@ -378,7 +415,7 @@ mod tests {
     fn codex_args_have_no_reasoning_override_and_keep_isolation() {
         let scratch = Path::new("/tmp/scratch");
         for model in [None, Some("m-a")] {
-            let args = build_codex_args(model, scratch);
+            let args = build_codex_args(model, scratch, false);
             // 도구 잠금 -c 4쌍만 허용하고, 추론(reasoning) 관련 -c 는 없어야 한다.
             for (i, a) in args.iter().enumerate() {
                 if a == "-c" {
@@ -416,7 +453,7 @@ mod tests {
             "web_search=disabled",
         ];
         for model in [None, Some("m-a")] {
-            let args = build_codex_args(model, scratch);
+            let args = build_codex_args(model, scratch, false);
             let c_values: Vec<&str> = args
                 .iter()
                 .enumerate()
@@ -440,7 +477,7 @@ mod tests {
     fn build_codex_args_has_no_prompt_and_last_element_is_json() {
         // AC-AI13-002: 결합 프롬프트는 인자에 없고(표준 입력으로 전달), 마지막 인자는 `--json` 이다.
         let scratch = Path::new("/tmp/scratch");
-        let args = build_codex_args(None, scratch);
+        let args = build_codex_args(None, scratch, false);
         assert_eq!(args.last().map(|s| s.as_str()), Some("--json"));
         let combined = combine_prompts("SYS-표지-91c2\n둘째 줄", "선택-표지-7f3a");
         assert!(args
@@ -468,7 +505,7 @@ mod tests {
     fn build_codex_args_scratch_dir_embedded_at_index_2() {
         // -C 다음 원소가 scratch 경로와 일치(절대경로 주입 검증).
         let scratch = Path::new("/var/empty/scratch");
-        let args = build_codex_args(None, scratch);
+        let args = build_codex_args(None, scratch, false);
         let c_idx = args
             .iter()
             .position(|a| a == "-C")
@@ -482,7 +519,7 @@ mod tests {
     fn build_codex_command_returns_command_without_panic() {
         // Command 빌더 자체가 panic 없이 동작하는지 검증. stdin/stdout/stderr 설정은 코드 구조로 강제.
         let binary = Path::new("/usr/local/bin/codex");
-        let args = build_codex_args(Some("m-a"), Path::new("/tmp/scratch"));
+        let args = build_codex_args(Some("m-a"), Path::new("/tmp/scratch"), false);
         let cwd = Path::new("/tmp/scratch");
         let _cmd = build_codex_command(binary, &args, cwd);
     }
@@ -579,5 +616,78 @@ mod tests {
             parse_codex_agent_message(&line),
             Some("AI 완성 본문".to_string())
         );
+    }
+    // --- SPEC-AI-016: 웹 허용 인자 (AC-AI16-006) ---
+
+    fn c_values(args: &[String]) -> Vec<&str> {
+        args.iter()
+            .enumerate()
+            .filter(|(_, a)| a.as_str() == "-c")
+            .map(|(i, _)| args[i + 1].as_str())
+            .collect()
+    }
+
+    #[test]
+    fn codex_args_web_allowed_switches_only_web_search_value() {
+        let scratch = Path::new("/tmp/scratch");
+        for model in [None, Some("m-a")] {
+            let off = build_codex_args(model, scratch, false);
+            let on = build_codex_args(model, scratch, true);
+            // 원소 수는 같고(17/19) 바뀌는 것은 web_search 값 하나뿐이다.
+            assert_eq!(off.len(), if model.is_some() { 19 } else { 17 });
+            assert_eq!(on.len(), off.len());
+            assert_eq!(
+                c_values(&on),
+                [
+                    "features.apps=false",
+                    "features.shell_tool=false",
+                    "features.view_image=false",
+                    "web_search=live"
+                ]
+            );
+            assert!(on.iter().any(|a| a == "web_search=live"));
+            assert!(!on.iter().any(|a| a == "web_search=disabled"));
+            assert!(off.iter().any(|a| a == "web_search=disabled"));
+            assert!(!off.iter().any(|a| a == "web_search=live"));
+            // --disable 은 모르는 이름이면 실행이 실패한다(R9) — 어느 경우에도 쓰지 않는다.
+            assert!(!on.iter().any(|a| a == "--disable"));
+            assert!(!off.iter().any(|a| a == "--disable"));
+            let diff: Vec<_> = on.iter().zip(off.iter()).filter(|(a, b)| a != b).collect();
+            assert_eq!(diff.len(), 1, "{diff:?}");
+            assert_eq!(on.last().map(|s| s.as_str()), Some("--json"));
+        }
+    }
+
+    // --- SPEC-AI-016 F1: 리서치 중 turn.completed 없이 끝난 스트림 ---
+
+    const CODEX_NONRESEARCH: &str =
+        include_str!("../../tests/fixtures/codex-nonresearch-hardened.jsonl");
+
+    /// 실측 픽스처의 앞 3줄(서술 메시지까지, turn.completed 이전)을 릴레이 루프처럼 처리한다.
+    fn replay_truncated_before_completion() -> (Option<String>, bool) {
+        let mut last: Option<String> = None;
+        let mut completed = false;
+        for line in CODEX_NONRESEARCH.lines().take(3) {
+            if let Some(t) = parse_codex_agent_message(line) {
+                last = Some(t);
+            } else if parse_codex_turn_completed(line) {
+                completed = true;
+            }
+        }
+        (last, completed)
+    }
+
+    #[test]
+    fn research_eof_without_turn_completed_does_not_use_narration_as_result() {
+        let (last, completed) = replay_truncated_before_completion();
+        assert!(!completed);
+        assert!(last.as_deref().unwrap().contains("확인하겠습니다"));
+        assert_eq!(codex_eof_result(last, true), None);
+    }
+
+    #[test]
+    fn non_research_eof_without_turn_completed_keeps_last_message_fallback() {
+        let (last, _) = replay_truncated_before_completion();
+        assert_eq!(codex_eof_result(last.clone(), false), last);
     }
 }

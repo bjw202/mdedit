@@ -254,6 +254,197 @@ pub fn parse_codex_turn_completed(line: &str) -> bool {
     codex_event_node(&value, "turn.completed").is_some()
 }
 
+// ============================================================================
+// SPEC-AI-016 — 리서치 도구 활동 집계 (REQ-AI16-008/009, D6/D7)
+// ============================================================================
+// @MX:NOTE: [AUTO] 리서치 스트림에서 검색 횟수·"열어 본 페이지" 주소를 집계하는 순수 계층. 파서는
+//   spike 실측 캡처(tests/fixtures/*research*, *webfetch-error*, *open-page-failed*)로만 검증한다.
+//   "열어 본" 판정: claude — user 줄 tool_use_result 객체의 url + 2xx code(실패는 문자열, R12);
+//   codex — open_page 의 results 안에 action.url 과 같은 url(정규화 후)이 있을 때(실패는 url 없음, R13).
+// @MX:SPEC: SPEC-AI-016
+
+/// 리서치 중 누적된 도구 활동. `ai://research` payload 의 원본이다.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ResearchActivity {
+    /// 웹 검색 횟수.
+    pub searches: usize,
+    /// 열어 본 페이지 주소(발생 순서, 정규화 기준 중복 없음).
+    pub opened: Vec<String>,
+}
+
+/// 도구 활동 한 건.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ResearchEvent {
+    Search,
+    Opened(String),
+}
+
+impl ResearchActivity {
+    /// 활동 이벤트를 반영하고, 누적값이 바뀌었을 때만 현재 스냅샷을 돌려준다(중복 발행 방지).
+    fn apply(&mut self, events: Vec<ResearchEvent>) -> Option<ResearchActivity> {
+        let mut changed = false;
+        for ev in events {
+            match ev {
+                ResearchEvent::Search => {
+                    self.searches += 1;
+                    changed = true;
+                }
+                ResearchEvent::Opened(url) => {
+                    let key = normalize_url(&url);
+                    if !self.opened.iter().any(|u| normalize_url(u) == key) {
+                        self.opened.push(url);
+                        changed = true;
+                    }
+                }
+            }
+        }
+        changed.then(|| self.clone())
+    }
+}
+
+/// 주소 비교용 정규화(D7): 스킴·호스트 소문자, `#` 뒤 제거, 끝 `/` 제거. 경로 대소문자는 유지한다.
+pub fn normalize_url(url: &str) -> String {
+    let no_fragment = url.split('#').next().unwrap_or("");
+    let (scheme, rest) = match no_fragment.split_once("://") {
+        Some((s, r)) => (s.to_lowercase() + "://", r),
+        None => (String::new(), no_fragment),
+    };
+    let (host, path) = match rest.find('/') {
+        Some(i) => (&rest[..i], &rest[i..]),
+        None => (rest, ""),
+    };
+    let mut out = format!("{}{}{}", scheme, host.to_lowercase(), path);
+    while out.ends_with('/') {
+        out.pop();
+    }
+    out
+}
+
+/// claude stream-json 한 줄의 도구 활동: `assistant` 줄의 `WebSearch` 호출은 검색 1회,
+/// `user` 줄의 `tool_use_result` 가 `url` 과 2xx `code` 를 가진 객체면 열어 본 주소.
+fn parse_claude_research_events(line: &str) -> Vec<ResearchEvent> {
+    let Ok(value) = serde_json::from_str::<Value>(line.trim()) else {
+        return vec![];
+    };
+    match value.get("type").and_then(Value::as_str) {
+        Some("assistant") => value
+            .get("message")
+            .and_then(|m| m.get("content"))
+            .and_then(Value::as_array)
+            .map(|blocks| {
+                blocks
+                    .iter()
+                    .filter(|b| {
+                        b.get("type").and_then(Value::as_str) == Some("tool_use")
+                            && b.get("name").and_then(Value::as_str) == Some("WebSearch")
+                    })
+                    .map(|_| ResearchEvent::Search)
+                    .collect()
+            })
+            .unwrap_or_default(),
+        Some("user") => {
+            let Some(result) = value.get("tool_use_result").and_then(Value::as_object) else {
+                return vec![];
+            };
+            let ok = result
+                .get("code")
+                .and_then(Value::as_u64)
+                .is_some_and(|c| (200..300).contains(&c));
+            match (ok, result.get("url").and_then(Value::as_str)) {
+                (true, Some(url)) => vec![ResearchEvent::Opened(url.to_string())],
+                _ => vec![],
+            }
+        }
+        _ => vec![],
+    }
+}
+
+/// codex JSONL 한 줄의 도구 활동: `item.completed` 의 `web_search` 항목 중 `action.type == "search"` 는
+/// 검색 1회, `"open_page"` 는 `results` 에 `action.url` 과 같은 `url` 이 있을 때만 열어 본 주소.
+fn parse_codex_research_events(line: &str) -> Vec<ResearchEvent> {
+    let Ok(value) = serde_json::from_str::<Value>(line.trim()) else {
+        return vec![];
+    };
+    let Some(node) = codex_event_node(&value, "item.completed") else {
+        return vec![];
+    };
+    let Some(item) = node.get("item") else {
+        return vec![];
+    };
+    if item.get("type").and_then(Value::as_str) != Some("web_search") {
+        return vec![];
+    }
+    let Some(action) = item.get("action") else {
+        return vec![];
+    };
+    match action.get("type").and_then(Value::as_str) {
+        Some("search") => vec![ResearchEvent::Search],
+        Some("open_page") => {
+            let Some(url) = action.get("url").and_then(Value::as_str) else {
+                return vec![];
+            };
+            let key = normalize_url(url);
+            let confirmed = item
+                .get("results")
+                .and_then(Value::as_array)
+                .is_some_and(|rs| {
+                    rs.iter().any(|r| {
+                        r.get("url")
+                            .and_then(Value::as_str)
+                            .is_some_and(|u| normalize_url(u) == key)
+                    })
+                });
+            if confirmed {
+                vec![ResearchEvent::Opened(url.to_string())]
+            } else {
+                vec![]
+            }
+        }
+        _ => vec![],
+    }
+}
+
+/// 릴레이가 한 줄에서 내보낼 것(순수 판정 결과) — 스레드·emit 은 호출부가 얇게 맡는다.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct RelayLine {
+    /// `ai://chunk` 로 보낼 텍스트. 리서치에서는 항상 `None`(D6 — 중간 서술을 카드로 보내지 않는다).
+    pub chunk: Option<String>,
+    /// `ai://research` 로 보낼 누적 스냅샷(리서치이고 누적값이 바뀐 줄에서만).
+    pub activity: Option<ResearchActivity>,
+}
+
+/// claude 한 줄 판정. 리서치가 아니면 기존처럼 `text_delta` 가 청크, 리서치면 청크 없이 활동만 센다.
+/// 최종 결과(`result` 줄)·완결 추적은 호출부가 `parse_final_result`/`CompletionTracker` 로 그대로 처리한다.
+pub fn decide_claude_line(line: &str, research: bool, acc: &mut ResearchActivity) -> RelayLine {
+    if research {
+        RelayLine {
+            chunk: None,
+            activity: acc.apply(parse_claude_research_events(line)),
+        }
+    } else {
+        RelayLine {
+            chunk: parse_text_delta(line),
+            activity: None,
+        }
+    }
+}
+
+/// codex 한 줄 판정. 리서치가 아니면 `agent_message` 마다 청크, 리서치면 청크 없이 활동만 센다.
+/// 마지막 `agent_message` 를 최종 결과로 기억하는 일은 호출부가 `parse_codex_agent_message` 로 그대로 한다.
+pub fn decide_codex_line(line: &str, research: bool, acc: &mut ResearchActivity) -> RelayLine {
+    if research {
+        RelayLine {
+            chunk: None,
+            activity: acc.apply(parse_codex_research_events(line)),
+        }
+    } else {
+        RelayLine {
+            chunk: parse_codex_agent_message(line),
+            activity: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -641,5 +832,170 @@ mod tests {
         assert_eq!(serde_json::to_string(&Completion::Complete).unwrap(), "\"complete\"");
         assert_eq!(serde_json::to_string(&Completion::Cutoff).unwrap(), "\"cutoff\"");
         assert_eq!(serde_json::to_string(&Completion::Unknown).unwrap(), "\"unknown\"");
+    }
+    // --- SPEC-AI-016 M3: 리서치 도구 활동 집계 (AC-AI16-007/008/009) ---
+
+    const CLAUDE_CANONICAL: &str = include_str!("../../tests/fixtures/claude-research-canonical.jsonl");
+    const CLAUDE_HAIKU: &str = include_str!("../../tests/fixtures/claude-research-haiku.jsonl");
+    const CLAUDE_NARRATION: &str = include_str!("../../tests/fixtures/claude-research-narration.jsonl");
+    const CLAUDE_FETCH_ERROR: &str = include_str!("../../tests/fixtures/claude-webfetch-error.jsonl");
+    const CODEX_CANONICAL: &str = include_str!("../../tests/fixtures/codex-research-canonical.jsonl");
+    const CODEX_LIVE: &str = include_str!("../../tests/fixtures/codex-research-live.jsonl");
+    const CODEX_OPEN_FAILED: &str = include_str!("../../tests/fixtures/codex-open-page-failed.jsonl");
+    const CODEX_NONRESEARCH: &str =
+        include_str!("../../tests/fixtures/codex-nonresearch-hardened.jsonl");
+
+    const TAURI_BLOG: &str = "https://v2.tauri.app/blog/tauri-20/";
+    const TAURI_CAPS: &str = "https://v2.tauri.app/security/capabilities/";
+
+    /// 픽스처 전 줄을 판정 함수에 넣어 (청크 수, 스냅샷 목록, 마지막 누적값, 최종 결과)를 모은다.
+    struct Replay {
+        chunks: Vec<String>,
+        snapshots: Vec<ResearchActivity>,
+        last: ResearchActivity,
+        final_result: Option<String>,
+    }
+
+    fn replay_claude(fixture: &str, research: bool) -> Replay {
+        let mut acc = ResearchActivity::default();
+        let mut r = Replay {
+            chunks: vec![],
+            snapshots: vec![],
+            last: ResearchActivity::default(),
+            final_result: None,
+        };
+        for line in fixture.lines() {
+            let d = decide_claude_line(line, research, &mut acc);
+            r.chunks.extend(d.chunk);
+            r.snapshots.extend(d.activity);
+            if let Some(f) = parse_final_result(line) {
+                r.final_result = Some(f);
+            }
+        }
+        r.last = acc;
+        r
+    }
+
+    fn replay_codex(fixture: &str, research: bool) -> Replay {
+        let mut acc = ResearchActivity::default();
+        let mut r = Replay {
+            chunks: vec![],
+            snapshots: vec![],
+            last: ResearchActivity::default(),
+            final_result: None,
+        };
+        for line in fixture.lines() {
+            let d = decide_codex_line(line, research, &mut acc);
+            r.chunks.extend(d.chunk);
+            r.snapshots.extend(d.activity);
+            if let Some(m) = parse_codex_agent_message(line) {
+                r.final_result = Some(m);
+            }
+        }
+        r.last = acc;
+        r
+    }
+
+    fn act(searches: usize, opened: &[&str]) -> ResearchActivity {
+        ResearchActivity {
+            searches,
+            opened: opened.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    #[test]
+    fn claude_research_narration_emits_no_chunks_but_normal_mode_emits_113() {
+        let research = replay_claude(CLAUDE_NARRATION, true);
+        assert_eq!(research.chunks.len(), 0);
+        let result = research.final_result.expect("result 줄");
+        assert!(!result.contains("검색하겠습니다"));
+        assert!(!result.contains("열어보겠습니다"));
+        let normal = replay_claude(CLAUDE_NARRATION, false);
+        assert_eq!(normal.chunks.len(), 113);
+        assert!(normal.snapshots.is_empty(), "리서치가 아니면 활동을 내지 않는다");
+        assert_eq!(normal.final_result.as_deref(), Some(result.as_str()));
+    }
+
+    #[test]
+    fn claude_activity_final_values_match_captures() {
+        assert_eq!(replay_claude(CLAUDE_CANONICAL, true).last, act(2, &[TAURI_BLOG, TAURI_CAPS]));
+        assert_eq!(replay_claude(CLAUDE_HAIKU, true).last, act(2, &[TAURI_CAPS, TAURI_BLOG]));
+        assert_eq!(
+            replay_claude(CLAUDE_NARRATION, true).last,
+            act(1, &["https://v2.tauri.app/blog/tauri-2-0-0-beta/", TAURI_BLOG])
+        );
+        // WebFetch 실패는 tool_use_result 가 문자열이라 열어 본 것으로 치지 않는다(R12).
+        assert_eq!(replay_claude(CLAUDE_FETCH_ERROR, true).last, act(0, &[]));
+    }
+
+    #[test]
+    fn claude_snapshots_emit_once_per_change() {
+        let r = replay_claude(CLAUDE_CANONICAL, true);
+        assert_eq!(
+            r.snapshots,
+            vec![
+                act(1, &[]),
+                act(2, &[]),
+                act(2, &[TAURI_BLOG]),
+                act(2, &[TAURI_BLOG, TAURI_CAPS]),
+            ]
+        );
+        assert_eq!(replay_claude(CLAUDE_FETCH_ERROR, true).snapshots.len(), 0);
+    }
+
+    #[test]
+    fn claude_repeated_open_does_not_emit_again() {
+        let mut acc = ResearchActivity::default();
+        let line = r#"{"type":"user","tool_use_result":{"url":"https://a.b/c","code":200}}"#;
+        assert!(decide_claude_line(line, true, &mut acc).activity.is_some());
+        assert!(decide_claude_line(line, true, &mut acc).activity.is_none());
+        // 4xx 응답은 열어 본 것으로 치지 않는다.
+        let bad = r#"{"type":"user","tool_use_result":{"url":"https://a.b/d","code":404}}"#;
+        assert!(decide_claude_line(bad, true, &mut acc).activity.is_none());
+        assert_eq!(acc, act(0, &["https://a.b/c"]));
+    }
+
+    #[test]
+    fn codex_activity_final_values_match_captures() {
+        assert_eq!(replay_codex(CODEX_CANONICAL, true).last, act(1, &[TAURI_BLOG]));
+        // 같은 url 이 results 에 있는 open_page 만 센다. action.type 이 other 인 항목은 세지 않는다.
+        assert_eq!(replay_codex(CODEX_LIVE, true).last, act(1, &[TAURI_BLOG]));
+        assert_eq!(replay_codex(CODEX_OPEN_FAILED, true).last, act(0, &[]));
+        assert_eq!(replay_codex(CODEX_NONRESEARCH, true).last, act(0, &[]));
+        assert_eq!(
+            replay_codex(CODEX_CANONICAL, true).snapshots,
+            vec![act(1, &[]), act(1, &[TAURI_BLOG])]
+        );
+    }
+
+    #[test]
+    fn codex_research_suppresses_chunks_and_keeps_last_message_as_final() {
+        let research = replay_codex(CODEX_NONRESEARCH, true);
+        assert_eq!(research.chunks.len(), 0);
+        let normal = replay_codex(CODEX_NONRESEARCH, false);
+        assert_eq!(normal.chunks.len(), 2, "리서치가 아니면 agent_message 마다 청크");
+        assert_eq!(normal.final_result, research.final_result);
+        assert_eq!(normal.chunks.last(), normal.final_result.as_ref());
+        let canon = replay_codex(CODEX_CANONICAL, true);
+        assert_eq!(canon.chunks.len(), 0);
+        assert!(canon.final_result.unwrap().contains("출처\n1. [Tauri 2.0 Stable Release]"));
+        assert_eq!(replay_codex(CODEX_CANONICAL, false).chunks.len(), 1);
+    }
+
+    #[test]
+    fn normalize_url_follows_d7_rules() {
+        assert_eq!(normalize_url("https://Example.com/a/"), normalize_url("https://example.com/a#x"));
+        assert_ne!(normalize_url("https://example.com/A"), normalize_url("https://example.com/a"));
+        assert_eq!(normalize_url("HTTPS://Example.COM/Path/"), "https://example.com/Path");
+    }
+
+    #[test]
+    fn research_parsers_never_panic_on_garbage() {
+        let mut acc = ResearchActivity::default();
+        for l in ["", "not json", "{}", r#"{"type":"assistant"}"#, r#"{"type":"item.completed"}"#] {
+            let a = decide_claude_line(l, true, &mut acc);
+            let b = decide_codex_line(l, true, &mut acc);
+            assert!(a.activity.is_none() && b.activity.is_none());
+        }
     }
 }

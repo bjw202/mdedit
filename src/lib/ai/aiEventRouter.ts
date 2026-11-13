@@ -10,6 +10,12 @@
 
 import type { AiErrorKind, Completion } from '@/store/aiStore';
 
+/** SPEC-AI-016 `ai://research` 의 누적 활동 — 검색 횟수와 AI가 직접 열어 본 페이지 주소 목록. */
+export interface ResearchActivity {
+  searches: number;
+  opened: string[];
+}
+
 /** 구독자가 받는 이벤트 핸들러. payload 는 기존 3종 계약 그대로이며, done 에만 SPEC-AI-013 의 `completion` 이 더해졌다. */
 export interface AiEventHandlers {
   /** `ai://chunk` — **원시 델타**다(스토어처럼 누적된 버퍼가 아니다). 구독자가 직접 누적한다. */
@@ -18,6 +24,8 @@ export interface AiEventHandlers {
   onDone?: (result: string, truncated: boolean, completion: Completion) => void;
   /** `ai://error` — 분류된 kind/message. raw 노출 금지 계약은 상위에서 유지한다. */
   onError?: (kind: AiErrorKind, message: string) => void;
+  /** `ai://research` — 누적값 스냅샷(SPEC-AI-016). 스토어를 거치지 않으므로 라우터 전용이다. */
+  onResearch?: (activity: ResearchActivity) => void;
 }
 
 interface Subscription {
@@ -67,6 +75,10 @@ export function dispatchAiDone(
 
 export function dispatchAiError(requestId: string, kind: AiErrorKind, message: string): void {
   fanout(requestId, (h) => h.onError?.(kind, message));
+}
+
+export function dispatchAiResearch(requestId: string, activity: ResearchActivity): void {
+  fanout(requestId, (h) => h.onResearch?.(activity));
 }
 
 /** 등록된 구독을 전부 비운다(테스트 격리용). */
