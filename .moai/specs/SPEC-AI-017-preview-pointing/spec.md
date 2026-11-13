@@ -2,7 +2,7 @@
 id: SPEC-AI-017
 title: "미리보기에서 가리켜 지시하기 — 표 칸·열 머리나 다이어그램 노드를 눌러 AI에게 그 블록 수정을 맡긴다"
 version: "0.2.2"
-status: draft
+status: in-progress
 created: 2026-11-13
 updated: 2026-11-13
 author: jw
