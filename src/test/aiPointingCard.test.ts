@@ -22,6 +22,7 @@ import {
   clearCardRegistry,
   setActiveEditorView,
   sanitizeTableHtml,
+  renderPointTableInto,
   type AiSuggestionCardController,
   type StartCardRequest,
 } from '@/components/editor/extensions/ai-suggestion-card';
@@ -188,6 +189,13 @@ describe('그룹 4: 카드 표 렌더 D17 (AC-AI17-012 R2)', () => {
     expect(text).toContain('로고');
     expect(text).toContain('링크');
     expect(text).toContain('글');
+  });
+
+  it('sanitizeTableHtml: 수식 칸은 KaTeX 숨김 MathML 이 빠져 글자가 중복되지 않는다(D3)', () => {
+    const out = document.createElement('div');
+    renderPointTableInto('| 식 |\n| --- |\n| $x^2$ |', out);
+    expect(out.querySelector('.katex-mathml, math, annotation')).toBeNull();
+    expect((out.textContent ?? '').replace(/\s+/g, '')).toBe('식x2');
   });
 
   it('카드 검토 단계: 결과 표의 이미지·링크가 글자로만 남고 요소는 없다', () => {

@@ -1557,6 +1557,8 @@ export function sanitizeTableHtml(html: string): HTMLElement {
     el.replaceWith(doc.createTextNode(el.textContent ?? ''));
   });
   body.querySelectorAll(NETWORK_ELEMENTS).forEach((el) => el.remove());
+  // class 를 지우면 KaTeX 의 숨김 MathML 이 보이게 되므로, 속성 제거 전에 HTML 본문만 남긴다(D3).
+  body.querySelectorAll('.katex-mathml').forEach((el) => el.remove());
   body.querySelectorAll('*').forEach((el) => {
     for (const attr of Array.from(el.attributes)) {
       if (attr.name === 'style' && SAFE_STYLE.test(attr.value)) continue;

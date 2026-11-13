@@ -508,6 +508,17 @@
   border: 1px solid var(--md-border); border-radius: var(--md-radius-sm);
   overflow: auto;
 }
+/* D1: 카드 안 표는 .preview-content 바깥이라 별도 규칙이 필요하다(미리보기 표와 같은 모양). */
+.mdedit-ai-table-preview { overflow: auto; }
+.mdedit-ai-table-preview table {
+  border-collapse: separate; border-spacing: 0;
+  border-top: 1px solid var(--md-border); border-left: 1px solid var(--md-border);
+}
+.mdedit-ai-table-preview th, .mdedit-ai-table-preview td {
+  border-right: 1px solid var(--md-border); border-bottom: 1px solid var(--md-border);
+  padding: var(--md-space-1) var(--md-space-3); text-align: left;
+}
+.mdedit-ai-table-preview th { font-weight: 600; background: var(--md-code-bg); }
 .mdedit-ai-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--md-space-2); }
 .mdedit-ai-done-controls { display: flex; flex-direction: column; gap: var(--md-space-2); }
 
