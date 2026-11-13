@@ -38,17 +38,27 @@ pub fn combine_prompts(system_prompt: &str, user_prompt: &str) -> String {
 
 /// model·scratch_dir 로 codex 실행 인자를 조립한다(순수, REQ-AI9-004 → SPEC-AI-014).
 ///
-/// `model` 이 `None`(CLI 기본값)이면 `--model` 쌍을 넣지 않아 11개, `Some` 이면 13개 원소다:
+/// `model` 이 `None`(CLI 기본값)이면 `--model` 쌍을 넣지 않아 17개, `Some` 이면 19개 원소다:
 /// ```text
 /// ["exec", "-C", <scratch>, "--ignore-user-config", "--skip-git-repo-check",
-///  "--ephemeral", "--sandbox", "read-only", ["--model", <model>,] "--json"]
+///  "--ephemeral", "--sandbox", "read-only",
+///  "-c", "features.apps=false", "-c", "features.shell_tool=false",
+///  "-c", "features.view_image=false", "-c", "web_search=disabled",
+///  ["--model", <model>,] "--json"]
 /// ```
-/// 추론 설정(`-c ...`)은 넘기지 않는다(CLI 기본값). `<scratch>` 는 빈 스크래치 디렉토리 절대경로다.
+/// 도구 잠금용 `-c` 4쌍 외에 추론 설정(reasoning effort 등)은 넘기지 않는다(CLI 기본값).
+/// `<scratch>` 는 빈 스크래치 디렉토리 절대경로다.
 /// 결합 프롬프트(`combine_prompts`)는 위치 인자가 아니라 표준 입력으로 전달한다 — 위치 인자를
 /// 빼면 codex 가 표준 입력에서 읽는다(SPEC-AI-013 REQ-AI13-002, 실측).
 // @MX:ANCHOR: [AUTO] codex 격리 플래그 시퀀스 - --ignore-user-config/--sandbox read-only/--ephemeral
 // @MX:REASON: [AUTO] 사용자 홈 컨텍스트 오염(~/.codex/AGENTS.md 자동 로딩 → 32K 토큰 폭발 사례)을
 //   막는 1차 방어선. 플래그 하나라도 누락되면 격리가 빈 cwd 정황에만 의존해 회귀(REQ-AI9-004/008).
+// @MX:WARN: [AUTO] codex 도구 잠금 -c 4쌍 - 선택 영역에 주입된 문장이 셸·연결 앱을 부리는 경로 차단
+// @MX:REASON: [AUTO] 기본값에서는 셸 도구(exec_command)와 연결 앱 도구 200여 개(메일 발송·삭제,
+//   GitHub 병합·파일 삭제 등)가 열려 있어, 사용자 선택 텍스트의 프롬프트 주입이 실제 동작으로 이어진다
+//   (codex-cli 0.167.0 실측). apps·shell_tool·view_image 를 끄고 web_search 를 disabled 로 둔다.
+//   `-c features.<이름>=false` 는 모르는 이름을 무시하고(구버전 안전), 잘못된 web_search 값은 오류가 난다(실측).
+//   웹 리서치(SPEC-AI-016)는 web_search 값만 live 로 바꾸며 나머지 셋은 항상 끈다.
 pub fn build_codex_args(model: Option<&str>, scratch_dir: &Path) -> Vec<String> {
     let scratch = scratch_dir.to_string_lossy().into_owned();
     let mut args = vec![
@@ -61,6 +71,16 @@ pub fn build_codex_args(model: Option<&str>, scratch_dir: &Path) -> Vec<String> 
         "--sandbox".to_string(),
         "read-only".to_string(),
     ];
+    // @MX:NOTE: [AUTO] 도구 잠금 4쌍 — 셸·연결 앱·이미지 보기·웹 검색 끔(codex-cli 0.167.0 검증, 위 WARN 참조)
+    for kv in [
+        "features.apps=false",
+        "features.shell_tool=false",
+        "features.view_image=false",
+        "web_search=disabled",
+    ] {
+        args.push("-c".to_string());
+        args.push(kv.to_string());
+    }
     if let Some(model) = model {
         args.push("--model".to_string());
         args.push(model.to_string());
@@ -327,8 +347,23 @@ mod tests {
         assert_eq!(
             none,
             vec![
-                "exec", "-C", "/tmp/scratch", "--ignore-user-config", "--skip-git-repo-check",
-                "--ephemeral", "--sandbox", "read-only", "--json"
+                "exec",
+                "-C",
+                "/tmp/scratch",
+                "--ignore-user-config",
+                "--skip-git-repo-check",
+                "--ephemeral",
+                "--sandbox",
+                "read-only",
+                "-c",
+                "features.apps=false",
+                "-c",
+                "features.shell_tool=false",
+                "-c",
+                "features.view_image=false",
+                "-c",
+                "web_search=disabled",
+                "--json"
             ]
         );
         let some = build_codex_args(Some("m-a"), scratch);
@@ -344,14 +379,55 @@ mod tests {
         let scratch = Path::new("/tmp/scratch");
         for model in [None, Some("m-a")] {
             let args = build_codex_args(model, scratch);
-            assert!(args.iter().all(|a| a != "-c"), "추론 설정 -c 가 있다");
-            for flag in ["--ignore-user-config", "--skip-git-repo-check", "--ephemeral", "--json"] {
+            // 도구 잠금 -c 4쌍만 허용하고, 추론(reasoning) 관련 -c 는 없어야 한다.
+            for (i, a) in args.iter().enumerate() {
+                if a == "-c" {
+                    let v = &args[i + 1];
+                    assert!(!v.contains("reasoning"), "추론 설정 -c 가 있다: {v}");
+                    assert!(
+                        v.starts_with("features.") || v == "web_search=disabled",
+                        "예상 밖 -c: {v}"
+                    );
+                }
+            }
+            for flag in [
+                "--ignore-user-config",
+                "--skip-git-repo-check",
+                "--ephemeral",
+                "--json",
+            ] {
                 assert!(args.iter().any(|a| a == flag), "{flag} 누락");
             }
             let sb = args.iter().position(|a| a == "--sandbox").unwrap();
             assert_eq!(args[sb + 1], "read-only");
             let c = args.iter().position(|a| a == "-C").unwrap();
             assert_eq!(args[c + 1], "/tmp/scratch");
+        }
+    }
+
+    #[test]
+    fn codex_args_lock_down_tools_with_four_c_pairs_in_order() {
+        // 카드 t10: 셸·연결 앱·이미지 보기·웹 검색을 끄는 -c 4쌍이 격리 플래그 뒤에 이 순서로 있어야 한다.
+        let scratch = Path::new("/tmp/scratch");
+        let expected = [
+            "features.apps=false",
+            "features.shell_tool=false",
+            "features.view_image=false",
+            "web_search=disabled",
+        ];
+        for model in [None, Some("m-a")] {
+            let args = build_codex_args(model, scratch);
+            let c_values: Vec<&str> = args
+                .iter()
+                .enumerate()
+                .filter(|(_, a)| a.as_str() == "-c")
+                .map(|(i, _)| args[i + 1].as_str())
+                .collect();
+            assert_eq!(c_values, expected, "-c 쌍이 정확히 4개·순서대로여야 함");
+            let sb = args.iter().position(|a| a == "--sandbox").unwrap();
+            let first_c = args.iter().position(|a| a == "-c").unwrap();
+            assert!(first_c > sb + 1, "-c 쌍은 --sandbox read-only 뒤에 온다");
+            assert_eq!(args.last().map(|s| s.as_str()), Some("--json"));
         }
     }
 
@@ -383,7 +459,9 @@ mod tests {
         assert!(json.contains("\"requestId\":\"r1\""));
         assert!(!json.contains("truncated"));
         let t = codex_done_payload("r2".to_string(), "x".to_string(), true);
-        assert!(serde_json::to_string(&t).unwrap().contains("\"truncated\":true"));
+        assert!(serde_json::to_string(&t)
+            .unwrap()
+            .contains("\"truncated\":true"));
     }
 
     #[test]
