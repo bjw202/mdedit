@@ -9,7 +9,8 @@
 
 use crate::ai::provider::{AiProvider, AiRequest, Capabilities, ProviderRegistry, ProviderStatus};
 use crate::ai::stream::{
-    classify_stderr, parse_final_result, parse_text_delta, Completion, CompletionTracker,
+    classify_stderr, decide_claude_line, parse_final_result, Completion, CompletionTracker,
+    ResearchActivity,
 };
 use crate::process_util::no_window;
 use serde::Serialize;
@@ -37,6 +38,26 @@ pub const SYSTEM_PROMPT_FILE_NAME: &str = "system-prompt.txt";
 pub struct ChunkPayload {
     pub request_id: String,
     pub text: String,
+}
+
+/// `ai://research` payload — 리서치 도구 활동 누적값. IPC 계약: `{ requestId, searches, opened }`.
+/// 항상 같은 요청의 `ai://done` 보다 먼저 발행된다(SPEC-AI-016 REQ-AI16-009).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResearchPayload {
+    pub request_id: String,
+    pub searches: usize,
+    pub opened: Vec<String>,
+}
+
+impl ResearchPayload {
+    pub fn new(request_id: &str, activity: ResearchActivity) -> Self {
+        Self {
+            request_id: request_id.to_string(),
+            searches: activity.searches,
+            opened: activity.opened,
+        }
+    }
 }
 
 /// `ai://done` payload — 최종 결과 전문. IPC 계약: `{ requestId, result, truncated?, completion }`.
@@ -278,6 +299,9 @@ pub fn spawn_claude(
 /// watcher.rs의 스레드+emit 패턴을 따른다. 취소 플래그가 서면 종료 시 무음 처리하고
 /// 취소 통보는 커맨드가 담당한다(§3 P7). `truncated`는 프롬프트 컨텍스트가 잘렸는지로,
 /// 완료 payload에 그대로 실어 UI가 "일부만 참고" 안내를 띄우게 한다(§7).
+///
+/// `research`(SPEC-AI-016)면 `text_delta` 를 청크로 보내지 않고, 도구 활동 누적값이 바뀔 때
+/// `ai://research` 를 발행한다(항상 `ai://done` 보다 먼저 — 같은 스레드의 발행 순서).
 pub fn relay_process(
     app_handle: AppHandle,
     request_id: String,
@@ -286,6 +310,7 @@ pub fn relay_process(
     cancel_flag: Arc<AtomicBool>,
     truncated: bool,
     finished: Arc<AtomicBool>,
+    research: bool,
 ) {
     std::thread::spawn(move || {
         let reader = BufReader::new(stdout);
@@ -293,6 +318,7 @@ pub fn relay_process(
         let mut saw_stream_output = false;
         // 정지 사유를 끈적하게 모은다(SPEC-AI-013 REQ-AI13-011).
         let mut completion = CompletionTracker::default();
+        let mut activity = ResearchActivity::default();
 
         for line in reader.lines() {
             let line = match line {
@@ -301,7 +327,14 @@ pub fn relay_process(
             };
             saw_stream_output = true;
             completion.observe(&line);
-            if let Some(text) = parse_text_delta(&line) {
+            let decision = decide_claude_line(&line, research, &mut activity);
+            if let Some(snapshot) = decision.activity {
+                let _ = app_handle.emit(
+                    "ai://research",
+                    ResearchPayload::new(&request_id, snapshot),
+                );
+            }
+            if let Some(text) = decision.chunk {
                 let _ = app_handle.emit(
                     "ai://chunk",
                     ChunkPayload {

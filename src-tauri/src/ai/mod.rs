@@ -331,6 +331,7 @@ pub fn ai_request(
             cancel_flag.clone(),
             truncated,
             finished.clone(),
+            web_allowed,
         ),
         // 기본(claude) 경로 — 기존 parse_text_delta/parse_final_result 사용(REQ-AI9-023 무변경).
         // 주의(M1): 와일드카드 폴밭은 claude 전용. 새 provider 추가 시 반드시 명시적 케이스를
@@ -344,6 +345,7 @@ pub fn ai_request(
             cancel_flag.clone(),
             truncated,
             finished.clone(),
+            web_allowed,
         ),
     }
 

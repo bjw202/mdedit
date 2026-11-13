@@ -16,10 +16,13 @@
 
 use crate::ai::claude_cli::{
     claim_terminal, decide_outcome, spawn_stdin_writer, ChunkPayload, DonePayload, ErrorPayload,
-    RelayOutcome,
+    RelayOutcome, ResearchPayload,
 };
 use crate::ai::provider::{AiProvider, AiRequest, Capabilities, ProviderStatus};
-use crate::ai::stream::{parse_codex_agent_message, parse_codex_turn_completed, Completion};
+use crate::ai::stream::{
+    decide_codex_line, parse_codex_agent_message, parse_codex_turn_completed, Completion,
+    ResearchActivity,
+};
 use crate::process_util::{login_shell_path, no_window};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -170,6 +173,8 @@ pub fn codex_done_payload(request_id: String, result: String, truncated: bool) -
 /// - `parse_codex_turn_completed` 가 true 면 `ai://done`(result=마지막 agent_message) emit(REQ-AI9-012).
 /// - chunk 1회 emit 후 turn.completed 없이 EOF 하면 폴백으로 done emit(REQ-AI9-013a).
 /// - 그 외 EOF 는 기존 `decide_outcome` 폴백(REQ-AI9-013). stderr 은 기존 `classify_stderr` 재사용(REQ-AI9-014).
+/// - `research`(SPEC-AI-016)면 `agent_message` 를 청크로 보내지 않고(마지막 본문은 그대로 최종 결과),
+///   도구 활동 누적값이 바뀔 때 `ai://research` 를 발행한다(항상 `ai://done` 보다 먼저).
 pub fn relay_codex_process(
     app_handle: AppHandle,
     request_id: String,
@@ -178,11 +183,13 @@ pub fn relay_codex_process(
     cancel_flag: Arc<AtomicBool>,
     truncated: bool,
     finished: Arc<AtomicBool>,
+    research: bool,
 ) {
     std::thread::spawn(move || {
         let reader = BufReader::new(stdout);
         let mut last_message: Option<String> = None;
         let mut saw_stream_output = false;
+        let mut activity = ResearchActivity::default();
 
         for line in reader.lines() {
             let line = match line {
@@ -190,17 +197,27 @@ pub fn relay_codex_process(
                 Err(_) => break,
             };
             saw_stream_output = true;
+            let decision = decide_codex_line(&line, research, &mut activity);
+            if let Some(snapshot) = decision.activity {
+                let _ = app_handle.emit(
+                    "ai://research",
+                    ResearchPayload::new(&request_id, snapshot),
+                );
+            }
             if let Some(text) = parse_codex_agent_message(&line) {
                 // REQ-AI9-011: agent_message 도착 즉시 ai://chunk 를 정확히 1회 emit(토큰 분할 금지).
                 // 완성본을 통째로 전달한다. 마지막 수신 본문을 기억해 turn.completed 시 result 로 사용.
-                last_message = Some(text.clone());
-                let _ = app_handle.emit(
-                    "ai://chunk",
-                    ChunkPayload {
-                        request_id: request_id.clone(),
-                        text,
-                    },
-                );
+                // 리서치(SPEC-AI-016)에서는 청크를 보내지 않고 최종 결과로만 쓴다(decision.chunk 가 None).
+                last_message = Some(text);
+                if let Some(chunk) = decision.chunk {
+                    let _ = app_handle.emit(
+                        "ai://chunk",
+                        ChunkPayload {
+                            request_id: request_id.clone(),
+                            text: chunk,
+                        },
+                    );
+                }
             } else if parse_codex_turn_completed(&line) {
                 // REQ-AI9-012: turn.completed 수신 시 ai://done emit. result 는 마지막 agent_message 본문.
                 // claim_terminal 단일 발행 — 워치독/ai_cancel/신규 요청 교체와 동일 finished 공유.
