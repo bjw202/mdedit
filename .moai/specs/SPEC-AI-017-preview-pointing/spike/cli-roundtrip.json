@@ -1,0 +1,42 @@
+[
+ {
+  "case": "table-column",
+  "tool": "claude-haiku",
+  "ms": 3630,
+  "exit": 0,
+  "valid": true,
+  "error": null,
+  "changed": true,
+  "hadFence": false
+ },
+ {
+  "case": "table-column",
+  "tool": "codex-default",
+  "ms": 7785,
+  "exit": 0,
+  "valid": true,
+  "error": null,
+  "changed": true,
+  "hadFence": false
+ },
+ {
+  "case": "diagram-node",
+  "tool": "claude-haiku",
+  "ms": 3761,
+  "exit": 0,
+  "valid": true,
+  "error": null,
+  "changed": true,
+  "hadFence": false
+ },
+ {
+  "case": "diagram-node",
+  "tool": "codex-default",
+  "ms": 7111,
+  "exit": 0,
+  "valid": true,
+  "error": null,
+  "changed": true,
+  "hadFence": false
+ }
+]

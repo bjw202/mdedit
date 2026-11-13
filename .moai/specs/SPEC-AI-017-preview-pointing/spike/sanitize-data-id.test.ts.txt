@@ -1,0 +1,40 @@
+// SPEC-AI-017 스파이크 (b) — 미리보기와 같은 경로(renderDiagram = pele + 다이어그램 전용 DOMPurify 정화)를 거친 SVG 에
+// data-id 가 남는지, 그리고 노드 안쪽 요소에서 closest('[data-id]') 로 노드 ID 를 되찾을 수 있는지 확인한다.
+// 실행 후 이름을 .txt 로 바꿔 보관한다(정규 테스트 묶음에 섞이지 않게).
+import { describe, it, expect } from 'vitest';
+import { renderDiagram } from '@/lib/diagram/diagramRenderer';
+
+const SAMPLES: Record<string, string> = {
+  flowchart: 'flowchart LR\n  A[주문] --> B{결제}\n  B -->|성공| C[완료]\n  subgraph S[묶음]\n    C\n  end',
+  sequence: 'sequenceDiagram\n  participant U as 사용자\n  participant S as 서버\n  U->>S: 요청\n  S-->>U: 응답',
+  state: 'stateDiagram-v2\n  [*] --> 대기\n  대기 --> 실행: 시작\n  실행 --> [*]',
+  class: 'classDiagram\n  class 주문 {\n    +id: string\n  }\n  주문 --> 결제',
+  er: 'erDiagram\n  CUSTOMER ||--o{ ORDER : places',
+  mindmap: 'mindmap\n  root((계획))\n    조사\n    실행',
+  pie: 'pie\n  "A": 3\n  "B": 5',
+  gantt: 'gantt\n  title 일정\n  section 단계\n  설계 :a1, 2026-01-01, 3d',
+};
+
+describe('spike: data-id after sanitize', () => {
+  for (const [name, src] of Object.entries(SAMPLES)) {
+    it(name, () => {
+      const r = renderDiagram(src);
+      const host = document.createElement('div');
+      if (!r.ok) {
+        console.log(`[spike] ${name}: render failed — ${r.error.message}`);
+        return;
+      }
+      host.innerHTML = r.svg;
+      const nodes = [...host.querySelectorAll('g.pele-node[data-id]')].map((g) => g.getAttribute('data-id'));
+      const clusters = [...host.querySelectorAll('g.pele-cluster[data-id]')].map((g) => g.getAttribute('data-id'));
+      const edges = [...host.querySelectorAll('g.pele-edge[data-id]')].map((g) => g.getAttribute('data-id'));
+      // 노드 안쪽 글자 요소에서 위로 올라가 노드 ID 를 찾는다(실제 클릭 대상은 대개 text/path 다).
+      const inner = host.querySelector('g.pele-node text, g.pele-node path, g.pele-node rect');
+      const viaClosest = inner?.closest('g.pele-node')?.getAttribute('data-id') ?? null;
+      console.log(
+        `[spike] ${name}: nodes=${JSON.stringify(nodes)} clusters=${JSON.stringify(clusters)} edges=${edges.length} closest=${viaClosest}`,
+      );
+      expect(r.ok).toBe(true);
+    });
+  }
+});

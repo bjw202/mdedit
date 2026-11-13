@@ -1,0 +1,44 @@
+[
+ {
+  "variant": "draft",
+  "run": 1,
+  "ms": 3659,
+  "changed": true,
+  "hasCacheNode": true
+ },
+ {
+  "variant": "draft",
+  "run": 2,
+  "ms": 2792,
+  "changed": false,
+  "hasCacheNode": false
+ },
+ {
+  "variant": "draft",
+  "run": 3,
+  "ms": 3864,
+  "changed": true,
+  "hasCacheNode": true
+ },
+ {
+  "variant": "revised",
+  "run": 1,
+  "ms": 3867,
+  "changed": true,
+  "hasCacheNode": true
+ },
+ {
+  "variant": "revised",
+  "run": 2,
+  "ms": 3945,
+  "changed": true,
+  "hasCacheNode": true
+ },
+ {
+  "variant": "revised",
+  "run": 3,
+  "ms": 4374,
+  "changed": true,
+  "hasCacheNode": true
+ }
+]
