@@ -99,3 +99,49 @@ Rust 테스트는 CI 가 돌리지 않는다(`release.yml:11`). 위가 유일한
 
 - run_status: audit-ready (수동 확인 AC-AI16-015·016 은 사용자 몫으로 대기)
 - run_complete_at: 2026-11-13
+
+## §E.4 Sync-phase Audit-Ready Signal
+
+- sync_status: 문서 동기화 완료, SPEC `implemented` (`completed` 아님 — 수동 확인 대기)
+- sync_base_head: 594bce0 (이 sync 커밋은 그 위에 쌓임)
+- 날짜: 2026-11-13
+
+### 바뀐 파일 (이번 sync)
+
+- `CHANGELOG.md` — `[Unreleased]` 맨 위에 `### Added` 항목 1건(Security 위)
+- `README.md` — 주요 기능·AI 기능 절의 프리셋 개수 6종 → 7종, 「🔎 리서치」 설명 추가
+- `docs/USER_GUIDE.md` — 4.1 절 제목·프리셋 표(리서치 행)·길이 제한 문장
+- `.moai/project/codemaps/overview.md` — AI 보조 설명에 리서치 추가
+- `.moai/specs/SPEC-AI-016-web-research/spec.md` — frontmatter `status: draft → implemented` 만(`updated`는 이미 2026-11-13). 본문 무변경
+- `.moai/specs/SPEC-AI-016-web-research/progress.md` — 이 절 추가
+
+확인했으나 바꾸지 않은 문서: `docs/USER_MANUAL.md`(AI 메뉴 항목 열거 없음, 'AI'가 들어간 곳은 mermaid·예제뿐), 나머지 codemaps(`frontend.md`·`pipelines.md`·`testing.md`는 이어쓰기·고스트 설명뿐이라 메뉴 항목 열거가 아님), `video/*`(영상 대본, 범위 밖).
+
+### 주장과 근거
+
+| 주장 | 근거 | 이번 sync 신규 관찰 여부 |
+| --- | --- | --- |
+| 런 단계 검증 수치(typecheck·lint 0, vitest 2159, cargo 443+3+8, AC-001~013 자동 통과) | 위 §E.2 기록 | 아니오 — §E.2 이월, 이번에 재실행하지 않음 |
+| spec.md 변경은 `status` 한 줄뿐 | `git diff --cached` 출력에서 `-status: draft` / `+status: implemented` 1줄 확인 | 예 |
+| CHANGELOG 파일 목록이 실제 변경과 일치 | `git diff --stat 03450c1..HEAD` 출력과 대조, 인용 경로 `ls` 확인 | 예 |
+| 문서의 리서치 비용·소요 시간·codex 권장 버전 | 지시문 수치를 그대로 옮김, §E.2 실측 기록에 근거 | 아니오 — 이월 |
+
+### 갭
+
+- plan 이 지정한 Playwright 스펙 없음(기존 e2e 는 CI 가 실행).
+- `ai://research` → `ai://done` 순서를 실제 Tauri 이벤트 루프에서 시험하지 않음.
+- codex 인자 테스트 RED 단계 캡처 누락.
+- 실 프로브가 `--skip-git-repo-check` 를 뺀 인자로 실행됨.
+- 문서 줄 길이·마크다운 린트·링크 검사는 이번에 돌리지 않음.
+- B12 자체 점검(AC 개수 일치)은 CHANGELOG 에 AC 개수를 쓰지 않아(범위 AC-001~013 서술) 별도 개수 대조를 하지 않음.
+
+### 잔여 위험
+
+- Claude WebFetch 는 사용자 PC 에서 접속하므로 주입된 지시로 인증 없는 로컬·사내 HTTPS 주소에 닿을 수 있음(R12). 후속 카드 t11 에서 주소 차단.
+- 옛 codex 버전은 `web_search` 키를 무시함(A3). 0.167 이상 권장.
+
+### 사용자 수동 확인 대기
+
+- AC-AI16-015: macOS 앱에서 claude·codex 각 1회, `ai://research` 가 `ai://done` 보다 먼저 도착하고 서술 문장이 없는지.
+- AC-AI16-016: Windows.
+- 둘 다 통과하면 `completed` 로 올리는 close 변경이 필요함(별도 처리).

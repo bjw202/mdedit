@@ -2,7 +2,7 @@
 id: SPEC-AI-016
 title: "AI 웹 리서치 동작 — 선택한 내용의 근거를 웹에서 찾아 출처와 함께 아래에 삽입"
 version: "0.2.1"
-status: draft
+status: implemented
 created: 2026-11-13
 updated: 2026-11-13
 author: jw

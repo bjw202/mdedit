@@ -4,6 +4,12 @@ All notable changes to MdEdit are documented here.
 
 ## [Unreleased]
 
+### Added
+- **AI '🔎 리서치' 동작 — 선택한 내용의 근거를 웹에서 찾아 출처와 함께 아래에 삽입 (SPEC-AI-016, 카드 t8)**: 글을 쓰다 보면 선택한 문장이 사실인지, 근거가 무엇인지 따로 검색해야 했습니다. 이제 ✨ 선택 툴바에 「🔎 리서치」가 생겼고, 고르면 AI가 웹에서 근거를 찾아 요약과 출처 목록을 제안 카드로 보여 줍니다. 결과는 「아래에 삽입」만 할 수 있고 원문을 바꾸지 않습니다. 카드에는 출처 목록이 나오며, 앱이 출처를 검증한 것이 아니라는 안내(미검증 출처 고지)가 함께 붙습니다. 한 번에 보통 20~33초가 걸립니다. 한 번 실행하는 비용은 정가 기준으로 haiku 약 $0.2, sonnet 약 $0.7입니다(구독으로 쓰면 달러 대신 사용량 한도가 줄어듭니다). codex는 0.167 이상을 권장합니다. 웹 도구는 리서치 동작에서만 켜지며, 그 밖의 모든 동작은 이전처럼 도구가 꺼진 상태입니다(codex 비리서치 요청의 셸·연결 앱·웹 검색 차단은 PR #100/카드 t10에서 이미 반영됨). 바뀐 파일: `src-tauri/src/ai/{claude_cli,codex_cli,mod,prompt,provider,stream}.rs`(프롬프트·인자·도구 활동 파서·`ai://research` 릴레이), `src/lib/ai/{aiEventRouter,researchSources,waitNotice}.ts`, `src/hooks/useAiRelay.ts`, `src/components/editor/extensions/{ai-selection-toolbar,ai-suggestion-card,ai-length-guard}.ts`, 테스트 `src/test/{aiResearch,researchSources,aiRelay,aiSelectionToolbar}.test.ts`와 실측 픽스처 `src-tauri/tests/fixtures/*`. 설명 문서: `README.md`, `docs/USER_GUIDE.md`, `.moai/project/codemaps/overview.md`.
+  - **확인한 것(런 단계 로컬 실행, `.moai/specs/SPEC-AI-016-web-research/progress.md` §E.2 기록 — 이번 sync에서 다시 돌리지 않음)**: typecheck·lint 종료 코드 0, vitest 124개 파일 2159개 테스트 통과, cargo 라이브러리 443개 + app_acl 3개 + asset_charset 8개 통과. 인수 기준 AC-AI16-001~013 자동 검증 통과. CI는 cargo test를 돌리지 않으므로 Rust 쪽 수치는 로컬 실행 기록입니다.
+  - **확인하지 못한 것**: (1) plan이 지정한 Playwright 스펙이 없습니다(기존 CI e2e는 그대로 돕니다). (2) `ai://research`가 `ai://done`보다 먼저 도착하는 순서는 실제 Tauri 이벤트 루프에서 시험하지 않았습니다. (3) codex 인자 테스트의 RED(실패 확인) 단계를 따로 캡처하지 못했습니다. (4) 실제 프로브는 `--skip-git-repo-check`를 뺀 인자로 돌렸습니다. (5) 사용자 수동 확인 AC-AI16-015(macOS 앱에서 claude·codex 각 1회, 알림이 먼저 도착하는지)와 AC-AI16-016(Windows)이 남아 있습니다.
+  - **받아들인 잔여 위험**: Claude의 WebFetch는 사용자 PC에서 접속하므로, 선택한 글에 섞인 지시문이 인증 없는 로컬·사내 HTTPS 주소를 열게 만들 수 있습니다. 주소 차단은 후속 카드 t11에서 다룹니다.
+
 ### Security
 - **codex AI 요청에서 셸·연결 앱·이미지 보기·웹 검색을 끔 (카드 t10)**: 기존에는 선택한 글에 섞인 지시문이 codex의 셸 도구와 연결 앱 도구(메일 발송·삭제, GitHub 병합 등)를 움직일 수 있었습니다(codex-cli 0.167.0 실측). 이제 모든 codex 요청에 `-c features.apps=false -c features.shell_tool=false -c features.view_image=false -c web_search=disabled`를 붙입니다. codex 0.167 이상을 권장하며, 구버전은 모르는 설정 이름을 무시합니다. 변경 파일: `src-tauri/src/ai/codex_cli.rs`.
 
