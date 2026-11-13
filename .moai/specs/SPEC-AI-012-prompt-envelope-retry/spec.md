@@ -1,8 +1,8 @@
 ---
 id: SPEC-AI-012
 title: "AI 프롬프트 데이터 봉투·지시 샌드위치·재요청 지시 분리"
-version: "1.0.0"
-status: implemented
+version: "1.0.1"
+status: completed
 created: 2026-11-13
 updated: 2026-11-13
 author: jw
@@ -26,6 +26,7 @@ dependencies:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-11-13 | jw | 최초 작성 — 백로그 카드 t4. 인라인 AI 편집 프롬프트의 구조 보강(데이터 봉투·지시 샌드위치·조건부 언어절)과 ↻ 재요청 지시 유실 버그 2건 수정. 사용자가 부재 중 자율 진행을 허락해, 아래 "Decisions" 절의 결정 D1~D10 을 사용자 대신 내렸다(D9·D10 은 계획 감사 1회차 지적 반영: 복구용 재요청의 지시 처리, 태그를 이름만으로 가리키기·고정 문구). |
+| 1.0.1 | 2026-11-13 | jw | 완료 처리 — 사용자가 실제 앱에서 수동 확인 항목을 확인함("잘 된다"). status implemented → completed. |
 
 ## Summary
 
