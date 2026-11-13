@@ -111,6 +111,8 @@
 6. 입력창은 `document.body` 포털(미리보기 zoom 영향 회피), 배치는 `menuPlacement` flip+clamp.
 7. 대기 강조 대상 정보는 카드 모델이 아니라 `pointRequest.ts` 의 `requestId → PointRef` 맵에 둔다.
 
+7-1. (2026-11-13, 사용자 결정) 가리키기 수정키: macOS 는 ⌥+클릭 그대로, 그 외 OS(Windows)는 Alt 또는 Ctrl+클릭 둘 다 받는다. macOS 의 Ctrl+클릭(컨텍스트 메뉴)은 받지 않는다. 이유: Windows 에서 Alt 를 떼면 창 메뉴가 포커스를 가져갈 수 있어 Ctrl+클릭이 더 안전한 대안이다. Ctrl+휠 줌은 그대로이며 Ctrl 을 누르는 동안 강조가 켜질 수 있다. 구현: 커밋 9385f67(`src/lib/preview/pointModifier.ts`, `PreviewRenderer.tsx`). 검증: 단위 테스트 신규 10개, vitest 54개 + 37개 통과, tsc 0, eslint 0(직접 실행). Playwright 는 로컬에서 다시 돌리지 않았고 CI 가 돌린다. sync-auditor 0.88 검토는 이 변경보다 앞서 이뤄졌고, 이 변경은 다시 감사받지 않았다. 문서(spec 0.2.3·acceptance AC-AI17-016·USER_GUIDE 4.4·README·CHANGELOG)를 이에 맞춰 고쳤다.
+
 ### Gaps (관찰하지 못한 것)
 
 - 실제 claude/codex 왕복(AC-015)과 Windows Alt(AC-016) — 사용자 수동 확인 대기.
