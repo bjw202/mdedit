@@ -276,6 +276,8 @@ export interface AiRequestArgs {
   contextAfter?: string;
   outline?: string;
   customInstruction?: string;
+  /** SPEC-AI-017: 미리보기에서 가리킨 대상(Rust `pointer`). 가리키기 프리셋에서만 싣는다. */
+  pointer?: string;
   /**
    * SPEC-AI-012 REQ-AI12-007/008: ↻ 재요청의 추가 지시(원래 customInstruction 과 분리). 인라인
    * 6기능 재요청에서만 실리며 Rust `additional_instruction`(`#[serde(default)]`)로 매핑된다.
