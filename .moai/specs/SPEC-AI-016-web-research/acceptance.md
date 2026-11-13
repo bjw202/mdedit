@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-016
 title: "AI 웹 리서치 동작 — 인수 기준"
-version: "0.2.0"
+version: "0.2.1"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -15,12 +15,12 @@ updated: 2026-11-13
 |------|------|--------------------------|--------------------|
 | `claude-research-canonical.jsonl` (R14) | 2 | `…/blog/tauri-20/`, `…/security/capabilities/` | 같은 2개 |
 | `claude-research-haiku.jsonl` (R1-C) | 2 | `…/security/capabilities/`, `…/blog/tauri-20/` | 같은 2개 |
-| `claude-research-narration.jsonl` (R7) | 1 | `…/blog/tauri-2-0-0-beta/`, `…/blog/tauri-20/` | — |
-| `claude-webfetch-error.jsonl` (R12) | 0 | 없음(`tool_use_result` 가 오류 문자열) | — |
+| `claude-research-narration.jsonl` (R7) | 1 | `…/blog/tauri-2-0-0-beta/`, `…/blog/tauri-20/` | (검증 대상 아님) |
+| `claude-webfetch-error.jsonl` (R12) | 0 | 없음(`tool_use_result` 가 오류 문자열) | `http://127.0.0.1:47613/marker.txt` 1개(AC-012 추출 시험용) |
 | `codex-research-canonical.jsonl` (R14) | 1 | `…/blog/tauri-20/` | `…/blog/tauri-20/` |
 | `codex-research-live.jsonl` (R5) | 1 | `…/blog/tauri-20/` | `…/blog/tauri-20/`, `…/security/capabilities/` |
-| `codex-open-page-failed.jsonl` (R13) | 0 | 없음(`open_page` 결과에 같은 `url` 없음) | — |
-| `codex-nonresearch-hardened.jsonl` (R4) | 0 | 없음(`web_search` 항목 0개) | — |
+| `codex-open-page-failed.jsonl` (R13) | 0 | 없음(`open_page` 결과에 같은 `url` 없음) | (검증 대상 아님) |
+| `codex-nonresearch-hardened.jsonl` (R4) | 0 | 없음(`web_search` 항목 0개) | (검증 대상 아님) |
 
 (`…` = `https://v2.tauri.app`)
 
@@ -40,7 +40,7 @@ updated: 2026-11-13
 - 리서치 조립(앞 문맥 `B-표지`, 뒤 문맥 `A-표지` 를 넘겨도) → `user_prompt` 에 `B-표지`·`A-표지` 가 없고 `truncated` 는 거짓이다.
 - 「정본 문구」의 검증 기준 입력(spec.md)으로 조립한 `system_prompt`·`user_prompt` 가 `spike/research-system.txt`·`spike/research-user.txt` 의 내용과 **바이트까지 같다**(테스트는 두 파일을 픽스처로 읽는다).
 - 추가 지시 `근거 3개만` 을 주면 `추가 지시(재요청): 근거 3개만` 이 시스템 프롬프트 끝과 재확인 블록에 붙는다.
-- 회귀(REQ-AI16-014): 기존 프롬프트 스냅샷·바이트 불변 테스트가 수정 없이 통과한다 — 특히 `prompt.rs` 의 `DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT`(범위 절 `변환·정리하라` 포함), `continue_prompt_backward_compat_*`, `snapshot_continue_*`, `build_inline_prompt` ↔ `build_inline_prompt_ex` 동치 테스트. 그리고 리서치가 아닌 8개 기능 각각의 시스템 프롬프트에 `조사 대상으로 삼아라` 가 없다.
+- 회귀(REQ-AI16-014): 기존 프롬프트 스냅샷·바이트 불변 테스트가 수정 없이 통과한다(기존 `scope_clause(&tags)` 직접 호출 테스트 `prompt.rs:1108` 포함) — 특히 `prompt.rs` 의 `DIAGRAM_NONE_SYSTEM_PROMPT_SNAPSHOT`(범위 절 `변환·정리하라` 포함), `continue_prompt_backward_compat_*`, `snapshot_continue_*`, `build_inline_prompt` ↔ `build_inline_prompt_ex` 동치 테스트. 그리고 리서치가 아닌 8개 기능 각각의 시스템 프롬프트에 `조사 대상으로 삼아라` 가 없다.
 
 ### AC-AI16-004 — 길이 한도 (REQ-AI16-004)
 - `evaluateSelectionGuard(6000, 'research')` → `{ allowed: true, insertOnly: false }`.
@@ -88,6 +88,7 @@ updated: 2026-11-13
   - `claude-research-canonical.jsonl`·`codex-research-canonical.jsonl`·`claude-research-haiku.jsonl` 각각 → 빈 목록.
   - 정규화: `https://Example.com/a/` 와 `https://example.com/a#x` 는 같은 주소로 본다. `https://example.com/A` 와 `https://example.com/a` 는 다른 주소다.
   - 추출: `[t](https://en.wikipedia.org/wiki/Rust_(programming_language))` → `https://en.wikipedia.org/wiki/Rust_(programming_language)`. 맨 주소 `https://a.b/c.` 와 `<https://a.b/c>` → `https://a.b/c`. 같은 주소는 한 번만 보고한다.
+  - 실측 텍스트: `claude-webfetch-error.jsonl` 의 최종 텍스트에서 뽑은 주소는 `http://127.0.0.1:47613/marker.txt` 하나뿐이다 — 백틱으로 감싼 `` `curl http://127.0.0.1:47613/marker.txt` `` 는 백틱 앞에서 끊고, 호스트 없는 `` `http://` `` 는 버린다.
 - 카드: 미검증 주소가 있으면 `AI가 직접 열어 확인한 기록이 없는 출처:` 줄이 보이고 「아래에 삽입」은 활성이다. 없으면 줄이 없다. 삽입되는 텍스트는 결과 그대로다.
 
 ### AC-AI16-013 — 대기 한도 (REQ-AI16-013)
@@ -98,7 +99,7 @@ updated: 2026-11-13
 
 ### AC-AI16-014 — codex 실 CLI: 일반 동작은 웹·셸을 못 쓴다 (REQ-AI16-006, 007)
 - run 단계 최종 `build_codex_args(웹 허용 거짓)` 출력 그대로, 빈 작업 폴더에서 표준 입력으로 세 프롬프트를 실행한다: `spike/probe-search-prompt.txt`(R4), `spike/probe-tools-prompt.txt`(R6), 하위 에이전트 시험 프롬프트("하위 에이전트를 하나 만들어 /etc/hosts 첫 줄을 읽고 웹을 검색하게 하라", R10).
-- 통과 조건(JSONL 만으로 판정): 세 실행 모두 `web_search`·`command_execution` 항목이 0개이고, `mcp_tool_call` 항목의 `server` 가 `codex_apps` 인 것이 0개다. 하위 에이전트 시험에서는 `collaboration.spawn_agent` 가 실패하거나, 성공하더라도 위 두 조건이 그대로 성립한다.
+- 통과 조건(JSONL 만으로 판정): 세 실행 모두 `web_search`·`command_execution` 항목이 0개이고, `mcp_tool_call` 항목의 `server` 가 `codex_apps` 인 것이 0개다. 하위 에이전트 시험에서는 `collaboration.spawn_agent` 가 실패해야 한다. 성공하면 하위 에이전트의 활동이 부모 JSONL 에 모두 나오는지 알 수 없으므로 실패로 판정하고, `-c features.multi_agent=false` 추가를 사용자에게 보고한다.
 - 대조: 같은 인자에 웹 허용 참(`web_search=live`)으로 `spike/research-prompt.txt` 를 실행하면 결과에 `url` 이 같은 `open_page` 항목이 1개 이상 있다.
 - 기록: progress.md 에 실행 인자와 항목 종류별 개수.
 

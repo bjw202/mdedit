@@ -1,7 +1,7 @@
 ---
 id: SPEC-AI-016
 title: "AI 웹 리서치 동작 — 구현 계획"
-version: "0.2.0"
+version: "0.2.1"
 status: draft
 created: 2026-11-13
 updated: 2026-11-13
@@ -11,7 +11,7 @@ updated: 2026-11-13
 
 ## 등급과 방법론
 
-- 등급: **Tier M** — 기존 운영 파일 12개(Rust 6, TS 6) + 새 순수 모듈 1개(TS) + 픽스처 8개, 예상 500~800줄(테스트 포함). 산출물 3종(spec·plan·acceptance) + progress.md.
+- 등급: **Tier M** — 기존 운영 파일 12개(Rust 6, TS 6) + 새 순수 모듈 1개(TS) + 픽스처(캡처 8개 + 기준 프롬프트 2개), 예상 500~800줄(테스트 포함). 산출물 3종(spec·plan·acceptance) + progress.md.
 - 방법론: TDD(RED → GREEN → REFACTOR). 파서·인자·판정은 모두 순수 함수로 두고 실측 캡처로 먼저 실패하는 테스트를 쓴다.
 - 실행 형태: 순차 서브에이전트 1개(코딩 위주, 파일 간 의존이 있음). 하위 에이전트를 `isolation: "worktree"` 로 띄우지 않는다.
 
@@ -31,7 +31,7 @@ updated: 2026-11-13
 ### M2 — 백엔드 기능·프롬프트·인자 (Priority: High)
 - `prompt.rs`:
   - `AiFeature::Research`, `resolve` 의 `"research"`, `task_text` 에 spec.md 「정본 문구」의 작업 문장(상수), `allows_web()`.
-  - `scope_clause` 가 기능에 따라 동사를 고른다: 리서치만 `조사 대상으로 삼아라`, 나머지는 기존 `변환·정리하라`(바이트 그대로).
+  - 리서치 전용 범위 절 함수를 새로 두고(첫 문장 동사만 `조사 대상으로 삼아라`, 나머지 문장은 기존과 같음) 리서치 조립에서만 쓴다. 기존 `scope_clause(&tags)` 는 시그니처·출력을 그대로 둔다 — 이를 직접 부르는 기존 테스트(`prompt.rs:1108`)를 고치지 않기 위해서다.
   - `allows_markdown_fence()` 는 리서치에서 거짓(현행 기본).
 - `provider.rs`: `AiRequest` 에 웹 허용 필드(이름은 구현 시 정하되 프런트 인자에서 오지 않을 것).
 - `mod.rs`: 리서치면 `build_inline_prompt_ex(&feature, selection, "", "", None, additional, request_id)`; 웹 허용 = `feature.allows_web()`; 워치독 `if 웹 허용 { 180 } else { watchdog_timeout_secs(n) }`(리서치 상수 이름을 두고 TS 상수와 짝 테스트); 릴레이에 리서치 여부 전달.
@@ -94,7 +94,7 @@ updated: 2026-11-13
 | `ai://research` 와 `ai://done` 의 도착 순서가 뒤집힘(A1) | 열어 본 주소까지 "확인 기록 없음"으로 뜬다 | 같은 릴레이 스레드에서 순서대로 발행. AC-AI16-015 에서 확인하고, 어긋나면 열어 본 목록을 `ai://done` 에도 실어 카드가 그 값을 쓰게 바꾼다(스토어 필드 1개 추가) |
 | codex 가 `web_search` 값 이름을 바꿈 | 아는 키의 모르는 값은 설정 오류로 실행 실패(R9) — 모든 codex 동작이 오류 카드가 된다 | 실패는 기존 `decide_outcome` 이 오류 카드로 보여 준다(조용히 깨지지 않음). 기능 끄기는 이름 무시형 `-c features.*` 라 그쪽 위험은 없다. 검증 버전(0.167.0)을 `@MX:NOTE` 에 적는다 |
 | 옛 codex(0.144 등)가 `web_search` 키를 모름(A3) | 키가 무시되어(R11) 그 버전의 내장 웹 검색이 꺼지지 않을 수 있다. 앱은 깨지지 않는다 | progress.md·sync 문서에 "codex 0.167 이상 권장"으로 적는다. 버전 검사 기능은 범위 밖 |
-| codex 하위 에이전트 | R10: `--ephemeral` 에서 시작하지 못함 | AC-AI16-014 에서 최종 인자로 다시 확인. 시작된다면 그 실행의 JSONL 로 셸·웹 활동 0건을 확인하고, 뚫리면 `-c features.multi_agent=false` 추가를 사용자에게 보고(이름 무시형이라 부작용 없음) |
+| codex 하위 에이전트 | R10: `--ephemeral` 에서 시작하지 못함 | AC-AI16-014 에서 최종 인자로 다시 확인. 시작되면 실패로 판정하고 `-c features.multi_agent=false` 추가를 사용자에게 보고(이름 무시형이라 부작용 없음) |
 | claude WebFetch 의 로컬·사내 HTTPS 접근(R12) | 주입 지시가 성공하면 인증 없이 열리는 로컬·사내 HTTPS 서비스 내용이 샐 수 있다 | spec.md 「잔여 위험」. 도메인 차단은 범위 밖, 후속 과제 후보로 sync 보고에 적는다 |
 | 리서치 비용(haiku 약 $0.2, sonnet 약 $0.7) | 사용량 한도 소진 | sync 문서·사용자 안내에 실측 값을 적는다. 비용 확인 창은 범위 밖 |
 | 웹·선택 텍스트 속 주입 지시 | 선택 텍스트(최대 6,000자)가 외부 주소로 새어 나갈 수 있다 | spec.md 「잔여 위험」 표의 장치 |
