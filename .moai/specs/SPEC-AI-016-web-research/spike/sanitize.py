@@ -32,3 +32,8 @@ clean("cl-haiku", "claude-research-haiku.jsonl")
 clean("cl-narr", "claude-research-narration.jsonl")
 clean("cx-research","codex-research-live.jsonl")
 clean("cx-off3", "codex-nonresearch-hardened.jsonl")
+# 2차(감사 반영): 실제 조립기와 같은 모양의 정본 프롬프트로 다시 잰 캡처 + 실패 모양 캡처
+clean("cl-canon", "claude-research-canonical.jsonl")
+clean("cx-canon", "codex-research-canonical.jsonl")
+clean("cl-local", "claude-webfetch-error.jsonl")
+clean("cx-local", "codex-open-page-failed.jsonl")
