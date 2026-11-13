@@ -1,8 +1,8 @@
 ---
 id: SPEC-AI-013
 title: "긴 선택 허용 — 표준 입력 전달·크기 비례 대기 한도·원문 손실 방지"
-version: "0.2.1"
-status: implemented
+version: "0.2.2"
+status: completed
 created: 2026-11-13
 updated: 2026-11-13
 author: jw
@@ -26,6 +26,7 @@ issue_number: null
 | 0.1.0 | 2026-11-13 | jw | 최초 작성 — 백로그 카드 t5(긴 선택 허용). 사용자는 자리를 비운 상태에서 자율 진행을 허락했고, 계획 워커가 사용자 대신 내린 결정은 「사용자 대신 내린 결정」 절에 남긴다. |
 | 0.2.0 | 2026-11-13 | jw | plan-auditor 1차(FAIL 0.77) 반영. (1) 정상 경로에서 `done` 은 라우터가 아니라 `aiStore` 구독으로 카드에 닿으므로 `completion` 을 스토어까지 실어 나르도록 범위에 `src/store/aiStore.ts` 추가. (2) REQ 20건 → 15건으로 병합(Tier M 상한 16). (3) claude 시스템 프롬프트도 `--system-prompt-file` 로 옮김 — 직접 입력 프리셋은 사용자가 친 지시문을 시스템 프롬프트에 넣으므로(`prompt.rs:111`) 인자로 남기면 Windows 한도·여러 줄 이스케이프 문제가 그대로 남는다. (4) 한 번이라도 `max_tokens` 를 보면 `cutoff` 로 고정. (5) 「바꾸기」 판정 길이·이유 문구 표시 조건·이모지 표 행 조건 명확화. (6) 위험 표에 Rust 테스트 CI 미실행·Windows 미확인 추가. 줄 번호 정정. |
 | 0.2.1 | 2026-11-13 | jw | plan-auditor 2차(FAIL 0.87, 막힘 2건) 반영. (1) 시스템 프롬프트 파일을 작업 폴더(`ai-scratch`, 비어 있어야 하는 격리 폴더) 밖 `<app_data>/ai-prompt/` 로 옮기고 AC-AI13-001 에 작업 폴더가 비어 있음을 확인하는 단언 추가. (2) 2,000/2,001자 경계 AC 추가(AC-AI13-012). 부수: `--system-prompt-file` 제거 위험, AC-003 읽기 순서, 겹침 표, 지시문 길이 미반영 근거 보강. |
+| 0.2.2 | 2026-11-13 | jw | 완료 처리 — 사용자가 macOS 실제 앱과 Windows에서 수동 확인 항목을 확인함("윈도우에서도 문제없이 동작한다", v0.22.0). status implemented → completed. |
 
 ## Summary
 
